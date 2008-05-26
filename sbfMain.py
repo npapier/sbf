@@ -105,11 +105,12 @@
 
 
 ###### imports ######
+from __future__ import with_statement
+
 import datetime
 import distutils.archive_util
 import glob
 import os
-import re
 import string
 import sys
 
@@ -467,7 +468,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.6.2'
+	return '0.6.3'
 
 
 ###### Print action function ######
@@ -507,8 +508,11 @@ def printDoxygenBuild( target, source, localenv ) :
 def printDoxygenInstall( target, source, localenv ) :
 	return "\n----------------------- Install doxygen documentation -----------------------"
 
+def printVisualStudioProjectStage( target, source, localenv ) :
+	return "\n----------------------- Visual Studio Project generation stage -----------------------\n"
+
 def printVisualStudioProjectBuild( target, source, localenv ) :
-	return "\n----------------------- Build %s Visual Studio Project -----------------------" % localenv['sbf_projectPathName']
+	return "\n----------------------- Build %s Visual Studio Project -----------------------\n--- from %s ---" % (localenv['sbf_project'], localenv['sbf_projectPath'])
 
 
 
@@ -519,6 +523,9 @@ class SConsBuildFramework :
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release', 'nodeps', 'deps', 'noexclude', 'exclude']
 	myCmdLineOptions				= set( myCmdLineOptionsList )
+
+	# sbf environment
+	mySCONS_BUILD_FRAMEWORK			= ''
 
 	# SCons environment
 	myEnv							= None
@@ -599,6 +606,9 @@ class SConsBuildFramework :
 	###### Constructor ######
 	def __init__(self) :
 
+		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
+		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
+
 		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
 		homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
 
@@ -607,9 +617,7 @@ class SConsBuildFramework :
 			self.mySBFOptions = self.readSConsBuildFrameworkOptions( homeSConsBuildFrameworkOptions )
 		else :
 			# Reads from $SCONS_BUILD_FRAMEWORK directory.
-			sbf_root			= os.getenv('SCONS_BUILD_FRAMEWORK')
-			sbf_root_normalized	= getNormalizedPathname( sbf_root )
-			self.mySBFOptions	= self.readSConsBuildFrameworkOptions( os.path.join( sbf_root_normalized, 'SConsBuildFramework.options' ) )
+			self.mySBFOptions	= self.readSConsBuildFrameworkOptions( os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' ) )
 
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions )
@@ -660,8 +668,11 @@ Type:
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
  'scons vcproj' to build Microsoft Visual Studio project file(s).
+ 'scons vcprojng' to build Microsoft Visual Studio project file(s).
+ 'scons vcprojng_clean' or 'scons vcprojng_mrproper'
 
  'scons dox' to generate doxygen documentation.
+ 'scons dox_clean' or 'scons dox_mrproper'
 
  'scons zipRuntime'
  'scons zipDev'
@@ -1564,9 +1575,11 @@ SConsBuildFramework options:
 		### Configures lenv
 		lenv['sbf_bin']							= []
 		lenv['sbf_include']						= filesFromInclude
+		lenv['sbf_share']						= filesFromShare
+		lenv['sbf_src']							= filesFromSrc
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
-		lenv['sbf_share']						= filesFromShare
+		lenv['sbf_files']						= glob.glob( self.myProjectPathName + os.sep + '*.options' )
 
 		for elt in installInBinTarget :
 			lenv['sbf_bin'].append( elt.abspath )
@@ -1658,6 +1671,171 @@ env.sbf.buildProject( env['sbf_projectPathName'] )
 Alias( 'svnCheckout', env.Command('dummySvnCheckout.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 
+### special target : vcprojng ###
+# @todo After stabilization, renames vcproj => vcprojOld and vcprojng => vcproj
+# @todo Generates vcproj but with c++ project and not makefile project.
+# @todo Generates eclipse cdt project.
+
+def vcprojAction( target, source, env ) :
+
+	# Retrieves/computes additionnal informations
+	targetName = str(target[0])
+	sourceName = str(source[0])
+
+	myInstallDirectory = env.sbf.myInstallDirectory
+
+	MSVSProjectBuildTarget			= ''
+	MSVSProjectBuildTargetDirectory	= ''
+	if len(env['sbf_bin']) > 0 :
+		MSVSProjectBuildTarget = os.path.basename( env['sbf_bin'][0] )
+		MSVSProjectBuildTargetDirectory = 'bin'
+	elif len(env['sbf_lib_object_for_developer']) > 0 :
+		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object_for_developer'][0] )
+		MSVSProjectBuildTargetDirectory = 'lib'
+	elif len(env['sbf_lib_object']) > 0 :
+		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
+		MSVSProjectBuildTargetDirectory = 'lib'
+	else :
+		raise SCons.Errors.StopError, 'Unexpected case in vcproj generation.'
+
+	debugIndex = MSVSProjectBuildTarget.rfind( '_D.' )
+	if debugIndex == -1 :
+		# It's not a debug target
+		MSVSProjectBuildTargetRelease	= MSVSProjectBuildTarget
+		(filename, extension) = os.path.splitext(MSVSProjectBuildTarget)
+		MSVSProjectBuildTargetDebug		= filename + '_D' + extension
+	else :
+		# It's a debug target
+		MSVSProjectBuildTargetRelease	= MSVSProjectBuildTarget.replace('_D.', '.', 1)
+		MSVSProjectBuildTargetDebug		= MSVSProjectBuildTarget
+
+	# Creates new output file (vcproj)
+	targetFile = open( targetName, 'w')
+
+	# Opens template input file
+	with open( sourceName ) as sourceFile :
+		# Computes regular expressions
+		customizePoint		= r"^#sbf"
+		reCustomizePoint	= re.compile( customizePoint )
+		re_sbfProjectName		= re.compile( customizePoint + r"(.*)(sbfProjectName)(.*)$" )
+		re_sbfProjectPathName	= re.compile( customizePoint + r"(.*)(sbfProjectPathName)(.*)$" )
+		re_sbfOutputDebug		= re.compile( customizePoint + r"(.*)(sbfOutputDebug)(.*)$" )
+		re_sbfOutputRelease		= re.compile( customizePoint + r"(.*)(sbfOutputRelease)(.*)$" )
+		re_sbfInclude			= re.compile( customizePoint + r"(.*)(sbfInclude)(.*)$" )
+		re_sbfShare				= re.compile( customizePoint + r"(.*)(sbfShare)(.*)$" )
+		re_sbfSrc				= re.compile( customizePoint + r"(.*)(sbfSrc)(.*)$" )
+		re_sbfFiles				= re.compile( customizePoint + r"(.*)(sbfFiles)(.*)$" )
+
+		for line in sourceFile :
+			# Tests if the incoming line has a customization point, i.e. '#sbf' at the beginning.
+			if reCustomizePoint.search( line ) is None :
+				# Writes the line without any modifications
+				targetFile.write( line )
+			else :
+				# The line must be customized
+
+				# sbfProjectName customization point
+				res = re_sbfProjectName.match(line)
+				if res != None :
+					newLine = res.expand(r"\1%s\3\n" % env['sbf_project'] )
+					targetFile.write( newLine )
+					continue
+
+				# sbfProjectPathName customization point
+				res = re_sbfProjectPathName.match(line)
+				if res != None :
+					newLine = res.expand( r"\1%s\3\n" % env['sbf_projectPathName'].replace('\\', '\\\\') )
+					targetFile.write( newLine )
+					continue
+
+				# sbfOutputDebug customization point
+				res = re_sbfOutputDebug.match(line)
+				if res != None :
+					outputDebug = os.path.join(	myInstallDirectory,
+												MSVSProjectBuildTargetDirectory,
+												MSVSProjectBuildTargetDebug )
+					newLine = res.expand( r"\1%s\3\n" % outputDebug.replace('\\', '\\\\') )
+					targetFile.write( newLine )
+					continue
+
+				# sbfOutputRelease customization point
+				res = re_sbfOutputRelease.match(line)
+				if res != None :
+					outputRelease = os.path.join(	myInstallDirectory,
+													MSVSProjectBuildTargetDirectory,
+													MSVSProjectBuildTargetRelease )
+					newLine = res.expand( r"\1%s\3\n" % outputRelease.replace('\\', '\\\\') )
+					targetFile.write( newLine )
+					continue
+
+				# sbfInclude customization point
+				res = re_sbfInclude.match(line)
+				if res != None :
+					for file in env['sbf_include'] :
+						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
+#
+#???
+#					include = env['sbf_include']
+#					print include
+#					include.sort()
+#					print include
+#
+					continue
+				# re_sbfShare customization point
+				res = re_sbfShare.match(line)
+				if res != None :
+					for file in env['sbf_share'] :
+						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
+					continue
+				# sbfSrc customization point
+				res = re_sbfSrc.match(line)
+				if res != None :
+					for file in env['sbf_src'] :
+						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
+					continue
+				# sbfFiles customization point
+				res = re_sbfFiles.match(line)
+				if res != None :
+					for file in env['sbf_files'] :
+						targetFile.write( "\t\t<File RelativePath=\"%s\"></File>\n" % file );
+					continue
+
+				raise SCons.Errors.StopError, "Unexpected customization point in vcproj generation. The error occurs on the following line :\n%s" % line
+
+
+
+if	'vcprojng_build' in env.sbf.myBuildTargets or \
+	'vcprojng' in env.sbf.myBuildTargets or \
+	'vcprojng_clean' in env.sbf.myBuildTargets or \
+	'vcprojng_mrproper' in env.sbf.myBuildTargets :
+
+	if	'vcprojng_clean' in env.sbf.myBuildTargets or \
+		'vcprojng_mrproper' in env.sbf.myBuildTargets :
+		env.SetOption('clean', 1)
+
+	# Retrieves template location
+	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
+
+	#
+	env.Alias( 'vcprojng_build_print', env.Command('vcprojng_build_print.out1', 'dummy.in', Action( nopAction, printVisualStudioProjectStage ) ) )
+
+	# target vcprojng_build
+	env.Alias( 'vcprojng_build', 'vcprojng_build_print' )
+
+	for projectName in env.sbf.myParsedProjects :
+		lenv			= env.sbf.myParsedProjects[projectName]
+		projectPathName	= lenv['sbf_projectPathName']
+		project			= lenv['sbf_project']
+		output			= getNormalizedPathname( projectPathName + os.sep + project + 'ng.vcproj' )						# @todo remove ng
+		env.Alias( 'vcprojng_build_print', lenv.Command('vcprojng_build_print_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
+		env.Alias( 'vcprojng_build', lenv.Command( output, templatePath, Action( vcprojAction, nopAction) ) )
+
+	env.Alias( 'vcprojng', 'vcprojng_build' )
+	env.Alias( 'vcprojng_clean', 'vcprojng' )
+	env.Alias( 'vcprojng_mrproper', 'vcprojng_clean' )
+
+
+
 ### special doxygen related targets : dox_build dox_install dox dox_clean dox_mrproper ###
 
 # Creates a custom doxyfile
@@ -1747,7 +1925,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 	env.Alias( 'dox_build_print', env.Command('dox_build_print.out1', 'dummy.in', Action( nopAction, printDoxygenBuild ) ) )
 
 	#@todo use other doxyfile(s). see doxInputDoxyfile
-	doxInputDoxyfile		= os.path.join(os.getenv('SCONS_BUILD_FRAMEWORK'), 'doxyfile')
+	doxInputDoxyfile		= os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'doxyfile')
 	doxOutputPath			= os.path.join(env.sbf.myBuildPath, env.sbf.myProject, 'doxygen', env.sbf.myVersion )
 	doxOutputCustomDoxyfile	= os.path.join(doxOutputPath, 'doxyfile.sbf')
 
