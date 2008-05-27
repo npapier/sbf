@@ -211,7 +211,7 @@ def use_sofa( self, lenv, elt ) :
 	lenv['LIBS']	+= ['SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation', 'SofaTree', 'SofaAutomateScheduler']
 
 	if self.myPlatform == 'win32' :
-		lenv['LIBS'] += ['libxml2', 'miniFlowvR', 'NewMAT', 'Gdi32', 'Shell32']
+		lenv['LIBS'] += ['glew32', 'libxml2', 'miniFlowvR', 'NewMAT', 'Gdi32', 'Shell32']
 		if self.myConfig == 'release' :
 			lenv['LIBPATH']	+= [ os.path.join( sofa_path, 'lib/win32/ReleaseVC8') ]
 		else :
