@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8,00"
+#sbf	Name="sbfProjectName"
+#sbf	ProjectGUID="sbfProjectPathName"
+	Keyword="MakeFileProj"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="0"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="scons debug"
+				ReBuildCommandLine="scons debug"
+				CleanCommandLine="scons debug mrproper"
+#sbf				Output="sbfOutputDebug"
+				PreprocessorDefinitions=""
+				IncludeSearchPath="include"
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="0"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="scons release"
+				ReBuildCommandLine="scons release"
+				CleanCommandLine="scons release mrproper"
+#sbf				Output="sbfOutputRelease"
+				PreprocessorDefinitions=""
+				IncludeSearchPath="include"
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Header Files"
+			Filter="h;hpp;hxx"
+			>
+#sbf			sbfInclude
+		</Filter>
+		<Filter
+			Name="Share Files"
+			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
+			>
+#sbf			sbfShare
+		</Filter>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cc;cxx"
+			>
+#sbf			sbfSrc
+		</Filter>
+#sbf			sbfFiles
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>
