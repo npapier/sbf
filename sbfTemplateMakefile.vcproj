@@ -23,8 +23,8 @@
 			<Tool
 				Name="VCNMakeTool"
 				BuildCommandLine="scons debug"
-				ReBuildCommandLine="scons debug"
-				CleanCommandLine="scons debug mrproper"
+				ReBuildCommandLine="scons debug mrproper &amp; scons debug"
+				CleanCommandLine="scons debug clean"
 #sbf				Output="sbfOutputDebug"
 				PreprocessorDefinitions=""
 				IncludeSearchPath="include"
@@ -43,8 +43,8 @@
 			<Tool
 				Name="VCNMakeTool"
 				BuildCommandLine="scons release"
-				ReBuildCommandLine="scons release"
-				CleanCommandLine="scons release mrproper"
+				ReBuildCommandLine="scons release mrproper &amp; scons release"
+				CleanCommandLine="scons release clean"
 #sbf				Output="sbfOutputRelease"
 				PreprocessorDefinitions=""
 				IncludeSearchPath="include"
@@ -58,22 +58,13 @@
 	<References>
 	</References>
 	<Files>
-		<Filter
-			Name="Header Files"
-			Filter="h;hpp;hxx"
-			>
+			<Filter Name="Header Files" Filter="">
 #sbf			sbfInclude
-		</Filter>
-		<Filter
-			Name="Share Files"
-			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
-			>
+			</Filter>
+		<Filter Name="Share Files" Filter="">
 #sbf			sbfShare
 		</Filter>
-		<Filter
-			Name="Source Files"
-			Filter="cpp;c;cc;cxx"
-			>
+		<Filter Name="Source Files" Filter="">
 #sbf			sbfSrc
 		</Filter>
 #sbf			sbfFiles

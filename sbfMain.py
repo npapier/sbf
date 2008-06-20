@@ -468,7 +468,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.6.3'
+	return '0.6.4'
 
 
 ###### Print action function ######
@@ -1672,9 +1672,67 @@ Alias( 'svnCheckout', env.Command('dummySvnCheckout.out1', 'dummy.in', Action( n
 Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 
 ### special target : vcprojng ###
+
+# @todo Generates project.vcproj.NPAPIER.npapier.user for debug options
+# @todo Creates a new python file for vcproj stuffs and embedded file sbfTemplateMakefile.vcproj
+# @todo Generates section "Header Files", "Share Files" and "Source Files" only if not empty.
+# @todo Generates sln
 # @todo After stabilization, renames vcproj => vcprojOld and vcprojng => vcproj
+# @todo Configures localExt include path.
 # @todo Generates vcproj but with c++ project and not makefile project.
 # @todo Generates eclipse cdt project.
+
+def vcprojWrite( targetFile, indent, output ) :
+	targetFile.write( output.replace("INDENT", '\t' * indent) )
+
+def vcprojWriteFile( targetFile, indent, file ) :
+	output = "INDENT<File RelativePath=\"%s\"></File>\n" % file
+	vcprojWrite( targetFile, indent, output )
+
+def vcprojWriteTree( targetFile, files ):
+	# Checks if files list is empty
+	if len(files) == 0 :
+		return
+
+	#
+	filterStack		= [ files[0].split(os.sep)[0] ]
+	currentLength	= 2
+	currentFile		= []
+	for file in files :
+		splitedFile	= file.split( os.sep )
+		newLength	= len(splitedFile)
+
+		if newLength > currentLength :
+			# Increases depth
+			for depth in splitedFile[currentLength-1:newLength-1] :
+				filterStack.append( depth )
+				vcprojWrite( targetFile, len(filterStack)+2, """INDENT<Filter Name="%s" Filter="">\n""" % depth )
+
+		elif newLength < currentLength :
+			# Decreases depth
+			count = currentLength - newLength
+			for i in range(count) :
+				vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
+				filterStack.pop()
+
+		if splitedFile[0:-1] != filterStack :
+			# but directories are differents
+			vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
+			filterStack.pop()
+			filterStack.append( splitedFile[-2] )
+			vcprojWrite( targetFile, len(filterStack)+2, """INDENT<Filter Name="%s" Filter="">\n""" % splitedFile[-2] )
+
+			vcprojWriteFile( targetFile, len(filterStack)+2, file )
+		else :
+			vcprojWriteFile( targetFile, len(filterStack)+2, file )
+
+		currentLength	= newLength
+		currentFile		= splitedFile
+
+	# Adds closing markup
+	for i in range(currentLength-2) :
+		vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
+		filterStack.pop()
 
 def vcprojAction( target, source, env ) :
 
@@ -1771,28 +1829,21 @@ def vcprojAction( target, source, env ) :
 				# sbfInclude customization point
 				res = re_sbfInclude.match(line)
 				if res != None :
-					for file in env['sbf_include'] :
-						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
-#
-#???
-#					include = env['sbf_include']
-#					print include
-#					include.sort()
-#					print include
-#
+					vcprojWriteTree( targetFile, env['sbf_include'] )
 					continue
+
 				# re_sbfShare customization point
 				res = re_sbfShare.match(line)
 				if res != None :
-					for file in env['sbf_share'] :
-						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
+					vcprojWriteTree( targetFile, env['sbf_share'] )
 					continue
+
 				# sbfSrc customization point
 				res = re_sbfSrc.match(line)
 				if res != None :
-					for file in env['sbf_src'] :
-						targetFile.write( "\t\t\t<File RelativePath=\"%s\"></File>\n" % file );
+					vcprojWriteTree( targetFile, env['sbf_src'] )
 					continue
+
 				# sbfFiles customization point
 				res = re_sbfFiles.match(line)
 				if res != None :
