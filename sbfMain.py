@@ -468,7 +468,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.6.4'
+	return '0.7.0'
 
 
 ###### Print action function ######
@@ -650,10 +650,7 @@ class SConsBuildFramework :
 		#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
 		self.myEnv['ENV']['PATH'] += os.environ['PATH'] ### FIXME not very recommended
 
-		self.myEnv.SourceSignatures('MD5')			# MD5 or timestamp
-		self.myEnv.TargetSignatures('content')		# build or content
-
-		#print self.myEnv.Dump()
+#		print self.myEnv.Dump()
 
 		# Generates help
 		Help("""
@@ -744,7 +741,15 @@ SConsBuildFramework options:
 			else :
 				self.myEnv.SetOption('clean', 1)
 
-		# Analyses command line options and/or
+		# Analyses command line options
+		AddOption(	"--fast",
+					action	= "store_true",
+					dest	= "fast",
+					default	= False,
+					help	= "todo documentation"
+					)
+
+		# and/or
 		# Processes special targets used as shortcuts for sbf options
 		# This 'hack' is useful to 'simulate' command-line options. But without '-' or '--'
 
@@ -819,6 +824,12 @@ SConsBuildFramework options:
 		if self.myCC == 'cl' and self.myCCVersionNumber >= 8.000000 :
 			self.myEnv['LINKCOM'	] = [self.myEnv['LINKCOM'	], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;1']
 			self.myEnv['SHLINKCOM'	] = [self.myEnv['SHLINKCOM'], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;2']
+
+		#
+		if self.myEnv.GetOption('fast') :
+			self.myEnv.Decider('MD5-timestamp')
+		else :
+			self.myEnv.Decider('MD5')
 
 		#
 		self.initializeGlobalsFromEnv( self.myEnv )
@@ -1070,6 +1081,8 @@ SConsBuildFramework options:
 			self.myCxxFlags += ' /D_DEBUG /DDEBUG '
 			# /Od : Disable (Debug)
 			self.myCxxFlags += ' /MDd /Od '
+			lenv.AppendUnique( CXXFLAGS = '/Z7' )
+			lenv.AppendUnique( LINKFLAGS = '/DEBUG' )
 			# /Zi : Produces a program database (PDB) that contains type information and symbolic debugging information
 			# for use with the debugger. The symbolic debugging information includes the names and types of variables,
 			# as well as functions and line numbers. Using the /Zi instead may yield improved link-time performance,
@@ -1184,10 +1197,13 @@ SConsBuildFramework options:
 	###### Build a project ######
 	def buildProject( self, projectPathName ) :
 
+		# Normalizes incoming path
+		projectPathName = getNormalizedPathname( projectPathName )
+
 		# Initializes basic informations about incoming project
 		self.myProjectPathName	= projectPathName
-		self.myProjectPath		= os.path.dirname( projectPathName )
-		self.myProject			= os.path.basename(projectPathName)
+		self.myProjectPath		= os.path.dirname(	self.myProjectPathName	)
+		self.myProject			= os.path.basename(	self.myProjectPathName	)
 
 		# Tests if the incoming project must be ignored
 		if self.myEnv['exclude'] and self.myProject in self.myEnv['projectExclude'] :
@@ -1292,10 +1308,10 @@ SConsBuildFramework options:
 			for dependency in lenv['deps'] :
 				if os.path.isabs( dependency ) :
 					# dependency is an absolute path
-					normalizedDependency = getNormalizedPathname( dependency )
+					normalizedDependency = dependency
 				else :
 					# dependency is a path relative to default.options file directory
-					normalizedDependency = getNormalizedPathname( projectPathName + os.sep + dependency )
+					normalizedDependency = projectPathName + os.sep + dependency
 
 				if ( os.path.split(normalizedDependency)[1] not in self.myParsedProjects ) :
 					# dependency not already "build"
@@ -1441,25 +1457,29 @@ SConsBuildFramework options:
 		else :
 			print 'sbfWarning: during final setup of project'
 
-		if self.myType in ['exec', 'static', 'shared'] :
-			# projectTarget is not deleted before it is rebuilt.
-			lenv.Precious( projectTarget )
+#===============================================================================
+#		if self.myType in ['exec', 'static', 'shared'] :
+#			# projectTarget is not deleted before it is rebuilt.
+#			lenv.Precious( projectTarget )
+#===============================================================================
 
 		# PDB: pdb only generate on win32 and in debug mode.
-		if (self.myPlatform == 'win32') and (self.myConfig == 'debug') :
-			# PDB Generation
-			# static library don't generate pdb.
-			if	self.myType in ['exec', 'shared'] :
-				lenv['PDB'] = objProject + '.pdb'
-				lenv.SideEffect(lenv['PDB'], projectTarget)
-				# it is not deleted before it is rebuilt.
-				lenv.Precious( lenv['PDB'] )
-
-			# PDB Installation
-			if		self.myType == 'exec' :
-				installInBinTarget.append(	File(objProject + '.pdb')	)
-			elif	self.myType == 'shared' :
-				installInLibTarget.append(	File(objProject + '.pdb')	)
+#===============================================================================
+#		if (self.myPlatform == 'win32') and (self.myConfig == 'debug') :
+#			# PDB Generation
+#			# static library don't generate pdb.
+#			if	self.myType in ['exec', 'shared'] :
+#				#lenv['PDB'] = objProject + '.pdb'
+#				#lenv.SideEffect( lenv['PDB'], projectTarget )
+#				# it is not deleted before it is rebuilt.
+#				#lenv.Precious( lenv['PDB'] )
+#
+#			# PDB Installation
+#			if		self.myType == 'exec' :
+#				installInBinTarget.append(	File(lenv['PDB'])	)
+#			elif	self.myType == 'shared' :
+#				installInLibTarget.append(	File(lenv['PDB'])	)
+#===============================================================================
 
 
 		######	setup targets : myProject_svnCheckout, myProject_svnUpdate, myProject_build myProject_install myProject myProject_clean myProject_mrproper ######
@@ -1471,7 +1491,7 @@ SConsBuildFramework options:
 		env.Alias( self.myProject + '_svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 
 		### myProject_build
-		env.Alias( self.myProject + '_build_print', lenv.Command('dummy_build_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
+		env.Alias( self.myProject + '_build_print', env.Command('dummy_build_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
 		env.Alias( self.myProject + '_build_print', lenv.Command('dummy_build_print' + self.myProject + 'out2', 'dummy.in', Action( nopAction, printBuild ) ) )
 		env.AlwaysBuild( self.myProject + '_build_print' )
 
@@ -1644,6 +1664,9 @@ SConsBuildFramework options:
 
 #Export('env') not needed.
 
+EnsurePythonVersion(2, 5)
+EnsureSConsVersion(0, 98, 5)
+
 SConsEnvironment.sbf	= SConsBuildFramework()
 env = SConsEnvironment.sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
 
@@ -1654,7 +1677,7 @@ env = SConsEnvironment.sbf.myEnv # TODO remove me (this line is just for compati
 Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( sbfCheck, nopAction ) ) )
 
 # build project from launch directory (and all dependencies recursively)
-env['sbf_launchDir'			]	= os.getcwd()
+env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
 env['sbf_projectPathName'	]	= env['sbf_launchDir']
 env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
@@ -2008,7 +2031,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 
 ### special zip related targets : zipRuntime, zipDev, zipSrc and zip ###
-# @todo zip*_[build,install,,clean,mrproper]
+# @todo zip*_[build,install,clean,mrproper]
 # @todo zip doxygen
 if (	('zipRuntime'	in env.sbf.myBuildTargets) or
 		('zipDev'		in env.sbf.myBuildTargets) or
@@ -2055,6 +2078,14 @@ if (	('zipRuntime'	in env.sbf.myBuildTargets) or
 	env.Alias( 'zipSrc', 'zip_print' )
 	env.Alias( 'zipSrc', 'srcZip_print' )
 
+	# Computes common root of all projects
+	projectPathNameList = []
+	for projectName in env.sbf.myParsedProjects :
+		lenv = env.sbf.myParsedProjects[projectName]
+		projectPathNameList.append( lenv['sbf_projectPathName'] )
+
+	rootOfProjects = getNormalizedPathname( os.path.commonprefix( projectPathNameList ) )
+
 	# Collect files to create the zip
 	runtimeZipFiles = []
 	devZipFiles		= []
@@ -2064,11 +2095,11 @@ if (	('zipRuntime'	in env.sbf.myBuildTargets) or
 		lenv			= env.sbf.myParsedProjects[projectName]
 		projectPathName	= lenv['sbf_projectPathName']
 		project			= lenv['sbf_project']
-		version			= lenv['sbf_version']
+		version			= lenv['version']
 
 		# Adds files to runtime zip
-		runtimeZipFiles += env.Install(	os.path.join(runtimeZipPath, 'runtime'),	lenv['sbf_bin'] )
-		runtimeZipFiles += env.Install(	os.path.join(runtimeZipPath, 'runtime'),	lenv['sbf_lib_object'] )
+		runtimeZipFiles += env.Install(	os.path.join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
+		runtimeZipFiles += env.Install(	os.path.join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
 
 		for file in lenv['sbf_share'] :
 			runtimeZipFiles += env.InstallAs(	file.replace(	'share',
@@ -2089,7 +2120,7 @@ if (	('zipRuntime'	in env.sbf.myBuildTargets) or
 		if lenv['vcsUse'] == 'yes' :
 			allFiles = svnGetAllVersionedFiles( projectPathName )
 
-			projectRelPath = convertPathAbsToRel( env['sbf_launchDir'], projectPathName )
+			projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
 
 			for absFile in allFiles :
 				relFile = convertPathAbsToRel( projectPathName, absFile )
