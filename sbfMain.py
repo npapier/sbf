@@ -117,9 +117,9 @@ import sys
 from SCons.Script.SConscript import SConsEnvironment
 import SCons.Errors
 
-from sbfFiles	import *
-from sbfUses	import uses
-from sbfUtils	import *
+from sbfFiles		import *
+from sbfUses		import uses
+from src.sbfUtils	import *
 
 
 
@@ -1696,7 +1696,6 @@ Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAc
 
 ### special target : vcprojng ###
 
-# @todo Generates project.vcproj.NPAPIER.npapier.user for debug options
 # @todo Creates a new python file for vcproj stuffs and embedded file sbfTemplateMakefile.vcproj
 # @todo Generates section "Header Files", "Share Files" and "Source Files" only if not empty.
 # @todo Generates sln
@@ -1756,6 +1755,83 @@ def vcprojWriteTree( targetFile, files ):
 	for i in range(currentLength-2) :
 		vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
 		filterStack.pop()
+
+def vcprojDebugFile( pathfilename, workingDirectory ) :
+
+	# Retrieves informations
+	import getpass
+	import platform
+	user			= getpass.getuser()
+	remoteMachine	= platform.node()
+
+	# Opens output file
+	with open( pathfilename + "." + remoteMachine + "." + user + ".user", 'w' ) as file :
+		fileStr = """<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioUserFile
+	ProjectType="Visual C++"
+	Version="8,00"
+	ShowAllFiles="false"
+	>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			>
+			<DebugSettings
+				Command="$(TargetPath)"
+				WorkingDirectory="%s"
+				CommandArguments=""
+				Attach="false"
+				DebuggerType="3"
+				Remote="1"
+				RemoteMachine="%s"
+				RemoteCommand=""
+				HttpUrl=""
+				PDBPath=""
+				SQLDebugging=""
+				Environment=""
+				EnvironmentMerge="true"
+				DebuggerFlavor=""
+				MPIRunCommand=""
+				MPIRunArguments=""
+				MPIRunWorkingDirectory=""
+				ApplicationCommand=""
+				ApplicationArguments=""
+				ShimCommand=""
+				MPIAcceptMode=""
+				MPIAcceptFilter=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			>
+			<DebugSettings
+				Command="$(TargetPath)"
+				WorkingDirectory="%s"
+				CommandArguments=""
+				Attach="false"
+				DebuggerType="3"
+				Remote="1"
+				RemoteMachine="%s"
+				RemoteCommand=""
+				HttpUrl=""
+				PDBPath=""
+				SQLDebugging=""
+				Environment=""
+				EnvironmentMerge="true"
+				DebuggerFlavor=""
+				MPIRunCommand=""
+				MPIRunArguments=""
+				MPIRunWorkingDirectory=""
+				ApplicationCommand=""
+				ApplicationArguments=""
+				ShimCommand=""
+				MPIAcceptMode=""
+				MPIAcceptFilter=""
+			/>
+		</Configuration>
+	</Configurations>
+</VisualStudioUserFile>"""
+		file.write( fileStr % (workingDirectory, remoteMachine, workingDirectory, remoteMachine ) )
 
 def vcprojAction( target, source, env ) :
 
@@ -1875,6 +1951,11 @@ def vcprojAction( target, source, env ) :
 					continue
 
 				raise SCons.Errors.StopError, "Unexpected customization point in vcproj generation. The error occurs on the following line :\n%s" % line
+
+		targetFile.close()
+
+		# Creates the debug file associated with the project file (.vcproj)
+		vcprojDebugFile( targetName, os.path.join( myInstallDirectory, 'bin' ) )
 
 
 
