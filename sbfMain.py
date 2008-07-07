@@ -468,10 +468,10 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.0'
+	return '0.7.1'
 
 
-###### Print action function ######
+###### Functions for print action ######
 def nopAction(target = None, source = None, env = None) :
 	return 0
 
@@ -479,10 +479,10 @@ def printEmptyLine(target = None, source = None, env = None) :
 	print ''
 
 def printBuild( target, source, localenv ) :
-	return "----------------------- Build %s -----------------------" % localenv['sbf_projectPathName']
+	return "------------------- Build %s -------------------" % localenv['sbf_projectPathName']
 
 def printInstall( target, source, localenv ) :
-	return "-------------- Install %s files to %s ------------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
+	return "------------ Install %s files to %s ----------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
 
 def printClean( target, source, localenv ) :
 	return "-------------- Clean %s files to %s ------------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
@@ -503,16 +503,20 @@ def printSrcZip( target, source, localenv ) :
 	return "\n-------------- Create src package ------------"
 
 def printDoxygenBuild( target, source, localenv ) :
-	return "\n----------------------- Build documentation with doxygen -----------------------"
+	return "\n---------------------- Build documentation with doxygen ----------------------"
 
 def printDoxygenInstall( target, source, localenv ) :
 	return "\n----------------------- Install doxygen documentation -----------------------"
 
 def printVisualStudioProjectStage( target, source, localenv ) :
-	return "\n----------------------- Visual Studio Project generation stage -----------------------\n"
+	return "\n------------------- Visual Studio Project generation stage -------------------\n"
 
 def printVisualStudioProjectBuild( target, source, localenv ) :
-	return "\n----------------------- Build %s Visual Studio Project -----------------------\n--- from %s ---" % (localenv['sbf_project'], localenv['sbf_projectPath'])
+	return "\n---- Build %s Visual Studio Project ----" % localenv['sbf_project']
+#	return "---- Build %s Visual Studio Project ----\n---- from %s ----" % (localenv['sbf_project'], localenv['sbf_projectPath'])
+
+def printGenerate( target, source, localenv ) :
+	return "Generates %s" % str(target[0])
 
 
 
@@ -604,7 +608,7 @@ class SConsBuildFramework :
 
 
 	###### Constructor ######
-	def __init__(self) :
+	def __init__( self ) :
 
 		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
 		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
@@ -727,6 +731,19 @@ SConsBuildFramework options:
 		# retrives all targets
 		self.myBuildTargets = set( map(str, BUILD_TARGETS) )
 
+		# Takes care of alias definition needed for command line options.
+		mustAddAlias = True
+		for target in self.myBuildTargets :
+			if target not in self.myCmdLineOptions :
+				mustAddAlias = False
+				break
+
+		Alias(		'all' )
+		Default(	'all' )
+		Alias( self.myCmdLineOptionsList )
+		if mustAddAlias :
+			Alias( self.myCmdLineOptionsList, 'all' )
+
 		#self.myGHasCleanOption = env.GetOption('clean')
 
 		# Sets clean=1 option if needed.
@@ -742,9 +759,33 @@ SConsBuildFramework options:
 				self.myEnv.SetOption('clean', 1)
 
 		# Analyses command line options
+		AddOption(	"--weak-localext",
+					action	= "store_true",
+					#dest	= "weak_localext",
+					default	= True,
+					help	= "Disables SCons scanners for localext directories." )
+
+		AddOption(	"--no-weak-localext",
+					action	= "store_false",
+					dest	= "weak_localext",
+					default	= True,
+					help	= "See --weak-localext option" )
+
+		# AddOption(	"--optimize",
+					# type	= "int",
+					# #action	= "store",
+					# #dest	= "optimize",
+					# default	= 1,
+					# help	= "todo documentation" )
+		#print self.myEnv.GetOption("optimize")
+		#print self.myEnv.GetOption("weak_localext")
+		#if self.myEnv.GetOption("optimize") == 0 :
+		#	self.myEnv.SetOption("weak_localext", 0 )
+		#print self.myEnv.GetOption("weak_localext")
+
 		AddOption(	"--fast",
 					action	= "store_true",
-					dest	= "fast",
+					#dest	= "fast",
 					default	= False,
 					help	= "todo documentation"
 					)
@@ -901,7 +942,22 @@ SConsBuildFramework options:
 			self.myIncludesInstallExtPaths	+=	[ os.path.join(element, 'include') ]
 			self.myLibInstallExtPaths		+=	[ os.path.join(element, 'lib') ]
 
-		self.myGlobalCppPath = self.myIncludesInstallPaths + self.myIncludesInstallExtPaths
+		#
+		if self.myEnv.GetOption('weak_localext') :
+			self.myGlobalCppPath = self.myIncludesInstallPaths
+			for element in self.myIncludesInstallExtPaths :
+				self.myEnv.Append( CCFLAGS = ['-I' + element] )
+		else :
+			self.myGlobalCppPath = self.myIncludesInstallPaths + self.myIncludesInstallExtPaths
+
+		# ???
+		#goFast = False
+		#if goFast == True :
+			#self.myEnv.SetOption('max_drift', 1)
+			#self.myEnv.SetOption('implicit_cache', 1)
+			#print os.getenv('NUMBER_OF_PROCESSORS')
+			#self.myEnv.SetOption('num_jobs', 4)
+
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
 
 
@@ -1604,7 +1660,7 @@ SConsBuildFramework options:
 		for elt in installInBinTarget :
 			lenv['sbf_bin'].append( elt.abspath )
 
-		# TODO: not very platform independent
+		# @todo: not very platform independent
 		for elt in installInLibTarget :
 			# TODO: must be optimize
 			absPathFilename	= elt.abspath
@@ -1682,10 +1738,6 @@ env['sbf_projectPathName'	]	= env['sbf_launchDir']
 env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 
-Alias(		'all' )
-Default(	'all' )
-Alias( SConsEnvironment.sbf.myCmdLineOptionsList, 'all' )
-
 env.sbf.buildProject( env['sbf_projectPathName'] )
 
 
@@ -1756,16 +1808,21 @@ def vcprojWriteTree( targetFile, files ):
 		vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
 		filterStack.pop()
 
-def vcprojDebugFile( pathfilename, workingDirectory ) :
+
+# Creates project file (.vcproj) containing informations about the debug session.
+def vcprojDebugFileAction( target, source, env ) :
+
+	# Retrieves/computes additionnal informations
+	targetName = str(target[0])
+
+	workingDirectory = os.path.join( env.sbf.myInstallDirectory, 'bin' )
 
 	# Retrieves informations
-	import getpass
 	import platform
-	user			= getpass.getuser()
 	remoteMachine	= platform.node()
 
 	# Opens output file
-	with open( pathfilename + "." + remoteMachine + "." + user + ".user", 'w' ) as file :
+	with open( targetName, 'w' ) as file :
 		fileStr = """<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioUserFile
 	ProjectType="Visual C++"
@@ -1833,27 +1890,30 @@ def vcprojDebugFile( pathfilename, workingDirectory ) :
 </VisualStudioUserFile>"""
 		file.write( fileStr % (workingDirectory, remoteMachine, workingDirectory, remoteMachine ) )
 
+
 def vcprojAction( target, source, env ) :
+
+	# Retrieves template location
+	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
 
 	# Retrieves/computes additionnal informations
 	targetName = str(target[0])
-	sourceName = str(source[0])
+	sourceName = templatePath #str(source[0])
 
 	myInstallDirectory = env.sbf.myInstallDirectory
 
 	MSVSProjectBuildTarget			= ''
 	MSVSProjectBuildTargetDirectory	= ''
+
 	if len(env['sbf_bin']) > 0 :
 		MSVSProjectBuildTarget = os.path.basename( env['sbf_bin'][0] )
 		MSVSProjectBuildTargetDirectory = 'bin'
-	elif len(env['sbf_lib_object_for_developer']) > 0 :
-		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object_for_developer'][0] )
-		MSVSProjectBuildTargetDirectory = 'lib'
 	elif len(env['sbf_lib_object']) > 0 :
 		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
 		MSVSProjectBuildTargetDirectory = 'lib'
 	else :
-		raise SCons.Errors.StopError, 'Unexpected case in vcproj generation.'
+		# Nothing to debug (project of type 'none')
+		return
 
 	debugIndex = MSVSProjectBuildTarget.rfind( '_D.' )
 	if debugIndex == -1 :
@@ -1954,9 +2014,6 @@ def vcprojAction( target, source, env ) :
 
 		targetFile.close()
 
-		# Creates the debug file associated with the project file (.vcproj)
-		vcprojDebugFile( targetName, os.path.join( myInstallDirectory, 'bin' ) )
-
 
 
 if	'vcprojng_build' in env.sbf.myBuildTargets or \
@@ -1968,8 +2025,13 @@ if	'vcprojng_build' in env.sbf.myBuildTargets or \
 		'vcprojng_mrproper' in env.sbf.myBuildTargets :
 		env.SetOption('clean', 1)
 
-	# Retrieves template location
-	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
+	# Retrieves informations
+	import getpass
+	import platform
+	user			= getpass.getuser()
+	remoteMachine	= platform.node()
+
+	vcprojDebugFilePostFix = "." + remoteMachine + "." + user + ".user"
 
 	#
 	env.Alias( 'vcprojng_build_print', env.Command('vcprojng_build_print.out1', 'dummy.in', Action( nopAction, printVisualStudioProjectStage ) ) )
@@ -1981,9 +2043,14 @@ if	'vcprojng_build' in env.sbf.myBuildTargets or \
 		lenv			= env.sbf.myParsedProjects[projectName]
 		projectPathName	= lenv['sbf_projectPathName']
 		project			= lenv['sbf_project']
-		output			= getNormalizedPathname( projectPathName + os.sep + project + 'ng.vcproj' )						# @todo remove ng
-		env.Alias( 'vcprojng_build_print', lenv.Command('vcprojng_build_print_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
-		env.Alias( 'vcprojng_build', lenv.Command( output, templatePath, Action( vcprojAction, nopAction) ) )
+		output1			= getNormalizedPathname( projectPathName + os.sep + project + 'ng.vcproj' ) # @todo remove ng
+		output2			= output1 + vcprojDebugFilePostFix
+		env.Alias( 'vcprojng_build', lenv.Command('vcprojng_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
+		# Creates the project file (.vcproj)
+		env.Alias( 'vcprojng_build', lenv.Command( output1, 'dummy.in', Action( vcprojAction, printGenerate) ) )
+		# Creates project file (.vcproj) containing informations about the debug session.
+		env.Alias( 'vcprojng_build', lenv.Command( output2, 'dummy.in', Action( vcprojDebugFileAction, printGenerate) ) )
+		env.AlwaysBuild( [ output1, output2 ] )
 
 	env.Alias( 'vcprojng', 'vcprojng_build' )
 	env.Alias( 'vcprojng_clean', 'vcprojng' )

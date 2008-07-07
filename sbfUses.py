@@ -46,8 +46,12 @@ def use_cairo( self, lenv, elt ) :
 	# Sets CPPPATH
 	gtkCppPath = [ 'include/cairo', 'include' ]
 
-	for cppPath in gtkCppPath :
-		lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
+	if lenv.GetOption('weak_localext') :
+		for cppPath in gtkCppPath :
+			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkBasePath, cppPath)] )
+	else :
+		for cppPath in gtkCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
 
 	# Sets LIBS, LIBPATH and CPPFLAGS
 	if self.myPlatform == 'win32' :
@@ -76,8 +80,12 @@ def use_cairomm( self, lenv, elt ) :
 	# Sets CPPPATH
 	gtkmmCppPath = ['include/cairomm-1.0']
 
-	for cppPath in gtkmmCppPath :
-		lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
+	if lenv.GetOption('weak_localext') :
+		for cppPath in gtkmmCppPath :
+			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkmmBasePath, cppPath)] )
+	else :
+		for cppPath in gtkmmCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
 
 	# Sets LIBS and LIBPATH
 	if self.myPlatform == 'win32' :
@@ -105,15 +113,27 @@ def use_gtkmm( self, lenv, elt ) :
 					'lib/glibmm-2.4/include', 'include/glibmm-2.4', 'include/cairomm-1.0',
 					'lib/sigc++-2.0/include', 'include/sigc++-2.0']
 
-	for cppPath in gtkmmCppPath :
-		lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
+
+	if lenv.GetOption('weak_localext') :
+		for cppPath in gtkmmCppPath :
+			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkmmBasePath, cppPath)] )
+	else :
+		for cppPath in gtkmmCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
+
+
 
 	gtkCppPath = [	'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
 					'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
 					'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
 
-	for cppPath in gtkCppPath :
-		lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
+	if lenv.GetOption('weak_localext') :
+		for cppPath in gtkCppPath :
+			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkBasePath, cppPath)] )
+	else :
+		for cppPath in gtkCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
+
 
 	# Sets LIBS, LIBPATH and CPPFLAGS
 	if self.myPlatform == 'win32' :
@@ -153,9 +173,14 @@ def use_itk( self, lenv, elt ) :
 					'itk/SpatialObject', 'itk/Utilities', 'itk/Utilities/MetaIO', 'itk/Utilities/NrrdIO',
 					'itk/Utilities/vxl/core', 'itk/Utilities/vxl/vcl' ]
 
-	for cppPath in self.myIncludesInstallExtPaths :
-		for include in itkIncludes :
-			lenv.Append( CPPPATH = os.path.join(cppPath, include) )
+	if lenv.GetOption('weak_localext') :
+		for cppPath in self.myIncludesInstallExtPaths :
+			for include in itkIncludes :
+				lenv.Append( CCFLAGS = ['-I' + os.path.join(cppPath, include) ] )
+	else :
+		for cppPath in self.myIncludesInstallExtPaths :
+			for include in itkIncludes :
+				lenv.Append( CPPPATH = os.path.join(cppPath, include) )
 
 	# libs
 	itkLibs = [	'ITKAlgorithms', 'ITKBasicFilters', 'ITKCommon', 'ITKDICOMParser', 'ITKEXPAT', 'ITKFEM', 'itkgdcm',
@@ -203,7 +228,7 @@ def use_sofa( self, lenv, elt ) :
 	if sofa_path is None :
 		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
-	#
+	# @todo Takes care of "lenv.GetOption('weak_localext') " ?
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'modules') ]
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'framework') ]
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'include') ]
