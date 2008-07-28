@@ -761,8 +761,8 @@ SConsBuildFramework options:
 		# Analyses command line options
 		AddOption(	"--weak-localext",
 					action	= "store_true",
-					#dest	= "weak_localext",
-					default	= True,
+					dest	= "weak_localext",
+					#default	= True,
 					help	= "Disables SCons scanners for localext directories." )
 
 		AddOption(	"--no-weak-localext",
@@ -1111,7 +1111,10 @@ SConsBuildFramework options:
 		# Configures Microsoft Platform SDK for Windows Server 2003 R2 (TODO: FIXME : should be done by SCons...)
 		if self.myIsExpressEdition :
 			#print 'self.myCppPath=', self.myCppPath
-			lenv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
+			if lenv.GetOption('weak_localext') :
+				lenv.Append( CCFLAGS = ['-IC:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'] )
+			else :
+				lenv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
 			#self.myCppPath.append( 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
 			#print 'self.myCppPath=', self.myCppPath
 			lenv.Append( LIBPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib' )
@@ -1772,16 +1775,30 @@ def vcprojWriteTree( targetFile, files ):
 	filterStack		= [ files[0].split(os.sep)[0] ]
 	currentLength	= 2
 	currentFile		= []
+
 	for file in files :
 		splitedFile	= file.split( os.sep )
 		newLength	= len(splitedFile)
+
+		# Checks common paths
+		minLength = min(currentLength, newLength)
+		for commonLength in range( minLength-1 ) :
+			if filterStack[commonLength] != splitedFile[commonLength] :
+				# Paths are differents
+				# Decreases depth
+				count = currentLength - commonLength
+				for i in range(count-1) :
+					vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
+					filterStack.pop()
+					currentLength = currentLength - 1
+				break
+			#else nothing to do
 
 		if newLength > currentLength :
 			# Increases depth
 			for depth in splitedFile[currentLength-1:newLength-1] :
 				filterStack.append( depth )
 				vcprojWrite( targetFile, len(filterStack)+2, """INDENT<Filter Name="%s" Filter="">\n""" % depth )
-
 		elif newLength < currentLength :
 			# Decreases depth
 			count = currentLength - newLength
@@ -1789,16 +1806,8 @@ def vcprojWriteTree( targetFile, files ):
 				vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
 				filterStack.pop()
 
-		if splitedFile[0:-1] != filterStack :
-			# but directories are differents
-			vcprojWrite( targetFile, len(filterStack)+2, "INDENT</Filter>\n" )
-			filterStack.pop()
-			filterStack.append( splitedFile[-2] )
-			vcprojWrite( targetFile, len(filterStack)+2, """INDENT<Filter Name="%s" Filter="">\n""" % splitedFile[-2] )
-
-			vcprojWriteFile( targetFile, len(filterStack)+2, file )
-		else :
-			vcprojWriteFile( targetFile, len(filterStack)+2, file )
+		# newLength == currentLength
+		vcprojWriteFile( targetFile, len(filterStack)+2, file )
 
 		currentLength	= newLength
 		currentFile		= splitedFile
