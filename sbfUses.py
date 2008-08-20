@@ -214,6 +214,30 @@ def use_openILU( self, lenv, elt ) :
 		else :
 			lenv['LIBS']	+= ['ILUd']
 
+def use_physx( self, lenv, elt ) :
+	# Retrieves PHYSX_BASEPATH
+	physxBasePath = getPathFromEnv('PHYSX_BASEPATH')
+	if physxBasePath is None :
+		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
+
+	# Sets CPPPATH
+	physxCppPath	=	[ 'SDKs\Foundation\include', 'SDKs\Physics\include', 'SDKs\PhysXLoader\include' ]
+	physxCppPath	+=	[ 'SDKs\Cooking\include', 'SDKs\NxCharacter\include' ]
+
+	if lenv.GetOption('weak_localext') :
+		for cppPath in physxCppPath :
+			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(physxBasePath, cppPath)] )
+	else :
+		for cppPath in physxCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(physxBasePath, cppPath) )
+
+	# Sets LIBS and LIBPATH
+	lenv.AppendUnique( LIBS = [	'PhysXLoader', 'NxCooking', 'NxCharacter' ] )
+	if self.myPlatform == 'win32' :
+		lenv.AppendUnique( LIBPATH = [ os.path.join(physxBasePath, 'SDKs\lib\Win32') ] )
+	else :
+		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+
 def use_sdl( self, lenv, elt ) :
 	if ( self.myPlatform == 'win32' ) :
 		lenv['LIBS']	+= ['SDL', 'SDLmain']
@@ -349,6 +373,10 @@ def uses( self, lenv ) :
 		### configure openILU ###
 		elif elt == 'openilu' :
 			use_openILU( self, lenv, elt )
+
+		### configure PhysX ###
+		elif elt == 'physx2-8-1' :
+			use_physx( self, lenv, elt )
 
 		### configure sdl ###
 		elif elt == 'sdl' :

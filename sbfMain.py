@@ -126,7 +126,7 @@ from src.sbfUtils	import *
 ###### Options : validators and converters ######
 OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
 					'boost1-33-1', 'cairo1-2-6', 'cairomm1-2-4', 'glu', 'glut', 'gtkmm2-4', 'itk3-4-0', 'ode', 'opengl',
-					'openil', 'openilu', 'sdl', 'sofa', 'wx2-8', 'wxgl2-8' ]
+					'openil', 'openilu', 'physx2-8-1', 'sdl', 'sofa', 'wx2-8', 'wxgl2-8' ]
 					# cg|cgFX|imageMagick6|imageMagick++6
 
 OptionUses_alias = {
@@ -135,6 +135,7 @@ OptionUses_alias = {
 		'cairomm'	: 'cairomm1-2-4',
 		'gtkmm'		: 'gtkmm2-4',
 		'itk'		: 'itk3-4-0',
+		'physx'		: 'physx2-8-1',
 		'wx'		: 'wx2-8',
 		'wxgl'		: 'wxgl2-8' }
 
@@ -468,7 +469,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.1'
+	return '0.7.2'
 
 
 ###### Functions for print action ######
@@ -956,7 +957,7 @@ SConsBuildFramework options:
 			#self.myEnv.SetOption('max_drift', 1)
 			#self.myEnv.SetOption('implicit_cache', 1)
 			#print os.getenv('NUMBER_OF_PROCESSORS')
-			#self.myEnv.SetOption('num_jobs', 4)
+		#self.myEnv.SetOption('num_jobs', 4)
 
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
 
@@ -2086,6 +2087,10 @@ def doxyfileAction( target, source, env ) :
 			inputList	+= newPathEntry
 
 		newPathEntry	= os.path.join(projectPathName, 'src') + ' '
+		if os.path.exists( newPathEntry ) :
+			inputList	+= newPathEntry
+
+		newPathEntry	= os.path.join(projectPathName, 'doc') + ' '
 		if os.path.exists( newPathEntry ) :
 			inputList	+= newPathEntry
 
