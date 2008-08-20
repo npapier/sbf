@@ -1,0 +1,32 @@
+This file is part of sbf (SConsBuildFramework).
+
+Introduction
+============
+
+The version number of sbf could be found in file VERSION.
+sbf, a shortcut for SConsBuildFrameWork is a build system construct using SCons to compile and link c++ projects.
+For more information on this library, see the subdirectory doc or the online documentation available at 
+http://code.google.com/p/sbf/w/list.
+
+The NEWS file tersely lists features that are new in this release.
+
+Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+Copyright(C) 2008, Pierre-Jean Bensoussan, Guillaume Brocker, Clement Forest and Nicolas Papier for their respective work in the R&D team of Digital trainers SAS (See http://www.digital-trainers.com/)
+If we've forgotten you in the above list, please contact us!
+
+This library is free software. You can redistribute it and/or modify it under the terms of the GNU General Public
+License (GPL) as published by the Free Software Foundation, either version 3 of the License, or any later version.
+For more information, see the file COPYING.
+
+See file INSTALL for an explanation of the installation procedure.
+
+Reporting Bugs
+==============
+
+Visit our Google Code project page at http://code.google.com/p/sbf/issues/list
+
+
+Enjoy!
+Nicolas Papier
+
+Lead developer, Nicolas Papier, can be contacted at npapier AT gmail DOT com
