@@ -125,19 +125,20 @@ from src.sbfUtils	import *
 
 ###### Options : validators and converters ######
 OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
-					'boost1-33-1', 'cairo1-2-6', 'cairomm1-2-4', 'glu', 'glut', 'gtkmm2-4', 'itk3-4-0', 'ode', 'opengl',
+					'boost1-33-1', 'cairo1-2-6', 'cairomm1-2-4', 'collada-dom2-0', 'glu', 'glut', 'gtkmm2-4', 'itk3-4-0', 'ode', 'opengl',
 					'openil', 'openilu', 'physx2-8-1', 'sdl', 'sofa', 'wx2-8', 'wxgl2-8' ]
 					# cg|cgFX|imageMagick6|imageMagick++6
 
 OptionUses_alias = {
-		'boost'		: 'boost1-33-1',
-		'cairo'		: 'cairo1-2-6',
-		'cairomm'	: 'cairomm1-2-4',
-		'gtkmm'		: 'gtkmm2-4',
-		'itk'		: 'itk3-4-0',
-		'physx'		: 'physx2-8-1',
-		'wx'		: 'wx2-8',
-		'wxgl'		: 'wxgl2-8' }
+		'boost'			: 'boost1-33-1',
+		'cairo'			: 'cairo1-2-6',
+		'cairomm'		: 'cairomm1-2-4',
+		'collada-dom'	: 'collada-dom2-0',
+		'gtkmm'			: 'gtkmm2-4',
+		'itk'			: 'itk3-4-0',
+		'physx'			: 'physx2-8-1',
+		'wx'			: 'wx2-8',
+		'wxgl'			: 'wxgl2-8' }
 
 def usesValidator( key, val, env ) :
 
@@ -469,7 +470,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.2'
+	return '0.7.3'
 
 
 ###### Functions for print action ######

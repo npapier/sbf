@@ -98,6 +98,35 @@ def use_cairomm( self, lenv, elt ) :
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
+
+def use_colladadom( self, lenv, elt ) :
+
+	# Linking with the COLLADA DOM shared library
+	lenv.Append( CPPDEFINES = [ 'DOM_DYNAMIC' ] )
+
+	# Updates paths to include files
+	if elt == 'collada-dom2-0' :
+		colladadomCppPath = [ 'collada-dom_2-0', os.path.join('collada-dom_2-0', '1.4') ]
+	else :
+		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported." % elt)
+
+	if lenv.GetOption('weak_localext') :
+		for cppPath in colladadomCppPath :
+			lenv.AppendUnique( CCFLAGS = '-I' + os.path.join(self.myIncludesInstallExtPaths[0], cppPath) )
+	else :
+		for cppPath in colladadomCppPath :
+			lenv.AppendUnique( CPPPATH = os.path.join(self.myIncludesInstallExtPaths[0], cppPath) )
+
+	# Linking with the COLLADA DOM shared library
+	if self.myPlatform == 'win32' :
+		if self.myConfig == 'release' :
+			lenv.AppendUnique( LIBS = ['libcollada14dom20'] )
+		else :
+			lenv.AppendUnique( LIBS = ['libcollada14dom20-d'] )
+	else :
+		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+
+
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 def use_gtkmm( self, lenv, elt ) :
 	# Retrieves GTK_BASEPATH and GTKMM_BASEPATH
@@ -330,6 +359,10 @@ def uses( self, lenv ) :
 		### configure cairomm ###
 		elif elt == 'cairomm1-2-4' :
 			use_cairomm( self, lenv, elt )
+
+		### configure collada-dom ###
+		elif elt == 'collada-dom2-0' :
+			use_colladadom( self, lenv, elt )
 
 		### configure glu ###
 		elif elt == 'glu' :
