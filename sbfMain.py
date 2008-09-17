@@ -470,7 +470,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.3'
+	return '0.7.4'
 
 
 ###### Functions for print action ######
@@ -556,6 +556,7 @@ class SConsBuildFramework :
 
 
 	# Global attributes from .SConsBuildFramework.options or computed from it
+	myNumJobs						= 1
 	mySvnUrls						= []
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
@@ -884,10 +885,13 @@ SConsBuildFramework options:
 	###### Initialize global attributes ######
 	def initializeGlobalsFromEnv( self, lenv ) :
 
-		# update mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
+		# update myNumJobs, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
+		self.myNumJobs				= lenv['numJobs']
 		self.mySvnUrls				= lenv['svnUrls']
 		self.mySvnCheckoutExclude	= lenv['svnCheckoutExclude']
 		self.mySvnUpdateExclude		= lenv['svnUpdateExclude']
+
+		self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
 
 		# update myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
@@ -952,15 +956,15 @@ SConsBuildFramework options:
 		else :
 			self.myGlobalCppPath = self.myIncludesInstallPaths + self.myIncludesInstallExtPaths
 
+		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
+
 		# ???
 		#goFast = False
 		#if goFast == True :
 			#self.myEnv.SetOption('max_drift', 1)
 			#self.myEnv.SetOption('implicit_cache', 1)
 			#print os.getenv('NUMBER_OF_PROCESSORS')
-		#self.myEnv.SetOption('num_jobs', 4)
 
-		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
 
 
 	###### Initialize project from lenv ######
@@ -1030,6 +1034,7 @@ SConsBuildFramework options:
 			BoolOption(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
 						'true' ),
 
+			('numJobs', "Allow N jobs at once. N must be an integer equal at least to one.", '1'),
 			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
 			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included.', []),
 			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included.', []),
@@ -1303,7 +1308,7 @@ SConsBuildFramework options:
 		else :
 			self.readProjectOptionsAndUpdateEnv( lenv )
 			if tryVcsCheckout :
-				if lenv['vcsUse'] == 'yes' :
+				if lenv.has_key('vcsUse') and lenv['vcsUse'] == 'yes' :
 					projectURL = svnGetURL(self.myProjectPathName)
 					if len(projectURL) > 0 :
 						# @todo only if verbose
