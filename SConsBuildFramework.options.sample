@@ -2,6 +2,7 @@
 #nodeps				= false
 #exclude			= true
 #numJobs			= 1
+#companyName		= ''
 #svnUrls			= []
 #projectExclude		= []
 #svnCheckoutExclude	= []

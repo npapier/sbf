@@ -378,6 +378,91 @@ def svnUpdate( sbf ) :
 
 
 
+### Generation of resource file (win32 only)
+# @todo Completes VERSIONINFO
+def resourceFileGeneration( target, source, env ) :
+
+	# Retrieves/computes additional information
+	targetName = str(target[0])
+
+	# Open output file
+	with open( targetName, 'w' ) as file :
+		# VERSIONINFO
+		fileTypeDict =	{
+							'exec'		: 'VFT_APP',
+							'static'	: 'VFT_STATIC_LIB',
+							'shared'	: 'VFT_DLL'
+						}
+
+		if fileTypeDict.has_key(env['type']) :
+			fileTypeStr = fileTypeDict[env['type']]
+		else :
+			fileTypeStr = "VFT_UNKNOWN"
+
+		strVersionInfo = """#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION %s, %s, %s, 0
+PRODUCTVERSION %s, %s, %s, 0
+#ifdef DEBUG
+FILEFLAGSMASK VS_FF_DEBUG | VS_FF_PRERELEASE
+#else
+FILEFLAGSMASK 0
+#endif
+FILEOS VOS_NT_WINDOWS32
+FILETYPE %s
+FILESUBTYPE VFT2_UNKNOWN
+""" %	(
+			env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'],
+			env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'],
+			fileTypeStr
+		)
+
+		file.write( strVersionInfo )
+		file.write("""
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904b0"
+		BEGIN
+//			VALUE "Comments", "\\0"
+""" )
+		file.write( """			VALUE "CompanyName", "%s\\0"\n""" % env['companyName'] )
+		file.write( """			VALUE "FileDescription", "myFileDescription\\0"\n""" )
+
+		file.write( """			VALUE "FileVersion", "%s\\0"\n""" % env['version'] )
+
+		file.write( """			VALUE "InternalName", "%s\\0"\n""" % env['sbf_project'] )
+		file.write( """			VALUE "LegalCopyright", "Copyright (C) %s, %s, All rights reserved\\0"\n"""
+					% ( datetime.date.today().year, env['companyName'] ) )
+
+		file.write( """			VALUE "OriginalFilename", "%s\\0"\n""" % env['sbf_project'] )
+#//			VALUE "PrivateBuild", "%s\\0"
+		file.write( """			VALUE "ProductName", "%s\\0"\n""" % env['sbf_project'] )
+		file.write( """			VALUE "ProductVersion", "%s\\0"\n""" % env['version'] )
+
+		strVersionInfo = """		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1252
+	END
+END
+
+"""
+		file.write( strVersionInfo )
+
+		# MYPROJECT_ICON ICON DISCARDABLE "myProject.ico"
+		strIcon			= """%s_ICON ICON DISCARDABLE "%s" """
+
+		iconFile		= env['sbf_project'] + '.ico'
+		iconAbsPathFile	= os.path.join(env['sbf_projectPathName'], 'rc', iconFile )
+
+		if os.path.isfile( iconAbsPathFile ) :
+			file.write( strIcon % (	env['sbf_project'], iconFile ) )
+
+
+
 ###### Archiver action ######
 def zipArchiver( target, source, env ) :
 	targetName = str(target[0])
@@ -470,7 +555,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.4'
+	return '0.7.5'
 
 
 ###### Functions for print action ######
@@ -557,6 +642,7 @@ class SConsBuildFramework :
 
 	# Global attributes from .SConsBuildFramework.options or computed from it
 	myNumJobs						= 1
+	myCompanyName					= ''
 	mySvnUrls						= []
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
@@ -594,6 +680,9 @@ class SConsBuildFramework :
 	myProjectPath					= ''	# d:\Dev\SrcLib\vgsdk\dependencies
 	myProject						= ''	# gle
 	myProjectBuildPath				= ''
+	myVersionMajor					= None
+	myVersionMinor					= None
+	myVersionMaintenance			= None
 	myPostfixLinkedToMyConfig		= ''
 	my_PostfixLinkedToMyConfig		= ''
 	myFullPostfix					= ''
@@ -728,6 +817,7 @@ SConsBuildFramework options:
 		self.myDateTime	= str(datetime.datetime.today())
 
 		# Print sbf version, date and time at sbf startup
+# if self.myEnv.GetOption('verbosity') : @todo after moving AddOption()
 		printSBFVersion()
 		print 'started at', self.myDateTime
 
@@ -784,7 +874,6 @@ SConsBuildFramework options:
 		#print self.myEnv.GetOption("weak_localext")
 		#if self.myEnv.GetOption("optimize") == 0 :
 		#	self.myEnv.SetOption("weak_localext", 0 )
-		#print self.myEnv.GetOption("weak_localext")
 
 		AddOption(	"--fast",
 					action	= "store_true",
@@ -792,6 +881,13 @@ SConsBuildFramework options:
 					default	= False,
 					help	= "todo documentation"
 					)
+
+		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
+		AddOption(	"--verbose",
+					action	= "store_true",
+					dest	= "verbosity",
+					default	= False,
+					help	= "Shows details about the results of running sbf. This can be especially useful when the results might not be obvious." )
 
 		# and/or
 		# Processes special targets used as shortcuts for sbf options
@@ -836,7 +932,7 @@ SConsBuildFramework options:
 			ccVersion				=	self.myEnv['MSVS_VERSION'].replace('Exp', '', 1)
 			# Step 2 : Extracts major and minor version
 			splittedCCVersion		=	ccVersion.split( '.', 1 )
-			# Step 3 : Computes version number
+			# Step 3 : Computes version number		@todo make a function
 			self.myCCVersionNumber	=	float(splittedCCVersion[0])
 			self.myCCVersionNumber	+=	float(splittedCCVersion[1])/1000
 			# Constructs myCCVersion ( clMajor-Minor[Exp] )
@@ -885,8 +981,11 @@ SConsBuildFramework options:
 	###### Initialize global attributes ######
 	def initializeGlobalsFromEnv( self, lenv ) :
 
-		# update myNumJobs, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
+		# update myNumJobs, myCompanyName, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
 		self.myNumJobs				= lenv['numJobs']
+
+		self.myCompanyName			= lenv['companyName']
+
 		self.mySvnUrls				= lenv['svnUrls']
 		self.mySvnCheckoutExclude	= lenv['svnCheckoutExclude']
 		self.mySvnUpdateExclude		= lenv['svnUpdateExclude']
@@ -993,6 +1092,17 @@ SConsBuildFramework options:
 		else :
 			self.myProjectBuildPath = os.path.join( self.myProjectPathName, self.myBuildPath )
 
+		# processes myVersion
+		splittedVersion = self.myVersion.split( '-' )
+		if len(splittedVersion) not in [2, 3] :
+			raise SCons.Errors.UserError("In project configuration file, 'version' must used the following schemas : major-minor or major-minor-maintenance\nCurrent specified version: %s" % self.myVersion )
+		self.myVersionMajor = int(splittedVersion[0])
+		self.myVersionMinor = int(splittedVersion[1])
+		if len(splittedVersion) == 3 :
+			self.myVersionMaintenance = int(splittedVersion[2])
+		else :
+			self.myVersionMaintenance = 0
+
 		if ( self.myConfig == 'debug' ) :										### TODO: not good if more than one config must be built
 			self.myPostfixLinkedToMyConfig = 'D'
 			self.my_PostfixLinkedToMyConfig = '_' + self.myPostfixLinkedToMyConfig
@@ -1034,7 +1144,10 @@ SConsBuildFramework options:
 			BoolOption(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
 						'true' ),
 
-			('numJobs', "Allow N jobs at once. N must be an integer equal at least to one.", '1'),
+			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', '1'),
+
+			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', ''),
+
 			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
 			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included.', []),
 			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included.', []),
@@ -1085,7 +1198,7 @@ SConsBuildFramework options:
 						'none',
 						allowed_values=('exec', 'static','shared','none'),
 						map={}, ignorecase=1 ),
-			('version', "Sets the project/target version specified by two numbers separated by '-'. For example '1-0'.", '0-0'),
+			('version', "Sets the project version. The following version schemas must be used : major-minor or major-minor-maintenance. For example '1-0' or '1-0-1'", '0-0'),
 			('postfix', 'Adds a postfix to the target name.', ''),
 
 			('deps', 'Specifies list of dependencies to others projects.', []),
@@ -1232,13 +1345,16 @@ SConsBuildFramework options:
 
 
 
-	def vcsCheckout( self ) :
-		print "----------------------- vcs checkout project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+	def vcsCheckout( self, lenv ) :
 
 		if self.myProject in self.mySvnCheckoutExclude :
-			print "sbfInfo: Exclude from vcs checkout."
-			print "sbfInfo: Skip to the next project..."
+			if lenv.GetOption('verbosity') :
+				print "----------------------- vcs checkout project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+				print "sbfInfo: Exclude from vcs checkout."
+				print "sbfInfo: Skip to the next project..."
 			return
+
+		print "----------------------- vcs checkout project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
 
 		successful = svnCheckout( self )
 
@@ -1246,13 +1362,16 @@ SConsBuildFramework options:
 			print "sbfWarning: Unable to populate directory", self.myProjectPathName, "from vcs."
 		#else vcs checkout successful.
 
-	def vcsUpdate( self ) :
-		print "----------------------- vcs update project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+	def vcsUpdate( self, lenv ) :
 
 		if self.myProject in self.mySvnUpdateExclude :
-			print "sbfInfo: Exclude from vcs update."
-			print "sbfInfo: Skip to the next project..."
+			if lenv.GetOption('verbosity') :
+				print "----------------------- vcs update project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+				print "sbfInfo: Exclude from vcs update."
+				print "sbfInfo: Skip to the next project..."
 			return
+
+		print "----------------------- vcs update project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
 
 		successful = svnUpdate( self )
 
@@ -1273,7 +1392,8 @@ SConsBuildFramework options:
 
 		# Tests if the incoming project must be ignored
 		if self.myEnv['exclude'] and self.myProject in self.myEnv['projectExclude'] :
-			print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
+			if self.myEnv.GetOption('verbosity') :
+				print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
 			return
 
 		# User wants a vcs checkout ?
@@ -1303,7 +1423,7 @@ SConsBuildFramework options:
 				print "sbfInfo: None of targets svnCheckout or", self.myProject + "_svnCheckout have been specified."
 				return
 			else :
-				self.vcsCheckout()
+				self.vcsCheckout( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
 		else :
 			self.readProjectOptionsAndUpdateEnv( lenv )
@@ -1316,7 +1436,7 @@ SConsBuildFramework options:
 						print "sbfInfo: Already checkout from %s using svn." % projectURL
 						print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
 					else :
-						self.vcsCheckout()
+						self.vcsCheckout( lenv )
 						self.readProjectOptionsAndUpdateEnv( lenv )
 				else :
 					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
@@ -1339,10 +1459,11 @@ SConsBuildFramework options:
 
 		if tryVcsUpdate :
 			if lenv['vcsUse'] == 'yes' :
-				self.vcsUpdate()
+				self.vcsUpdate( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
 			else :
-				print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+				if lenv.GetOption('verbosity') :
+					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 				# @todo only if verbose
 				#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
 				#print "sbfInfo: 'vcsUse' option sets to no. So svn update is disabled."
@@ -1403,12 +1524,17 @@ SConsBuildFramework options:
 		lenv['sbf_projectPath'		] = self.myProjectPath
 		lenv['sbf_project'			] = self.myProject
 
+		# @todo Finds a better place to do that
+		lenv['sbf_version_major']		= self.myVersionMajor
+		lenv['sbf_version_minor']		= self.myVersionMinor
+		lenv['sbf_version_maintenance']	= self.myVersionMaintenance
+
 		#lenv['sbf_projectPathName'] = projectPathName
 		#print "self.myProjectPathName==projectPathName?", self.myProjectPathName, "\n", projectPathName
 
 		os.chdir( projectPathName )																				### FIXME is chdir done at scons level ?
 
-		# Dumping construction environment (for debugging).																	# TODO : a method printDebugInfo()
+		# Dumping construction environment (for debugging).														# TODO : a method printDebugInfo()
 		#lenv.Dump()
 		#print 'DEBUG:cwd=', os.getcwd()
 
@@ -1424,6 +1550,8 @@ SConsBuildFramework options:
 		### configure myCxxFlags with myDefines
 		for define in self.myDefines :
 			self.myCxxFlags	+=	' -D' + define + ' '
+
+		lenv.AppendUnique( CPPDEFINES = [(self.myProject.upper() + '_VERSION', '\"' + self.myVersion + '\"' )] )
 
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( lenv )
@@ -1470,7 +1598,7 @@ SConsBuildFramework options:
 		searchFiles( 'src',		filesFromSrc,		['.svn'], basenameWithDotRe + r"cpp$" )
 		#searchFiles1( 'src',		['.svn'], ['.cpp'], filesFromSrc )
 
-		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|h)$" )
+		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|h|inl)$" )
 		#searchFiles1( 'include', ['.svn'], ['.hpp','.hxx','.h'], filesFromInclude )
 
 		searchFiles( 'share',	filesFromShare,		['.svn'] )
@@ -1494,6 +1622,37 @@ SConsBuildFramework options:
 				print 'sbfWarning: during setup of pseudo BuildDir'
 			# else nothing to do for 'none'
 
+		### Processes win32 resource files
+		# @todo generalizes a rc system
+		# @todo a lib for rc/share resource (in a zip) ?
+		env.Alias( self.myProject + '_resource.rc_generation' )
+
+		if self.myPlatform == 'win32' :
+			# Uses a specialized environment for rc compiler
+			rcEnv = lenv.Clone()
+
+			# Configures CPPPATH for PSDK
+			if self.myIsExpressEdition :
+				rcEnv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
+
+			# Adds rc directory to CPPPATH
+			rcPath = os.path.join(self.myProjectPathName, 'rc')
+			if os.path.isdir( rcPath ) :
+				rcEnv.Append( CPPPATH = rcPath )
+
+			### resource.rc file
+			# Constructs path to resource file
+			rcFile = os.path.join(rcPath, 'resource.rc')
+			# Tests existance of recource file
+			if os.path.isfile( rcFile ) :
+				# Compiles the resource file
+				objFiles += rcEnv.RES( rcFile )
+
+			# Generates resource_sbf.rc file
+			sbfRCFile = os.path.join(self.myProjectBuildPathExpanded, 'resource_sbf.rc')
+			env.Alias(	self.myProject + '_resource_generation',
+						rcEnv.Command( sbfRCFile, 'dummy.in', Action( resourceFileGeneration, printGenerate ) ) )
+			objFiles += rcEnv.RES( sbfRCFile )
 
 		### final result of project ###
 		objProject = os.path.join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion
@@ -1562,6 +1721,7 @@ SConsBuildFramework options:
 		env.AlwaysBuild( self.myProject + '_build_print' )
 
 		aliasProjectBuild = env.Alias( self.myProject + '_build', self.myProject + '_build_print' )
+		env.Alias( self.myProject + '_build', self.myProject + '_resource.rc_generation' )
 		env.Alias( self.myProject + '_build', projectTarget )
 		env.Clean( self.myProject + '_build', self.myProjectBuildPathExpanded  )
 
@@ -1756,6 +1916,8 @@ env.sbf.buildProject( env['sbf_projectPathName'] )
 Alias( 'svnCheckout', env.Command('dummySvnCheckout.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 
+
+
 ### special target : vcprojng ###
 
 # @todo Creates a new python file for vcproj stuffs and embedded file sbfTemplateMakefile.vcproj
@@ -1828,7 +1990,7 @@ def vcprojWriteTree( targetFile, files ):
 # Creates project file (.vcproj) containing informations about the debug session.
 def vcprojDebugFileAction( target, source, env ) :
 
-	# Retrieves/computes additionnal informations
+	# Retrieves/computes additional informations
 	targetName = str(target[0])
 
 	workingDirectory = os.path.join( env.sbf.myInstallDirectory, 'bin' )
