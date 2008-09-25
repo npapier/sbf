@@ -774,6 +774,7 @@ Type:
 
 
 Command-line options:
+
 debug      a shortcut for config=debug. See 'config' option for additionnal informations.
 release    a shortcut for config=release. See 'config' option for additionnal informations.
 
@@ -782,6 +783,15 @@ deps       a shortcut for nodeps=false. See 'nodeps' option for additionnal info
 
 noexclude  a shortcut for exclude=true. See 'exclude' option for additionnal informations.
 exclude    a shortcut for exclude=false. See 'exclude' option for additionnal informations.
+
+
+--weak-localext		Disables SCons scanners for localext directories.
+--no-weak-localext	See --weak-localext
+
+--verbose		Shows details about the results of running sbf. This can be especially useful when the results might not be obvious.
+--fast			TODO
+
+
 
 SConsBuildFramework options:
 """)
