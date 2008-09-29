@@ -182,7 +182,7 @@ def use_gtkmm( self, lenv, elt ) :
 		lenv.AppendUnique( LIBS = [	'glade-2.0',
 									'gtk-win32-2.0', 'xml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
 									'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-									'gmodule-2.0', 'glib-2.0', 'intl', 'iconv' ] )
+									'gmodule-2.0', 'glib-2.0', 'gthread-2.0', 'intl', 'iconv' ] )
 
 		lenv.AppendUnique( LIBS = [ 'gtkglext-win32-1.0', 'gdkglext-win32-1.0' ] )
 
