@@ -477,7 +477,7 @@ def printZipArchiver( target, source, env ) :
 
 ###### Action function for sbfCheck target #######
 def sbfCheck(target = None, source = None, env = None) :
-	print '----------------------- Availability and version of tools -----------------------'
+	print stringFormatter( env, 'Availability and version of tools' )
 
 	print 'python version : ',
 	env.Execute( '@python -V' )
@@ -559,6 +559,11 @@ def getSBFVersion() :
 
 
 ###### Functions for print action ######
+def stringFormatter( lenv, message ) :
+	columnWidth	= lenv['outputLineLength']
+	retVal = (' ' + message + ' ').center( columnWidth, '-' )
+	return retVal
+
 def nopAction(target = None, source = None, env = None) :
 	return 0
 
@@ -566,44 +571,44 @@ def printEmptyLine(target = None, source = None, env = None) :
 	print ''
 
 def printBuild( target, source, localenv ) :
-	return "------------------- Build %s -------------------" % localenv['sbf_projectPathName']
+	return stringFormatter( localenv, "Build %s" % localenv['sbf_projectPathName'] )
 
 def printInstall( target, source, localenv ) :
-	return "------------ Install %s files to %s ----------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
+	return stringFormatter(localenv, "Install %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printClean( target, source, localenv ) :
-	return "-------------- Clean %s files to %s ------------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
+	return stringFormatter( localenv, "Clean %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printMrproper( target, source, localenv ) :
-	return "-------------- Mrproper %s files to %s ------------" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory)
+	return stringFormatter( localenv, "Mrproper %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printZip( target, source, localenv ) :
-	return "\n----------------------- Create zip archives -----------------------"
+	return '\n' + stringFormatter( localenv, "Create zip archives" )
 
 def printRuntimeZip( target, source, localenv ) :
-	return "\n-------------- Create runtime package ------------"
+	return '\n' + stringFormatter( localenv, "Create runtime package" )
 
 def printDevZip( target, source, localenv ) :
-	return "\n-------------- Create dev package ------------"
+	return '\n' + stringFormatter( localenv, "Create dev package" )
 
 def printSrcZip( target, source, localenv ) :
-	return "\n-------------- Create src package ------------"
+	return '\n' + stringFormatter( localenv, "Create src package" )
 
 def printDoxygenBuild( target, source, localenv ) :
-	return "\n---------------------- Build documentation with doxygen ----------------------"
+	return '\n' + stringFormatter( localenv, "Build documentation with doxygen" )
 
 def printDoxygenInstall( target, source, localenv ) :
-	return "\n----------------------- Install doxygen documentation -----------------------"
+	return '\n' + stringFormatter( localenv, "Install doxygen documentation" )
 
 def printVisualStudioProjectStage( target, source, localenv ) :
-	return "\n------------------- Visual Studio Project generation stage -------------------\n"
+	return '\n' + stringFormatter( localenv, "Visual Studio Project generation stage" ) + '\n'
 
 def printVisualStudioProjectBuild( target, source, localenv ) :
-	return "\n---- Build %s Visual Studio Project ----" % localenv['sbf_project']
+	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Project" % localenv['sbf_project'] )
 #	return "---- Build %s Visual Studio Project ----\n---- from %s ----" % (localenv['sbf_project'], localenv['sbf_projectPath'])
 
 def printGenerate( target, source, localenv ) :
-	return "Generates %s" % str(target[0])
+	return "Generates %s" % str(target[0]) # @todo improves this message and '\n' usage
 
 
 
@@ -1154,7 +1159,8 @@ SConsBuildFramework options:
 			BoolOption(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
 						'true' ),
 
-			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', '1'),
+			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
+			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
 
 			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', ''),
 
@@ -1359,12 +1365,12 @@ SConsBuildFramework options:
 
 		if self.myProject in self.mySvnCheckoutExclude :
 			if lenv.GetOption('verbosity') :
-				print "----------------------- vcs checkout project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+				print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPathName) )
 				print "sbfInfo: Exclude from vcs checkout."
 				print "sbfInfo: Skip to the next project..."
 			return
 
-		print "----------------------- vcs checkout project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+		print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPathName) )
 
 		successful = svnCheckout( self )
 
@@ -1376,12 +1382,12 @@ SConsBuildFramework options:
 
 		if self.myProject in self.mySvnUpdateExclude :
 			if lenv.GetOption('verbosity') :
-				print "----------------------- vcs update project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+				print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPathName) )
 				print "sbfInfo: Exclude from vcs update."
 				print "sbfInfo: Skip to the next project..."
 			return
 
-		print "----------------------- vcs update project %s in %s -----------------------" % (self.myProject, self.myProjectPathName)
+		print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPathName) )
 
 		successful = svnUpdate( self )
 
@@ -1428,7 +1434,7 @@ SConsBuildFramework options:
 
 		if not existanceOfProjectPathName :
 			if not tryVcsCheckout:
-				print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
+				print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 				print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 				print "sbfInfo: None of targets svnCheckout or", self.myProject + "_svnCheckout have been specified."
 				return
@@ -1442,14 +1448,15 @@ SConsBuildFramework options:
 					projectURL = svnGetURL(self.myProjectPathName)
 					if len(projectURL) > 0 :
 						# @todo only if verbose
-						print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
+						print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 						print "sbfInfo: Already checkout from %s using svn." % projectURL
 						print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
 					else :
 						self.vcsCheckout( lenv )
 						self.readProjectOptionsAndUpdateEnv( lenv )
 				else :
-					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+					if lenv.GetOption('verbosity') :
+						print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 					# @todo only if verbose
 					#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
 					#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
