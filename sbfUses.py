@@ -136,11 +136,14 @@ def use_gtkmm( self, lenv, elt ) :
 		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
 	# Sets CPPPATH
-	gtkmmCppPath = ['include/libglademm-2.4', 'lib/libglademm-2.4/include', 'lib/gtkmm-2.4/include',
-					'include/gtkmm-2.4', 'lib/gdkmm-2.4/include', 'include/gdkmm-2.4', 'include/pangomm-1.4',
-					'include/atkmm-1.6', 'lib/libxml++-2.6/include', 'include/libxml++-2.6',
-					'lib/glibmm-2.4/include', 'include/glibmm-2.4', 'include/cairomm-1.0',
-					'lib/sigc++-2.0/include', 'include/sigc++-2.0']
+	gtkmmCppPath = ['lib/glibmm-2.4/include', 'include/glibmm-2.4', 
+					'lib/giomm-2.4/include', 'include/giomm-2.4', 
+					'lib/gtkmm-2.4/include', 'include/gtkmm-2.4', 
+					'lib/gdkmm-2.4/include', 'include/gdkmm-2.4', 
+					'lib/libglademm-2.4/include', 'include/libglademm-2.4', 
+					'lib/libxml++-2.6/include', 'include/libxml++-2.6',
+					'lib/sigc++-2.0/include', 'include/sigc++-2.0', 
+					'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0']
 
 
 	if lenv.GetOption('weak_localext') :
@@ -174,15 +177,15 @@ def use_gtkmm( self, lenv, elt ) :
 
 		if self.myConfig == 'release' :
 			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-										'pangomm-1.4', 'glibmm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
+										'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
 		else:
 			lenv.AppendUnique( LIBS = [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
-										'pangomm-1.4d', 'glibmm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
+										'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
 
 		lenv.AppendUnique( LIBS = [	'glade-2.0',
 									'gtk-win32-2.0', 'xml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
 									'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-									'gmodule-2.0', 'glib-2.0', 'gthread-2.0', 'intl', 'iconv' ] )
+									'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv' ] )
 
 		lenv.AppendUnique( LIBS = [ 'gtkglext-win32-1.0', 'gdkglext-win32-1.0' ] )
 
@@ -379,7 +382,7 @@ def uses( self, lenv ) :
 				lenv['LIBS'] += ['glut']
 
 		### configure gtk/gtkmm ###
-		elif elt == 'gtkmm2-4' :
+		elif elt == 'gtkmm2-14' :
 			use_gtkmm( self, lenv, elt );
 
 		### configure itk ###
