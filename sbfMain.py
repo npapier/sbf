@@ -555,7 +555,7 @@ def printSBFVersion() :
 
 
 def getSBFVersion() :
-	return '0.7.5'
+	return '0.7.6'
 
 
 ###### Functions for print action ######
@@ -765,9 +765,9 @@ Type:
  'scons clean' to clean intermediate files (see buildPath option).
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
+ 'scons vcprojog' to build Microsoft Visual Studio project file(s).
  'scons vcproj' to build Microsoft Visual Studio project file(s).
- 'scons vcprojng' to build Microsoft Visual Studio project file(s).
- 'scons vcprojng_clean' or 'scons vcprojng_mrproper'
+ 'scons vcproj_clean' or 'scons vcproj_mrproper'
 
  'scons dox' to generate doxygen documentation.
  'scons dox_clean' or 'scons dox_mrproper'
@@ -1772,15 +1772,15 @@ SConsBuildFramework options:
 		### myProject
 		aliasProject = env.Alias( self.myProject, aliasProjectInstall )
 
-		### myProject_vcproj
+		### myProject_vcprojog
 		### TODO: Adds vcproj files to clean/mrproper
 		### TODO: Adds target vcsln
 		if len(MSVSProjectBuildTarget) > 0 :
-			env.Alias(	self.myProject + '_vcproj_print',
-						lenv.Command(	'dummy_vcproj_print' + self.myProject + 'out1', 'dummy.in',
+			env.Alias(	self.myProject + '_vcprojog_print',
+						lenv.Command(	'dummy_vcprojog_print' + self.myProject + 'out1', 'dummy.in',
 										Action( nopAction, printVisualStudioProjectBuild ) ) )
 
-			vcprojFile		= os.path.join( self.myProjectPathName, self.myProject ) + env['MSVSPROJECTSUFFIX']
+			vcprojFile		= os.path.join( self.myProjectPathName, self.myProject + 'og' ) + env['MSVSPROJECTSUFFIX']
 			optionsFiles	= glob.glob( self.myProjectPathName + os.sep + '*.options' )
 
 			if self.myConfig == 'release' :
@@ -1798,10 +1798,10 @@ SConsBuildFramework options:
 								variant		= MSVSProjectVariant,
 								auto_build_solution = 0 )
 
-			aliasVCProjTarget = env.Alias( self.myProject + '_vcproj', self.myProject + '_vcproj_print' )
-			env.Alias( self.myProject + '_vcproj', vcprojTarget )
-			###### target vcproj ######
-			env.Alias( 'vcproj', aliasVCProjTarget )
+			aliasVCProjTarget = env.Alias( self.myProject + '_vcprojog', self.myProject + '_vcprojog_print' )
+			env.Alias( self.myProject + '_vcprojog', vcprojTarget )
+			###### target vcprojog ######
+			env.Alias( 'vcprojog', aliasVCProjTarget )
 		# else no build target, so do nothing
 
 		### myProject_clean
@@ -1935,12 +1935,11 @@ Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAc
 
 
 
-### special target : vcprojng ###
+### special target : vcproj ###
 
 # @todo Creates a new python file for vcproj stuffs and embedded file sbfTemplateMakefile.vcproj
 # @todo Generates section "Header Files", "Share Files" and "Source Files" only if not empty.
 # @todo Generates sln
-# @todo After stabilization, renames vcproj => vcprojOld and vcprojng => vcproj
 # @todo Configures localExt include path.
 # @todo Generates vcproj but with c++ project and not makefile project.
 # @todo Generates eclipse cdt project.
@@ -2133,6 +2132,7 @@ def vcprojAction( target, source, env ) :
 		re_sbfProjectPathName	= re.compile( customizePoint + r"(.*)(sbfProjectPathName)(.*)$" )
 		re_sbfOutputDebug		= re.compile( customizePoint + r"(.*)(sbfOutputDebug)(.*)$" )
 		re_sbfOutputRelease		= re.compile( customizePoint + r"(.*)(sbfOutputRelease)(.*)$" )
+		re_sbfDefines			= re.compile( customizePoint + r"(.*)(sbfDefines)(.*)$" )
 		re_sbfInclude			= re.compile( customizePoint + r"(.*)(sbfInclude)(.*)$" )
 		re_sbfShare				= re.compile( customizePoint + r"(.*)(sbfShare)(.*)$" )
 		re_sbfSrc				= re.compile( customizePoint + r"(.*)(sbfSrc)(.*)$" )
@@ -2180,6 +2180,20 @@ def vcprojAction( target, source, env ) :
 					targetFile.write( newLine )
 					continue
 
+				# sbfDefines customization point
+				res = re_sbfDefines.match(line)
+				if res != None :
+					# @todo OPTME computes defines only once
+					defines = ''
+					for define in env['CPPDEFINES'] :
+						if isinstance( define, str ) :
+							defines += define + ';'
+						else :
+							defines += define[0] + "=" + define[1].replace('\"', '&quot;') + ';'
+					newLine = res.expand( r"\1%s\3\n" % defines )
+					targetFile.write( newLine )
+					continue
+
 				# sbfInclude customization point
 				res = re_sbfInclude.match(line)
 				if res != None :
@@ -2211,13 +2225,13 @@ def vcprojAction( target, source, env ) :
 
 
 
-if	'vcprojng_build' in env.sbf.myBuildTargets or \
-	'vcprojng' in env.sbf.myBuildTargets or \
-	'vcprojng_clean' in env.sbf.myBuildTargets or \
-	'vcprojng_mrproper' in env.sbf.myBuildTargets :
+if	'vcproj_build' in env.sbf.myBuildTargets or \
+	'vcproj' in env.sbf.myBuildTargets or \
+	'vcproj_clean' in env.sbf.myBuildTargets or \
+	'vcproj_mrproper' in env.sbf.myBuildTargets :
 
-	if	'vcprojng_clean' in env.sbf.myBuildTargets or \
-		'vcprojng_mrproper' in env.sbf.myBuildTargets :
+	if	'vcproj_clean' in env.sbf.myBuildTargets or \
+		'vcproj_mrproper' in env.sbf.myBuildTargets :
 		env.SetOption('clean', 1)
 
 	# Retrieves informations
@@ -2229,27 +2243,27 @@ if	'vcprojng_build' in env.sbf.myBuildTargets or \
 	vcprojDebugFilePostFix = "." + remoteMachine + "." + user + ".user"
 
 	#
-	env.Alias( 'vcprojng_build_print', env.Command('vcprojng_build_print.out1', 'dummy.in', Action( nopAction, printVisualStudioProjectStage ) ) )
+	env.Alias( 'vcproj_build_print', env.Command('vcproj_build_print.out1', 'dummy.in', Action( nopAction, printVisualStudioProjectStage ) ) )
 
-	# target vcprojng_build
-	env.Alias( 'vcprojng_build', 'vcprojng_build_print' )
+	# target vcproj_build
+	env.Alias( 'vcproj_build', 'vcproj_build_print' )
 
 	for projectName in env.sbf.myParsedProjects :
 		lenv			= env.sbf.myParsedProjects[projectName]
 		projectPathName	= lenv['sbf_projectPathName']
 		project			= lenv['sbf_project']
-		output1			= getNormalizedPathname( projectPathName + os.sep + project + 'ng.vcproj' ) # @todo remove ng
+		output1			= getNormalizedPathname( projectPathName + os.sep + project + '.vcproj' )
 		output2			= output1 + vcprojDebugFilePostFix
-		env.Alias( 'vcprojng_build', lenv.Command('vcprojng_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
+		env.Alias( 'vcproj_build', lenv.Command('vcproj_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
 		# Creates the project file (.vcproj)
-		env.Alias( 'vcprojng_build', lenv.Command( output1, 'dummy.in', Action( vcprojAction, printGenerate) ) )
+		env.Alias( 'vcproj_build', lenv.Command( output1, 'dummy.in', Action( vcprojAction, printGenerate) ) )
 		# Creates project file (.vcproj) containing informations about the debug session.
-		env.Alias( 'vcprojng_build', lenv.Command( output2, 'dummy.in', Action( vcprojDebugFileAction, printGenerate) ) )
+		env.Alias( 'vcproj_build', lenv.Command( output2, 'dummy.in', Action( vcprojDebugFileAction, printGenerate) ) )
 		env.AlwaysBuild( [ output1, output2 ] )
 
-	env.Alias( 'vcprojng', 'vcprojng_build' )
-	env.Alias( 'vcprojng_clean', 'vcprojng' )
-	env.Alias( 'vcprojng_mrproper', 'vcprojng_clean' )
+	env.Alias( 'vcproj', 'vcproj_build' )
+	env.Alias( 'vcproj_clean', 'vcproj' )
+	env.Alias( 'vcproj_mrproper', 'vcproj_clean' )
 
 
 
