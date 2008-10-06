@@ -428,7 +428,7 @@ BEGIN
 //			VALUE "Comments", "\\0"
 """ )
 		file.write( """			VALUE "CompanyName", "%s\\0"\n""" % env['companyName'] )
-		file.write( """			VALUE "FileDescription", "myFileDescription\\0"\n""" )
+		file.write( """			VALUE "FileDescription", "%s\\0"\n""" % env['description'] )
 
 		file.write( """			VALUE "FileVersion", "%s\\0"\n""" % env['version'] )
 
@@ -1206,9 +1206,12 @@ SConsBuildFramework options:
 
 		myOptions = Options( file )
 		myOptions.AddOptions(
+			('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
+
 			EnumOption( 'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
 						allowed_values=('yes', 'no'),
 						map={}, ignorecase=1 ),
+
 			('defines', 'The list of preprocessor definitions given to the compiler at each invocation (same effect as #define xxx).', ''),
 			EnumOption( 'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
 						'none',

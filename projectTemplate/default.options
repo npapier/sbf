@@ -1,4 +1,5 @@
 # project settings
+#description		= ''
 #vcsUse				= 'yes' # no
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
