@@ -118,7 +118,7 @@ from SCons.Script.SConscript import SConsEnvironment
 import SCons.Errors
 
 from sbfFiles		import *
-from sbfUses		import uses
+from src.sbfUses	import uses
 from src.sbfUtils	import *
 
 
@@ -751,6 +751,44 @@ class SConsBuildFramework :
 		#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
 		self.myEnv['ENV']['PATH'] += os.environ['PATH'] ### FIXME not very recommended
 
+		# Analyses command line options
+		AddOption(	"--weak-localext",
+					action	= "store_true",
+					dest	= "weak_localext",
+					#default	= True,
+					help	= "Disables SCons scanners for localext directories." )
+
+		AddOption(	"--no-weak-localext",
+					action	= "store_false",
+					dest	= "weak_localext",
+					default	= True,
+					help	= "See --weak-localext option" )
+
+		# AddOption(	"--optimize",
+					# type	= "int",
+					# #action	= "store",
+					# #dest	= "optimize",
+					# default	= 1,
+					# help	= "todo documentation" )
+		#print self.myEnv.GetOption("optimize")
+		#print self.myEnv.GetOption("weak_localext")
+		#if self.myEnv.GetOption("optimize") == 0 :
+		#	self.myEnv.SetOption("weak_localext", 0 )
+
+		AddOption(	"--fast",
+					action	= "store_true",
+					#dest	= "fast",
+					default	= False,
+					help	= "todo documentation"
+					)
+
+		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
+		AddOption(	"--verbose",
+					action	= "store_true",
+					dest	= "verbosity",
+					default	= False,
+					help	= "Shows details about the results of running sbf. This can be especially useful when the results might not be obvious." )
+
 #		print self.myEnv.Dump()
 
 		# Generates help
@@ -829,14 +867,15 @@ SConsBuildFramework options:
 
 		# myDate, myDateTime
 		self.myDate		= str(datetime.date.today()).replace('-', '_')
-		self.myDateTime	= str(datetime.datetime.today())
+		# format compatible with that specified in the RFC 2822 Internet email standard.
+		self.myDateTime	= str(datetime.datetime.today().strftime("%a, %d %b %Y %H:%M:%S +0000"))
 
-		# Print sbf version, date and time at sbf startup
-# if self.myEnv.GetOption('verbosity') : @todo after moving AddOption()
-		printSBFVersion()
-		print 'started at', self.myDateTime
+		# Prints sbf version, date and time at sbf startup
+		if self.myEnv.GetOption('verbosity') :
+			printSBFVersion()
+			print 'started', self.myDateTime
 
-		# retrives all targets
+		# Retrives all targets
 		self.myBuildTargets = set( map(str, BUILD_TARGETS) )
 
 		# Takes care of alias definition needed for command line options.
@@ -867,43 +906,6 @@ SConsBuildFramework options:
 				self.myEnv.SetOption('clean', 1)
 
 		# Analyses command line options
-		AddOption(	"--weak-localext",
-					action	= "store_true",
-					dest	= "weak_localext",
-					#default	= True,
-					help	= "Disables SCons scanners for localext directories." )
-
-		AddOption(	"--no-weak-localext",
-					action	= "store_false",
-					dest	= "weak_localext",
-					default	= True,
-					help	= "See --weak-localext option" )
-
-		# AddOption(	"--optimize",
-					# type	= "int",
-					# #action	= "store",
-					# #dest	= "optimize",
-					# default	= 1,
-					# help	= "todo documentation" )
-		#print self.myEnv.GetOption("optimize")
-		#print self.myEnv.GetOption("weak_localext")
-		#if self.myEnv.GetOption("optimize") == 0 :
-		#	self.myEnv.SetOption("weak_localext", 0 )
-
-		AddOption(	"--fast",
-					action	= "store_true",
-					#dest	= "fast",
-					default	= False,
-					help	= "todo documentation"
-					)
-
-		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
-		AddOption(	"--verbose",
-					action	= "store_true",
-					dest	= "verbosity",
-					default	= False,
-					help	= "Shows details about the results of running sbf. This can be especially useful when the results might not be obvious." )
-
 		# and/or
 		# Processes special targets used as shortcuts for sbf options
 		# This 'hack' is useful to 'simulate' command-line options. But without '-' or '--'
@@ -1044,10 +1046,12 @@ SConsBuildFramework options:
 		self.myCacheOn		= lenv['cacheOn']
 		if (self.myCacheOn == True) and \
 		(len( self.myCachePath ) > 0 ) :
-			env.CacheDir( self.myCachePath )
-			print 'sbfInfo: Use cache ', self.myCachePath
+			lenv.CacheDir( self.myCachePath )
+			if lenv.GetOption('verbosity') :
+				print 'sbfInfo: Use cache ', self.myCachePath
 		else :
-			print 'sbfInfo: Don\'t use cache'
+			if lenv.GetOption('verbosity') :
+				print 'sbfInfo: Don\'t use cache'
 
 		self.myConfig		= lenv['config']
 		self.myWarningLevel	= lenv['warningLevel']
