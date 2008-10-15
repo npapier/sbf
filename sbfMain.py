@@ -1575,7 +1575,7 @@ SConsBuildFramework options:
 		for define in self.myDefines :
 			self.myCxxFlags	+=	' -D' + define + ' '
 
-		lenv.AppendUnique( CPPDEFINES = [(self.myProject.upper() + '_VERSION', '\"' + self.myVersion + '\"' )] )
+		lenv.AppendUnique( CPPDEFINES = [ "%s_VERSION=\\\"%s\\\"" % (self.myProject.upper(), self.myVersion) ] )
 
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( lenv )
