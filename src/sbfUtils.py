@@ -30,3 +30,36 @@ def getPathFromEnv( varname, normalizedPathname = True ) :
 		path = getNormalizedPathname( path )
 
 	return path
+
+
+
+### Splits the given string to obtain a list of values ###
+def convertToList( str ) :
+	if str.find(',') == -1 :
+		# no ','
+		# The words are separated by arbitrary strings of whitespace characters
+		return str.split()
+	else:
+		# ','
+		# The words are comma-separated
+		return str.replace(' ', '').split(',')
+
+### Constructs a string from a list or a set ###
+def convertToString( list ) :
+	result = ' '
+	for element in list :
+		result += element + ' '
+
+	return result
+
+### Constructs a string from a dictionary ###
+def convertDictToString( dict ) :
+	result = ''
+
+	sortedKey = sorted(dict.keys())
+	for key in sortedKey :
+		result += "%s=%s " % (key, dict[key])
+# Random order version
+#	for key, value in dict.iteritems() :
+#		result += "%s=%s " % (key, value)
+	return result
