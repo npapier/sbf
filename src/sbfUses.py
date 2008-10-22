@@ -729,13 +729,14 @@ def use_sofa( self, lenv, elt ) :
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'framework') ]
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'include') ]
 	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'extlibs/miniFlowVR/include') ]
-	lenv['LIBS']	+= ['SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation', 'SofaTree', 'SofaAutomateScheduler']
 
 	if self.myPlatform == 'win32' :
-		lenv['LIBS'] += ['glew32', 'libxml2', 'miniFlowvR', 'NewMAT', 'Gdi32', 'Shell32']
+		lenv['LIBS'] += ['glew32', 'libxml2', 'Gdi32', 'Shell32']
 		if self.myConfig == 'release' :
+			lenv['LIBS']	+= ['SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation', 'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT']
 			lenv['LIBPATH']	+= [ os.path.join( sofa_path, 'lib/win32/ReleaseVC8') ]
 		else :
+			lenv['LIBS']	+= ['SofaCored', 'SofaDefaultTyped', 'SofaComponentd', 'SofaHelperd', 'SofaSimulationd', 'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd']
 			lenv['LIBPATH']	+= [ os.path.join( sofa_path, 'lib/win32/DebugVC8' ) ]
 		lenv['LIBPATH'] += [ os.path.join( sofa_path, 'lib/win32/Common' ) ]
 	else :
