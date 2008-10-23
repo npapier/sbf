@@ -116,16 +116,10 @@ import sys
 from SCons.Script.SConscript import SConsEnvironment
 import SCons.Errors
 
-from sbfFiles		import *
+from src.sbfFiles	import *
 from src.sbfUses	import uses
 from src.sbfUtils	import *
 from src.SConsBuildFramework import stringFormatter
-
-
-
-
-
-
 
 
 
@@ -537,7 +531,7 @@ def vcprojAction( target, source, env ) :
 					defines = ''
 					for define in env['CPPDEFINES'] :
 						if isinstance( define, str ) :
-							defines += define + ';'
+							defines += define.replace('\"', '&quot;') + ';'
 						else :
 							defines += define[0] + "=" + define[1].replace('\"', '&quot;') + ';'
 					newLine = res.expand( r"\1%s\3\n" % defines )
@@ -841,6 +835,7 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 	srcZipFiles			= []
 
 	usesSet				= set()
+	extension			= env['SHLIBSUFFIX']
 
 	for projectName in sbf.myParsedProjects :
 		lenv			= sbf.myParsedProjects[projectName]
@@ -870,6 +865,19 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 #				print ("Found a new dependency : %s" % element)
 			usesSet.add( element )
 
+		# Processes the 'stdlibs' project option
+		if len(lenv['stdlibs']) > 0 :
+			searchPathList = sbf.myLibInstallExtPaths[:]
+			for stdlib in lenv['stdlibs'] :
+				filename = os.path.splitext(stdlib)[0] + extension
+				pathFilename = searchFileInDirectories( filename, searchPathList )
+				if pathFilename:
+					print("Found standard library %s" % pathFilename)
+					depsZipFiles		+= Install( os.path.join(depsZipPath, 'bin'), pathFilename )
+					portableZipFiles	+= Install( os.path.join(portableZipPath, 'bin'), pathFilename )
+				else:
+					print("Standard library %s not found (see 'stdlibs' project option of %s)." % (filename, projectName) )
+
 		# Adds files to dev zip
 		devZipFiles += Install(		os.path.join(devZipPath, 'bin'),			lenv['sbf_bin'] )
 
@@ -887,7 +895,7 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 			for absFile in allFiles :
 				relFile = convertPathAbsToRel( projectPathName, absFile )
-				srcZipFiles += lenv.InstallAs( os.path.join(srcZipPath, projectRelPath, relFile), absFile )
+				srcZipFiles += InstallAs( os.path.join(srcZipPath, projectRelPath, relFile), absFile )
 		# else nothing to do
 
 	# Processes external dependencies
@@ -903,32 +911,28 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 		# Retrieves use object for incoming dependency
 		use = UseRepository.getUse( useName )
 		if use != None :
+
 			# Retrieves LIBS of incoming dependency
 			libs = use.getLIBS( useVersion )
 			if libs != None and len(libs) == 2:
-				extension = env['SHLIBSUFFIX']
 
 				# Computes the search path list where libraries could be located
-				searchPathList = [os.path.join( sbf.myInstallExtPaths[0], 'lib' )]		# @todo support of len(myInstallExtPaths) > 1
-				print "searchPathList", searchPathList
+				searchPathList = sbf.myLibInstallExtPaths[:]
 				libpath = use.getLIBPATH( useVersion )
-				if (libpath != None) and (len(libpath) > 0 ) :
-					searchPathList += libpath
-				print "searchPathList", searchPathList
+				if (libpath != None) and (len(libpath) == 2) :
+					if len(libpath[1]) > 0 :
+						searchPathList.extend( libpath[1] )
 
 				# For each library, do
 				for file in libs[1]:
-					fileExtension = file + extension
-					for path in searchPathList :
-						sourceFile = os.path.join(path, fileExtension)
-						print "sourceFile=", sourceFile
-						if os.path.isfile( sourceFile ):
-	#print ( "Found file : %s" % sourceFile )
-							depsZipFiles		+= Install( os.path.join(depsZipPath, 'bin'), sourceFile )
-							portableZipFiles	+= Install( os.path.join(portableZipPath, 'bin'), sourceFile )
-							break
+					filename = file + extension
+					pathFilename = searchFileInDirectories( filename, searchPathList )
+					if pathFilename:
+						print ("Found library %s" % pathFilename)
+						depsZipFiles		+= Install( os.path.join(depsZipPath, 'bin'), pathFilename )
+						portableZipFiles	+= Install( os.path.join(portableZipPath, 'bin'), pathFilename )
 					else:
-						raise SCons.Errors.UserError( "File %s not found." % sourceFile )
+						raise SCons.Errors.UserError( "File %s not found." % filename )
 			else:
 				raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
 

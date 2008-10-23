@@ -204,6 +204,14 @@ class SConsBuildFramework :
 		#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
 		self.myEnv['ENV']['PATH'] += os.environ['PATH'] ### FIXME not very recommended
 
+# @todo uses UnknownVariables()
+#		#
+#		unknown = self.mySBFOptions.UnknownVariables()
+#		print "Unknown variables:", unknown.keys()
+#		if unknown:
+#			print "Unknown variables:", unknown.keys()
+#			Exit(1)
+
 		# Analyses command line options
 		AddOption(	"--weak-localext",
 					action	= "store_true",
@@ -613,8 +621,8 @@ SConsBuildFramework options:
 	# @todo
 	def readSConsBuildFrameworkOptions( self, file ) :
 
-		myOptions = Options( file )
-		myOptions.AddOptions(
+		myOptions = Variables( file )
+		myOptions.AddVariables(
 			BoolOption(	'nodeps', "Sets to true, i.e. y, yes, t, true, 1, on and all, to do not follow project dependencies. Sets to false, i.e. n, no, f, false, 0, off and none, to follow project dependencies.",
 						'false' ),
 			BoolOption(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
@@ -623,7 +631,9 @@ SConsBuildFramework options:
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
 
-			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', ''),
+			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', '' ),
+
+			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPaths[0]/sbfPak'.", [] ),
 
 			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
 			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included.', []),
@@ -666,8 +676,8 @@ SConsBuildFramework options:
 	# @todo
 	def readProjectOptions( self, file ) :
 
-		myOptions = Options( file )
-		myOptions.AddOptions(
+		myOptions = Variables( file )
+		myOptions.AddVariables(
 			('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
 
 			EnumOption( 'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
@@ -694,6 +704,7 @@ SConsBuildFramework options:
 			('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
 			('stdlibs', 'The list of standard libraries used during the link stage.', [])
 								)
+
 		return myOptions
 
 
@@ -705,6 +716,7 @@ SConsBuildFramework options:
 			# update lenv with config.options
 			self.myProjectOptions = self.readProjectOptions( configDotOptionsPathFile )
 			self.myProjectOptions.Update( lenv )
+
 
 
 	###### Configures CxxFlags & LinkFlags ######
@@ -814,7 +826,7 @@ SConsBuildFramework options:
 		elif ( self.myPlatform == 'cygwin' or self.myPlatform == 'posix' ) :
 			self.configureCxxFlagsAndLinkFlagsOnPosix( lenv )
 		else:
-			print 'sbfWarning: unknown platform (', self.myPlatform, ')'
+			raise SCons.Errors.UserError("Unknown platform %s." % self.myPlatform)
 
 		# Completes myCxxFlags with some defines
 		if ( self.myType == 'shared' ) :
@@ -1034,7 +1046,11 @@ SConsBuildFramework options:
 		for define in self.myDefines :
 			self.myCxxFlags	+=	' -D' + define + ' '
 
-		lenv.AppendUnique( CPPDEFINES = [ "%s_VERSION=\\\"%s\\\"" % (self.myProject.upper(), self.myVersion) ] ) # @todo separate major, minor and maintenance number
+		# Adds to command-line several defines with version number informations.
+		lenv.AppendUnique( CPPDEFINES = [ ("%s_VERSION" % self.myProject.upper(), "\\\"%s\\\"" % self.myVersion ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("%s_MAJOR_VER" % self.myProject.upper(), "%s" % self.myVersionMajor ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("%s_MINOR_VER" % self.myProject.upper(), "%s" % self.myVersionMinor ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("%s_MAINT_VER" % self.myProject.upper(), "%s" % self.myVersionMaintenance ) ] )
 
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( lenv )
@@ -1056,7 +1072,7 @@ SConsBuildFramework options:
 
 		# configure lenv['LIBS'] with lenv['libs']
 		for lib in lenv['libs'] :
-			libSplited	= string.split(lib, ' ')
+			libSplited	= string.split(lib, ' ')					# @todo see UseRepository.extract()
 			libExpanded = ''
 			if ( len(libSplited) == 1 ) :
 				libExpanded += lib + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig
@@ -1394,5 +1410,3 @@ SConsBuildFramework options:
 	def getVersionNumberString3( self, versionNumber ) :
 		tuple = self.getVersionNumberTuple( versionNumber )
 		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
-
-

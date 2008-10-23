@@ -4,6 +4,7 @@
 #numJobs			= 1
 #outputLineLength	= 79
 #companyName		= ''
+#pakPaths			= []
 #svnUrls			= []
 #projectExclude		= []
 #svnCheckoutExclude	= []

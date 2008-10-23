@@ -20,6 +20,15 @@ def convertPathAbsToRel( basePathName, absPathName ) :
 
 
 ###### Searching files in a filesystem ######
+
+# Searches the filename in each directory given by searchPathList
+# Returns the complete path with filename if found, otherwise None.
+def searchFileInDirectories( filename, searchPathList ):
+	for path in searchPathList :
+		pathFilename = os.path.join( path, filename )
+		if os.path.isfile( pathFilename ):
+			return pathFilename
+
 # Prune some directories
 # Exclude/retain only a specific set of extensions for files
 def searchFiles1( searchDirectory, pruneDirectories, allowedExtensions, oFiles ) :
@@ -54,6 +63,7 @@ def searchFiles1( searchDirectory, pruneDirectories, allowedExtensions, oFiles )
 ### pruneDirectoriesPatterns
 ### allowedFilesRe				files matching this regular expression are append to oFiles
 def searchFiles( searchDirectory, oFiles, pruneDirectoriesPatterns = [], allowedFilesRe = r".+" ) :
+	compiledRe = re.compile( allowedFilesRe )
 	for dirpath, dirnames, filenames in os.walk( searchDirectory, topdown = True ) :
 		# FIXME: OPTME: replace fnmatch.filter() with dirnames = fnUNmatch.filter() or use module re
 		# prune directories
@@ -64,7 +74,6 @@ def searchFiles( searchDirectory, oFiles, pruneDirectoriesPatterns = [], allowed
 				dirnames.remove( element )
 
 		# get files
-		compiledRe = re.compile( allowedFilesRe )
 		for file in filenames :
 			if compiledRe.match( file ) is not None :
 				pathfilename = os.path.join(dirpath, file)
