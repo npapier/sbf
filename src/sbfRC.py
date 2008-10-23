@@ -89,4 +89,4 @@ END
 		iconAbsPathFile	= os.path.join(env['sbf_projectPathName'], 'rc', iconFile )
 
 		if os.path.isfile( iconAbsPathFile ) :
-			file.write( strIcon % (	env['sbf_project'], iconFile ) )
+			file.write( strIcon % (	env['sbf_project'].upper(), iconFile ) )
