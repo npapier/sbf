@@ -14,15 +14,21 @@ import zipfile
 
 
 
-# @todo statistics at the end of install/remove.
-# @todo tests installation
+# @todo improves stats (see test() for missing stats), and install/remove/test() prints the same stats => flags to select interesting stats)).
+# @todo renames into sbf-get and uses apt-get syntax.
+# @todo search
+# @todo verbose mode (see sbf ?)
+# @todo cmd -- Support for line-oriented command interpreters
 # @todo verbose option
+# @todo usable as a library or a cmd
+# @todo without SConstruct() stuff
 class PackagingSystem:
 	#
 	__localPath					= None
 	__localExtPath				= None
-	__repositoryPath			= None
+	__pakPaths					= []
 
+	__myPlatform				= None
 	__my_Platform_myCCVersion	= None
 	__libSuffix					= None
 	__shLibSuffix				= None
@@ -95,12 +101,12 @@ class PackagingSystem:
 		else:
 			print ( "%i not found file." % self.__numNotFoundFiles )
 
-		print
-
 
 
 	def __computeDepth( self, path ) :
 		return len( os.path.normpath( path ).split( os.sep ) )
+
+
 
 	def __pprintList( self, list ) :
 		listLength = len(list)
@@ -114,24 +120,18 @@ class PackagingSystem:
 		print currentString[0:-2] + " ]"
 
 
-	def completeFilename( self, packageName ):
-		return packageName + self.__my_Platform_myCCVersion + '.zip'
-
-
 
 	def __init__( self ) :
 		# Initializes the sbf main class to retrieve configuration
 		from src.SConsBuildFramework import SConsBuildFramework
 		sbf = SConsBuildFramework()
-#print "myInstallPaths=", sbf.myInstallPaths[0]
-#print "myInstallExtPaths=", sbf.myInstallExtPaths[0]
-#print
 
 		self.__localPath				= sbf.myInstallPaths[0]
-		#os.path.normpath('d:\\_local')
 		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
-		self.__repositoryPath 			= os.path.join( self.__localExtPath, 'pak' ) #'pak' )						# @todo should be an sbf option
+		self.__pakPaths 				= [os.path.join( self.__localExtPath, 'sbfPak' )]
+		self.__pakPaths.extend( sbf.myEnv['pakPaths'] )
 
+		self.__myPlatform				= sbf.myPlatform
 		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
 		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
 		self.__shLibSuffix				= sbf.myEnv['SHLIBSUFFIX']
@@ -144,20 +144,73 @@ class PackagingSystem:
 			print ("localExt not found in %s" % self.__localExtPath)
 			exit(1)
 
-		# Tests existance of pak repository directory
-		if os.path.isdir( self.__repositoryPath ) :
-			print "Found package repository in %s" % self.__repositoryPath
-		else :
-			print "Package repository not found in %s" % self.__repositoryPath
-			exit(1)
+		# Tests existance of pakPaths directory
+		for path in self.__pakPaths :
+			if os.path.isdir( path ) :
+				print ("Found package repository in %s" % path)
+			else :
+				print ("Package repository not found in %s" % path)
+				exit(1)
 		print
 
 
 
-	def info( self, filename, pattern ):
+	# @todo filter on compiler
+	def list( self, pattern = '' ):
+		for pakPath in self.__pakPaths:
+			print
+			print ("Available packages in %s :" % pakPath)
+			elements = glob.glob( os.path.join(pakPath, "*%s*.zip" % pattern) )
+			sortedElements = sorted( elements )
+			for element in sortedElements :
+				filename = os.path.basename(element)
 
-		# Adds repository path to filename
-		pathFilename = os.path.join( self.__repositoryPath, filename )
+				filenameWithoutExt = os.path.splitext(filename)[0]
+				splitted = filenameWithoutExt.split( self.__myPlatform, 1 )
+				if len(splitted) == 1 :
+					# The current platform not found in package filename, so don't print it
+					continue
+				name = splitted[0].rstrip('_')
+				print name.ljust(30), filename
+
+
+	def completeFilename( self, packageName ):
+		return packageName + self.__my_Platform_myCCVersion + '.zip'
+
+
+	# @todo command-line option ?
+	def locatePackage( self, pakName ):
+		for path in self.__pakPaths :
+			pathPakName = os.path.join( path, pakName )
+			if os.path.isfile(pathPakName):
+				return pathPakName
+
+
+	def testZip( self, pathFilename ):
+
+		# Tests file existance
+		if not os.path.lexists( pathFilename ):
+			print ("File %s does not exist." % pathFilename )
+			exit(1)
+
+		# Tests file type
+		if zipfile.is_zipfile( pathFilename ) == False :
+			print ("File %s is not a zip." % pathFilename)
+			exit(1)
+
+		# Opens and tests package
+		zip = zipfile.ZipFile( pathFilename )
+		print ('Tests %s\nPlease wait...' % os.path.basename(pathFilename) )
+		testzipRetVal = zip.testzip()
+		if testzipRetVal != None :
+			print ('bad file:%s' % testzipRetVal)
+			exit(1)
+		else :
+			print ('Done.\n')
+		zip.close()
+
+
+	def info( self, pathFilename, pattern ):
 
 		# Opens package
 		zip = zipfile.ZipFile( pathFilename )
@@ -186,10 +239,7 @@ class PackagingSystem:
 
 
 
-	def install( self, filename ):
-
-		# Adds repository path to filename
-		pathFilename = os.path.join( self.__repositoryPath, filename )
+	def install( self, pathFilename ):
 
 		# Opens package
 		zip = zipfile.ZipFile( pathFilename )
@@ -250,18 +300,8 @@ class PackagingSystem:
 		self.__printStatistics()
 
 
-
-	def list( self, pattern = '' ):
-		print ("Available package(s) in %s :" % self.__repositoryPath)
-		for element in glob.glob( os.path.join(self.__repositoryPath, "*%s*.zip" % pattern) ):
-			print os.path.basename(element)
-
-
-# @todo try except => tests when a file is open
-	def remove( self, filename ):
-
-		# Adds repository path to filename
-		pathFilename = os.path.join( self.__repositoryPath, filename )
+	# @todo try except => tests when a file is open
+	def remove( self, pathFilename ):
 
 		# Opens package
 		zip = zipfile.ZipFile( pathFilename )
@@ -326,33 +366,78 @@ class PackagingSystem:
 
 
 
-	def testZip( self, filename ):
-		# Tests zip
-		pathFilename = os.path.join( self.__repositoryPath, filename )
+	def test( self, pathFilename ):
 
-		# Tests file existance
-		if not os.path.lexists( pathFilename ):
-			print ("File %s does not exist." % pathFilename )
-			exit(1)
-
-		# Tests file type
-		if zipfile.is_zipfile( pathFilename ) == False :
-			print ("File %s is not a zip." % pathFilename)
-			exit(1)
-
-		# Opens and tests package
+		# Opens package
 		zip = zipfile.ZipFile( pathFilename )
-		print ('Tests %s\nPlease wait...' % os.path.basename(pathFilename) )
-		testzipRetVal = zip.testzip()
-		if testzipRetVal != None :
-			print ('bad file:%s' % testzipRetVal)
-			exit(1)
-		else :
-			print ('Done.\n')
+
+		# Initializes statistics
+		self.__initializeStatistics()
+		differentFile	= 0
+		identicalFile	= 0
+
+		#
+		print
+		print ( "Tests package using %s" % pathFilename )
+		print
+		print ('Details :')
+
+		for name in zip.namelist() :
+			normalizeName			= os.path.normpath( name )
+			normalizeNameSplitted	= normalizeName.split( os.sep )
+
+			normalizeNameTruncated	= None
+			if len(normalizeNameSplitted) > 1 :
+				normalizeNameTruncated = normalizeName.replace( normalizeNameSplitted[0] + os.sep, '' )
+			else :
+				continue
+
+			if not name.endswith('/') :
+				# element is a file
+				fileInLocalExt = os.path.join( self.__localExtPath, normalizeNameTruncated )
+
+				# Tests directory
+				if not os.path.lexists(os.path.dirname(fileInLocalExt)):
+					print ( 'Missing directory %s' % os.path.dirname(fileInLocalExt) )
+					self.__numNotFoundDirectories += 1
+
+				if os.path.isfile( fileInLocalExt ):
+					# Tests contents of the file
+					referenceContent = zip.read(name)
+					installedContent = ''
+					with open( fileInLocalExt, 'rb' ) as fileToTest :
+						installedContent = fileToTest.read()
+					if referenceContent != installedContent :
+						print ("File %s corrupted." % fileInLocalExt)
+						differentFile += 1
+					else :
+						print ("File %s has been verified." % fileInLocalExt)
+						identicalFile += 1
+				else :
+					self.__numNotFoundFiles += 1
+					print ( 'Missing file %s' % fileInLocalExt )
+			else:
+				# element is a directory, tests it
+				directoryInLocalExt = os.path.join( self.__localExtPath, normalizeNameTruncated )
+				if not os.path.lexists(directoryInLocalExt):
+					print ( 'Missing directory %s' % directoryInLocalExt )
+					self.__numNotFoundDirectories += 1
+
+		# Closes package
 		zip.close()
 
-# @todo usable as a library or a cmd
-# @todo without SConstruct() stuff
+		# Prints statistics
+		self.__printStatistics()
+
+		if differentFile > 1:
+			print (	"%i different files," % differentFile ),
+		else:
+			print (	"%i different file," % differentFile ),
+
+		if identicalFile > 1:
+			print (	"%i identical files." % identicalFile ),
+		else:
+			print (	"%i identical file." % identicalFile ),
 
 #
 import sys
@@ -381,42 +466,40 @@ if arguments[0] == 'list' :
 	if len(arguments) == 2 :
 		pattern = arguments[1]
 	# Calls list method
-	packagingSystem.list( pattern)
+	packagingSystem.list( pattern )
 	exit(0)
 
-#
-pakName			= arguments[1]
-completePakName = ''
+# Constructs the full package name (if needed)
+pakName	= arguments[1]
 
-splittedPakName	= os.path.splitext( pakName )
-if len(splittedPakName[1]) == 0:
-	completePakName = packagingSystem.completeFilename(pakName)
-	print ("Full package name : %s" % completePakName)
-else:
-	completePakName = pakName
+if len(os.path.splitext( pakName )[1]) == 0:
+	pakName = packagingSystem.completeFilename(pakName)
 
+# Adds repository path to pakName
+pathPakName = packagingSystem.locatePackage( pakName )
+if pathPakName == None :
+	print ("Unable to find package %s" % pakName )
+	exit(1)
+
+print ("Incoming package : %s" % pathPakName )
 print
 
-# @todo search
-# @todo test
-# @todo verbose mode (see sbf ?)
-
 #
-packagingSystem.testZip( completePakName )
+packagingSystem.testZip( pathPakName )
 
 if arguments[0] == 'info' :
 	pattern = ''
 	if len(arguments) == 3 :
 		pattern = arguments[2]
-	packagingSystem.info( completePakName, pattern )
+	packagingSystem.info( pathPakName, pattern )
 
 if arguments[0] == 'install' :
-	packagingSystem.install( completePakName )
+	packagingSystem.install( pathPakName )
 
 if arguments[0] == 'remove' :
-	packagingSystem.remove( completePakName )
+	packagingSystem.remove( pathPakName )
 
 if arguments[0] == 'test' :
-	packagingSystem.test( completePakName )
+	packagingSystem.test( pathPakName )
 
 exit(0)
