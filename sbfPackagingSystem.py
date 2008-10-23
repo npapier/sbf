@@ -130,7 +130,7 @@ class PackagingSystem:
 		self.__localPath				= sbf.myInstallPaths[0]
 		#os.path.normpath('d:\\_local')
 		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
-		self.__repositoryPath 			= os.path.join( self.__localExtPath, 'pak' )						# @todo should be a sbf option
+		self.__repositoryPath 			= os.path.join( self.__localExtPath, 'pak' ) #'pak' )						# @todo should be an sbf option
 
 		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
 		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
@@ -219,6 +219,7 @@ class PackagingSystem:
 
 				# Creates directory if needed
 				if not os.path.lexists(os.path.dirname(fileInLocalExt)):
+					print ( 'Creates directory %s' % fileInLocalExt )
 					os.makedirs( os.path.dirname(fileInLocalExt) )
 					self.__numNewDirectories += 1
 
@@ -234,7 +235,13 @@ class PackagingSystem:
 				with open( fileInLocalExt, 'wb' ) as outputFile :
 					outputFile.write( zip.read(name) )
 					outputFile.flush()
-			#else element is a directory, nothing to do
+			else:
+				# element is a directory, try to create it
+				directoryInLocalExt = os.path.join( self.__localExtPath, normalizeNameTruncated )
+				if not os.path.lexists(directoryInLocalExt):
+					print ( 'Creates directory %s' % directoryInLocalExt )
+					os.makedirs( directoryInLocalExt )
+					self.__numNewDirectories += 1
 
 		# Closes package
 		zip.close()
