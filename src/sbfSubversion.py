@@ -3,6 +3,8 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+from sbfFiles import convertPathAbsToRel
+
 ##### Svn ######
 def svnGetURL( path ) :
 	import pysvn
