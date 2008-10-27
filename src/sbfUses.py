@@ -63,7 +63,7 @@ class IUse :
 		return [], []
 
 	def getLIBPATH( self, version ):
-		return [] #	????????????????????????????????????????????????????????????????????????????? [] ???????????????????????????????????????????????
+		return [], []
 
 
 	def __call__( self, useVersion, env ):
@@ -101,7 +101,7 @@ class IUse :
 
 		# LIBS
 		libs = self.getLIBS( useVersion )
-		if libs != None and len(libs) == 2:
+		if (libs != None) and (len(libs) == 2) :
 			if len(libs[0]) > 0:
 				env.AppendUnique( LIBS = libs[0] )
 		else:
@@ -109,9 +109,9 @@ class IUse :
 
 		# LIBPATH
 		libpath = self.getLIBPATH( useVersion )
-		if libpath != None :
-			if len(libpath) > 0 :
-				env.AppendUnique( LIBPATH = libpath )
+		if (libpath != None) and (len(libpath) == 2) :
+			if len(libpath[0]) > 0 :
+				env.AppendUnique( LIBPATH = libpath[0] )
 		else :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBPATH)." % (useNameVersion, self.platform) )
 
@@ -133,6 +133,7 @@ class Use_boost( IUse ):
 		else:
 			return None
 
+	# @todo boost only for vc80, checks compiler and compiler version ?
 	def getLIBS( self, version ):
 		if self.platform == 'win32' and version == '1-34-1':
 			if self.config == 'release' :
@@ -195,13 +196,14 @@ class Use_cairo( IUse ):
 	def getLIBS( self, version ):
 		if (self.platform == 'win32') and (version in ['1-7-6', '1-2-6']) :
 			libs = [ 'cairo' ]
-			return libs, libs
+			pakLibs = [ 'libcairo-2' ]
+			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
 		if self.__gtkBasePath is None :
 			return None
 
-		return [ os.path.join(self.__gtkBasePath, 'lib') ]
+		return [ os.path.join(self.__gtkBasePath, 'lib') ], [ os.path.join(self.__gtkBasePath, 'bin') ]
 
 #def use_cairo( self, lenv, elt ) :
 #=======================================================================================================================
@@ -216,7 +218,7 @@ class Use_colladadom( IUse ):
 		return "colladadom"
 
 	def getVersions( self ):
-		return [ '2-0', '2-1' ]
+		return [ '2-1', '2-0' ]
 
 
 	def getCPPDEFINES( self, version ):
@@ -225,7 +227,7 @@ class Use_colladadom( IUse ):
 
 	def getCPPPATH( self, version ):
 		if version == '2-1' :
-			return [ 'collada-dom_2-1', os.path.join('collada-dom_2-1', '1.4') ]
+			return [ 'collada-dom2-1', os.path.join('collada-dom2-1', '1.4') ]
 		elif version == '2-0' :
 			return [ 'collada-dom_2-0', os.path.join('collada-dom_2-0', '1.4') ]
 
@@ -301,6 +303,19 @@ class Use_openilu( IUse ):
 			else :
 				libs = ['ILUd']
 				return libs, libs
+
+
+class Use_sdl( IUse ):
+	def getName( self ):
+		return "sdl"
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32' :
+			libs = [ 'SDL', 'SDLmain' ]
+			pakLibs = [ 'SDL' ]
+			return libs, pakLibs
+		#else: @todo
+		#	lenv.ParseConfig('sdl-config --cflags --libs')
 
 
 class Use_glu( IUse ):
@@ -414,7 +429,7 @@ class UseRepository :
 	__repository	= {}
 
 	__allowedValues = [	'cairomm1-2-4', 'gtkmm2-14', 'itk3-4-0', 'ode',
-						'physx2-8-1', 'sdl', 'sofa' ]
+						'physx2-8-1', 'sofa' ]
 	__alias			= {
 			'cairomm'		: 'cairomm1-2-4',
 			'gtkmm'			: 'gtkmm2-14',
@@ -426,7 +441,7 @@ class UseRepository :
 	@classmethod
 	def initialize( self, sbf,
 					listOfIUseImplementation = [Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_opengl(),
-												Use_openil(), Use_openilu(), Use_wxWidgets(), Use_wxWidgetsGL()] ):
+												Use_openil(), Use_openilu(), Use_sdl(), Use_wxWidgets(), Use_wxWidgetsGL()] ):
 
 		if self.__initialized == True :
 			raise SCons.Errors.InternalError("Try to initialize UseRepository twice.")
@@ -710,12 +725,6 @@ def use_physx( self, lenv, elt ) :
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
-def use_sdl( self, lenv, elt ) :
-	if ( self.myPlatform == 'win32' ) :
-		lenv['LIBS']	+= ['SDL', 'SDLmain']
-	else :
-		lenv.ParseConfig('sdl-config --cflags --libs')
-
 # TODO: SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
 def use_sofa( self, lenv, elt ) :
@@ -847,9 +856,11 @@ def uses( self, lenv ):
 		elif elt == 'physx2-8-1' :
 			use_physx( self, lenv, elt )
 
-		### configure sdl ###
-		elif elt == 'sdl' :
-			use_sdl( self, lenv, elt )
+#===============================================================================
+#		### configure sdl ###
+#		elif elt == 'sdl' :
+#			use_sdl( self, lenv, elt )
+#===============================================================================
 
 		### configure sofa ###
 		elif elt == 'sofa' :
