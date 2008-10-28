@@ -78,6 +78,7 @@ class SConsBuildFramework :
 
 	# SCons environment
 	myEnv							= None
+	myCurrentLocalEnv				= None			# contains the lenv of the current project
 
 	# Options instances
 	mySBFOptions					= None
@@ -151,6 +152,7 @@ class SConsBuildFramework :
 	myLibPath						= []
 
 	myProjectBuildPathExpanded		= ''	# c:\temp\sbf\build\gle\0-3\win32\cl7-1\debug
+	mySubsystemNotDefined			= None	# True if LINKFLAGS contains '/SUBSYSTEM:'
 
 	# List of projects that have been already parsed by scons
 	myParsedProjects				= {}
@@ -779,16 +781,20 @@ SConsBuildFramework options:
 				self.myCxxFlags += ' /Wp64 '
 
 		# Subsystem and incremental flags
+		self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
 		if self.myConfig == 'release' :
 			# subsystem sets to console to output debugging informations.
-			self.myLinkFlags	+= ' /SUBSYSTEM:CONSOLE '
+			if self.mySubsystemNotDefined :
+				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
+			#self.myLinkFlags	+= ' /SUBSYSTEM:CONSOLE '
 			#self.myLinkFlags	+= ' /SUBSYSTEM:WINDOWS '
 
 			# To ensure that the final release build does not contain padding or thunks, link nonincrementally.
 			self.myLinkFlags += ' /INCREMENTAL:NO '
 		else :
 			# subsystem sets to console to output debugging informations.
-			self.myLinkFlags	+= ' /SUBSYSTEM:CONSOLE '
+			if self.mySubsystemNotDefined :
+				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
 
 			# By default, the linker runs in incremental mode.
 
@@ -901,7 +907,8 @@ SConsBuildFramework options:
 		existanceOfProjectPathName = os.path.isdir(self.myProjectPathName)
 
 		# Configures a new environment
-		lenv = self.myEnv.Clone()
+		self.myCurrentLocalEnv = self.myEnv.Clone()
+		lenv = self.myCurrentLocalEnv
 
 		# What must be done for this project ?
 		#existanceOfProjectPathName	tryVcsCheckout		action
