@@ -156,6 +156,7 @@ class SConsBuildFramework :
 
 	# List of projects that have been already parsed by scons
 	myParsedProjects				= {}
+	myParsedProjectsSet				= set()
 
 
 
@@ -694,7 +695,7 @@ SConsBuildFramework options:
 			('version', "Sets the project version. The following version schemas must be used : major-minor or major-minor-maintenance. For example '1-0' or '1-0-1'", '0-0'),
 			('postfix', 'Adds a postfix to the target name.', ''),
 
-			('deps', 'Specifies list of dependencies to others projects.', []),
+			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
 
 			(	'uses',
 				'Specifies a list of packages to configure for compilation and link stages.\nAvailable packages:%s\nAlias: %s' %
@@ -951,6 +952,7 @@ SConsBuildFramework options:
 		if os.path.isdir(self.myProjectPathName) :
 			# Adds the new environment
 			self.myParsedProjects[self.myProject] = lenv
+			self.myParsedProjectsSet.add( self.myProject.lower() )
 		else :
 			print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 			print "sbfInfo: Skip to the next project..."
@@ -995,18 +997,25 @@ SConsBuildFramework options:
 			del lenv['deps'][:]
 		else :
 			for dependency in lenv['deps'] :
-				if os.path.isabs( dependency ) :
-					# dependency is an absolute path
-					normalizedDependency = dependency
-				else :
+				if not os.path.isabs( dependency ) :
 					# dependency is a path relative to default.options file directory
-					normalizedDependency = projectPathName + os.sep + dependency
+					normalizedDependency = getNormalizedPathname( projectPathName + os.sep + dependency )
+				else :
+					# dependency is an absolute path
+					raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
 
-				if ( os.path.split(normalizedDependency)[1] not in self.myParsedProjects ) :
+				incomingProjectName = os.path.basename(normalizedDependency)
+				if incomingProjectName.lower() not in self.myParsedProjectsSet :
 					# dependency not already "build"
 					self.buildProject( normalizedDependency )
-				#else : # nothing to do, project already "build"
-					#print "sbfDebug: project %s already parsed." % projectPathName
+				else :
+					# A project with the same name (without taking project name case into account) has been already parsed.
+					parsedProject = self.myParsedProjects[ incomingProjectName ]
+					# Checks path ?
+					if parsedProject['sbf_projectPathName'] != normalizedDependency :
+						raise SCons.Errors.UserError("Encountered the following two projects :\n%s and \n%s\nwith the same name (without taking case into account). It's forbidden." % (parsedProject['sbf_projectPathName'], normalizedDependency) )
+					#else: nothing to do (because same path => project already "build").
+						#print "sbfDebug: project %s already parsed." % projectPathName
 
 		# initialize the project
 		self.initializeProjectFromEnv( lenv )
@@ -1157,9 +1166,8 @@ SConsBuildFramework options:
 
 			# Generates resource_sbf.rc file
 			sbfRCFile = os.path.join(self.myProjectBuildPathExpanded, 'resource_sbf.rc')
-#env.Alias(	self.myProject + '_resource_generation',
 			Alias(	self.myProject + '_resource_generation',
-						rcEnv.Command( sbfRCFile, 'dummy.in', Action( resourceFileGeneration, printGenerate ) ) )
+					rcEnv.Command( sbfRCFile, 'dummy.in', Action( resourceFileGeneration, printGenerate ) ) )
 			objFiles += rcEnv.RES( sbfRCFile )
 
 		### final result of project ###
