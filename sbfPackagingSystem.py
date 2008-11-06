@@ -18,7 +18,6 @@ import zipfile
 # @todo renames into sbf-get and uses apt-get syntax.
 # @todo search
 # @todo verbose mode (see sbf ?)
-# @todo cmd -- Support for line-oriented command interpreters
 # @todo verbose option
 # @todo usable as a library or a cmd
 # @todo without SConstruct() stuff
@@ -172,6 +171,30 @@ class PackagingSystem:
 					continue
 				name = splitted[0].rstrip('_')
 				print name.ljust(30), filename
+
+
+	# @todo filter on compiler
+	# @todo the code of this method should be shared with list()
+	def getListUsingPrefix( self, pattern = '' ):
+		filenames = []
+		for pakPath in self.__pakPaths:
+#			print
+#			print ("Available packages in %s :" % pakPath)
+			elements = glob.glob( os.path.join(pakPath, "%s*.zip" % pattern) )
+#			elements = glob.glob( os.path.join(pakPath, "*%s*.zip" % pattern) )
+			sortedElements = sorted( elements )
+			for element in sortedElements :
+				filename = os.path.basename(element)
+
+				filenameWithoutExt = os.path.splitext(filename)[0]
+				splitted = filenameWithoutExt.split( self.__myPlatform, 1 )
+				if len(splitted) == 1 :
+					# The current platform not found in package filename, so don't print it
+					continue
+				name = splitted[0].rstrip('_')
+#				print name.ljust(30), filename
+				filenames.append(filename)
+		return filenames
 
 
 	def completeFilename( self, packageName ):
@@ -435,71 +458,177 @@ class PackagingSystem:
 			print (	"%i different file," % differentFile ),
 
 		if identicalFile > 1:
-			print (	"%i identical files." % identicalFile ),
+			print (	"%i identical files." % identicalFile )
 		else:
-			print (	"%i identical file." % identicalFile ),
+			print (	"%i identical file." % identicalFile )
 
-#
-import sys
-#print "argv=", sys.argv
-arguments = sys.argv[1:]
-arguments.remove( '-f' )
-arguments.remove( 'sbfPackagingSystem.py' )
 
-#print "arguments=", arguments
 
-if not ( (len(arguments) in [1,2] and arguments[0] in ['list']) or \
-(len(arguments) == 2 and arguments[0] in ['info', 'install', 'remove', 'test']) or \
-(len(arguments) == 3 and arguments[0] in ['info']) ):
-	print "Usage:"
-	print " sbfPak install|remove|test pakName"
-	print " sbfPak info pakName [sub-package-name]"
-	print " sbfPak list [sub-package-name]"
-	exit(1)
+# class sbfPakCmd to implement interactive mode
 
-#
-packagingSystem = PackagingSystem()
+import cmd
 
-if arguments[0] == 'list' :
-	# Initializes pattern
-	pattern = ''
-	if len(arguments) == 2 :
-		pattern = arguments[1]
-	# Calls list method
-	packagingSystem.list( pattern )
-	exit(0)
+# @todo Improves help text
+class sbfPakCmd( cmd.Cmd ):
+
+	__packagingSystem = None
+
+	def __init__( self, packagingSystem ):
+		cmd.Cmd.__init__(self )
+		self.__packagingSystem = packagingSystem
+
+	def __locatePakName( self, pakName ):
+		pathPakName = self.__packagingSystem.locatePackage( pakName )
+		if pathPakName == None :
+			print ("Unable to find package %s" % pakName )
+		else:
+			return pathPakName
+
+
+	def completedefault( self, text, line, begidx, endidx ):
+		filenames = self.__packagingSystem.getListUsingPrefix( text )
+		return filenames
+
+# Commands
+	def help_exit( self ):
+		print "Usage: exit"
+		print "Exit the interpreter."
+
+	def do_exit( self, param ):
+		return True
+
+
+	def help_list( self ):
+		print "Usage: list [sub-package-name]"
+
+	def do_list( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [0, 1]:
+			self.help_list()
+			return
+
+		# Initializes pattern
+		pattern = ''
+		if len(parameterList) == 1 :
+			pattern = parameterList[0]
+
+		# Calls list method
+		self.__packagingSystem.list( pattern )
+
+	def complete_list( self, text, line, begidx, endidx ):
+		return []		# @todo Disables completion for list command. This method should work, but...
+
+
+	def help_install( self ):
+		print "Usage: install pakName"
+
+	def do_install( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [1]:
+			self.help_install()
+			return
+
+		# Initializes pakName
+		pathPakName = self.__locatePakName( parameterList[0] )
+		if pathPakName != None :
+			# Calls install method
+			self.__packagingSystem.testZip( pathPakName )
+			self.__packagingSystem.install( pathPakName )
+
+	def help_remove( self ):
+		print "Usage: remove pakName"
+
+	def do_remove( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [1]:
+			self.help_remove()
+			return
+
+		# Initializes pakName
+		pathPakName = self.__locatePakName( parameterList[0] )
+		if pathPakName != None :
+			# Calls remove method
+			self.__packagingSystem.testZip( pathPakName )
+			self.__packagingSystem.remove( pathPakName )
+
+	def help_test( self ):
+		print "Usage: test pakName"
+
+	def do_test( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [1]:
+			self.help_test()
+			return
+
+		# Initializes pakName
+		pathPakName = self.__locatePakName( parameterList[0] )
+		if pathPakName != None :
+			# Calls test method
+			self.__packagingSystem.testZip( pathPakName )
+			self.__packagingSystem.test( pathPakName )
+
+
+	def help_info( self ):
+		print "Usage: info pakName [sub-package-name]"
+
+	def do_info( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [1,2]:
+			self.help_info()
+			return
+
+		# Initializes pakName
+		pathPakName = self.__locatePakName( parameterList[0] )
+		if pathPakName != None :
+			# Retrieves pattern
+			pattern = ''
+			if len(parameterList) == 2 :
+				pattern = parameterList[1]
+
+			# Calls test method
+			self.__packagingSystem.testZip( pathPakName )
+			self.__packagingSystem.info( pathPakName, pattern )
+
+
+
+if __name__ == "SCons.Script" : # @todo Should be "__main__" ?
+	import sys
+	arguments = sys.argv[1:]
+	arguments.remove( '-f' )
+	arguments.remove( 'sbfPackagingSystem.py' )
+
+	shell = sbfPakCmd( PackagingSystem() )
+
+	if len(arguments) == 0 :
+		#
+		shell.cmdloop("Welcome to interactive mode of sbfPak")
+		exit(0)
+	else :
+		# Constructs a string containg the command to execute
+		command = ''
+		for arg in arguments :
+			command += arg + ' '
+
+		# Executes the command
+		shell.onecmd( command )
+		exit(0)
+
+#if not ( (len(arguments) == 1 and arguments[0] in ['interactive']) or \
+#(len(arguments) in [1,2] and arguments[0] in ['list']) or \
+#(len(arguments) == 2 and arguments[0] in ['info', 'install', 'remove', 'test']) or \
+#(len(arguments) == 3 and arguments[0] in ['info']) ):
+#	print "Usage:"
+	#print " sbfPak install|remove|test pakName"
+#	print " sbfPak info pakName [sub-package-name]"
+	#print " sbfPak list [sub-package-name]"
+#	print " sbfPak interactive : Run in interactive mode."
+#	exit(1)
 
 # Constructs the full package name (if needed)
-pakName	= arguments[1]
+#pakName	= arguments[1]
 
-if len(os.path.splitext( pakName )[1]) == 0:
-	pakName = packagingSystem.completeFilename(pakName)
+#if len(os.path.splitext( pakName )[1]) == 0:
+#	pakName = packagingSystem.completeFilename(pakName)
 
-# Adds repository path to pakName
-pathPakName = packagingSystem.locatePackage( pakName )
-if pathPakName == None :
-	print ("Unable to find package %s" % pakName )
-	exit(1)
-
-print ("Incoming package : %s" % pathPakName )
-print
-
-#
-packagingSystem.testZip( pathPakName )
-
-if arguments[0] == 'info' :
-	pattern = ''
-	if len(arguments) == 3 :
-		pattern = arguments[2]
-	packagingSystem.info( pathPakName, pattern )
-
-if arguments[0] == 'install' :
-	packagingSystem.install( pathPakName )
-
-if arguments[0] == 'remove' :
-	packagingSystem.remove( pathPakName )
-
-if arguments[0] == 'test' :
-	packagingSystem.test( pathPakName )
-
-exit(0)
+#print ("Incoming package : %s" % pathPakName )
+#print
