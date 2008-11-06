@@ -220,7 +220,7 @@ class SConsBuildFramework :
 					action	= "store_true",
 					dest	= "weak_localext",
 					#default	= True,
-					help	= "Disables SCons scanners for localext directories." )
+					help	= "Disables SCons scanners for localExt directories." )
 
 		AddOption(	"--no-weak-localext",
 					action	= "store_false",
@@ -416,6 +416,7 @@ Type:
  'scons zipDev'
  'scons zipSrc'
  'scons zip'
+ 'scons nsis'
 
 
 Command-line options:
@@ -640,6 +641,9 @@ SConsBuildFramework options:
 
 			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
 			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included.', []),
+			('weakLocalExtExclude', 'The list of packages (see \'uses\' project option for a complete list of available packages) excludes by the --weak-localext option.'
+			' --weak-localext could be used to disables SCons scanners for localExt directories.'
+			' All packages not explicitly excluded will be included.', []),
 			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included.', []),
 			('svnUpdateExclude', 'The list of projects excludes from subversion update operations. All projects not explicitly excluded will be included.', []),
 
@@ -995,7 +999,7 @@ SConsBuildFramework options:
 		if lenv['nodeps'] :
 			# Removes all dependencies because 'nodeps' option is enabled
 			del lenv['deps'][:]
-		else :
+		else:
 			for dependency in lenv['deps'] :
 				if not os.path.isabs( dependency ) :
 					# dependency is a path relative to default.options file directory
@@ -1007,15 +1011,27 @@ SConsBuildFramework options:
 				incomingProjectName = os.path.basename(normalizedDependency)
 				if incomingProjectName.lower() not in self.myParsedProjectsSet :
 					# dependency not already "build"
+#					print ('buildProject %s' % normalizedDependency)
 					self.buildProject( normalizedDependency )
-				else :
-					# A project with the same name (without taking project name case into account) has been already parsed.
-					parsedProject = self.myParsedProjects[ incomingProjectName ]
-					# Checks path ?
-					if parsedProject['sbf_projectPathName'] != normalizedDependency :
-						raise SCons.Errors.UserError("Encountered the following two projects :\n%s and \n%s\nwith the same name (without taking case into account). It's forbidden." % (parsedProject['sbf_projectPathName'], normalizedDependency) )
-					#else: nothing to do (because same path => project already "build").
-						#print "sbfDebug: project %s already parsed." % projectPathName
+				else:
+					# A project with the same name (without taking case into account) has been already parsed.
+					if incomingProjectName not in self.myParsedProjects :
+						# A project with the same name has been already parsed, but with a different case
+						registeredProjectName = None
+						for project in self.myParsedProjects :
+							if project.lower() == incomingProjectName.lower() :
+								raise SCons.Errors.UserError("The dependency %s, defined in project %s, has already been encountered with a different character case (%s). It's forbidden." % (normalizedDependency, lenv['sbf_projectPathName'], self.myParsedProjects[project]['sbf_projectPathName'] ) )
+						else:
+							# Must never happened
+							raise Scons.Errors.UserError("Internal sbf error.")
+					else:
+						# A project with the same name has been already parsed (with the same case).
+						parsedProject = self.myParsedProjects[ incomingProjectName ]
+						# Checks path ?
+						if parsedProject['sbf_projectPathName'] != normalizedDependency :
+							raise SCons.Errors.UserError("Encountered the following two projects :\n%s and \n%s\nwith the same name (without taking case into account). It's forbidden." % (parsedProject['sbf_projectPathName'], normalizedDependency) )
+						#else: nothing to do (because same path => project already parsed).
+							#print "sbfDebug: project %s already parsed." % projectPathName
 
 		# initialize the project
 		self.initializeProjectFromEnv( lenv )
@@ -1044,7 +1060,6 @@ SConsBuildFramework options:
 		#print "self.myProjectPathName==projectPathName?", self.myProjectPathName, "\n", projectPathName
 
 		os.chdir( projectPathName )																				### FIXME is chdir done at scons level ?
-
 		# Dumping construction environment (for debugging).														# TODO : a method printDebugInfo()
 		#lenv.Dump()
 		#print 'DEBUG:cwd=', os.getcwd()

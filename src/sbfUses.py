@@ -36,7 +36,6 @@ from sbfUtils import getPathFromEnv, convertToList
 #===============================================================================
 
 ###
-# @todo CPPPATH LIBPATH
 # @todo licences
 class IUse :
 	platform	= None
@@ -66,6 +65,9 @@ class IUse :
 		return [], []
 
 
+	def getLicences( self, version ):															# @todo implements for derived
+		return []
+
 	def __call__( self, useVersion, env ):
 		useNameVersion = self.getName() + " " + useVersion
 #print ("Configures %s" % useNameVersion)
@@ -91,7 +93,7 @@ class IUse :
 					for path in cpppath :
 						cpppathAbs.append( os.path.join( env.sbf.myIncludesInstallExtPaths[0], path ) )		# @todo for each myIncludesInstallExtPaths[]
 
-				if env.GetOption('weak_localext') :
+				if env.GetOption('weak_localext') and (self.getName() not in env['weakLocalExtExclude']):
 					for path in cpppathAbs :
 						env.AppendUnique( CCFLAGS = ['-I' + path ] )
 				else :
@@ -344,6 +346,65 @@ class Use_glut( IUse ):
 			return libs, libs
 
 
+# TODO: SOFA_PATH documentation
+# TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
+class Use_sofa( IUse ):
+	__sofa_path = None
+
+	def __init__( self ):
+		# Retrieves SOFA_PATH
+		self.__sofa_path = getPathFromEnv('SOFA_PATH')
+#if self.__sofa_path is None :
+#	raise SCons.Errors.UserError("Unable to configure sofa")
+
+	def getName( self ):
+		return "sofa"
+
+	def getCPPDEFINES( self, version ):
+		return ['SOFA_DOUBLE', 'SOFA_DEV']
+
+	# @todo Takes care of "lenv.GetOption('weak_localext') " ?
+	def getCPPPATH( self, version ):
+		cppPath = [	os.path.join(self.__sofa_path, 'modules'),
+					os.path.join(self.__sofa_path, 'framework'),
+					os.path.join(self.__sofa_path, 'include'),
+					os.path.join(self.__sofa_path, 'extlibs/miniFlowVR/include') ]
+		return cppPath
+
+	def getLIBS( self, version ):
+		if self.platform != 'win32' :
+			return None
+
+		libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
+		pakLibs = []
+		if self.config == 'release' :
+			libs += [	'SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation',
+						'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT' ]
+			pakLibs += ['SofaHelper']
+		else:
+			libs += [	'SofaCored', 'SofaDefaultTyped', 'SofaComponentd', 'SofaHelperd', 'SofaSimulationd',
+						'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd' ]
+			pakLibs += ['SofaHelperd']
+		return libs, pakLibs
+
+	def getLIBPATH( self, version ):
+		libPath		= []
+		pakLibPath	= []
+
+		if self.config == 'release' :
+			path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
+			libPath.append( path )
+			pakLibPath.append( path )
+		else :
+			path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
+			libPath.append( path )
+			pakLibPath.append( path )
+
+		libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
+
+		return libPath, pakLibPath
+
+
 #@todo Adds support to both ANSI and Unicode version of wx
 #@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
 class Use_wxWidgets( IUse ):
@@ -429,7 +490,7 @@ class UseRepository :
 	__repository	= {}
 
 	__allowedValues = [	'cairomm1-2-4', 'gtkmm2-14', 'itk3-4-0', 'ode',
-						'physx2-8-1', 'sofa' ]
+						'physx2-8-1' ]
 	__alias			= {
 			'cairomm'		: 'cairomm1-2-4',
 			'gtkmm'			: 'gtkmm2-14',
@@ -441,7 +502,7 @@ class UseRepository :
 	@classmethod
 	def initialize( self, sbf,
 					listOfIUseImplementation = [Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_opengl(),
-												Use_openil(), Use_openilu(), Use_sdl(), Use_wxWidgets(), Use_wxWidgetsGL()] ):
+												Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()] ):
 
 		if self.__initialized == True :
 			raise SCons.Errors.InternalError("Try to initialize UseRepository twice.")
@@ -725,32 +786,6 @@ def use_physx( self, lenv, elt ) :
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
-# TODO: SOFA_PATH documentation
-# TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
-def use_sofa( self, lenv, elt ) :
-	# Retrieves SOFA_PATH
-	sofa_path = getPathFromEnv('SOFA_PATH')
-	if sofa_path is None :
-		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
-
-	# @todo Takes care of "lenv.GetOption('weak_localext') " ?
-	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'modules') ]
-	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'framework') ]
-	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'include') ]
-	lenv['CPPPATH'] += [ os.path.join(sofa_path, 'extlibs/miniFlowVR/include') ]
-
-	if self.myPlatform == 'win32' :
-		lenv['LIBS'] += ['glew32', 'libxml2', 'Gdi32', 'Shell32']
-		if self.myConfig == 'release' :
-			lenv['LIBS']	+= ['SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation', 'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT']
-			lenv['LIBPATH']	+= [ os.path.join( sofa_path, 'lib/win32/ReleaseVC8') ]
-		else :
-			lenv['LIBS']	+= ['SofaCored', 'SofaDefaultTyped', 'SofaComponentd', 'SofaHelperd', 'SofaSimulationd', 'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd']
-			lenv['LIBPATH']	+= [ os.path.join( sofa_path, 'lib/win32/DebugVC8' ) ]
-		lenv['LIBPATH'] += [ os.path.join( sofa_path, 'lib/win32/Common' ) ]
-	else :
-		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
-
 #===============================================================================
 # #@todo Adds support to both ANSI and Unicode version of wx
 # #@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
@@ -804,7 +839,7 @@ def uses( self, lenv ):
 		# Converts to lower case
 		elt = string.lower( elt )
 
-		# @todo FIXME hack for wx
+		# @todo FIXME hack for wx @todo move to IUse getLINKFLAGS()
 		if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
 			lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
@@ -862,9 +897,11 @@ def uses( self, lenv ):
 #			use_sdl( self, lenv, elt )
 #===============================================================================
 
-		### configure sofa ###
-		elif elt == 'sofa' :
-			use_sofa( self, lenv, elt )
+#===============================================================================
+#		### configure sofa ###
+#		elif elt == 'sofa' :
+#			use_sofa( self, lenv, elt )
+#===============================================================================
 
 #===============================================================================
 #		### configure wxWidgets ###
