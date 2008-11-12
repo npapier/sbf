@@ -124,15 +124,301 @@ from src.SConsBuildFramework import stringFormatter
 
 
 ###### Archiver action ######
+def nsisFilePrinter( target, source, env ):
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	print sourceName
+	print targetName
+
 def zipArchiver( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
-	distutils.archive_util.make_archive( targetName, 'zip', sourceName )
+	distutils.archive_util.make_archive( os.path.splitext(targetName)[0], 'zip', sourceName )
 
 def printZipArchiver( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
-	return "=> Create %s with files from %s" % (targetName, sourceName)
+	return ("Generates %s with files from %s" % (targetName, sourceName))
+
+
+
+def nsisGeneration( target, source, env ):
+
+	# Retrieves/computes additional information
+	targetName = str(target[0])
+
+	# Open output file
+	with open( targetName, 'w' ) as file :
+		# Retrieves informations (all executables, ...)
+		products	= []
+		executables	= []
+		for projectName in sbf.myParsedProjects :
+			lenv = sbf.myParsedProjects[projectName]
+			if lenv['type'] == 'exec' :
+				print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
+				products.append( lenv['sbf_project'] )
+				executables.append( os.path.basename(lenv['sbf_bin'][0]) )
+
+		# Generates PRODUCTNAME
+		PRODUCTNAME = ''
+		for (i, product) in enumerate(products) :
+			PRODUCTNAME += "!define PRODUCTNAME%s	\"%s\"\n" % (i, product)
+		PRODUCTNAME += "!define PRODUCTNAME	${PRODUCTNAME0}\n"
+
+		# Generates PRODUCTEXE, SHORTCUT and UNINSTALL_SHORTCUT
+		PRODUCTEXE	= ''
+		if len(executables) > 1 :
+			SHORTCUT = '  CreateDirectory \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
+			UNINSTALL_SHORTCUT	=	'  Delete "$SMPROGRAMS\\${PRODUCTNAME}\\tools\\*.*\"\n'
+			UNINSTALL_SHORTCUT	+=	'  RMDir "$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
+		else:
+			SHORTCUT			= ''
+			UNINSTALL_SHORTCUT	= ''
+
+		for (i, executable) in enumerate(executables) :
+			PRODUCTEXE	+=	"!define PRODUCTEXE%s	\"%s\"\n" % (i, executable)
+			if i > 0 :
+				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
+			else:
+				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
+
+		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
+
+		str_sbfNSISTemplate = """\
+; sbfNSISTemplate.nsi
+;
+; This script :
+; - It will install files into a directory that the user selects
+; - remember the installation directory (so if you install again, it will
+; overwrite the old one automatically).
+; - run as admin and installation occurs for all users
+; - components chooser
+; - has uninstall support
+; - install/launch/uninstall Redistributable
+; - and (optionally) installs start menu shortcuts (run all exe and uninstall).
+
+; @todo write access on several directories
+; @todo section with redistributable
+
+; @todo mui
+; @todo quicklaunch and desktop
+; @todo repair/modify
+; @todo LogSet on
+
+;--------------------------------
+
+!define SBFPROJECTNAME		"%s"
+!define SBFPROJECTVERSION	"%s"
+
+; PRODUCTNAME
+%s
+; PRODUCTEXE
+%s
+;--------------------------------
+
+!include "redistributables.nsi"
+
+;--------------------------------
+
+; The name of the installer
+Name "${PRODUCTNAME}"
+
+; The file to write
+OutFile "${SBFPROJECTNAME}_${SBFPROJECTVERSION}_setup.exe"
+
+; The default installation directory
+InstallDir $PROGRAMFILES\${PRODUCTNAME}
+
+; Registry key to check for directory (so if you install again, it will
+; overwrite the old one automatically)
+InstallDirRegKey HKLM "Software\${PRODUCTNAME}" "Install_Dir"
+
+; Request application privileges for Windows Vista
+RequestExecutionLevel admin
+
+;--------------------------------
+
+; Pages
+
+Page components
+Page directory
+Page instfiles
+
+UninstPage uninstConfirm
+UninstPage instfiles
+
+;--------------------------------
+
+; The stuff to install
+Section "${PRODUCTNAME} core (required)"
+
+  SectionIn RO
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+
+  ; Put file there
+!include "${SBFPROJECTNAME}_install_files.nsi"
+
+  ; Redistributable
+  CreateDirectory $INSTDIR\Redistributable
+!insertmacro InstallRedistributableVCPP2005SP1
+!insertmacro InstallRedistributableEnsharpendecoder
+
+!insertmacro LaunchRedistributableVCPP2005SP1
+!insertmacro LaunchRedistributableEnsharpendecoder
+
+  ; Write the installation path into the registry
+  WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
+
+  ; Write the uninstall keys for Windows
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "DisplayName" "${PRODUCTNAME}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "NoRepair" 1
+  WriteUninstaller "uninstall.exe"
+
+SectionEnd
+
+; Optional section (can be disabled by the user)
+Section "Start Menu Shortcuts"
+
+  CreateDirectory "$SMPROGRAMS\${PRODUCTNAME}"
+%s
+  CreateShortCut "$SMPROGRAMS\${PRODUCTNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+
+SectionEnd
+
+;--------------------------------
+
+; Uninstaller
+
+Section "Uninstall"
+
+  SetShellVarContext all
+
+  ; Remove files
+!include "${SBFPROJECTNAME}_uninstall_files.nsi"
+
+  ; Remove redistributable
+!insertmacro RmRedistributableEnsharpendecoder
+!insertmacro RmRedistributableVCPP2005SP1
+  RmDir $INSTDIR\Redistributable
+
+  ; Remove registry keys
+  DeleteRegKey HKLM "SOFTWARE\${PRODUCTNAME}"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
+
+  ; Remove uninstaller
+  Delete $INSTDIR\uninstall.exe
+
+  ; Remove installation directory
+  RmDir $INSTDIR
+
+  ; Remove shortcuts, if any
+%s
+  Delete "$SMPROGRAMS\${PRODUCTNAME}\*.*"
+  ; Remove directories used
+  RMDir "$SMPROGRAMS\${PRODUCTNAME}"
+
+SectionEnd
+""" % (env['sbf_project'], env['version'], PRODUCTNAME, PRODUCTEXE, SHORTCUT, UNINSTALL_SHORTCUT)
+		file.write( str_sbfNSISTemplate )
+
+
+
+def computeDepth( path ) :
+	return len( os.path.normpath( path ).split( os.sep ) )
+
+
+def zipPrinterForNSISInstallFiles( target, source, env ) :
+	# Retrieves informations
+	targetName = str(target[0])
+	sourceName = str(source[0])
+
+	# Opens zip file (source) and creates target file
+	import zipfile
+
+	sourceRoot = os.path.splitext(sourceName)[0]
+	encounteredDirectory = set()
+	encounteredFiles = []
+
+	zip = zipfile.ZipFile( sourceName )
+	with open( targetName, 'w' ) as file :
+		for name in zip.namelist() :
+			normalizeName = os.path.normpath(name)
+
+			# Stores informations for CreateDirectory
+			directoryName = os.path.dirname(normalizeName)
+			if directoryName not in encounteredDirectory :
+				# Adds this new directory
+				encounteredDirectory.add( directoryName )
+
+			# Stores informations for Copy
+			encounteredFiles.append( "File \"/oname=$OUTDIR\%s\" \"%s\%s\"\n" % (normalizeName, sourceRoot, normalizeName) )
+		zip.close()
+
+		# Creates directories
+		sortedDirectories = sorted( encounteredDirectory, key = computeDepth, reverse = False )
+		for directory in sortedDirectories :
+			file.write( "CreateDirectory \"$OUTDIR\%s\"\n" % directory )
+
+		# Copies files
+		for filesCommand in encounteredFiles :
+			file.write( filesCommand )
+
+
+def zipPrinterForNSISUninstallFiles( target, source, env ) :
+	# Retrieves informations
+	targetName = str(target[0])
+	sourceName = str(source[0])
+
+	# Opens zip file (source) and creates target file
+	import zipfile
+
+	sourceRoot = os.path.splitext(sourceName)[0]
+	encounteredDirectory = set()
+
+	zip = zipfile.ZipFile( sourceName )
+	with open( targetName, 'w' ) as file :
+		for name in zip.namelist() :
+			normalizeName = os.path.normpath(name)
+
+			# Stores informations for RmDir done after Delete
+			directoryName = os.path.dirname(normalizeName)
+			if directoryName not in encounteredDirectory :
+				# Removes this new directory (not recursively)
+				encounteredDirectory.add( directoryName )
+
+				# Removes this new directory RECURSIVELY if needed
+				while True :
+					(directoryName, dummy) = os.path.split( directoryName )
+					if len(directoryName) == 0 :
+						break
+					if directoryName not in encounteredDirectory :
+						encounteredDirectory.add( directoryName )
+			# Delete file
+			file.write( "Delete \"$INSTDIR\%s\"\n" % normalizeName )
+		zip.close()
+
+		# Deletes encountered directories
+		sortedDirectories = sorted( encounteredDirectory, key = computeDepth, reverse = True )
+		for directory in sortedDirectories :
+			file.write( "RmDir \"$INSTDIR\%s\"\n" % directory )
+
+
+def printZipPrinterForNSISInstallFiles( target, source, env ) :
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return ("Generates %s (nsis install files) from %s" % (targetName, sourceName) )
+
+def printZipPrinterForNSISUninstallFiles( target, source, env ) :
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return ("Generates %s (nsis uninstall files) from %s" % (targetName, sourceName) )
+
 
 
 ###### Action function for sbfCheck target #######
@@ -776,9 +1062,15 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 		('zipPortable'		in env.sbf.myBuildTargets) or
 		('zipDev'			in env.sbf.myBuildTargets) or
 		('zipSrc'			in env.sbf.myBuildTargets) or
-		('zip'				in env.sbf.myBuildTargets)	) :
+		('zip'				in env.sbf.myBuildTargets) or
+		('nsis'				in env.sbf.myBuildTargets)	):
 																							# FIXME: lazzy scons env construction => TODO: generalize (but must be optional)
-	# Create a builder to zip files
+	#
+	sbf = env.sbf
+	rootProjectEnv = sbf.myParsedProjects[env['sbf_project']]
+
+	# Creates builders for zip and nsis
+	# @todo Do the same without Builder ?
 	import SCons																			# from SCons.Script.SConscript import SConsEnvironment
 	zipBuilder = env.Builder(	action=Action(zipArchiver,printZipArchiver),
 								source_factory=SCons.Node.FS.default_fs.Entry,
@@ -786,12 +1078,28 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 								multi=0 )
 	env['BUILDERS']['zipArchiver'] = zipBuilder
 
-	sbf = env.sbf
-	rootProjectEnv = sbf.myParsedProjects[env['sbf_project']]
+	zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles),
+										source_factory=SCons.Node.FS.default_fs.Entry,
+										target_factory=SCons.Node.FS.default_fs.Entry,
+										multi=0 )
+	env['BUILDERS']['zipPrinterForNSISInstallFiles'] = zipPrinterBuilder
+
+	zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISUninstallFiles, printZipPrinterForNSISUninstallFiles ),
+										source_factory=SCons.Node.FS.default_fs.Entry,
+										target_factory=SCons.Node.FS.default_fs.Entry,
+										multi=0 )
+	env['BUILDERS']['zipPrinterForNSISUninstallFiles'] = zipPrinterBuilder
+
+	zipPrinterBuilder = rootProjectEnv.Builder(	action=Action(nsisGeneration, printZipPrinterForNSISUninstallFiles ),
+										source_factory=SCons.Node.FS.default_fs.Entry,
+										target_factory=SCons.Node.FS.default_fs.Entry,
+										multi=0 )
+	rootProjectEnv['BUILDERS']['nsisGeneration'] = zipPrinterBuilder
 
 	# compute zipPath (where files are copying before creating the zip file)
 	# zipPathBase = /mnt/data/sbf/build/pak/vgsdk_0-4
-	zipPathBase	=	os.path.join( sbf.myBuildPath, 'pak', env['sbf_project'] + '_' + rootProjectEnv['version'] )
+	zipPakPath	=	os.path.join( sbf.myBuildPath, 'pak' )
+	zipPathBase	=	os.path.join( zipPakPath, env['sbf_project'] + '_' + rootProjectEnv['version'] )
 
 	# zipPath = zipPathBase + "_win32_cl7-1_D"
 	zipPath		=	zipPathBase + sbf.my_Platform_myCCVersion + sbf.my_FullPostfix
@@ -936,11 +1244,11 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 			else:
 				raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
 
-	runtimeZipFiles		+= env.zipArchiver( runtimeZipPath + '_pak',	runtimeZipPath )
-	depsZipFiles		+= env.zipArchiver( depsZipPath + '_pak',		depsZipPath )
-	portableZipFiles	+= env.zipArchiver( portableZipPath + '_pak',	portableZipPath )
-	devZipFiles			+= env.zipArchiver( devZipPath + '_pak',		devZipPath )
-	srcZipFiles			+= env.zipArchiver(	srcZipPath + '_pak',		srcZipPath )
+	runtimeZipFiles		+= env.zipArchiver( runtimeZipPath + '.zip',	runtimeZipPath )
+	depsZipFiles		+= env.zipArchiver( depsZipPath + '.zip',		depsZipPath )
+	portableZipFiles	+= env.zipArchiver( portableZipPath + '.zip',	portableZipPath )
+	devZipFiles			+= env.zipArchiver( devZipPath + '.zip',		devZipPath )
+	srcZipFiles			+= env.zipArchiver(	srcZipPath + '.zip',		srcZipPath )
 
 	Alias( 'zipRuntime',	runtimeZipFiles )
 	Alias( 'zipDeps',		depsZipFiles )
@@ -950,6 +1258,19 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 	Alias( 'zip', ['zipRuntime', 'zipDeps', 'zipPortable', 'zipDev', 'zipSrc'] )
 
+	Alias( 'nsis', 'zipPortable' )
+	Alias( 'nsis', env.Install( zipPakPath, os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis', 'redistributables.nsi') ) )
+	Alias( 'nsis', env.Install( zipPakPath, os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis', 'Redistributable') ) )
+	Alias( 'nsis', env.zipPrinterForNSISInstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi'),
+														portableZipPath + '.zip' ) )
+	Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi'),
+														portableZipPath + '.zip' ) )
+	Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', portableZipPath + '.zip' ) )
+	# @todo FIXME nsisRootPath
+	nsisRootPath = "C:\\Program Files\\NSIS"
+	Alias( 'nsis', env.Command(	portableZipPath + '.exe', portableZipPath + '.nsi',
+								"\"%s\" $SOURCES" % os.path.join(nsisRootPath, 'makensis.exe' ) ) )
+	# @todo uses zip2exe on win32 ?
 #@todo function
 #import shutil
 #if ( os.path.ismount(srcZipPath) ) :
