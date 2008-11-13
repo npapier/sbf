@@ -327,7 +327,7 @@ class Use_glu( IUse ):
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
 			libs = ['glu32']
-			return libs, libs
+			return libs, []
 		else:
 			libs = ['GLU']
 			return libs, libs
