@@ -148,8 +148,7 @@ class PackagingSystem:
 			if os.path.isdir( path ) :
 				print ("Found package repository in %s" % path)
 			else :
-				print ("Package repository not found in %s" % path)
-				exit(1)
+				print ("WARNING: Package repository not found in %s" % path)
 		print
 
 
