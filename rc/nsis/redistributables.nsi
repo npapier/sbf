@@ -19,6 +19,27 @@ endVCPP2005SP1:
 !macroend
 
 ### Redistributable\Codec ###
+!define TSCCDIR	"Redistributable\Codec"
+!define TSCC	"tscc.exe"
+
+!macro InstallRedistributableTscc
+	CreateDirectory "$INSTDIR\${TSCCDIR}"
+	File "/oname=$INSTDIR\${TSCCDIR}\${TSCC}" "${TSCCDIR}\${TSCC}"
+!macroend
+
+!macro RmRedistributableTscc
+	Delete "$INSTDIR\${TSCCDIR}\${TSCC}"
+	RmDir "$INSTDIR\${TSCCDIR}"
+!macroend
+
+!macro LaunchRedistributableTscc
+	MessageBox MB_YESNO "Install Windows video codec for viewing TechSmith-encoded videos ?" /SD IDYES IDNO endTscc
+	ExecWait "$INSTDIR\${TSCCDIR}\${TSCC}"
+endTscc:
+!macroend
+
+
+
 !define ENSHARPENDECODERDIR	"Redistributable\Codec"
 !define ENSHARPENDECODER	"ensharpendecoder_win.exe"
 

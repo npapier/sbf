@@ -259,16 +259,29 @@ Section "${PRODUCTNAME} core (required)"
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
 
-  ; Put file there
+  ; Put files there
 !include "${SBFPROJECTNAME}_install_files.nsi"
+
+  ; Changes ACL
+  ; From MSDN
+  ; SID: S-1-5-32-545
+  ; Name: Users
+  ; Description: A built-in group.
+  ; After the initial installation of the operating system, the only member is the Authenticated Users group.
+  ; When a computer joins a domain, the Domain Users group is added to the Users group on the computer.
+
+  AccessControl::GrantOnFile "$INSTDIR\share" "(S-1-5-32-545)" "GenericRead + GenericWrite"
+;AccessControl::EnableFileInheritance "$INSTDIR\share"
+  AccessControl::GrantOnFile "$INSTDIR\var" "(S-1-5-32-545)" "FullAccess"
+;AccessControl::EnableFileInheritance "$INSTDIR\var"
 
   ; Redistributable
   CreateDirectory $INSTDIR\Redistributable
 !insertmacro InstallRedistributableVCPP2005SP1
-!insertmacro InstallRedistributableEnsharpendecoder
+!insertmacro InstallRedistributableTscc
 
 !insertmacro LaunchRedistributableVCPP2005SP1
-!insertmacro LaunchRedistributableEnsharpendecoder
+!insertmacro LaunchRedistributableTscc
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
@@ -303,7 +316,7 @@ Section "Uninstall"
 !include "${SBFPROJECTNAME}_uninstall_files.nsi"
 
   ; Remove redistributable
-!insertmacro RmRedistributableEnsharpendecoder
+!insertmacro RmRedistributableTscc
 !insertmacro RmRedistributableVCPP2005SP1
   RmDir $INSTDIR\Redistributable
 
@@ -1260,7 +1273,16 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 	Alias( 'nsis', 'zipPortable' )
 	Alias( 'nsis', env.Install( zipPakPath, os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis', 'redistributables.nsi') ) )
-	Alias( 'nsis', env.Install( zipPakPath, os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis', 'Redistributable') ) )
+	# @todo Creates a function to InstallAs( dirDest, dirSrc * )
+	sbfRcNsisPath = os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
+	redistributableFiles = []
+	searchFiles(	os.path.join(sbfRcNsisPath, 'Redistributable'),
+					redistributableFiles,
+					['.svn'] )
+	installRedistributableFiles = []
+	for file in redistributableFiles :
+		installRedistributableFiles += env.InstallAs( os.path.join( zipPakPath, file.replace(sbfRcNsisPath + os.sep, '') ), file )
+	Alias( 'nsis', installRedistributableFiles )
 	Alias( 'nsis', env.zipPrinterForNSISInstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi'),
 														portableZipPath + '.zip' ) )
 	Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi'),
