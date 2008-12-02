@@ -261,6 +261,7 @@ Section "${PRODUCTNAME} core (required)"
 
   ; Put files there
 !include "${SBFPROJECTNAME}_install_files.nsi"
+  CreateDirectory "$OUTDIR\var"
 
   ; Changes ACL
   ; From MSDN
