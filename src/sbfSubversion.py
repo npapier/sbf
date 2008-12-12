@@ -157,7 +157,12 @@ def svnCheckout( sbf ) :
 	client.exception_style = 0
 
 	for repository in sbf.mySvnUrls :
-		svnUrl	= repository + '/' + sbf.myProject + '/trunk'
+		# @todo improves robustness for svn urls
+		if repository.endswith( "/trunk" ) :
+			svnUrl = repository
+		else :
+			svnUrl	= repository + '/' + sbf.myProject + '/trunk'
+
 		print "sbfInfo: Try to check out a working copy from", svnUrl, ":"
 		try :
 			revision = client.checkout(	url = svnUrl, path = sbf.myProjectPathName )
