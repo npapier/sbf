@@ -380,11 +380,11 @@ class Use_sofa( IUse ):
 		if self.config == 'release' :
 			libs += [	'SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation',
 						'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT' ]
-			pakLibs += ['SofaHelper']
+			pakLibs += ['SofaCore', 'SofaDefaultType', 'SofaHelper']
 		else:
 			libs += [	'SofaCored', 'SofaDefaultTyped', 'SofaComponentd', 'SofaHelperd', 'SofaSimulationd',
 						'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd' ]
-			pakLibs += ['SofaHelperd']
+			pakLibs += ['SofaCored', 'SofaDefaultTyped', 'SofaHelperd']
 		return libs, pakLibs
 
 	def getLIBPATH( self, version ):
