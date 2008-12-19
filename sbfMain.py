@@ -440,6 +440,7 @@ def sbfCheck(target = None, source = None, env = None) :
 	print stringFormatter( env, 'Availability and version of tools' )
 
 	print 'python version : ',
+	sys.stdout.flush()
 	env.Execute( '@python -V' )
 	print
 
@@ -447,6 +448,7 @@ def sbfCheck(target = None, source = None, env = None) :
 	print
 
 	print 'scons version :'
+	sys.stdout.flush()
 	env.Execute( '@scons -v' )
 	print
 
@@ -454,11 +456,13 @@ def sbfCheck(target = None, source = None, env = None) :
 	import pysvn
 	print 'pysvn version: %d.%d.%d-%d' % (pysvn.version[0], pysvn.version[1], pysvn.version[2], pysvn.version[3])
 	if len(pysvn.svn_version[3]) == 0 :
-		print 'svn version (for pysvn): %d.%d.%d\n' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2])
+		print 'svn version (for pysvn): %d.%d.%d' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2])
 	else :
-		print 'svn version (for pysvn): %d.%d.%d-%s\n' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
+		print 'svn version (for pysvn): %d.%d.%d-%s' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
+	print
 
 	print 'svn version : ',
+	sys.stdout.flush()
 	env.Execute( '@svn --version --quiet' )
 	print
 
@@ -466,6 +470,7 @@ def sbfCheck(target = None, source = None, env = None) :
 	print
 
 	print 'doxygen version : ',
+	sys.stdout.flush()
 	env.Execute( '@doxygen --version' )
 	print
 
@@ -473,7 +478,6 @@ def sbfCheck(target = None, source = None, env = None) :
 	#@todo Adds checking for the existance of tools (svn, doxygen...)
 
 	printSBFVersion()
-	print
 
 	sbf_root = os.getenv('SCONS_BUILD_FRAMEWORK')
 	if ( sbf_root == None ) :
@@ -500,14 +504,14 @@ def sbfCheck(target = None, source = None, env = None) :
 def checkCC(target = None, source = None, env = None) :
 	print 'Current default compiler :', env['CC']
 
-	if ( env['CC'] == 'cl' ) :
+	if env['CC'] == 'cl' :
 		#ccVersionAction		= Action( 'cl /help' )
 		print 'cl version :', env['MSVS']['VERSION']
 		print 'The available versions of cl installed are ', env['MSVS']['VERSIONS']
-
-	print
-	print 'gcc version : ',
-	env.Execute( '@gcc -dumpversion' )
+	elif env['CC'] == 'gcc' :
+		print 'gcc version : ',
+		sys.stdout.flush()
+		env.Execute( '@gcc -dumpversion' )
 
 
 def printSBFVersion() :

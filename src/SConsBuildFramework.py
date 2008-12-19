@@ -164,6 +164,9 @@ class SConsBuildFramework :
 	def __init__( self ) :
 
 		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
+		self.mySCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
+		if self.mySCONS_BUILD_FRAMEWORK == None :
+			raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
 		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
 
 		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
@@ -203,10 +206,17 @@ class SConsBuildFramework :
 				# env["MSVS"] = {"VERSION": "8.0"}
 				# env["MSVS_VERSION"] = "8.0"
 				# Tool("msvc")(env)
-		#print "self.myEnv['MSVS']", self.myEnv['MSVS']
-		#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
-		self.myEnv['ENV']['PATH'] += os.environ['PATH'] ### FIXME not very recommended
 
+			pathFromEnv = os.environ['PATH'] ### FIXME not very recommended
+			if pathFromEnv != None :
+				self.myEnv['ENV']['PATH'] += pathFromEnv
+			#print "self.myEnv['MSVS']", self.myEnv['MSVS']
+			#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
+		else :
+			self.myEnv = tmpEnv
+
+
+	
 # @todo uses UnknownVariables()
 #		#
 #		unknown = self.mySBFOptions.UnknownVariables()
@@ -355,22 +365,23 @@ class SConsBuildFramework :
 			if self.myIsExpressEdition :
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
-		elif self.myEnv['CC'] == 'g++' :
+		elif self.myEnv['CC'] == 'gcc' :
 			# Sets compiler
 			self.myCC = 'gcc'
-			# TODO: Extracts version number
-			self.myCCVersionNumber = 0.000000
-			print 'CCVERSION=',		self.myEnv['CCVERSION']
-			print 'CXXVERSION=',	self.myEnv['CXXVERSION']
-			self.myCCVersion = self.myCC # TODO: self.getVersionNumberString3( self.myCCVersionNumber )
+			# Extracts version number
+			# Step 1 : Extracts x.y.z
+			ccVersion				=	self.myEnv['CCVERSION']
+			# Step 2 : Extracts major and minor version
+			splittedCCVersion		=	ccVersion.split( '.', 2 )
+			if len(splittedCCVersion) !=  3 :
+				raise SCons.Errors.UserError( "Unexpected version schema for gcc compiler (expected x.y.z) : %s " % ccVersion )
+			# Step 3 : Computes version number		@todo make a function
+			self.myCCVersionNumber	=	float(splittedCCVersion[0])
+			self.myCCVersionNumber	+=	float(splittedCCVersion[1])/1000
+			# Constructs myCCVersion ( gccMajor-Minor )
+			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
 		else :
-			# Sets compiler
-			self.myCC = self.myEnv['CC']
-			# TODO: Extracts version number
-			self.myCCVersionNumber = 0.000000
-			print 'CCVERSION=',		self.myEnv['CCVERSION']
-			print 'CXXVERSION=',	self.myEnv['CXXVERSION']
-			self.myCCVersion = self.myCC # TODO: self.getVersionNumberString3( self.myCCVersionNumber )
+			raise SCons.Errors.UserError( "Unsupported cpp compiler : %s" % self.myEnv['CC'] )
 
 		self.my_Platform_myCCVersion = '_' + self.myPlatform + '_' + self.myCCVersion
 

@@ -121,7 +121,6 @@ class IUse :
 
 ### Several IUse implementation ###
 
-
 class Use_boost( IUse ):
 	def getName( self ):
 		return 'boost'
@@ -133,7 +132,7 @@ class Use_boost( IUse ):
 		if self.platform == 'win32':
 			return [ 'BOOST_ALL_DYN_LINK' ]
 		else:
-			return None
+			return []
 
 	# @todo boost only for vc80, checks compiler and compiler version ?
 	def getLIBS( self, version ):
@@ -152,6 +151,16 @@ class Use_boost( IUse ):
 							'boost_signals-vc80-mt-gd-1_34_1', 'boost_thread-vc80-mt-gd-1_34_1', 'boost_unit_test_framework-vc80-mt-gd-1_34_1',
 							'boost_wave-vc80-mt-gd-1_34_1', 'boost_wserialization-vc80-mt-gd-1_34_1' ]
 				return libs, libs
+		elif self.platform == 'posix' and version == '1-34-1':
+			libs = [	'libboost_date_time-mt',	'libboost_filesystem-mt',		'libboost_graph-mt',
+						'libboost_iostreams-mt',	'libboost_prg_exec_monitor-mt',	'libboost_program_options-mt',
+						'libboost_regex-mt',		'libboost_serialization-mt',
+#						'libboost_python-mt',		'libboost_regex-mt',			'libboost_serialization-mt',
+						'libboost_signals-mt',		'libboost_thread-mt',			'libboost_unit_test_framework-mt',
+						'libboost_wave-mt',			'libboost_wserialization-mt'	]
+			return libs, libs
+
+
 #===============================================================================
 # def use_boost( self, lenv, elt ) :
 #	if ( self.myPlatform == 'posix' ) :
@@ -170,8 +179,9 @@ class Use_boost( IUse ):
 class Use_cairo( IUse ):
 
 	def __init__( self ):
-		# Retrieves GTK_BASEPATH
-		self.__gtkBasePath = getPathFromEnv('GTK_BASEPATH')
+		if self.platform == 'win32' :
+			# Retrieves GTK_BASEPATH
+			self.__gtkBasePath = getPathFromEnv('GTK_BASEPATH')
 
 	def getName( self ):
 		return 'cairo'
@@ -181,31 +191,44 @@ class Use_cairo( IUse ):
 
 
 	def getCPPDEFINES( self, version ):
-		return [ '/vd2', '/wd4250' ]
+		if self.platform == 'win32' :
+			return [ '/vd2', '/wd4250' ]
+		else:
+			return []
 
 	def getCPPPATH( self, version ):
-		if self.__gtkBasePath is None :
-			return None
-
-		# Sets CPPPATH
-		gtkCppPath = [ 'include/cairo', 'include' ]
-		cppPath = []
-		for path in gtkCppPath :
-			cppPath.append( os.path.join(self.__gtkBasePath, path) )
-
-		return cppPath
+		if self.platform == 'win32' :
+			if self.__gtkBasePath is None :
+				return None
+			# Sets CPPPATH
+			gtkCppPath = [ 'include/cairo', 'include' ]
+			cppPath = []
+			for path in gtkCppPath :
+				cppPath.append( os.path.join(self.__gtkBasePath, path) )
+			return cppPath
+		elif self.platform == 'posix' :
+			# Sets CPPPATH
+			cppPath = [	'/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
+						'/usr/include/libpng12'	]
+			return cppPath
 
 	def getLIBS( self, version ):
 		if (self.platform == 'win32') and (version in ['1-7-6', '1-2-6']) :
 			libs = [ 'cairo' ]
 			pakLibs = [ 'libcairo-2' ]
 			return libs, pakLibs
+		elif self.platform == 'posix' :
+			libs = [ 'cairo' ]
+			return libs, libs
 
 	def getLIBPATH( self, version ):
-		if self.__gtkBasePath is None :
-			return None
-
-		return [ os.path.join(self.__gtkBasePath, 'lib') ], [ os.path.join(self.__gtkBasePath, 'bin') ]
+		if self.platform == 'win32' :
+			if self.__gtkBasePath is None :
+				return None
+			else:
+				return [ os.path.join(self.__gtkBasePath, 'lib') ], [ os.path.join(self.__gtkBasePath, 'bin') ]
+		elif self.platform == 'posix' :
+			return [], []
 
 #def use_cairo( self, lenv, elt ) :
 #=======================================================================================================================
@@ -282,7 +305,9 @@ class Use_openil( IUse ):
 				libs = ['IL']
 				return libs, libs
 			else :
-				libs = ['ILd']
+				libs = ['IL']
+				# @remark openil not compiled in debug in ubuntu 8.10
+				#libs = ['ILd']
 				return libs, libs
 
 
@@ -303,21 +328,40 @@ class Use_openilu( IUse ):
 				libs = ['ILU']
 				return libs, libs
 			else :
-				libs = ['ILUd']
+				# @remark openil not compiled in debug in ubuntu 8.10
+				libs = ['ILU']
+				#libs = ['ILUd']
 				return libs, libs
 
 
+# @remarks sdl-config --cflags --libs
 class Use_sdl( IUse ):
 	def getName( self ):
 		return "sdl"
+
+	def getCPPDEFINES( self, version ):
+		if self.platform == 'posix' :
+			return [ ('_GNU_SOURCE',1), '_REENTRANT' ]
+		else:
+			return []
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'posix' :
+			return ['/usr/include/SDL']
+		else:
+			return []
+
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
 			libs = [ 'SDL', 'SDLmain' ]
 			pakLibs = [ 'SDL' ]
 			return libs, pakLibs
-		#else: @todo
-		#	lenv.ParseConfig('sdl-config --cflags --libs')
+		elif self.platform == 'posix' :
+			return ['SDL', 'SDL']
+
+	def getLIBPATH( self, version ):
+		return [ '/usr/lib' ], [ '/usr/lib' ]
 
 
 class Use_glu( IUse ):
@@ -438,8 +482,15 @@ class Use_wxWidgets( IUse ):
 							'wxmsw28d_html_vc_custom', 'wxmsw28d_media_vc_custom', 'wxmsw28d_qa_vc_custom', 'wxmsw28d_richtext_vc_custom',
 							'wxmsw28d_xrc_vc_custom' ]
 				return libs, pakLibs
-		else :
-			return None
+		elif self.platform == 'posix' and version == '2-8-8' :
+			# ignore self.config, always uses release version
+			libs = [	'wx_gtk2u_richtext-2.8', 'wx_gtk2u_aui-2.8', 'wx_gtk2u_xrc-2.8', 'wx_gtk2u_qa-2.8',
+						'wx_gtk2u_html-2.8', 'wx_gtk2u_adv-2.8', 'wx_gtk2u_core-2.8', 'wx_baseu_xml-2.8',
+						'wx_baseu_net-2.8', 'wx_baseu-2.8'	]
+			return libs, []
+#-I/usr/lib/wx/include/gtk2-unicode-release-2.8 -I/usr/include/wx-2.8 -D_FILE_OFFSET_BITS=64 -D_LARGE_FILES -D__WXGTK__
+#-pthread -Wl,-Bsymbolic-functions  
+#and GL ?
 #===============================================================================
 #	elif self.myPlatform == 'darwin' :
 #		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
@@ -641,6 +692,11 @@ def use_cairomm( self, lenv, elt ) :
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 def use_gtkmm( self, lenv, elt ) :
+	if self.myPlatform == 'posix' :
+		lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
+		lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
+		return
+
 	# Retrieves GTK_BASEPATH and GTKMM_BASEPATH
 	gtkBasePath		= getPathFromEnv('GTK_BASEPATH')
 	gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
