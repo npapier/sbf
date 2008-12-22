@@ -261,7 +261,7 @@ Section "${PRODUCTNAME} core (required)"
 
   ; Put files there
 !include "${SBFPROJECTNAME}_install_files.nsi"
-  CreateDirectory "$OUTDIR\var"
+  CreateDirectory "$INSTDIR\\var"
 
   ; Changes ACL
   ; From MSDN
@@ -273,8 +273,8 @@ Section "${PRODUCTNAME} core (required)"
 
   AccessControl::GrantOnFile "$INSTDIR\share" "(S-1-5-32-545)" "GenericRead + GenericWrite"
 ;AccessControl::EnableFileInheritance "$INSTDIR\share"
-  AccessControl::GrantOnFile "$INSTDIR\var" "(S-1-5-32-545)" "FullAccess"
-;AccessControl::EnableFileInheritance "$INSTDIR\var"
+  AccessControl::GrantOnFile "$INSTDIR\\var" "(S-1-5-32-545)" "FullAccess"
+;AccessControl::EnableFileInheritance "$INSTDIR\\var"
 
   ; Redistributable
   CreateDirectory $INSTDIR\Redistributable
