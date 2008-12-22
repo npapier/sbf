@@ -300,8 +300,13 @@ SectionEnd
 Section "Start Menu Shortcuts"
 
   CreateDirectory "$SMPROGRAMS\${PRODUCTNAME}"
+
+  SetOutPath $INSTDIR\\bin
+
 %s
   CreateShortCut "$SMPROGRAMS\${PRODUCTNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+
+  SetOutPath $INSTDIR
 
 SectionEnd
 
