@@ -216,7 +216,7 @@ class SConsBuildFramework :
 			self.myEnv = tmpEnv
 
 
-	
+
 # @todo uses UnknownVariables()
 #		#
 #		unknown = self.mySBFOptions.UnknownVariables()
@@ -402,6 +402,7 @@ class SConsBuildFramework :
 		# Initializes 'use' repository
 		if UseRepository.isInitialized() == False :
 			UseRepository.initialize( self )
+			UseRepository.add( UseRepository.getAll() )
 
 		# Generates help
 		Help("""

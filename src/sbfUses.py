@@ -41,6 +41,11 @@ class IUse :
 	platform	= None
 	config		= None
 
+	@classmethod
+	def initialize( self, platform, config ):
+		self.platform	= platform
+		self.config		= config
+
 	def getName( self ):
 		raise StandardError("IUse::getName() not implemented")
 
@@ -178,6 +183,8 @@ class Use_boost( IUse ):
 
 class Use_cairo( IUse ):
 
+	__gtkBasePath = None
+
 	def __init__( self ):
 		if self.platform == 'win32' :
 			# Retrieves GTK_BASEPATH
@@ -286,6 +293,40 @@ class Use_opengl( IUse ):
 		else:
 			libs = ['GL']
 			return libs, []
+
+
+
+class Use_itk( IUse ):
+
+	def getName( self ):
+		return 'itk'
+
+	def getVersions( self ):
+		return ['3-4-0']
+
+
+	# Already and always done by sbf on windows platform '/DNOMINMAX'
+
+
+	def getCPPPATH( self, version ):
+		# Sets CPPPATH
+		cppPath = [	'itk', 'itk/Algorithms', 'itk/BasicFilters', 'itk/Common', 'itk/expat', 'itk/gdcm/src',
+					'itk/IO', 'itk/Numerics', 'itk/Numerics/FEM', 'itk/Numerics/NeuralNetworks', 'itk/Numerics/Statistics',
+					'itk/SpatialObject', 'itk/Utilities', 'itk/Utilities/MetaIO', 'itk/Utilities/NrrdIO',
+					'itk/Utilities/vxl/core', 'itk/Utilities/vxl/vcl' ]
+
+		return cppPath
+
+
+	def getLIBS( self, version ):
+		if (self.platform == 'win32') and (version in ['3-4-0']) :
+			libs = [	'ITKAlgorithms', 'ITKBasicFilters', 'ITKCommon', 'ITKDICOMParser', 'ITKEXPAT', 'ITKFEM', 'itkgdcm',
+						'ITKIO', 'itkjpeg8', 'itkjpeg12', 'itkjpeg16', 'ITKMetaIO', 'ITKniftiio', 'ITKNrrdIO', 'ITKNumerics',
+						'itkopenjpeg', 'itkpng', 'ITKSpatialObject', 'ITKStatistics', 'itksys', 'itktiff', 'itkv3p_netlib',
+						'itkvcl', 'itkvnl', 'itkvnl_algo', 'itkvnl_inst', 'itkzlib', 'ITKznz' ]
+			pakLibs = [	'ITKCommon' ]
+			return libs, pakLibs
+
 
 
 class Use_openil( IUse ):
@@ -489,7 +530,7 @@ class Use_wxWidgets( IUse ):
 						'wx_baseu_net-2.8', 'wx_baseu-2.8'	]
 			return libs, []
 #-I/usr/lib/wx/include/gtk2-unicode-release-2.8 -I/usr/include/wx-2.8 -D_FILE_OFFSET_BITS=64 -D_LARGE_FILES -D__WXGTK__
-#-pthread -Wl,-Bsymbolic-functions  
+#-pthread -Wl,-Bsymbolic-functions
 #and GL ?
 #===============================================================================
 #	elif self.myPlatform == 'darwin' :
@@ -540,21 +581,22 @@ class UseRepository :
 
 	__repository	= {}
 
-	__allowedValues = [	'cairomm1-2-4', 'gtkmm2-14', 'itk3-4-0', 'ode',
+	__allowedValues = [	'cairomm1-2-4', 'gtkmm2-14', 'ode',
 						'physx2-8-1' ]
 	__alias			= {
 			'cairomm'		: 'cairomm1-2-4',
 			'gtkmm'			: 'gtkmm2-14',
-			'itk'			: 'itk3-4-0',
 			'physx'			: 'physx2-8-1'	}
 
 	__initialized	= False
 
 	@classmethod
-	def initialize( self, sbf,
-					listOfIUseImplementation = [Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_opengl(),
-												Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()] ):
+	def getAll( self ):
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_opengl(), Use_itk(),
+					Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
+	@classmethod
+	def initialize( self, sbf ):
 		if self.__initialized == True :
 			raise SCons.Errors.InternalError("Try to initialize UseRepository twice.")
 
@@ -562,8 +604,14 @@ class UseRepository :
 		self.__platform	= sbf.myPlatform
 		self.__config	= sbf.myConfig
 
-		IUse.platform	= sbf.myPlatform
-		IUse.config		= sbf.myConfig
+		IUse.initialize( sbf.myPlatform, sbf.myConfig )
+
+		#
+		self.__initialized = True
+
+	@classmethod
+	def add(	self,
+				listOfIUseImplementation ):
 
 		# Initializes repository
 		print ("Adds in UseRepository :"),
@@ -593,8 +641,6 @@ class UseRepository :
 		self.__allowedValues = sorted(self.__allowedValues)
 		print
 
-		#
-		self.__initialized = True
 
 	@classmethod
 	def isInitialized( self ):
@@ -764,32 +810,6 @@ def use_gtkmm( self, lenv, elt ) :
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
-def use_itk( self, lenv, elt ) :
-	# Already and always done by sbf on windows platform '/DNOMINMAX'
-
-	# includes
-	itkIncludes = [	'itk', 'itk/Algorithms', 'itk/BasicFilters', 'itk/Common', 'itk/expat', 'itk/gdcm/src',
-					'itk/IO', 'itk/Numerics', 'itk/Numerics/FEM', 'itk/Numerics/NeuralNetworks', 'itk/Numerics/Statistics',
-					'itk/SpatialObject', 'itk/Utilities', 'itk/Utilities/MetaIO', 'itk/Utilities/NrrdIO',
-					'itk/Utilities/vxl/core', 'itk/Utilities/vxl/vcl' ]
-
-	if lenv.GetOption('weak_localext') :
-		for cppPath in self.myIncludesInstallExtPaths :
-			for include in itkIncludes :
-				lenv.Append( CCFLAGS = ['-I' + os.path.join(cppPath, include) ] )
-	else :
-		for cppPath in self.myIncludesInstallExtPaths :
-			for include in itkIncludes :
-				lenv.Append( CPPPATH = os.path.join(cppPath, include) )
-
-	# libs
-	itkLibs = [	'ITKAlgorithms', 'ITKBasicFilters', 'ITKCommon', 'ITKDICOMParser', 'ITKEXPAT', 'ITKFEM', 'itkgdcm',
-				'ITKIO', 'itkjpeg8', 'itkjpeg12', 'itkjpeg16', 'ITKMetaIO', 'ITKniftiio', 'ITKNrrdIO', 'ITKNumerics',
-				'itkopenjpeg', 'itkpng', 'ITKSpatialObject', 'ITKStatistics', 'itksys', 'itktiff', 'itkv3p_netlib',
-				'itkvcl', 'itkvnl', 'itkvnl_algo', 'itkvnl_inst', 'itkzlib', 'ITKznz' ]
-
-	lenv.Append( LIBS = itkLibs )
-
 #===============================================================================
 # def use_openIL( self, lenv, elt ) :
 #	if ( self.myPlatform == 'win32' ) :
@@ -923,9 +943,11 @@ def uses( self, lenv ):
 		elif elt == 'gtkmm2-14' :
 			use_gtkmm( self, lenv, elt );
 
-		### configure itk ###
-		elif elt == 'itk3-4-0' :
-			use_itk( self, lenv, elt )
+#===============================================================================
+#		### configure itk ###
+#		elif elt == 'itk3-4-0' :
+#			use_itk( self, lenv, elt )
+#===============================================================================
 
 		### configure ODE ###
 		elif elt == 'ode' :
