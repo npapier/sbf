@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -6,6 +6,24 @@
 from sbfFiles import convertPathAbsToRel
 
 ##### Svn ######
+def svnGetURLFromSBFOptions( sbf, projectName ):
+	svnUrlsDict = sbf.myEnv['svnUrls']
+	if projectName in svnUrlsDict :
+		return [ svnUrlsDict[projectName] ]
+	else:
+		return svnUrlsDict['']
+
+# Returns the url without modification if svnUrl ends with the '/trunk', otherwise returns the svnUrl with '/projectName/trunk' appended at the end.
+# In all case, removes unneeded '/' at the end of the given svnUrl
+def svnCompleteUrl( projectName, svnUrl ):
+	if svnUrl.endswith( '/' ):
+		svnUrl = svnUrl[:-1]
+
+	if svnUrl.endswith( '/trunk' ):
+		return svnUrl
+	else:
+		return svnUrl + '/' + projectName + '/trunk'
+
 def svnGetURL( path ) :
 	import pysvn
 
@@ -89,6 +107,43 @@ def printSvnInfo( sbf, client ) :
 
 
 
+def svnCallback_ssl_server_trust_prompt( trust_dict ):
+	print ("Error validating server certificate for '%s':" % trust_dict['realm'] )
+	print (' - The certificate is not issued by a trusted authority.')
+	print ('   Use the fingerprint to validate the certificate manually !')
+	print ('Certificate informations:')
+	print (' - Hostname: %s' %		trust_dict['hostname'] )
+	print (' - Fingerprint: %s' %	trust_dict['finger_print'] )
+	print (' - Valid from: %s' %	trust_dict['valid_from'] )
+	print (' - Valid until: %s' %	trust_dict['valid_until'] )
+	print (' - Issuer: %s' %		trust_dict['issuer_dname'] )
+
+	print
+	while( True ):
+		userChoice = raw_input('(R)eject, accept (t)emporarily(@todo buggy) or accept (p)ermanently ?')		# @todo (t)emporarily seems to be buggy => pysvn ?
+		userChoice = userChoice.lower()
+
+		if userChoice in ['r', 't', 'p'] :
+			break
+
+	trust	= userChoice in ['t', 'p']
+	save	= (userChoice == 'p')
+
+	return trust, trust_dict['failures'], save
+
+
+def svnCallback_get_login( realm, username, may_save ):
+	print ('Authentication realm: %s' % realm)
+
+	givenUsername = raw_input('Username (%s):' % username)
+	if len(givenUsername) == 0:
+		givenUsername = username
+
+	givenPassword = raw_input("Password for '%s':" % givenUsername)
+
+	return (len(givenUsername) != 0) and (len(givenPassword) != 0), givenUsername, givenPassword, may_save
+
+
 def svnCallbackNotify( sbf, eventDict ) :
 	import pysvn
 
@@ -144,7 +199,7 @@ class svnCallbackNotifyWrapper:
 
 
 
-def svnCheckout( sbf ) :
+def svnCheckout( sbf ):
 	# Checks validity of 'svnUrls' option
 	# @todo Checks if urls are valid
 	if len(sbf.mySvnUrls) == 0 :
@@ -154,15 +209,15 @@ def svnCheckout( sbf ) :
 	import pysvn
 	client = pysvn.Client()
 	client.callback_notify = svnCallbackNotifyWrapper( sbf )
-	client.exception_style = 0
+	client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
+	client.callback_get_login				= svnCallback_get_login
+	client.exception_style					= 0
 
-	for repository in sbf.mySvnUrls :
+	svnUrls = svnGetURLFromSBFOptions( sbf, sbf.myProject )
+
+	for svnUrl in svnUrls :
 		# @todo improves robustness for svn urls
-		if repository.endswith( "/trunk" ) :
-			svnUrl = repository
-		else :
-			svnUrl	= repository + '/' + sbf.myProject + '/trunk'
-
+		svnUrl = svnCompleteUrl( sbf.myProject, svnUrl )
 		print "sbfInfo: Try to check out a working copy from", svnUrl, ":"
 		try :
 			revision = client.checkout(	url = svnUrl, path = sbf.myProjectPathName )
@@ -176,11 +231,13 @@ def svnCheckout( sbf ) :
 
 
 def svnUpdate( sbf ) :
-	# try an update.
+	# Try an update
 	import pysvn
 	client = pysvn.Client()
 	client.callback_notify = svnCallbackNotifyWrapper( sbf )
-	client.exception_style = 0
+	client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
+	client.callback_get_login				= svnCallback_get_login
+	client.exception_style					= 0
 
 	try :
 		revision = client.update( sbf.myProjectPathName )

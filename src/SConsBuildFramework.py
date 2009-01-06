@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -106,6 +106,7 @@ class SConsBuildFramework :
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
 	myInstallPaths					= []
+	myPublishPath					= ''
 	myBuildPath						= ''
 	mySConsignFilePath				= None
 	myCachePath						= ''
@@ -155,8 +156,10 @@ class SConsBuildFramework :
 	mySubsystemNotDefined			= None	# True if LINKFLAGS contains '/SUBSYSTEM:'
 
 	# List of projects that have been already parsed by scons
+	myFailedVcsProjects				= set()
 	myParsedProjects				= {}
 	myParsedProjectsSet				= set()
+
 
 
 
@@ -478,7 +481,7 @@ SConsBuildFramework options:
 	###### Initialize global attributes ######
 	def initializeGlobalsFromEnv( self, lenv ) :
 
-		# update myNumJobs, myCompanyName, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
+		# Updates myNumJobs, myCompanyName, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
 		self.myNumJobs				= lenv['numJobs']
 
 		self.myCompanyName			= lenv['companyName']
@@ -489,7 +492,7 @@ SConsBuildFramework options:
 
 		self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
 
-		# update myInstallPaths, myInstallExtPaths and myInstallDirectory
+		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
 		for element in lenv['installPaths'] :
 			self.myInstallPaths += [ getNormalizedPathname( element ) ]
@@ -503,6 +506,9 @@ SConsBuildFramework options:
 		else :
 			print 'sbfError: empty installPaths'
 			Exit( 1 )
+
+		# Updates myPublishPath
+		self.myPublishPath = lenv['publishPath']
 
 		# Updates myBuildPath, mySConsignFilePath, myCachePath, myCacheOn, myConfig and myWarningLevel
 		self.myBuildPath = getNormalizedPathname( lenv['buildPath'] )
@@ -670,6 +676,9 @@ SConsBuildFramework options:
 
 			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
 
+			('publishPath', 'The result of a target, typically copied in installPaths[0], could be transfered to another host over a remote shell using rsync. This option sets the destination of publishing (see rsync for destination syntax).', ''),
+			BoolOption('publishOn', 'Sets to True to enabled the publishing. See \'publishPath\' option for additional informations.', False),
+
 			PathOption(	'buildPath',
 						'The build directory in which to build all derived files. It could be an absolute path, or a relative path to the project being build)',
 						'build',
@@ -729,12 +738,15 @@ SConsBuildFramework options:
 
 	###### Reads a configuration file for a project ######
 	###### Updates environment (self.myProjectOptions and lenv are modified).
+	# Returns true if config file exists, false otherwise.
 	def readProjectOptionsAndUpdateEnv( self, lenv, configDotOptionsFile = 'default.options' ) :
 		configDotOptionsPathFile = self.myProjectPathName + os.sep + configDotOptionsFile
-		if os.path.isfile(configDotOptionsPathFile) :
+		retVal = os.path.isfile(configDotOptionsPathFile)
+		if retVal :
 			# update lenv with config.options
 			self.myProjectOptions = self.readProjectOptions( configDotOptionsPathFile )
 			self.myProjectOptions.Update( lenv )
+		return retVal
 
 
 
@@ -864,37 +876,54 @@ SConsBuildFramework options:
 
 	def vcsCheckout( self, lenv ) :
 
+		# Checks if this project must skip vcs operation
 		if self.myProject in self.mySvnCheckoutExclude :
 			if lenv.GetOption('verbosity') :
-				print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPathName) )
+				print
+				print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPath) )
 				print "sbfInfo: Exclude from vcs checkout."
 				print "sbfInfo: Skip to the next project..."
 			return
 
-		print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPathName) )
+		# Checks if vcs operation of this project has already failed
+		if self.myProject not in self.myFailedVcsProjects :
+			print
+			print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPath) )
+			successful = svnCheckout( self )
+			if not successful :
+				self.myFailedVcsProjects.add( self.myProject )
+				print "sbfWarning: Unable to populate directory", self.myProjectPathName, "from vcs."
+			#else vcs checkout successful.
+			return successful
+		else:
+			return False
 
-		successful = svnCheckout( self )
-
-		if successful == False :
-			print "sbfWarning: Unable to populate directory", self.myProjectPathName, "from vcs."
-		#else vcs checkout successful.
 
 	def vcsUpdate( self, lenv ) :
 
+		# Checks if this project must skip vcs operation
 		if self.myProject in self.mySvnUpdateExclude :
 			if lenv.GetOption('verbosity') :
-				print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPathName) )
+				print
+				print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPath) )
 				print "sbfInfo: Exclude from vcs update."
 				print "sbfInfo: Skip to the next project..."
 			return
 
-		print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPathName) )
+		# Checks if vcs operation of this project has already failed
+		if self.myProject not in self.myFailedVcsProjects :
+			print
+			print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPath) )
+			successful = svnUpdate( self )
+			if not successful :
+				self.myFailedVcsProjects.add( self.myProject )
+				print "sbfWarning: Unable to update directory", self.myProjectPathName, "from vcs."
+			#else vcs update successful.
+			return successful
+		else:
+			return False
 
-		successful = svnUpdate( self )
 
-		if successful == False :
-			print "sbfWarning: Unable to update directory", self.myProjectPathName, "from vcs."
-		#else vcs update successful.
 
 	###### Build a project ######
 	def buildProject( self, projectPathName ) :
@@ -908,7 +937,7 @@ SConsBuildFramework options:
 		self.myProject			= os.path.basename(	self.myProjectPathName	)
 
 		# Tests if the incoming project must be ignored
-		if self.myEnv['exclude'] and self.myProject in self.myEnv['projectExclude'] :
+		if self.myEnv['exclude'] and (self.myProject in self.myEnv['projectExclude']) :
 			if self.myEnv.GetOption('verbosity') :
 				print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
 			return
@@ -936,26 +965,27 @@ SConsBuildFramework options:
 
 		if not existanceOfProjectPathName :
 			if not tryVcsCheckout:
+				print
 				print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 				print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 				print "sbfInfo: None of targets svnCheckout or", self.myProject + "_svnCheckout have been specified."
+				self.myFailedVcsProjects.add( self.myProject )
 				return
 			else :
 				self.vcsCheckout( lenv )
-				self.readProjectOptionsAndUpdateEnv( lenv )
-		else :
-			self.readProjectOptionsAndUpdateEnv( lenv )
-			if tryVcsCheckout :
-				if lenv.has_key('vcsUse') and lenv['vcsUse'] == 'yes' :
+		else:
+			successful = self.readProjectOptionsAndUpdateEnv( lenv )
+			if successful and tryVcsCheckout :
+				if lenv['vcsUse'] == 'yes' :
 					projectURL = svnGetURL(self.myProjectPathName)
 					if len(projectURL) > 0 :
 						# @todo only if verbose
+						print
 						print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 						print "sbfInfo: Already checkout from %s using svn." % projectURL
 						print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
-					else :
+					else:
 						self.vcsCheckout( lenv )
-						self.readProjectOptionsAndUpdateEnv( lenv )
 				else :
 					if lenv.GetOption('verbosity') :
 						print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
@@ -966,12 +996,17 @@ SConsBuildFramework options:
 
 		# Tests existance of project path name
 		if os.path.isdir(self.myProjectPathName) :
-			# Adds the new environment
-			self.myParsedProjects[self.myProject] = lenv
-			self.myParsedProjectsSet.add( self.myProject.lower() )
-		else :
+			successful = self.readProjectOptionsAndUpdateEnv( lenv )
+			if successful :
+				# Adds the new environment
+				self.myParsedProjects[self.myProject] = lenv
+				self.myParsedProjectsSet.add( self.myProject.lower() )
+			else:
+				raise SCons.Errors.UserError("Unable to find 'default.options' file for project %s in directory %s." % (self.myProject, self.myProjectPath) )
+		else:
 			print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 			print "sbfInfo: Skip to the next project..."
+			self.myFailedVcsProjects.add( self.myProject )
 			return
 
 		# User wants a vcs update ?
@@ -1013,18 +1048,20 @@ SConsBuildFramework options:
 			del lenv['deps'][:]
 		else:
 			for dependency in lenv['deps'] :
-				if not os.path.isabs( dependency ) :
-					# dependency is a path relative to default.options file directory
-					normalizedDependency = getNormalizedPathname( projectPathName + os.sep + dependency )
-				else :
+				if os.path.isabs( dependency ) :
 					# dependency is an absolute path
 					raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
 
-				incomingProjectName = os.path.basename(normalizedDependency)
-				if incomingProjectName.lower() not in self.myParsedProjectsSet :
+				# dependency is a path relative to default.options file directory
+				normalizedDependency			= getNormalizedPathname( projectPathName + os.sep + dependency )
+				incomingProjectName				= os.path.basename(normalizedDependency)
+				lowerCaseIncomingProjectName	= incomingProjectName.lower()
+				if	lowerCaseIncomingProjectName not in self.myParsedProjectsSet :
 					# dependency not already "build"
 #					print ('buildProject %s' % normalizedDependency)
-					self.buildProject( normalizedDependency )
+					if incomingProjectName not in self.myFailedVcsProjects :
+						self.buildProject( normalizedDependency )
+					#else: nothing to do
 				else:
 					# A project with the same name (without taking case into account) has been already parsed.
 					if incomingProjectName not in self.myParsedProjects :
@@ -1035,7 +1072,7 @@ SConsBuildFramework options:
 								raise SCons.Errors.UserError("The dependency %s, defined in project %s, has already been encountered with a different character case (%s). It's forbidden." % (normalizedDependency, lenv['sbf_projectPathName'], self.myParsedProjects[project]['sbf_projectPathName'] ) )
 						else:
 							# Must never happened
-							raise Scons.Errors.UserError("Internal sbf error.")
+							raise SCons.Errors.UserError("Internal sbf error.")
 					else:
 						# A project with the same name has been already parsed (with the same case).
 						parsedProject = self.myParsedProjects[ incomingProjectName ]
@@ -1062,6 +1099,11 @@ SConsBuildFramework options:
 		lenv['sbf_projectPathName'	] = self.myProjectPathName
 		lenv['sbf_projectPath'		] = self.myProjectPath
 		lenv['sbf_project'			] = self.myProject
+
+		if tryVcsCheckout or tryVcsUpdate :
+#			print "skip"
+			return
+#		print 'initializeProject %s' % projectPathName
 
 		# @todo Finds a better place to do that
 		lenv['sbf_version_major']		= self.myVersionMajor

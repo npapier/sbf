@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -123,12 +123,39 @@ from src.SConsBuildFramework import stringFormatter
 
 
 
+# cygpath utilities (used by rsync)
+def callCygpath2Unix( path ):
+	return os.popen('cygpath -u "' + path + '"' ).readline().rstrip('\n')
+
+class PosixSource:
+	def __init__( self, platform ):
+		self.platform = platform
+
+	def __call__( self, target, source, env, for_signature ):
+		if self.platform == 'win32' :
+			return callCygpath2Unix(str(source[0]))
+#			return "`cygpath -u '" + str(source[0]) + "'`"
+		else:
+			return str(source[0])
+
+
+class PosixTarget:
+	def __init__( self, platform ):
+		self.platform = platform
+
+	def __call__( self, target, source, env, for_signature ):
+		if self.platform == 'win32' :
+			return callCygpath2Unix(str(target[0]))
+#			return "`cygpath -u '" + str(target[0]) + "'`"
+		else:
+			return str(target[0])
+
 ###### Archiver action ######
-def nsisFilePrinter( target, source, env ):
-	targetName = str(target[0])
-	sourceName = str(source[0])
-	print sourceName
-	print targetName
+#def nsisFilePrinter( target, source, env ):
+#	targetName = str(target[0])
+#	sourceName = str(source[0])
+#	print sourceName
+#	print targetName
 
 def zipArchiver( target, source, env ) :
 	targetName = str(target[0])
@@ -441,20 +468,42 @@ def printZipPrinterForNSISUninstallFiles( target, source, env ) :
 
 
 ###### Action function for sbfCheck target #######
+import subprocess
+
+def execute( command ):
+	# Executes command
+	pipe = subprocess.Popen( command, shell=True, bufsize = 0, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
+
+	# Retrieves stdout or stderr
+	lines = pipe.stdout.readlines()
+	if len(lines) == 0 :
+		lines = pipe.stderr.readlines()
+
+	for line in lines :
+		line = line.rstrip('\n')
+		if len(line) > 0 :
+			return line
+
+
 def sbfCheck(target = None, source = None, env = None) :
 	print stringFormatter( env, 'Availability and version of tools' )
 
 	print 'python version : ',
 	sys.stdout.flush()
-	env.Execute( '@python -V' )
+	env.Execute( '@python --version' )
 	print
 
 	print 'Version of python used by scons :', sys.version
 	print
 
-	print 'scons version :'
-	sys.stdout.flush()
-	env.Execute( '@scons -v' )
+	whereis_scons = env.WhereIs( 'scons' )
+	if whereis_scons :
+		print 'scons found at ', whereis_scons.lower()
+		print 'scons version :', SCons.__version__
+		sys.stdout.flush()
+		#print execute( 'scons --version' )
+	else:
+		print 'scons not found'
 	print
 
 	#@todo pysvn should be optionnal
@@ -478,6 +527,28 @@ def sbfCheck(target = None, source = None, env = None) :
 	sys.stdout.flush()
 	env.Execute( '@doxygen --version' )
 	print
+
+	whereis_rsync = env.WhereIs( 'rsync' )				# @todo whereis for others tools
+	if whereis_rsync :
+		print 'rsync found at ', whereis_rsync.lower()
+		print 'rsync version :',
+		sys.stdout.flush()
+		print execute( 'rsync --version' )
+	else:
+		print 'rsync not found'
+	print
+
+	whereis_ssh = env.WhereIs( 'ssh' )
+	if whereis_ssh :
+		print 'ssh found at ', whereis_ssh.lower()
+		print 'ssh version   :',
+		sys.stdout.flush()
+		print execute( 'ssh -v' )
+	else:
+		print 'ssh not found'
+	print
+
+	#@todo nsis
 
 	#@todo others tools (ex : swig, ...)
 	#@todo Adds checking for the existance of tools (svn, doxygen...)
@@ -537,7 +608,7 @@ def getSBFVersion() :
 
 
 
-from src.SConsBuildFramework import SConsBuildFramework, nopAction
+from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLine
 
 ###### Initial environment ######
 #
@@ -558,8 +629,14 @@ print "\nConfiguration: %s\n" % env['config']
 # Dumping construction environment (for debugging).																	# TODO : a method printDebugInfo()
 #env.Dump()
 
+env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'] )
+env['POSIX_TARGET'] = PosixTarget( env['PLATFORM'] )
+env['RSYNCFLAGS']	= "--delete -av --chmod=u=rwX,go=rX --rsh=ssh" # --progress
+env['BUILDERS']['Rsync'] = Builder( action = "rsync $RSYNCFLAGS $POSIX_SOURCE $POSIX_TARGET" ) # adds @ and printMsg
+
 # target 'sbfCheck'
-Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( sbfCheck, nopAction ) ) )
+Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
+Alias('sbfCheck', env.Command('dummyCheckVersion.out2', 'dummy.in', Action( sbfCheck, nopAction ) ) )
 
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
@@ -1008,6 +1085,7 @@ def syncAction( target, source, env ) :
 	shutil.copytree( sourcePath, destinationPath )
 
 
+# @todo improves output message
 if (	('dox_build' in env.sbf.myBuildTargets) or
 		('dox_install' in env.sbf.myBuildTargets) or
 		('dox' in env.sbf.myBuildTargets) or
@@ -1018,8 +1096,6 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 			('dox_mrproper' in env.sbf.myBuildTargets)	):
 		env.SetOption('clean', 1)
 
-	env.Alias( 'dox_build_print', env.Command('dox_build_print.out1', 'dummy.in', Action( nopAction, printDoxygenBuild ) ) )
-
 	#@todo use other doxyfile(s). see doxInputDoxyfile
 	doxInputDoxyfile		= os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'doxyfile')
 	doxOutputPath			= os.path.join(env.sbf.myBuildPath, env.sbf.myProject, 'doxygen', env.sbf.myVersion )
@@ -1029,16 +1105,26 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 	doxInstallPath			= os.path.join(env.sbf.myInstallDirectory, 'doc', env.sbf.myProject, env.sbf.myVersion)
 
 	# target dox_build
-	env.Alias( 'dox_build', 'dox_build_print' )
-	env.Alias( 'dox_build', env.Command( doxOutputCustomDoxyfile, doxInputDoxyfile, Action(doxyfileAction, nopAction) )	)
-	env.AlwaysBuild( doxOutputCustomDoxyfile )
-	env.Alias( 'dox_build', env.Command( 'dox_build.out2', 'dummy.in', 'doxygen ' + doxOutputCustomDoxyfile )	)
+	commandGenerateDoxyfile = env.Command( doxOutputCustomDoxyfile, doxInputDoxyfile, Action(doxyfileAction, printDoxygenBuild) )
+	env.Alias( 'dox_build', commandGenerateDoxyfile	)
+	commandCompileDoxygen = env.Command( 'dox_build.out2', 'dummy.in', 'doxygen ' + doxOutputCustomDoxyfile )
+	env.Alias( 'dox_build', commandCompileDoxygen )
+	env.AlwaysBuild( [commandGenerateDoxyfile, commandCompileDoxygen] )
 
 	# target dox_install
-	env.Alias( 'dox_install_print', env.Command('dox_install_print.out1', 'dummy.in', Action( nopAction, printDoxygenInstall ) ) )
-	env.Alias( 'dox_install', 'dox_build' )
-	env.Alias( 'dox_install', 'dox_install_print' )
-	env.Alias( 'dox_install', env.Command( os.path.join(doxInstallPath,'dummy.out'), doxBuildPath, Action(syncAction, nopAction) )	)
+	dox_install_cmd = env.Command( os.path.join(doxInstallPath,'dummy.out'), os.path.join(doxBuildPath, 'html'), Action(syncAction, printDoxygenInstall) )
+	env.Alias( 'dox_install', [	'dox_build', dox_install_cmd ] )
+	env.AlwaysBuild( dox_install_cmd )
+	env.Depends( dox_install_cmd, 'dox_build' )
+
+	if env['publishOn'] :
+		# @todo print message
+		rsyncAction = env.Rsync(	Dir(os.path.join(env.sbf.myPublishPath, 'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion) )),
+									Dir(os.path.join(doxBuildPath, 'html')) )
+		env.AlwaysBuild( rsyncAction )
+
+		env.Alias( 'dox_install', rsyncAction )
+		env.Depends( rsyncAction, 'dox_build' )
 
 	# target dox
 	env.Alias( 'dox', 'dox_install' )

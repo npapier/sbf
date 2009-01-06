@@ -12,6 +12,8 @@
 #svnUpdateExclude	= []
 #clVersion			= 'highest'
 #installPaths		= []
+#publishPath		= ''
+#publishOn			= False
 #buildPath			= 'build'
 #SConsignFilePath	= 'buildPath' or '~'
 #cachePath			= ''
