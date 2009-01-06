@@ -463,11 +463,11 @@ class Use_sofa( IUse ):
 		libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
 		pakLibs = []
 		if self.config == 'release' :
-			libs += [	'SofaCore', 'SofaDefaultType', 'SofaComponent', 'SofaHelper', 'SofaSimulation',
+			libs += [	'SofaCore', 'SofaDefaultType', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel', 'SofaHelper', 'SofaSimulation',
 						'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT' ]
 			pakLibs += ['SofaCore', 'SofaDefaultType', 'SofaHelper']
 		else:
-			libs += [	'SofaCored', 'SofaDefaultTyped', 'SofaComponentd', 'SofaHelperd', 'SofaSimulationd',
+			libs += [	'SofaCored', 'SofaDefaultTyped', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld', 'SofaHelperd', 'SofaSimulationd',
 						'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd' ]
 			pakLibs += ['SofaCored', 'SofaDefaultTyped', 'SofaHelperd']
 		return libs, pakLibs
