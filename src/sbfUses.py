@@ -454,38 +454,58 @@ class Use_sofa( IUse ):
 					os.path.join(self.__sofa_path, 'framework'),
 					os.path.join(self.__sofa_path, 'include'),
 					os.path.join(self.__sofa_path, 'extlibs/miniFlowVR/include') ]
+
+		if self.platform == 'posix':
+			cppPath += ['/usr/include/libxml2']
+
 		return cppPath
 
 	def getLIBS( self, version ):
-		if self.platform != 'win32' :
+		if self.platform != 'win32' and self.platform != 'posix' :
 			return None
 
-		libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
-		pakLibs = []
-		if self.config == 'release' :
-			libs += [	'SofaCore', 'SofaDefaultType', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel', 'SofaHelper', 'SofaSimulation',
+		if self.platform == 'win32' :
+			libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
+			pakLibs = []
+			if self.config == 'release' :
+				libs += ['SofaCore', 'SofaDefaultType', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel', 'SofaHelper', 'SofaSimulation',
 						'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT' ]
-			pakLibs += ['SofaCore', 'SofaDefaultType', 'SofaHelper']
-		else:
-			libs += [	'SofaCored', 'SofaDefaultTyped', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld', 'SofaHelperd', 'SofaSimulationd',
+				pakLibs += ['SofaCore', 'SofaDefaultType', 'SofaHelper']
+			else:
+				libs += ['SofaCored', 'SofaDefaultTyped', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld', 'SofaHelperd', 'SofaSimulationd',
 						'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd' ]
-			pakLibs += ['SofaCored', 'SofaDefaultTyped', 'SofaHelperd']
+				pakLibs += ['SofaCored', 'SofaDefaultTyped', 'SofaHelperd']
+
+		if self.platform == 'posix' :
+			libs = ['xml2', 'z']
+			pakLibs = []
+			libs += ['libsofacore', 'libsofadefaulttype', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel', 'libsofahelper', 'libsofasimulation',
+					'libsofatree', 'libsofaautomatescheduler', 'libminiFlowVR', 'libnewmat' ]
+			pakLibs += ['libsofacore', 'libsofadefaulttype', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel', 'libsofahelper', 'libsofasimulation',
+					'libsofatree', 'libsofaautomatescheduler', 'libminiFlowVR', 'libnewmat' ]
+
 		return libs, pakLibs
 
 	def getLIBPATH( self, version ):
 		libPath		= []
 		pakLibPath	= []
 
-		if self.config == 'release' :
-			path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
-			libPath.append( path )
-			pakLibPath.append( path )
-		else :
-			path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
-			libPath.append( path )
-			pakLibPath.append( path )
+		if self.platform == 'win32' :
+			if self.config == 'release' :
+				path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
+				libPath.append( path )
+				pakLibPath.append( path )
+			else :
+				path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
+				libPath.append( path )
+				pakLibPath.append( path )
 
-		libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
+			libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
+
+		if self.platform == "posix" : 
+			path = os.path.join( self.__sofa_path, 'lib/linux')
+			libPath.append( path )
+			pakLibPath.append( path )
 
 		return libPath, pakLibPath
 
@@ -739,6 +759,7 @@ def use_cairomm( self, lenv, elt ) :
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 def use_gtkmm( self, lenv, elt ) :
 	if self.myPlatform == 'posix' :
+		lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
 		lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
 		lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
 		return
