@@ -1132,10 +1132,12 @@ SConsBuildFramework options:
 			self.myCxxFlags	+=	' -D' + define + ' '
 
 		# Adds to command-line several defines with version number informations.
-		lenv.AppendUnique( CPPDEFINES = [ ("%s_VERSION" % self.myProject.upper(), "\\\"%s\\\"" % self.myVersion ) ] )
-		lenv.AppendUnique( CPPDEFINES = [ ("%s_MAJOR_VER" % self.myProject.upper(), "%s" % self.myVersionMajor ) ] )
-		lenv.AppendUnique( CPPDEFINES = [ ("%s_MINOR_VER" % self.myProject.upper(), "%s" % self.myVersionMinor ) ] )
-		lenv.AppendUnique( CPPDEFINES = [ ("%s_MAINT_VER" % self.myProject.upper(), "%s" % self.myVersionMaintenance ) ] )
+		
+		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_NAME",		"\\\"%s\\\"" % self.myProject ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_VERSION",	"\\\"%s\\\"" % self.myVersion ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_MAJOR_VER",	"%s" % self.myVersionMajor ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_MINOR_VER",	"%s" % self.myVersionMinor ) ] )
+		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_MAINT_VER",	"%s" % self.myVersionMaintenance ) ] )
 
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( lenv )
@@ -1151,6 +1153,11 @@ SConsBuildFramework options:
 						LIBPATH		= self.myLibPath ) # @todo AppendUnique should be better, but seems to cut cmd-line
 #		print '2:self.myLibPath=', self.myLibPath
 #		print '2=LIBPATH', lenv['LIBPATH']
+
+# @todo
+		# configure lenv['LIBS'] with sbf library
+#		sbfLibraryName = 'sbf_0-0' + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig
+#		lenv.AppendUnique( LIBS = [sbfLibraryName] ) # @todo 
 
 		# configure lenv['LIBS'] with lenv['stdlibs']
 		lenv.Append( LIBS = lenv['stdlibs'] ) # @todo AppendUnique

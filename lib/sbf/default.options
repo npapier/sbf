@@ -1,0 +1,11 @@
+# project settings
+#description		= ''
+vcsUse				= 'no' # no
+#defines			= []
+type				= 'shared'	# exec, static, shared, none
+#version			= '0-0'
+#postfix			= ''
+#deps				= []
+uses				= [ 'boost' ]
+#libs				= []
+#stdlibs			= []
