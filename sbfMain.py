@@ -629,10 +629,20 @@ print "\nConfiguration: %s\n" % env['config']
 # Dumping construction environment (for debugging).																	# TODO : a method printDebugInfo()
 #env.Dump()
 
+# rsync builder
 env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'] )
 env['POSIX_TARGET'] = PosixTarget( env['PLATFORM'] )
-env['RSYNCFLAGS']	= "--delete -av --chmod=u=rwX,go=rX --rsh=ssh" # --progress
-env['BUILDERS']['Rsync'] = Builder( action = "rsync $RSYNCFLAGS $POSIX_SOURCE $POSIX_TARGET" ) # adds @ and printMsg
+
+whereis_ssh = env.WhereIs( 'ssh' )
+if whereis_ssh :
+	if env['PLATFORM'] == 'win32' :
+		whereis_ssh = callCygpath2Unix(whereis_ssh).lower()
+	env['RSYNCRSH'] = '--rsh=%s' % whereis_ssh
+else:
+	env['RSYNCRSH'] = ''
+
+env['RSYNCFLAGS']			= "--delete -av --chmod=u=rwX,go=rX" # --progress
+env['BUILDERS']['Rsync']	= Builder( action = "rsync $RSYNCFLAGS $RSYNCRSH $POSIX_SOURCE $publishPath/${TARGET.filebase}" ) # adds @ and printMsg
 
 # target 'sbfCheck'
 Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
@@ -1119,7 +1129,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 	if env['publishOn'] :
 		# @todo print message
-		rsyncAction = env.Rsync(	Dir(os.path.join(env.sbf.myPublishPath, 'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion) )),
+		rsyncAction = env.Rsync(	'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion),
 									Dir(os.path.join(doxBuildPath, 'html')) )
 		env.AlwaysBuild( rsyncAction )
 
