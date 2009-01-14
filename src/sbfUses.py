@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -59,6 +59,9 @@ class IUse :
 	def getCPPDEFINES( self, version ):
 		return []
 
+	def getCPPFLAGS( self, version ):
+		return []
+
 	def getCPPPATH( self, version ):
 		return []
 
@@ -84,6 +87,14 @@ class IUse :
 				env.AppendUnique( CPPDEFINES = cppdefines )
 		else :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPDEFINES)." % (useNameVersion, self.platform) )
+
+		# CPPFLAGS
+		cppflags = self.getCPPFLAGS( useVersion )
+		if cppflags != None :
+			if len(cppflags) > 0 :
+				env.AppendUnique( CPPFLAGS = cppflags )
+		else :
+			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPFLAGS)." % (useNameVersion, self.platform) )
 
 		# CPPPATH
 		cpppath = self.getCPPPATH( useVersion )
@@ -197,7 +208,7 @@ class Use_cairo( IUse ):
 		return ['1-7-6', '1-2-6']
 
 
-	def getCPPDEFINES( self, version ):
+	def getCPPFLAGS( self, version ):
 		if self.platform == 'win32' :
 			return [ '/vd2', '/wd4250' ]
 		else:
@@ -502,7 +513,7 @@ class Use_sofa( IUse ):
 
 			libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
 
-		if self.platform == "posix" : 
+		if self.platform == "posix" :
 			path = os.path.join( self.__sofa_path, 'lib/linux')
 			libPath.append( path )
 			pakLibPath.append( path )
@@ -596,6 +607,7 @@ class Use_wxWidgetsGL( IUse ):
 
 #
 class UseRepository :
+	__verbosity		= None
 	__platform		= None
 	__config		= None
 
@@ -620,9 +632,10 @@ class UseRepository :
 		if self.__initialized == True :
 			raise SCons.Errors.InternalError("Try to initialize UseRepository twice.")
 
-		# Initializes platform and config
-		self.__platform	= sbf.myPlatform
-		self.__config	= sbf.myConfig
+		# Initializes verbosity, platform and config
+		self.__verbosity	= sbf.myEnv.GetOption('verbosity')
+		self.__platform		= sbf.myPlatform
+		self.__config		= sbf.myConfig
 
 		IUse.initialize( sbf.myPlatform, sbf.myConfig )
 
@@ -634,13 +647,15 @@ class UseRepository :
 				listOfIUseImplementation ):
 
 		# Initializes repository
-		print ("Adds in UseRepository :"),
+		if self.__verbosity :
+			print ("Adds in UseRepository :"),
 		for use in listOfIUseImplementation :
 			# Adds to repository
 			name = use.getName()
 
 			self.__repository[ name ] = use
-			print name,											# ??? verbose
+			if self.__verbosity :
+				print name,
 
 			# Configures allowed values and alias
 			versions = use.getVersions()
@@ -659,7 +674,8 @@ class UseRepository :
 					self.__allowedValues.append( name + version )
 
 		self.__allowedValues = sorted(self.__allowedValues)
-		print
+		if self.__verbosity :
+			print
 
 
 	@classmethod
