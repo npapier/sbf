@@ -479,21 +479,23 @@ class Use_sofa( IUse ):
 			libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
 			pakLibs = []
 			if self.config == 'release' :
-				libs += ['SofaCore', 'SofaDefaultType', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel', 'SofaHelper', 'SofaSimulation',
-						'SofaTree', 'SofaAutomateScheduler', 'miniFlowvR', 'NewMAT' ]
-				pakLibs += ['SofaCore', 'SofaDefaultType', 'SofaHelper']
+				libs += ['miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
+						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
+				pakLibs += ['sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
+						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
 			else:
-				libs += ['SofaCored', 'SofaDefaultTyped', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld', 'SofaHelperd', 'SofaSimulationd',
-						'SofaTreed', 'SofaAutomateSchedulerd', 'miniFlowvRd', 'NewMATd' ]
-				pakLibs += ['SofaCored', 'SofaDefaultTyped', 'SofaHelperd']
+				libs += ['miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
+						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
+				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
+						'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
 
 		if self.platform == 'posix' :
 			libs = ['xml2', 'z']
 			pakLibs = []
-			libs += ['libsofacore', 'libsofadefaulttype', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel', 'libsofahelper', 'libsofasimulation',
-					'libsofatree', 'libsofaautomatescheduler', 'libminiFlowVR', 'libnewmat' ]
-			pakLibs += ['libsofacore', 'libsofadefaulttype', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel', 'libsofahelper', 'libsofasimulation',
-					'libsofatree', 'libsofaautomatescheduler', 'libminiFlowVR', 'libnewmat' ]
+			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
+					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
+			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
+					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 
 		return libs, pakLibs
 
@@ -624,7 +626,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_opengl(), Use_itk(),
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_gtkmm(), Use_opengl(), Use_itk(),
 					Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
@@ -773,21 +775,24 @@ def use_cairomm( self, lenv, elt ) :
 
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
-def use_gtkmm( self, lenv, elt ) :
-	if self.myPlatform == 'posix' :
-		lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
-		lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
-		lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
-		return
+class Use_gtkmm( IUse ):
+	gtkBasePath = None
+	gtkmmBasePath = None
 
-	# Retrieves GTK_BASEPATH and GTKMM_BASEPATH
-	gtkBasePath		= getPathFromEnv('GTK_BASEPATH')
-	gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
-	if	(gtkBasePath is None) or (gtkmmBasePath is None ) :
-		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
+	def __init__( self ):
+		self.gtkBasePath = getPathFromEnv('GTK_BASEPATH')
+		self.gtkmmBasePath = getPathFromEnv('GTKMM_BASEPATH')
+		if (self.gtkBasePath is None) or (self.gtkmmBasePath is None ) :
+			raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
-	# Sets CPPPATH
-	gtkmmCppPath = ['lib/glibmm-2.4/include', 'include/glibmm-2.4',
+	def getName( self ):
+		return "gtkmm"
+		
+	def getVersions( self ):
+		return ['2-14-1', '2-14-3']
+
+	def getCPPPATH( self, version ):
+		gtkmmCppPath = ['lib/glibmm-2.4/include', 'include/glibmm-2.4',
 					'lib/giomm-2.4/include', 'include/giomm-2.4',
 					'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
 					'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
@@ -795,57 +800,74 @@ def use_gtkmm( self, lenv, elt ) :
 					'lib/libxml++-2.6/include', 'include/libxml++-2.6',
 					'lib/sigc++-2.0/include', 'include/sigc++-2.0',
 					'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0']
-
-
-	if lenv.GetOption('weak_localext') :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkmmBasePath, cppPath)] )
-	else :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
-
-
-
-	gtkCppPath = [	'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
+					
+		gtkCppPath = [	'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
 					'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
 					'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
 
-	if lenv.GetOption('weak_localext') :
-		for cppPath in gtkCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkBasePath, cppPath)] )
-	else :
-		for cppPath in gtkCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
+		path = []
+		for item in gtkmmCppPath :
+			path.append( os.path.join(self.gtkmmBasePath, item) )
+		for item in gtkCppPath :
+			path.append( os.path.join(self.gtkBasePath, item) )
+		
+		return path
 
 
-	# Sets LIBS, LIBPATH and CPPFLAGS
-	if self.myPlatform == 'win32' :
-#			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'glade-2.0', 'gdkmm-2.4', 'atkmm-1.6',
-#										'pangomm-1.4', 'glibmm-2.4', 'cairomm-1.0', 'sigc-2.0',
-#										'gtk-win32-2.0', 'xml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
-#										'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-#										'gmodule-2.0', 'glib-2.0', 'intl', 'iconv' ] )
+	def getLIBS( self, version ):
+		if self.platform != 'win32' and self.platform != 'posix' :
+			return None
 
-		if self.myConfig == 'release' :
-			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-										'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
-		else:
-			lenv.AppendUnique( LIBS = [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
-										'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
+		if self.platform == 'win32' :
+			
+			libs = ['glade-2.0',
+					'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
+					'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
+					'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv']
+			pakLibs = []
+			
+			if version == '2-14-3' :
+				if self.config == 'release' :
+					libs += ['glademm-vc80-2_4', 'xml++-vc80-2_6', 'gtkmm-vc80-2_4', 'gdkmm-vc80-2_4', 'atkmm-vc80-1_6',
+							'pangomm-vc80-1_4', 'glibmm-vc80-2_4', 'giomm-vc80-2_4', 'cairomm-vc80-1_0', 'sigc-vc80-2_0']
+				else:
+					libs += ['glademm-vc80-2_4d', 'xml++-vc80-2_6d', 'gtkmm-vc80-2_4d', 'gdkmm-vc80-2_4d', 'atkmm-vc80-1_6d',
+							'pangomm-vc80-1_4d', 'glibmm-vc80-2_4d', 'giomm-vc80-2_4d', 'cairomm-vc80-1_0d', 'sigc-vc80-2_0d']
+			else :
+				if self.config == 'release' :
+					libs += ['glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
+							'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0']
+				else:
+					libs += ['glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
+							'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d']
 
-		lenv.AppendUnique( LIBS = [	'glade-2.0',
-									'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
-									'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-									'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv' ] )
+		if self.platform == 'posix' :
+			pass
+		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
+		#	lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
+		#	lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
 
-#		lenv.AppendUnique( LIBS = [ 'gtkglext-win32-1.0', 'gdkglext-win32-1.0' ] )
+		return libs, libs
 
-		lenv.AppendUnique( LIBPATH = [	os.path.join(gtkBasePath, 'lib'),
-										os.path.join(gtkmmBasePath, 'lib') ] )
+	def getLIBPATH( self, version ):
+		libPath		= []
+		pakLibPath	= []
 
-		lenv.AppendUnique( CPPFLAGS = [ '/vd2', '/wd4250' ] )
-	else :
-		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+		if self.platform == 'win32' :
+			path = os.path.join( self.gtkBasePath, 'lib')
+			libPath.append( path )
+			libPath.append(os.path.join( self.gtkmmBasePath, 'lib'))
+		#	pakLibPath.append( path )
+
+	#	if self.platform == "posix" : 
+	#		path = os.path.join( self.__sofa_path, 'lib/linux')
+	#		libPath.append( path )
+	#		pakLibPath.append( path )
+
+		return libPath, pakLibPath
+		
+	def getCPPFLAGS( self, version ):
+		return ['/vd2', '/wd4250']
 
 #===============================================================================
 # def use_openIL( self, lenv, elt ) :
@@ -975,10 +997,6 @@ def uses( self, lenv ):
 #		elif elt == 'colladadom2-0' :
 #			use_colladadom( self, lenv, elt )
 #===============================================================================
-
-		### configure gtk/gtkmm ###
-		elif elt == 'gtkmm2-14' :
-			use_gtkmm( self, lenv, elt );
 
 #===============================================================================
 #		### configure itk ###
