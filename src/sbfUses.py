@@ -831,8 +831,8 @@ class Use_gtkmm( IUse ):
 					libs += ['glademm-vc80-2_4', 'xml++-vc80-2_6', 'gtkmm-vc80-2_4', 'gdkmm-vc80-2_4', 'atkmm-vc80-1_6',
 							'pangomm-vc80-1_4', 'glibmm-vc80-2_4', 'giomm-vc80-2_4', 'cairomm-vc80-1_0', 'sigc-vc80-2_0']
 				else:
-					libs += ['glademm-vc80-2_4d', 'xml++-vc80-2_6d', 'gtkmm-vc80-2_4d', 'gdkmm-vc80-2_4d', 'atkmm-vc80-1_6d',
-							'pangomm-vc80-1_4d', 'glibmm-vc80-2_4d', 'giomm-vc80-2_4d', 'cairomm-vc80-1_0d', 'sigc-vc80-2_0d']
+					libs += ['glademm-vc80-d-2_4', 'xml++-vc80-d-2_6', 'gtkmm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'atkmm-vc80-d-1_6',
+							'pangomm-vc80-d-1_4', 'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4', 'cairomm-vc80-d-1_0', 'sigc-vc80-d-2_0']
 			else :
 				if self.config == 'release' :
 					libs += ['glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
