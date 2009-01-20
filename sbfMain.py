@@ -642,7 +642,14 @@ else:
 	env['RSYNCRSH'] = ''
 
 env['RSYNCFLAGS']			= "--delete -av --chmod=u=rwX,go=rX" # --progress
-env['BUILDERS']['Rsync']	= Builder( action = "rsync $RSYNCFLAGS $RSYNCRSH $POSIX_SOURCE $publishPath/${TARGET.filebase}" ) # adds @ and printMsg
+env['BUILDERS']['Rsync']	= Builder( action = "rsync $RSYNCFLAGS $RSYNCRSH $POSIX_SOURCE $publishPath/${TARGET}" ) # adds @ and printMsg
+def createRsyncAction( env, target, source, alias = None ):
+	rsyncAction = env.Rsync( Value(target), source )
+	env.AlwaysBuild( rsyncAction )
+	if alias is not None :
+		env.Alias( alias, rsyncAction )
+	return rsyncAction
+env.AddMethod( createRsyncAction )
 
 # target 'sbfCheck'
 Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
@@ -1129,9 +1136,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 	if env['publishOn'] :
 		# @todo print message
-		rsyncAction = env.Rsync(	'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion),
-									Dir(os.path.join(doxBuildPath, 'html')) )
-		env.AlwaysBuild( rsyncAction )
+		rsyncAction = env.createRsyncAction( 'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion), Dir(os.path.join(doxBuildPath, 'html')) )
 
 		env.Alias( 'dox_install', rsyncAction )
 		env.Depends( rsyncAction, 'dox_build' )
@@ -1363,17 +1368,47 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 			else:
 				raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
 
-	runtimeZipFiles		+= env.zipArchiver( runtimeZipPath + '.zip',	runtimeZipPath )
-	depsZipFiles		+= env.zipArchiver( depsZipPath + '.zip',		depsZipPath )
-	portableZipFiles	+= env.zipArchiver( portableZipPath + '.zip',	portableZipPath )
-	devZipFiles			+= env.zipArchiver( devZipPath + '.zip',		devZipPath )
-	srcZipFiles			+= env.zipArchiver(	srcZipPath + '.zip',		srcZipPath )
+	runtimeZipArchiverAction = env.zipArchiver( runtimeZipPath + '.zip', runtimeZipPath )
+	env.Depends( runtimeZipArchiverAction, runtimeZipFiles )
+	Alias( 'zipRuntime',	[runtimeZipFiles, runtimeZipArchiverAction] )
 
-	Alias( 'zipRuntime',	runtimeZipFiles )
-	Alias( 'zipDeps',		depsZipFiles )
-	Alias( 'zipPortable',	portableZipFiles )
-	Alias( 'zipDev',		devZipFiles )
-	Alias( 'zipSrc',		srcZipFiles )
+	depsZipArchiverAction = env.zipArchiver( depsZipPath + '.zip', depsZipPath )
+	env.Depends( depsZipArchiverAction, depsZipFiles )
+	Alias( 'zipDeps',		[depsZipFiles, depsZipArchiverAction] )
+
+	portableZipArchiverAction = env.zipArchiver( portableZipPath + '.zip', portableZipPath )
+	env.Depends( portableZipArchiverAction, portableZipFiles )
+	Alias( 'zipPortable',	[portableZipFiles, portableZipArchiverAction] )
+
+	devZipArchiverAction = env.zipArchiver( devZipPath + '.zip', devZipPath )
+	env.Depends( devZipArchiverAction, devZipFiles )
+	Alias( 'zipDev',		[devZipFiles, devZipArchiverAction] )
+
+	if len(srcZipFiles) > 0 :
+		srcZipArchiverAction = env.zipArchiver(	srcZipPath + '.zip', srcZipPath )
+		env.Depends( srcZipArchiverAction, srcZipFiles )
+		Alias( 'zipSrc',	[srcZipFiles, srcZipArchiverAction] )
+	else:
+		Alias( 'zipSrc',	srcZipFiles )
+
+	if env['publishOn'] :
+		# @todo print message
+		zipRsyncAction = env.createRsyncAction( os.path.basename(runtimeZipPath + '.zip'), File(runtimeZipPath + '.zip'), 'zipRuntime' )
+		env.Depends( zipRsyncAction, runtimeZipArchiverAction )
+
+		zipRsyncAction = env.createRsyncAction( os.path.basename(depsZipPath + '.zip'), File(depsZipPath + '.zip'), 'zipDeps' )
+		env.Depends( zipRsyncAction, depsZipArchiverAction )
+
+		zipRsyncAction = env.createRsyncAction( os.path.basename(portableZipPath + '.zip'), File(portableZipPath + '.zip'), 'zipPortable' )
+		env.Depends( zipRsyncAction, portableZipArchiverAction )
+
+		zipRsyncAction = env.createRsyncAction( os.path.basename(devZipPath + '.zip'), File(devZipPath + '.zip'), 'zipDev' )
+		env.Depends( zipRsyncAction, devZipArchiverAction )
+
+		if len(srcZipFiles) > 0 :
+			zipRsyncAction = env.createRsyncAction( os.path.basename(srcZipPath + '.zip'), File(srcZipPath + '.zip'), 'zipSrc' )
+			env.Depends( zipRsyncAction, srcZipArchiverAction )
+		#else: nothing to do
 
 	Alias( 'zip', ['zipRuntime', 'zipDeps', 'zipPortable', 'zipDev', 'zipSrc'] )
 
@@ -1395,9 +1430,18 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 														portableZipPath + '.zip' ) )
 	Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', portableZipPath + '.zip' ) )
 	# @todo FIXME nsisRootPath
+	# @todo Nsis builder
 	nsisRootPath = "C:\\Program Files\\NSIS"
-	Alias( 'nsis', env.Command(	portableZipPath + '.exe', portableZipPath + '.nsi',
-								"\"%s\" $SOURCES" % os.path.join(nsisRootPath, 'makensis.exe' ) ) )
+	nsisSetupFile = '%s_%s_setup.exe' % (env.sbf.myProject, env.sbf.myVersion)
+	nsisBuildAction = env.Command(	nsisSetupFile, portableZipPath + '.nsi', #portableZipPath + '.exe'
+									"\"%s\" $SOURCES" % os.path.join(nsisRootPath, 'makensis.exe' ) )
+	Alias( 'nsis', nsisBuildAction )
+
+	if env['publishOn'] :
+		# @todo print message
+		nsisRsyncAction = env.createRsyncAction( nsisSetupFile, File(os.path.join(zipPakPath, nsisSetupFile)), 'nsis' )
+		env.Depends( nsisRsyncAction, nsisBuildAction )
+
 	# @todo uses zip2exe on win32 ?
 #@todo function
 #import shutil
