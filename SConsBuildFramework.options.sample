@@ -3,6 +3,7 @@
 #exclude			= true
 #numJobs			= 1
 #outputLineLength	= 79
+#printCmdLine		= 'less'
 #companyName		= ''
 #pakPaths			= []
 #svnUrls			= []

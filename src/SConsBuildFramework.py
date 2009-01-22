@@ -33,8 +33,20 @@ from SCons.Script import *
 
 
 
+def sbfPrintCmdLine( cmd, target, src, env ):
+#	print ("beginning=%s" % cmd[:20])
 
-
+	if cmd.startswith( 'sbf' ) :
+		if cmd.startswith( 'sbfNull' ) :
+			return
+		else:
+			return
+	elif cmd.startswith( ('link /', 'link @', 'lib /', 'lib @' ) ) : # ('link /nologo', 'lib /nologo')
+		print ('Linking %s' % str(os.path.basename(target[0].abspath)))
+	elif cmd.startswith( 'mt /') : # 'mt /nologo'
+		print ('Embedding manifest into %s' % str(os.path.basename(target[0].abspath)))
+	else:
+		print cmd
 
 ###### Functions for print action ######
 def stringFormatter( lenv, message ) :
@@ -61,7 +73,7 @@ def printMrproper( target, source, localenv ) :
 	return stringFormatter( localenv, "Mrproper %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printGenerate( target, source, localenv ) :
-	return "Generates %s" % str(target[0]) # @todo improves this message and '\n' usage
+	return "Generating %s" % str(os.path.basename(target[0].abspath)) # @todo '\n' usage ?
 
 
 
@@ -75,6 +87,7 @@ class SConsBuildFramework :
 
 	# sbf environment
 	mySCONS_BUILD_FRAMEWORK			= ''
+	mySbfLibraryRoot				= ''
 
 	# SCons environment
 	myEnv							= None
@@ -172,6 +185,9 @@ class SConsBuildFramework :
 			raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
 		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
 
+		# Sets the root directory of sbf library
+		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
+
 		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
 		homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
 
@@ -180,7 +196,7 @@ class SConsBuildFramework :
 			self.mySBFOptions = self.readSConsBuildFrameworkOptions( homeSConsBuildFrameworkOptions )
 		else :
 			# Reads from $SCONS_BUILD_FRAMEWORK directory.
-			self.mySBFOptions	= self.readSConsBuildFrameworkOptions( os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' ) )
+			self.mySBFOptions = self.readSConsBuildFrameworkOptions( os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' ) )
 
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions )
@@ -218,7 +234,40 @@ class SConsBuildFramework :
 		else :
 			self.myEnv = tmpEnv
 
+		# Configures command line max length
+		if self.myEnv['PLATFORM'] == 'win32' :
+#			self.myEnv['MSVC_BATCH'] = True													# ?????????
+			# @todo adds windows version helpers in sbf
+			winVerTuple	= sys.getwindowsversion()
+			winVerNumber= self.computeVersionNumber( [winVerTuple[0], winVerTuple[1]] )
+			if winVerNumber >= 5.1 :
+				# On computers running Microsoft Windows XP or later, the maximum length
+				# of the string that you can use at the command prompt is 8191 characters.
+				# XP version is 5.1
+				self.myEnv['MAXLINELENGTH'] = 8191
+				# On computers running Microsoft Windows 2000 or Windows NT 4.0,
+				# the maximum length of the string that you can use at the command
+				# prompt is 2047 characters.
 
+		# Configures command line output
+		if self.myEnv['printCmdLine'] == 'less' :
+			self.myEnv['PRINT_CMD_LINE_FUNC'] = sbfPrintCmdLine
+			if self.myEnv['PLATFORM'] == 'win32' :
+				# cl prints always source filename. The following line (and 'PRINT_CMD_LINE_FUNC'), gets around this problem to avoid duplicate output.
+				self.myEnv['CXXCOMSTR']		= 'sbfNull'
+				self.myEnv['SHCXXCOMSTR']	= 'sbfNull'
+
+				self.myEnv['RCCOMSTR'] = 'Compiling resource ${SOURCE.file}'
+			else:
+				self.myEnv['CXXCOMSTR']		= "$SOURCE.file"
+				self.myEnv['SHCXXCOMSTR']	= "$SOURCE.file"
+
+			self.myEnv['INSTALLSTR'] = "Installing ${SOURCE.file}"
+		#self.myEnv['LINKCOMSTR'] = "Linking $TARGET"#'sbfLN'#print_cmd_line
+		#self.myEnv['SHLINKCOMSTR'] = "Linking $TARGET"#'sbfShLN' #print_cmd_line
+		#self.myEnv.Replace(LINKCOMSTR = "Linking... ${TARGET.file}")
+		#self.myEnv.Replace(SHLINKCOMSTR = "$LINKCOMSTR")
+		#self.myEnv.Replace(ARCOMSTR = "Creating archive... ${TARGET.file}")
 
 # @todo uses UnknownVariables()
 #		#
@@ -359,9 +408,8 @@ class SConsBuildFramework :
 			ccVersion				=	self.myEnv['MSVS_VERSION'].replace('Exp', '', 1)
 			# Step 2 : Extracts major and minor version
 			splittedCCVersion		=	ccVersion.split( '.', 1 )
-			# Step 3 : Computes version number		@todo make a function
-			self.myCCVersionNumber	=	float(splittedCCVersion[0])
-			self.myCCVersionNumber	+=	float(splittedCCVersion[1])/1000
+			# Step 3 : Computes version number
+			self.myCCVersionNumber = self.computeVersionNumber( splittedCCVersion )
 			# Constructs myCCVersion ( clMajor-Minor[Exp] )
 			self.myIsExpressEdition = self.myEnv['MSVS_VERSION'].find('Exp') != -1
 			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
@@ -378,9 +426,8 @@ class SConsBuildFramework :
 			splittedCCVersion		=	ccVersion.split( '.', 2 )
 			if len(splittedCCVersion) !=  3 :
 				raise SCons.Errors.UserError( "Unexpected version schema for gcc compiler (expected x.y.z) : %s " % ccVersion )
-			# Step 3 : Computes version number		@todo make a function
-			self.myCCVersionNumber	=	float(splittedCCVersion[0])
-			self.myCCVersionNumber	+=	float(splittedCCVersion[1])/1000
+			# Step 3 : Computes version number
+			self.myCCVersionNumber = self.computeVersionNumber( splittedCCVersion[:2] )
 			# Constructs myCCVersion ( gccMajor-Minor )
 			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
 		else :
@@ -390,8 +437,8 @@ class SConsBuildFramework :
 
 		# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
 		if self.myCC == 'cl' and self.myCCVersionNumber >= 8.000000 :
-			self.myEnv['LINKCOM'	] = [self.myEnv['LINKCOM'	], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;1']
-			self.myEnv['SHLINKCOM'	] = [self.myEnv['SHLINKCOM'], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;2']
+			self.myEnv['LINKCOM'	] = [self.myEnv['LINKCOM'	], 'mt /nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;1']
+			self.myEnv['SHLINKCOM'	] = [self.myEnv['SHLINKCOM'], 'mt /nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;2']
 
 		#
 		if self.myEnv.GetOption('fast') :
@@ -652,6 +699,9 @@ SConsBuildFramework options:
 
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
+			EnumOption(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
+						'less',
+						allowed_values = ( 'full', 'less' ) ), # @todo silent
 
 			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', '' ),
 
@@ -697,6 +747,8 @@ SConsBuildFramework options:
 						allowed_values=('normal', 'high'),
 						map={}, ignorecase=1 )
 								)
+#		unknown = myOptions.UnknownVariables()
+#		print "Unknown variables:", unknown.keys()
 		return myOptions
 
 
@@ -1047,8 +1099,15 @@ SConsBuildFramework options:
 			# Removes all dependencies because 'nodeps' option is enabled
 			del lenv['deps'][:]
 		else:
-			for dependency in lenv['deps'] :
-				if os.path.isabs( dependency ) :
+			# Builds sbf library
+			if 'sbf' not in self.myParsedProjectsSet:
+				# sbf not already "build"
+				#print ('buildProject %s' % self.mySbfLibraryRoot)
+				self.buildProject( self.mySbfLibraryRoot )
+
+			# Builds deps (i.e. dependencies)
+			for dependency in lenv['deps']:
+				if os.path.isabs( dependency ):
 					# dependency is an absolute path
 					raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
 
@@ -1058,7 +1117,7 @@ SConsBuildFramework options:
 				lowerCaseIncomingProjectName	= incomingProjectName.lower()
 				if	lowerCaseIncomingProjectName not in self.myParsedProjectsSet :
 					# dependency not already "build"
-#					print ('buildProject %s' % normalizedDependency)
+					#print ('buildProject %s' % normalizedDependency)
 					if incomingProjectName not in self.myFailedVcsProjects :
 						self.buildProject( normalizedDependency )
 					#else: nothing to do
@@ -1132,7 +1191,7 @@ SConsBuildFramework options:
 			self.myCxxFlags	+=	' -D' + define + ' '
 
 		# Adds to command-line several defines with version number informations.
-		
+
 		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_NAME",		"\\\"%s\\\"" % self.myProject ) ] )
 		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_VERSION",	"\\\"%s\\\"" % self.myVersion ) ] )
 		lenv.AppendUnique( CPPDEFINES = [ ("MODULE_MAJOR_VER",	"%s" % self.myVersionMajor ) ] )
@@ -1157,7 +1216,7 @@ SConsBuildFramework options:
 # @todo
 		# configure lenv['LIBS'] with sbf library
 #		sbfLibraryName = 'sbf_0-0' + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig
-#		lenv.AppendUnique( LIBS = [sbfLibraryName] ) # @todo 
+#		lenv.AppendUnique( LIBS = [sbfLibraryName] ) # @todo
 
 		# configure lenv['LIBS'] with lenv['stdlibs']
 		lenv.Append( LIBS = lenv['stdlibs'] ) # @todo AppendUnique
@@ -1484,6 +1543,15 @@ SConsBuildFramework options:
 		return os.path.join( self.myInstallDirectory, self.getShareDirectory() )
 
 	### Management of version number
+	# @todo moves to sbfVersion.py
+	def computeVersionNumber( self, versionNumberList ):
+		versionNumber	= 0
+		coef			= 1.0
+		for version in versionNumberList :
+			versionNumber += float(version) / coef
+			coef = coef / 1000.0
+		return versionNumber
+
 	def getVersionNumberTuple( self, versionNumber ) :
 		major				= int(versionNumber)
 		minorDotMaintenance	= (versionNumber-major)*1000
