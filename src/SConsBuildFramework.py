@@ -692,16 +692,16 @@ SConsBuildFramework options:
 
 		myOptions = Variables( file )
 		myOptions.AddVariables(
-			BoolOption(	'nodeps', "Sets to true, i.e. y, yes, t, true, 1, on and all, to do not follow project dependencies. Sets to false, i.e. n, no, f, false, 0, off and none, to follow project dependencies.",
-						'false' ),
-			BoolOption(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
-						'true' ),
+			BoolVariable(	'nodeps', "Sets to true, i.e. y, yes, t, true, 1, on and all, to do not follow project dependencies. Sets to false, i.e. n, no, f, false, 0, off and none, to follow project dependencies.",
+							'false' ),
+			BoolVariable(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
+							'true' ),
 
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
-			EnumOption(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
-						'less',
-						allowed_values = ( 'full', 'less' ) ), # @todo silent
+			EnumVariable(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
+							'less',
+							allowed_values = ( 'full', 'less' ) ), # @todo silent
 
 			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', '' ),
 
@@ -715,37 +715,37 @@ SConsBuildFramework options:
 			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included.', []),
 			('svnUpdateExclude', 'The list of projects excludes from subversion update operations. All projects not explicitly excluded will be included.', []),
 
-			EnumOption(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
-						'highest',
-						allowed_values = ( '7.1', '8.0Exp', '8.0', 'highest' ),
-						map={
-								'2003'		: '7.1',
-								'2005Exp'	: '8.0Exp',
-								'2005'		: '8.0',
-							} ),
+			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
+							'highest',
+							allowed_values = ( '7.1', '8.0Exp', '8.0', 'highest' ),
+							map={
+									'2003'		: '7.1',
+									'2005Exp'	: '8.0Exp',
+									'2005'		: '8.0',
+									} ),
 
 			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
 
 			('publishPath', 'The result of a target, typically copied in installPaths[0], could be transfered to another host over a remote shell using rsync. This option sets the destination of publishing (see rsync for destination syntax).', ''),
-			BoolOption('publishOn', 'Sets to True to enabled the publishing. See \'publishPath\' option for additional informations.', False),
+			BoolVariable('publishOn', 'Sets to True to enabled the publishing. See \'publishPath\' option for additional informations.', False),
 
-			PathOption(	'buildPath',
-						'The build directory in which to build all derived files. It could be an absolute path, or a relative path to the project being build)',
-						'build',
-						PathOption.PathAccept),
+			PathVariable(	'buildPath',
+							'The build directory in which to build all derived files. It could be an absolute path, or a relative path to the project being build)',
+							'build',
+							PathVariable.PathAccept),
 			(	'SConsignFilePath',
 				'Stores signatures (.sconsign.dblite file) in the specified absolute path name. If SConsignFilePath is not defined or is equal to string \'buildPath\' (the default value), the value of \'buildPath\' option is used.',
 				'buildPath' ),
-			PathOption('cachePath', 'The directory where derived files will be cached. The derived files in the cache will be shared among all the builds using the same cachePath directory.', '', PathOption.PathAccept),
-			BoolOption('cacheOn', 'Sets to True to use the build cache system (see cachePath option), False (the default) to disable it.', False),
+			PathVariable('cachePath', 'The directory where derived files will be cached. The derived files in the cache will be shared among all the builds using the same cachePath directory.', '', PathVariable.PathAccept),
+			BoolVariable('cacheOn', 'Sets to True to use the build cache system (see cachePath option), False (the default) to disable it.', False),
 
-			EnumOption(	'config', "Sets to 'release' to build the production program/library. Or sets to 'debug' to build the debug version.",
-						'release',
-						allowed_values=('debug', 'release'),
-						map={}, ignorecase=1 ),
-			EnumOption( 'warningLevel', 'Sets the level of warnings.', 'normal',
-						allowed_values=('normal', 'high'),
-						map={}, ignorecase=1 )
+			EnumVariable(	'config', "Sets to 'release' to build the production program/library. Or sets to 'debug' to build the debug version.",
+							'release',
+							allowed_values=('debug', 'release'),
+							map={}, ignorecase=1 ),
+			EnumVariable(	'warningLevel', 'Sets the level of warnings.', 'normal',
+							allowed_values=('normal', 'high'),
+							map={}, ignorecase=1 )
 								)
 #		unknown = myOptions.UnknownVariables()
 #		print "Unknown variables:", unknown.keys()
@@ -760,15 +760,15 @@ SConsBuildFramework options:
 		myOptions.AddVariables(
 			('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
 
-			EnumOption( 'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
-						allowed_values=('yes', 'no'),
-						map={}, ignorecase=1 ),
+			EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
+							allowed_values=('yes', 'no'),
+							map={}, ignorecase=1 ),
 
 			('defines', 'The list of preprocessor definitions given to the compiler at each invocation (same effect as #define xxx).', ''),
-			EnumOption( 'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
-						'none',
-						allowed_values=('exec', 'static','shared','none'),
-						map={}, ignorecase=1 ),
+			EnumVariable(	'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
+							'none',
+							allowed_values=('exec', 'static','shared','none'),
+							map={}, ignorecase=1 ),
 			('version', "Sets the project version. The following version schemas must be used : major-minor or major-minor-maintenance. For example '1-0' or '1-0-1'", '0-0'),
 			('postfix', 'Adds a postfix to the target name.', ''),
 
