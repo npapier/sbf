@@ -151,12 +151,6 @@ class PosixTarget:
 			return str(target[0])
 
 ###### Archiver action ######
-#def nsisFilePrinter( target, source, env ):
-#	targetName = str(target[0])
-#	sourceName = str(source[0])
-#	print sourceName
-#	print targetName
-
 def zipArchiver( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
@@ -1443,10 +1437,3 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 		env.Depends( nsisRsyncAction, nsisBuildAction )
 
 	# @todo uses zip2exe on win32 ?
-#@todo function
-#import shutil
-#if ( os.path.ismount(srcZipPath) ) :
-#	print 'sbfError: Try to use %s as an installation/desinstallation directory. Stop action to prevent any unwanted file destruction'
-#else:
-#	shutil.rmtree( srcZipPath, True )
-#endtodo
