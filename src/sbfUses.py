@@ -521,6 +521,9 @@ class Use_sofa( IUse ):
 			pakLibPath.append( path )
 
 		return libPath, pakLibPath
+		
+	def getCPPFLAGS( self, version ):
+		return ['/wd4250','/wd4251','/wd4275','/wd4996']
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
@@ -792,7 +795,7 @@ class Use_gtkmm( IUse ):
 		return "gtkmm"
 
 	def getVersions( self ):
-		return ['2-14-1', '2-14-3']
+		return ['2-14-1','2-14-3']
 
 	def getCPPPATH( self, version ):
 		gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
