@@ -162,6 +162,20 @@ struct Module
 
 		return boost::filesystem::path();
 	}
+
+	/**
+	 * @brief	Retrieves the path to a given resource path and for a given type.
+	 *
+	 * @remark	This method does not ensure that the given resource path exists.
+	 *
+	 * @return	an absolute path, or empty if none.
+	 */
+	const boost::filesystem::path getPath( const boost::filesystem::path & path, const PathType pathType ) const
+	{
+		const boost::filesystem::path	basePath = getPath( pathType );
+
+		return basePath.empty() ? boost::filesystem::path() : (basePath / path);
+	}
 	//@}
 	
 private:
