@@ -67,7 +67,8 @@ struct Module
 	 * Also registers the module into the global registry if not alreay done.
 	 */
 	Module()
-	:	m_name( MODULE_NAME ),
+	:	m_initialPath( boost::filesystem::initial_path() ),
+		m_name( MODULE_NAME ),
 		m_version( MODULE_VERSION )
 	{
 		const Module & found = get(m_name);
@@ -148,13 +149,13 @@ struct Module
 		const boost::filesystem::path	versionPath( m_version );
 		boost::filesystem::path			basePath;
 		
-		basePath = boost::filesystem::system_complete( toString(type) );
+		basePath = m_initialPath / toString(type);
 		if( boost::filesystem::is_directory(basePath) )
 		{
 			return basePath / namePath / versionPath;
 		}
 
-		basePath = boost::filesystem::system_complete( boost::filesystem::path("..") / toString(type) );
+		basePath = m_initialPath / boost::filesystem::path("..") / toString(type);
 		if( boost::filesystem::is_directory(basePath) )
 		{
 			return basePath / namePath / versionPath;
@@ -182,8 +183,9 @@ private:
 
 	SBF_API static Container	m_registry;	///< Holds All registered modules.
 
-	const std::string	m_name;		///< Holds the name string of a module.
-	const std::string	m_version;	///< Holds the version string of a module.
+	const boost::filesystem::path	m_initialPath;	///< Holds the initial module path.
+	const std::string				m_name;			///< Holds the name string of a module.
+	const std::string				m_version;		///< Holds the version string of a module.
 	
 	/**
 	 * @brief	Unallowed copy constructor.
