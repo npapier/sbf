@@ -1099,11 +1099,12 @@ SConsBuildFramework options:
 			# Removes all dependencies because 'nodeps' option is enabled
 			del lenv['deps'][:]
 		else:
+# @todo FIXME: Automatic building of sbf library is disabled, because it affects badly zip and nsis targets.
 			# Builds sbf library
-			if 'sbf' not in self.myParsedProjectsSet:
+#			if 'sbf' not in self.myParsedProjectsSet:
 				# sbf not already "build"
 				#print ('buildProject %s' % self.mySbfLibraryRoot)
-				self.buildProject( self.mySbfLibraryRoot )
+#				self.buildProject( self.mySbfLibraryRoot )
 
 			# Builds deps (i.e. dependencies)
 			for dependency in lenv['deps']:
