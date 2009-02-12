@@ -708,7 +708,7 @@ SConsBuildFramework options:
 			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPaths[0]/sbfPak'.", [] ),
 
 			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
-			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included.', []),
+			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included. The project from which sbf was initially invoked is never excluded.', []),
 			('weakLocalExtExclude', 'The list of packages (see \'uses\' project option for a complete list of available packages) excludes by the --weak-localext option.'
 			' --weak-localext could be used to disables SCons scanners for localExt directories.'
 			' All packages not explicitly excluded will be included.', []),
@@ -989,7 +989,9 @@ SConsBuildFramework options:
 		self.myProject			= os.path.basename(	self.myProjectPathName	)
 
 		# Tests if the incoming project must be ignored
-		if self.myEnv['exclude'] and (self.myProject in self.myEnv['projectExclude']) :
+		if self.myEnv['exclude'] and \
+		   (self.myProject in self.myEnv['projectExclude']) and \
+		   (self.myProject != os.path.basename(GetLaunchDir())) :
 			if self.myEnv.GetOption('verbosity') :
 				print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
 			return
