@@ -454,12 +454,17 @@ class Use_sofa( IUse ):
 #	raise SCons.Errors.UserError("Unable to configure sofa")
 
 	def getName( self ):
-		return "sofa"
+		return 'sofa'
 
 	def getCPPDEFINES( self, version ):
 		return ['SOFA_DOUBLE', 'SOFA_DEV']
 
-	# @todo Takes care of "lenv.GetOption('weak_localext') " ?
+	def getCPPFLAGS( self, version ):
+		if self.platform == 'win32' :
+			return ['/wd4250', '/wd4251', '/wd4275', '/wd4996']
+		else:
+			return []
+
 	def getCPPPATH( self, version ):
 		cppPath = [	os.path.join(self.__sofa_path, 'modules'),
 					os.path.join(self.__sofa_path, 'framework'),
@@ -472,9 +477,6 @@ class Use_sofa( IUse ):
 		return cppPath
 
 	def getLIBS( self, version ):
-		if self.platform != 'win32' and self.platform != 'posix' :
-			return None
-
 		if self.platform == 'win32' :
 			libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
 			pakLibs = []
@@ -488,16 +490,15 @@ class Use_sofa( IUse ):
 						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
 				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
 						'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
-
-		if self.platform == 'posix' :
+			return libs, pakLibs
+		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
 			pakLibs = []
 			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
-
-		return libs, pakLibs
+			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
 		libPath		= []
@@ -514,23 +515,20 @@ class Use_sofa( IUse ):
 				pakLibPath.append( path )
 
 			libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
-
-		if self.platform == "posix" :
+			return libPath, pakLibPath
+		elif self.platform == 'posix' :
 			path = os.path.join( self.__sofa_path, 'lib/linux')
 			libPath.append( path )
 			pakLibPath.append( path )
+			return libPath, pakLibPath
 
-		return libPath, pakLibPath
-		
-	def getCPPFLAGS( self, version ):
-		return ['/wd4250','/wd4251','/wd4275','/wd4996']
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
 #@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
 class Use_wxWidgets( IUse ):
 	def getName( self ):
-		return "wx"
+		return 'wx'
 
 	def getVersions( self ):
 		return ['2-8-8']
@@ -538,8 +536,20 @@ class Use_wxWidgets( IUse ):
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
 			return [ 'WXUSINGDLL', '__WIN95__' ]
-		else :
-			return None
+		else:
+			return [ ('_FILE_OFFSET_BITS', 64), '_LARGE_FILES', '__WXGTK__' ]
+
+	def getCPPFLAGS( self, version ):
+		if self.platform == 'win32':
+			return []
+		else:
+			return ['-pthread', '-Wl,-Bsymbolic-functions']
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32':
+			return []
+		else:
+			return ['/usr/lib/wx/include/gtk2-unicode-release-2.8', '/usr/include/wx-2.8']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' and version == '2-8-8' :
@@ -565,8 +575,7 @@ class Use_wxWidgets( IUse ):
 						'wx_gtk2u_html-2.8', 'wx_gtk2u_adv-2.8', 'wx_gtk2u_core-2.8', 'wx_baseu_xml-2.8',
 						'wx_baseu_net-2.8', 'wx_baseu-2.8'	]
 			return libs, []
-#-I/usr/lib/wx/include/gtk2-unicode-release-2.8 -I/usr/include/wx-2.8 -D_FILE_OFFSET_BITS=64 -D_LARGE_FILES -D__WXGTK__
-#-pthread -Wl,-Bsymbolic-functions
+#
 #and GL ?
 #===============================================================================
 #	elif self.myPlatform == 'darwin' :
@@ -870,7 +879,10 @@ class Use_gtkmm( IUse ):
 		return libPath, pakLibPath
 
 	def getCPPFLAGS( self, version ):
-		return ['/vd2', '/wd4250']
+		if self.platform == 'win32' :
+			return ['/vd2', '/wd4250']
+		else:
+			return []
 
 
 
