@@ -801,10 +801,10 @@ class Use_gtkmm( IUse ):
 #			raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
 	def getName( self ):
-		return "gtkmm"
+		return 'gtkmm'
 
 	def getVersions( self ):
-		return ['2-14-1','2-14-3']
+		return [ '2-14-3', '2-14-1' ]
 
 	def getCPPPATH( self, version ):
 		gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
