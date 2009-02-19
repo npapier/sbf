@@ -73,8 +73,10 @@ struct Module
 	{
 		const Module & found = get(m_name);
 		
-		assert( ! found && "A sbf::Module cannot get registered more than one time." );
-		m_registry.push_back( this );
+		if( ! found )
+		{
+			m_registry.push_back( this );
+		}
 	}
 	
 	/**
