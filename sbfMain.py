@@ -478,19 +478,21 @@ def execute( command ):
 		if len(line) > 0 :
 			return line
 
+def checkTool( env, toolName, toolCmd ):
+	whereis = env.WhereIs( toolName )
+	if whereis :
+		print ( '%s found at %s' % (toolName, whereis.lower()) )
+		print ( '%s version : ' % toolName ),
+		sys.stdout.flush()
+		env.Execute( toolCmd )
+	else:
+		print ( '%s not found' % toolName )
+	print
 
 def sbfCheck(target = None, source = None, env = None) :
 	print stringFormatter( env, 'Availability and version of tools' )
 
-	whereis_python = env.WhereIs( 'python' )
-	if whereis_python :
-		print 'python found at', whereis_python.lower()
-		print 'python version : ',
-		sys.stdout.flush()
-		env.Execute( '@python --version' )
-	else:
-		print 'python not found !!!'
-	print
+	checkTool( env, 'python', '@python --version' )
 
 	print 'Version of python used by scons :', sys.version
 	print
@@ -514,18 +516,11 @@ def sbfCheck(target = None, source = None, env = None) :
 		print 'svn version (for pysvn): %d.%d.%d-%s' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
 	print
 
-	print 'svn version : ',
-	sys.stdout.flush()
-	env.Execute( '@svn --version --quiet' )
-	print
+	checkTool( env, 'svn', '@svn --version --quiet' )
 
 	env.Execute( checkCC, nopAction )
-	print
 
-	print 'doxygen version : ',
-	sys.stdout.flush()
-	env.Execute( '@doxygen --version' )
-	print
+	checkTool( env, 'doxygen', '@doxygen --version' )
 
 	whereis_rsync = env.WhereIs( 'rsync' )				# @todo whereis for others tools
 	if whereis_rsync :
@@ -568,7 +563,9 @@ def sbfCheck(target = None, source = None, env = None) :
 			else :
 				sbf_root_main = sbf_root_normalized + os.sep + 'sbfMain.py'
 				if ( os.path.exists( sbf_root_main ) ) :
-					print 'sbfInfo: SCONS_BUILD_FRAMEWORK is perfectly defined (existing path, well written and is the main directory of SConsBuildFramework)'
+					print 'sbfInfo: SCONS_BUILD_FRAMEWORK is perfectly defined'
+					print 'sbfInfo: i.e. existing path, well written'
+					print 'sbfInfo: and is the main directory of SConsBuildFramework.'
 				else :
 					print 'sbfInfo: SConsBuildFramework not found at ', sbf_root_normalized
 		else :
@@ -582,11 +579,9 @@ def checkCC(target = None, source = None, env = None) :
 	if env['CC'] == 'cl' :
 		#ccVersionAction		= Action( 'cl /help' )
 		print 'cl version :', env['MSVS']['VERSION']
-		print 'The available versions of cl installed are ', env['MSVS']['VERSIONS']
-	elif env['CC'] == 'gcc' :
-		print 'gcc version : ',
-		sys.stdout.flush()
-		env.Execute( '@gcc -dumpversion' )
+		print 'The available versions of cl installed are', env['MSVS']['VERSIONS']
+
+	checkTool( env, 'gcc', '@gcc -dumpversion' )
 
 
 def printSBFVersion() :
@@ -1116,7 +1111,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 	#@todo use other doxyfile(s). see doxInputDoxyfile
 	doxInputDoxyfile		= os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'doxyfile')
-	doxOutputPath			= os.path.join(env.sbf.myBuildPath, env.sbf.myProject, 'doxygen', env.sbf.myVersion )
+	doxOutputPath			= os.path.join(env.sbf.myBuildPath, 'doxygen', env.sbf.myProject, env.sbf.myVersion )
 	doxOutputCustomDoxyfile	= os.path.join(doxOutputPath, 'doxyfile.sbf')
 
 	doxBuildPath			= os.path.join(doxOutputPath, 'doxyfile.sbf_build')
