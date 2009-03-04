@@ -459,7 +459,9 @@ class SConsBuildFramework :
 Type:
  'scons sbfCheck' to check sbf and related tools installation.
 
+ 'scons svnAdd'
  'scons svnCheckout'
+ 'scons svnStatus'
  'scons svnUpdate'
 
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
@@ -629,6 +631,7 @@ SConsBuildFramework options:
 		self.myUses		= lenv['uses']
 		self.myLibs		= lenv['libs']
 		self.myStdlibs	= lenv['stdlibs']
+
 
 
 	###### Initialize project ######
@@ -857,9 +860,9 @@ SConsBuildFramework options:
 			# /Wall : Enables all warnings
 			self.myCxxFlags += ' /Wall '
 			#
-			if self.myCCVersionNumber >= 7.000000 :
+#			if self.myCCVersionNumber >= 7.000000 :
 				# /Wp64 : Detect 64-Bit Portability Issues
-				self.myCxxFlags += ' /Wp64 '
+#				self.myCxxFlags += ' /Wp64 '
 
 		# Subsystem and incremental flags
 		self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
@@ -878,9 +881,11 @@ SConsBuildFramework options:
 				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
 
 			# By default, the linker runs in incremental mode.
-
-		# TODO: FIXME: hack for boost
-		self.myCxxFlags		+= ' /DBOOST_ALL_DYN_LINK '
+#===============================================================================
+#
+#		# TODO: FIXME: hack for boost
+#		self.myCxxFlags		+= ' /DBOOST_ALL_DYN_LINK '
+#===============================================================================
 
 		# self.myLinkFlags	+= ' /VERSION:%s ' % self.myVersion.replace('-','.')	TODO: use a .def file
 		if		self.myType == 'exec' :
@@ -951,6 +956,33 @@ SConsBuildFramework options:
 			return False
 
 
+#===============================================================================
+#	def vcsStatus( self, lenv, vcsOperation = 'status' ) :
+#
+#		# Checks if this project must skip vcs operation
+#		if lenv['vcsUse'] == 'no' :
+#			if lenv.GetOption('verbosity') :
+#				print
+#				print stringFormatter( lenv, "vcs %s project %s in %s" % (vcsOperation, self.myProject, self.myProjectPath) )
+#				print "sbfInfo: Exclude from vcs operation."
+#				print "sbfInfo: Skip to the next project..."
+#			return
+#
+#		# Checks if vcs operation of this project has already failed
+#		if self.myProject not in self.myFailedVcsProjects :
+#			print
+#			print stringFormatter( lenv, "vcs %s project %s in %s" % (vcsOperation, self.myProject, self.myProjectPath) )
+#			successful = svnStatus( self )
+#			if not successful :
+#				self.myFailedVcsProjects.add( self.myProject )
+#				print "sbfWarning: Unable to do vcs operation in directory", self.myProjectPathName
+#			#else vcs operation successful.
+#			return successful
+#		else:
+#			return False
+#===============================================================================
+
+
 	def vcsUpdate( self, lenv ) :
 
 		# Checks if this project must skip vcs operation
@@ -996,6 +1028,9 @@ SConsBuildFramework options:
 				print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
 			return
 
+		# User wants a vcs status ?
+		tryVcsStatus = ('svnStatus' in self.myBuildTargets) or (self.myProject+'_svnStatus' in self.myBuildTargets)
+
 		# User wants a vcs checkout ?
 		tryVcsCheckout = ('svnCheckout' in self.myBuildTargets) or (self.myProject+'_svnCheckout' in self.myBuildTargets)
 
@@ -1029,23 +1064,26 @@ SConsBuildFramework options:
 				self.vcsCheckout( lenv )
 		else:
 			successful = self.readProjectOptionsAndUpdateEnv( lenv )
-			if successful and tryVcsCheckout :
-				if lenv['vcsUse'] == 'yes' :
-					projectURL = svnGetURL(self.myProjectPathName)
-					if len(projectURL) > 0 :
-						# @todo only if verbose
-						print
-						print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
-						print "sbfInfo: Already checkout from %s using svn." % projectURL
-						print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
+			if successful :
+				if tryVcsCheckout :
+					if lenv['vcsUse'] == 'yes' :
+						projectURL = svnGetURL(self.myProjectPathName)
+						if len(projectURL) > 0 :
+							# @todo only if verbose
+							print
+							print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
+							print "sbfInfo: Already checkout from %s using svn." % projectURL
+							print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
+						else:
+							self.vcsCheckout( lenv )
 					else:
-						self.vcsCheckout( lenv )
-				else :
-					if lenv.GetOption('verbosity') :
-						print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
-					# @todo only if verbose
-					#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
-					#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
+						if lenv.GetOption('verbosity') :
+							print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+						# @todo only if verbose
+						#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
+						#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
+#				elif tryVcsStatus :
+#					self.vcsStatus( lenv )
 			#else nothing to do
 
 		# Tests existance of project path name
@@ -1237,8 +1275,33 @@ SConsBuildFramework options:
 
 			lenv.Append( LIBS = [libExpanded] )
 
-		# configure lenv[*] with lenv['uses']
-		uses( self, lenv )
+		# Configures lenv[*] with lenv['uses']
+		uses( self, lenv, lenv['uses'] )
+		usesAlreadyConfigured = set( lenv['uses'] )
+
+		# Configures lenv[*] with lenv['uses'] from dependencies
+		allDependencies = self.getAllDependencies( lenv )
+#		print 'project', self.myProject
+#		print 'uses', lenv['uses']
+#		print 'dependencies', lenv['deps']
+#		print "recursiveDependencies:", allDependencies
+
+		# Computes union of 'uses' option for all dependencies
+		usesSet = set()
+		for dependency in allDependencies:
+			dependencyEnv = self.myParsedProjects[ dependency ]
+			usesSet = usesSet.union( set(dependencyEnv['uses']) )
+
+#		print 'usesSet', usesSet
+		usesSet = usesSet.difference( set( ['sofa', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
+#		print 'usesSet filtered', usesSet
+#		print
+
+		usesFromDependencies = usesSet.difference( usesAlreadyConfigured )
+		#print 'usesSet', usesSet.difference( usesAlreadyConfigured )
+#		print 'usesFromDependencies', usesFromDependencies
+		uses( self, lenv, ['boost1-38-0'], True ) #list(usesFromDependencies) )#, True ) # True for skipLinkStageConfiguration
+#		print
 
 		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
 		### TODO: .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?
@@ -1572,3 +1635,52 @@ SConsBuildFramework options:
 	def getVersionNumberString3( self, versionNumber ) :
 		tuple = self.getVersionNumberTuple( versionNumber )
 		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
+
+
+
+	###
+	#
+	def getDepsProjectName( self, lenv, keepOnlyExistingProjects = True ):
+		if keepOnlyExistingProjects :
+			retVal = []
+			for dep in lenv['deps']:
+				projectName = os.path.basename(getNormalizedPathname(dep))
+				if projectName in self.myParsedProjects :		# @todo uses a set()
+					retVal.append( projectName )
+				#else nothing to do
+			return retVal
+		else:
+			retVal = []
+			for dep in lenv['deps']:
+				projectName = os.path.basename(getNormalizedPathname(dep))
+				retVal.append( projectName )
+			return retVal
+
+	# Collects recursively all dependencies of the project with the given environment.
+	# Returns a list containing project name of all its dependencies.
+	def getAllDependencies( self, lenv ) :#, keepOnlyExistingProjects = True ):
+		stackDependencies			= self.getDepsProjectName(lenv) #, keepOnlyExistingProjects)
+		recursiveDependenciesSet	= set()
+		recursiveDependencies		= []
+#		for elt in stackDependencies :
+#			if elt not in recursiveDependenciesSet and elt in self.myParsedProjects :
+#				recursiveDependenciesSet.add( elt )
+#				recursiveDependencies.append( elt )
+
+		while ( len(stackDependencies) > 0 ):
+			dependencyName	= stackDependencies.pop(0)
+			if dependencyName not in recursiveDependenciesSet:
+				recursiveDependenciesSet.add( dependencyName )
+				recursiveDependencies.append( dependencyName )
+			else:
+				continue
+
+			dependencyEnv	= self.myParsedProjects[ dependencyName ]
+			stackDependencies += self.getDepsProjectName( dependencyEnv )
+
+#			for elt in depsProjectName :
+#				if elt not in recursiveDependenciesSet and elt in self.myParsedProjects :
+#					recursiveDependenciesSet.add( elt )
+#					recursiveDependencies.append( elt )
+#					stackDependencies.append( elt )
+		return recursiveDependencies

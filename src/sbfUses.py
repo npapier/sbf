@@ -76,10 +76,11 @@ class IUse :
 	def getLicences( self, version ):															# @todo implements for derived
 		return []
 
-	def __call__( self, useVersion, env ):
+	def __call__( self, useVersion, env, skipLinkStageConfiguration = False ):
 		useNameVersion = self.getName() + " " + useVersion
 #print ("Configures %s" % useNameVersion)
 
+		### Configuration of compile stage
 		# CPPDEFINES
 		cppdefines = self.getCPPDEFINES( useVersion )
 		if cppdefines != None :
@@ -117,6 +118,10 @@ class IUse :
 		else :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPPATH)." % (useNameVersion, self.platform) )
 
+		### Configuration of link stage
+		if skipLinkStageConfiguration:
+			return
+
 		# LIBS
 		libs = self.getLIBS( useVersion )
 		if (libs != None) and (len(libs) == 2) :
@@ -142,31 +147,42 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return ['1-34-1']
+		return [ '1-38-0', '1-34-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
+			#if version in set( [ '1-38-0', '1-34-1' ] ) :
 			return [ 'BOOST_ALL_DYN_LINK' ]
+		else:
+			return []
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32' and version == '1-38-0' :
+			return [ 'boost1-38-0' ]
 		else:
 			return []
 
 	# @todo boost only for vc80, checks compiler and compiler version ?
 	def getLIBS( self, version ):
-		if self.platform == 'win32' and version == '1-34-1':
-			if self.config == 'release' :
-				libs = [	'boost_date_time-vc80-mt-1_34_1', 'boost_filesystem-vc80-mt-1_34_1', 'boost_graph-vc80-mt-1_34_1',
-							'boost_iostreams-vc80-mt-1_34_1', 'boost_prg_exec_monitor-vc80-mt-1_34_1', 'boost_program_options-vc80-mt-1_34_1',
-							'boost_python-vc80-mt-1_34_1', 'boost_regex-vc80-mt-1_34_1', 'boost_serialization-vc80-mt-1_34_1',
-							'boost_signals-vc80-mt-1_34_1', 'boost_thread-vc80-mt-1_34_1', 'boost_unit_test_framework-vc80-mt-1_34_1',
-							'boost_wave-vc80-mt-1_34_1', 'boost_wserialization-vc80-mt-1_34_1' ]
-				return libs, libs
-			else:
-				libs = [	'boost_date_time-vc80-mt-gd-1_34_1', 'boost_filesystem-vc80-mt-gd-1_34_1', 'boost_graph-vc80-mt-gd-1_34_1',
-							'boost_iostreams-vc80-mt-gd-1_34_1', 'boost_prg_exec_monitor-vc80-mt-gd-1_34_1', 'boost_program_options-vc80-mt-gd-1_34_1',
-							'boost_python-vc80-mt-gd-1_34_1', 'boost_regex-vc80-mt-gd-1_34_1', 'boost_serialization-vc80-mt-gd-1_34_1',
-							'boost_signals-vc80-mt-gd-1_34_1', 'boost_thread-vc80-mt-gd-1_34_1', 'boost_unit_test_framework-vc80-mt-gd-1_34_1',
-							'boost_wave-vc80-mt-gd-1_34_1', 'boost_wserialization-vc80-mt-gd-1_34_1' ]
-				return libs, libs
+		if self.platform == 'win32' :
+			if version == '1-38-0':
+				# autolinking, so nothing to do.
+				return [], [] # @todo FIXME
+			elif version == '1-34-1':
+				if self.config == 'release' :
+					libs = [	'boost_date_time-vc80-mt-1_34_1', 'boost_filesystem-vc80-mt-1_34_1', 'boost_graph-vc80-mt-1_34_1',
+								'boost_iostreams-vc80-mt-1_34_1', 'boost_prg_exec_monitor-vc80-mt-1_34_1', 'boost_program_options-vc80-mt-1_34_1',
+								'boost_python-vc80-mt-1_34_1', 'boost_regex-vc80-mt-1_34_1', 'boost_serialization-vc80-mt-1_34_1',
+								'boost_signals-vc80-mt-1_34_1', 'boost_thread-vc80-mt-1_34_1', 'boost_unit_test_framework-vc80-mt-1_34_1',
+								'boost_wave-vc80-mt-1_34_1', 'boost_wserialization-vc80-mt-1_34_1' ]
+					return libs, libs
+				else:
+					libs = [	'boost_date_time-vc80-mt-gd-1_34_1', 'boost_filesystem-vc80-mt-gd-1_34_1', 'boost_graph-vc80-mt-gd-1_34_1',
+								'boost_iostreams-vc80-mt-gd-1_34_1', 'boost_prg_exec_monitor-vc80-mt-gd-1_34_1', 'boost_program_options-vc80-mt-gd-1_34_1',
+								'boost_python-vc80-mt-gd-1_34_1', 'boost_regex-vc80-mt-gd-1_34_1', 'boost_serialization-vc80-mt-gd-1_34_1',
+								'boost_signals-vc80-mt-gd-1_34_1', 'boost_thread-vc80-mt-gd-1_34_1', 'boost_unit_test_framework-vc80-mt-gd-1_34_1',
+								'boost_wave-vc80-mt-gd-1_34_1', 'boost_wserialization-vc80-mt-gd-1_34_1' ]
+					return libs, libs
 		elif self.platform == 'posix' and version == '1-34-1':
 			libs = [	'libboost_date_time-mt',	'libboost_filesystem-mt',		'libboost_graph-mt',
 						'libboost_iostreams-mt',	'libboost_prg_exec_monitor-mt',	'libboost_program_options-mt',
@@ -1058,16 +1074,17 @@ def use_physx( self, lenv, elt ) :
 
 
 
-def uses( self, lenv ):
+def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 	#
 #print '%s uses: %s' % (lenv['sbf_project'], lenv['uses'])
-	for elt in lenv['uses'] :
+	for elt in uses :
 		# Converts to lower case
 		elt = string.lower( elt )
 
 		# @todo FIXME hack for wx @todo move to IUse getLINKFLAGS()
-		if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
-			lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
+		if skipLinkStageConfiguration == False :
+			if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
+				lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
 		### configure boost ###
 		#if elt == 'boost1-33-1' :
@@ -1146,7 +1163,7 @@ def uses( self, lenv ):
 				supportedVersions = use.getVersions()
 				if (len(supportedVersions) == 0) or (useVersion in supportedVersions) :
 					# Configures environment with the 'use'
-					use( useVersion, lenv )
+					use( useVersion, lenv, skipLinkStageConfiguration )
 				else :
 					raise SCons.Errors.UserError("Uses=[\'%s\'] version %s not supported." % (useNameVersion, useVersion) )
 			else :
