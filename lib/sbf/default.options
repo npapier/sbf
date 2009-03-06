@@ -1,5 +1,5 @@
 # project settings
-#description		= ''
+description			= 'SConsBuildFramework companion library'
 vcsUse				= 'no' # no
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
