@@ -193,21 +193,8 @@ class Use_boost( IUse ):
 			return libs, libs
 
 
-#===============================================================================
-# def use_boost( self, lenv, elt ) :
-#	if ( self.myPlatform == 'posix' ) :
-#		lenv['LIBS'] += [ 'boost_date_time-gcc-mt-1_33_1', 'boost_filesystem-gcc-mt-1_33_1', 'boost_regex-gcc-mt-1_33_1', 'boost_signals-gcc-mt-1_33_1']
-#		lenv['LIBS'] += [ 'boost_thread-gcc-mt-1_33_1'  , 'boost_serialization-gcc-mt-1_33_1', 'boost_iostreams-gcc-mt-1_33_1']
-#		lenv['LIBS'] += [ 'boost_program_options-gcc-mt-1_33_1', 'boost_wserialization-gcc-mt-1_33_1', 'boost_python-gcc-mt-1_33_1' ]
-#	elif ( self.myPlatform == 'darwin' ) :
-#		lenv['LIBS'] += [ 'boost_date_time-1_33_1', 'boost_filesystem-1_33_1', 'boost_regex-1_33_1', 'boost_signals-1_33_1']
-#		lenv['LIBS'] += [ 'boost_thread-1_33_1'  , 'boost_serialization-1_33_1', 'boost_iostreams-1_33_1']
-#		lenv['LIBS'] += [ 'boost_program_options-1_33_1', 'boost_wserialization-1_33_1', 'boost_python-1_33_1' ]
-#	#else:
-#	# Nothing to do for win32 platform.
-#===============================================================================
 
-
+#		lenv.AppendUnique( LIBS = ['cairo', 'fontconfig', 'freetype', 'png', 'z' ] )
 class Use_cairo( IUse ):
 
 	__gtkBasePath = None
@@ -264,12 +251,6 @@ class Use_cairo( IUse ):
 		elif self.platform == 'posix' :
 			return [], []
 
-#def use_cairo( self, lenv, elt ) :
-#=======================================================================================================================
-# for cairo package
-#		lenv.AppendUnique( CPPPATH = os.path.join( self.myIncludesInstallExtPaths[0], 'cairo' ) )
-#		lenv.AppendUnique( LIBS = ['cairo', 'fontconfig', 'freetype', 'png', 'z' ] )
-#=======================================================================================================================
 
 
 class Use_colladadom( IUse ):
@@ -976,33 +957,8 @@ def use_gtkmm( self, lenv, elt ) :
 		lenv.AppendUnique( CPPFLAGS = [ '/vd2', '/wd4250' ] )
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
-#===============================================================================
-# def use_openIL( self, lenv, elt ) :
-#	if ( self.myPlatform == 'win32' ) :
-#		if ( self.myConfig == 'release' ) :
-#			lenv['LIBS']	+= ['DevIL']
-#		else :
-#			lenv['LIBS']	+= ['DevIL'] #['DevILd'] @todo openil should be compiled in debug on win32 platform
-#	else :
-#		if ( self.myConfig == 'release' ) :
-#			lenv['LIBS']	+= ['IL']
-#		else :
-#			lenv['LIBS']	+= ['ILd']
-#===============================================================================
 
-#===============================================================================
-# def use_openILU( self, lenv, elt ) :
-#	if ( self.myPlatform == 'win32' ) :
-#		if ( self.myConfig == 'release' ) :
-#			lenv['LIBS']	+= ['ILU']
-#		else :
-#			lenv['LIBS']	+= ['ILU'] #['DevILd'] @todo openil should be compiled in debug on win32 platform
-#	else :
-#		if ( self.myConfig == 'release' ) :
-#			lenv['LIBS']	+= ['ILU']
-#		else :
-#			lenv['LIBS']	+= ['ILUd']
-#===============================================================================
+
 
 def use_physx( self, lenv, elt ) :
 	# Retrieves PHYSX_BASEPATH
@@ -1086,63 +1042,17 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 			if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
 				lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
-		### configure boost ###
-		#if elt == 'boost1-33-1' :
-		#	use_boost( self, lenv, elt )
-
-#===============================================================================
-#		### configure cairo ###
-#		if elt == 'cairo1-2-6' :
-#			use_cairo( self, lenv, elt )
-#===============================================================================
-
 		### configure cairomm ###
 		if elt == 'cairomm1-2-4' :
 			use_cairomm( self, lenv, elt )
-
-#===============================================================================
-#		### configure colladadom ###
-#		elif elt == 'colladadom2-0' :
-#			use_colladadom( self, lenv, elt )
-#===============================================================================
-
-#===============================================================================
-#		### configure itk ###
-#		elif elt == 'itk3-4-0' :
-#			use_itk( self, lenv, elt )
-#===============================================================================
 
 		### configure ODE ###
 		elif elt == 'ode' :
 			lenv['LIBS'] += ['ode']
 
-#===============================================================================
-#		### configure openIL ###
-#		elif elt == 'openil' :
-#			use_openIL( self, lenv, elt )
-#===============================================================================
-
-#===============================================================================
-#		### configure openILU ###
-#		elif elt == 'openilu' :
-#			use_openILU( self, lenv, elt )
-#===============================================================================
-
 		### configure PhysX ###
 		elif elt == 'physx2-8-1' :
 			use_physx( self, lenv, elt )
-
-#===============================================================================
-#		### configure sdl ###
-#		elif elt == 'sdl' :
-#			use_sdl( self, lenv, elt )
-#===============================================================================
-
-#===============================================================================
-#		### configure sofa ###
-#		elif elt == 'sofa' :
-#			use_sofa( self, lenv, elt )
-#===============================================================================
 
 #===============================================================================
 #		### configure wxWidgets ###
