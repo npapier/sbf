@@ -88,6 +88,7 @@ class SConsBuildFramework :
 	# sbf environment
 	mySCONS_BUILD_FRAMEWORK			= ''
 	mySbfLibraryRoot				= ''
+	myVcs							= None
 
 	# SCons environment
 	myEnv							= None
@@ -187,6 +188,9 @@ class SConsBuildFramework :
 
 		# Sets the root directory of sbf library
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
+
+		# Sets the vcs subsystem (at this time only svn is supported).
+		self.myVcs = Subversion( self )
 
 		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
 		homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
@@ -931,82 +935,44 @@ SConsBuildFramework options:
 
 
 
-	def vcsCheckout( self, lenv ) :
+	def vcsOperation( self, lenv, vcsOperation, opDescription ) :
 
 		# Checks if this project must skip vcs operation
 		if self.myProject in self.mySvnCheckoutExclude :
 			if lenv.GetOption('verbosity') :
-				print
-				print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPath) )
-				print "sbfInfo: Exclude from vcs checkout."
+				#print
+				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
+				print "sbfInfo: Exclude from vcs %s." % opDescription
 				print "sbfInfo: Skip to the next project..."
+				print
 			return
 
 		# Checks if vcs operation of this project has already failed
 		if self.myProject not in self.myFailedVcsProjects :
-			print
-			print stringFormatter( lenv, "vcs checkout project %s in %s" % (self.myProject, self.myProjectPath) )
-			successful = svnCheckout( self )
+			#print
+			print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
+
+			successful = vcsOperation( self.myProjectPathName, self.myProject )
+
 			if not successful :
 				self.myFailedVcsProjects.add( self.myProject )
-				print "sbfWarning: Unable to populate directory", self.myProjectPathName, "from vcs."
-			#else vcs checkout successful.
+				print "sbfWarning: Unable to do vcs operation in directory", self.myProjectPathName
+			#else vcs operation successful.
+			print
 			return successful
 		else:
+			print
 			return False
 
 
-#===============================================================================
-#	def vcsStatus( self, lenv, vcsOperation = 'status' ) :
-#
-#		# Checks if this project must skip vcs operation
-#		if lenv['vcsUse'] == 'no' :
-#			if lenv.GetOption('verbosity') :
-#				print
-#				print stringFormatter( lenv, "vcs %s project %s in %s" % (vcsOperation, self.myProject, self.myProjectPath) )
-#				print "sbfInfo: Exclude from vcs operation."
-#				print "sbfInfo: Skip to the next project..."
-#			return
-#
-#		# Checks if vcs operation of this project has already failed
-#		if self.myProject not in self.myFailedVcsProjects :
-#			print
-#			print stringFormatter( lenv, "vcs %s project %s in %s" % (vcsOperation, self.myProject, self.myProjectPath) )
-#			successful = svnStatus( self )
-#			if not successful :
-#				self.myFailedVcsProjects.add( self.myProject )
-#				print "sbfWarning: Unable to do vcs operation in directory", self.myProjectPathName
-#			#else vcs operation successful.
-#			return successful
-#		else:
-#			return False
-#===============================================================================
+	def vcsCheckout( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.checkout, 'checkout' )
 
+	def vcsUpdate( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.update, 'update' )
 
-	def vcsUpdate( self, lenv ) :
-
-		# Checks if this project must skip vcs operation
-		if self.myProject in self.mySvnUpdateExclude :
-			if lenv.GetOption('verbosity') :
-				print
-				print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPath) )
-				print "sbfInfo: Exclude from vcs update."
-				print "sbfInfo: Skip to the next project..."
-			return
-
-		# Checks if vcs operation of this project has already failed
-		if self.myProject not in self.myFailedVcsProjects :
-			print
-			print stringFormatter( lenv, "vcs update project %s in %s" % (self.myProject, self.myProjectPath) )
-			successful = svnUpdate( self )
-			if not successful :
-				self.myFailedVcsProjects.add( self.myProject )
-				print "sbfWarning: Unable to update directory", self.myProjectPathName, "from vcs."
-			#else vcs update successful.
-			return successful
-		else:
-			return False
-
+	def vcsStatus( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
 
 
 	###### Build a project ######
@@ -1054,7 +1020,6 @@ SConsBuildFramework options:
 
 		if not existanceOfProjectPathName :
 			if not tryVcsCheckout:
-				print
 				print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 				print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 				print "sbfInfo: None of targets svnCheckout or", self.myProject + "_svnCheckout have been specified."
@@ -1070,20 +1035,21 @@ SConsBuildFramework options:
 						projectURL = svnGetURL(self.myProjectPathName)
 						if len(projectURL) > 0 :
 							# @todo only if verbose
-							print
 							print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 							print "sbfInfo: Already checkout from %s using svn." % projectURL
 							print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
+							print
 						else:
 							self.vcsCheckout( lenv )
 					else:
 						if lenv.GetOption('verbosity') :
 							print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+							print
 						# @todo only if verbose
 						#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
 						#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
-#				elif tryVcsStatus :
-#					self.vcsStatus( lenv )
+				elif tryVcsStatus and lenv['vcsUse'] == 'yes' : # @todo moves lenv['vcsUse'] == 'yes' test in vcsOperation ?
+					self.vcsStatus( lenv )
 			#else nothing to do
 
 		# Tests existance of project path name
@@ -1281,10 +1247,10 @@ SConsBuildFramework options:
 
 		# Configures lenv[*] with lenv['uses'] from dependencies
 		allDependencies = self.getAllDependencies( lenv )
-#		print 'project', self.myProject
-#		print 'uses', lenv['uses']
-#		print 'dependencies', lenv['deps']
-#		print "recursiveDependencies:", allDependencies
+	#	print 'project', self.myProject
+	#	print 'uses', lenv['uses']
+	#	print 'dependencies', lenv['deps']
+	#	print "recursiveDependencies:", allDependencies
 
 		# Computes union of 'uses' option for all dependencies
 		usesSet = set()
@@ -1292,15 +1258,17 @@ SConsBuildFramework options:
 			dependencyEnv = self.myParsedProjects[ dependency ]
 			usesSet = usesSet.union( set(dependencyEnv['uses']) )
 
-#		print 'usesSet', usesSet
-		usesSet = usesSet.difference( set( ['sofa', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
-#		print 'usesSet filtered', usesSet
-#		print
+	#	print 'usesSet', usesSet
+		#usesSet = usesSet.difference( set( ['sofa', 'cairo1-7-6', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
+		usesSet = usesSet.difference( set( ['cairo1-7-6', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
+	#	print 'usesSet filtered', usesSet
+	#	print
 
 		usesFromDependencies = usesSet.difference( usesAlreadyConfigured )
-		#print 'usesSet', usesSet.difference( usesAlreadyConfigured )
-#		print 'usesFromDependencies', usesFromDependencies
-		uses( self, lenv, ['boost1-38-0'], True ) #list(usesFromDependencies) )#, True ) # True for skipLinkStageConfiguration
+	#	print 'usesSet', usesSet.difference( usesAlreadyConfigured )
+	#	print 'usesFromDependencies', usesFromDependencies
+		uses( self, lenv, list(usesFromDependencies), True ) #list(usesFromDependencies) )#, True ) # True for skipLinkStageConfiguration
+		#['boost1-38-0']
 #		print
 
 		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
