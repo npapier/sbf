@@ -288,12 +288,12 @@ class Subversion ( IVersionControlSystem ) :
 	#		if len(self.client.callback_notify.statistics) > 0 :
 	#			print
 
-			conflicted = self.client.callback_notify.conflicted
-			if len(conflicted) > 0 :
-				print
-				print 'files with merge conflicts:'
-				for f in conflicted:
-					print convertPathAbsToRel( myProjectPathName, f )
+	#		conflicted = self.client.callback_notify.conflicted
+	#		if len(conflicted) > 0 :
+	#			print
+	#			print 'files with merge conflicts:'
+	#			for f in conflicted:
+	#				print convertPathAbsToRel( myProjectPathName, f )
 
 #				for pathFilename in conflicted:
 #					changes = self.client.status( pathFilename )
