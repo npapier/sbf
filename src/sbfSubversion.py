@@ -279,8 +279,8 @@ class Subversion ( IVersionControlSystem ) :
 
 		return False
 
-	def update( self, myProjectPathName, myProject ) :
-		try :
+	def update( self, myProjectPathName, myProject ):
+		try:
 			revision = self.client.update( myProjectPathName )
 
 	#		for (k,v) in self.client.callback_notify.statistics.iteritems():
@@ -293,20 +293,20 @@ class Subversion ( IVersionControlSystem ) :
 				print
 				print 'files with merge conflicts:'
 				for f in conflicted:
-					print convertPathAbsToRel( sbf.myProjectPathName, f )
+					print convertPathAbsToRel( myProjectPathName, f )
 
 #				for pathFilename in conflicted:
-#					changes = client.status( pathFilename )
+#					changes = self.client.status( pathFilename )
 #					for f in changes:
 #						dirPath	= os.path.dirname(f.path)
 #						new		= f.entry.conflict_new
 #						old		= f.entry.conflict_old
 #						work	= f.entry.conflict_work
 
-#						if sbf.myPlatform == 'win32':
-#							sbf.myEnv.Execute(	'@TortoiseMerge %s %s %s' %
-#												(os.path.join( dirPath, old), os.path.join( dirPath, work ), os.path.join( dirPath, new )) )
-						#sbf.myEnv.Execute( 'TortoiseUDiff' )
+#						if self.sbf.myPlatform == 'win32':
+#							self.sbf.myEnv.Execute(	'@TortoiseMerge %s %s %s' %
+	#												(os.path.join( dirPath, old), os.path.join( dirPath, work ), os.path.join( dirPath, new )) )
+						#self.sbf.myEnv.Execute( 'TortoiseUDiff' )
 			return printSvnInfo( self.sbf, self.client )
 		except pysvn.ClientError, e :
 			print str(e), "\n"
