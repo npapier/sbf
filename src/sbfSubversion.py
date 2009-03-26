@@ -28,6 +28,35 @@ class IVersionControlSystem :
 
 ##### Svn ######
 
+wcNotifyActionMap = {
+	pysvn.wc_notify_action.add:						'A',
+	pysvn.wc_notify_action.copy:					'c',
+	pysvn.wc_notify_action.delete:					'D',
+	pysvn.wc_notify_action.restore:					'R',
+	pysvn.wc_notify_action.revert:					'R',
+	pysvn.wc_notify_action.failed_revert:			'F',
+	pysvn.wc_notify_action.resolved:				'R',
+	pysvn.wc_notify_action.skip:					'?',
+	pysvn.wc_notify_action.update_delete:			'D',
+	pysvn.wc_notify_action.update_add:				'A',
+	pysvn.wc_notify_action.update_update:			'U',
+	pysvn.wc_notify_action.update_completed:		None,
+	pysvn.wc_notify_action.update_external:			'E',
+	pysvn.wc_notify_action.status_completed:		None,
+	pysvn.wc_notify_action.status_external:			'E',
+	pysvn.wc_notify_action.commit_modified:			'M',
+	pysvn.wc_notify_action.commit_added:			'A',
+	pysvn.wc_notify_action.commit_deleted:			'D',
+	pysvn.wc_notify_action.commit_replaced:			'R',
+	pysvn.wc_notify_action.commit_postfix_txdelta:	None,
+	pysvn.wc_notify_action.annotate_revision:		'a',
+	pysvn.wc_notify_action.locked:					None,
+	pysvn.wc_notify_action.unlocked:				None,
+	pysvn.wc_notify_action.failed_lock:				None,
+	pysvn.wc_notify_action.failed_unlock:			None,
+}
+
+
 def svnGetURL( path ) :
 	import pysvn
 
@@ -149,83 +178,104 @@ def svnCallback_get_login( realm, username, may_save ):
 
 
 
-# @todo Moves into Subversion class
-def svnCallbackNotify( self, statistics, eventDict ) :
 
-	wcNotifyActionMap = {
-		pysvn.wc_notify_action.add:						'A',
-		pysvn.wc_notify_action.copy:					'c',
-		pysvn.wc_notify_action.delete:					'D',
-		pysvn.wc_notify_action.restore:					'R',
-		pysvn.wc_notify_action.revert:					'R',
-		pysvn.wc_notify_action.failed_revert:			'F',
-		pysvn.wc_notify_action.resolved:				'R',
-		pysvn.wc_notify_action.skip:					'?',
-		pysvn.wc_notify_action.update_delete:			'D',
-		pysvn.wc_notify_action.update_add:				'A',
-		pysvn.wc_notify_action.update_update:			'U',
-		pysvn.wc_notify_action.update_completed:		None,
-		pysvn.wc_notify_action.update_external:			'E',
-		pysvn.wc_notify_action.status_completed:		None,
-		pysvn.wc_notify_action.status_external:			'E',
-		pysvn.wc_notify_action.commit_modified:			'M',
-		pysvn.wc_notify_action.commit_added:			'A',
-		pysvn.wc_notify_action.commit_deleted:			'D',
-		pysvn.wc_notify_action.commit_replaced:			'R',
-		pysvn.wc_notify_action.commit_postfix_txdelta:	None,
-		pysvn.wc_notify_action.annotate_revision:		'a',
-		pysvn.wc_notify_action.locked:					None,
-		pysvn.wc_notify_action.unlocked:				None,
-		pysvn.wc_notify_action.failed_lock:				None,
-		pysvn.wc_notify_action.failed_unlock:			None,
-	}
 
-	path = eventDict['path']
-	if len(path) == 0 :
-		# empty path, nothing to do
-		return
+class Statistics:
+	details		= {}
+	conflicted	= []
 
-	action = eventDict['action']
+	def clear( self ):
+		self.details.clear()
+		self.conflicted = []
 
-	if (wcNotifyActionMap.has_key(action) and (wcNotifyActionMap[action] is not None)						# known action that must trigger a message
-	and not (action == pysvn.wc_notify_action.update_update and eventDict['kind'] == pysvn.node_kind.dir)	# but not in this special case
-	):
-		lookup = wcNotifyActionMap[action]
-		contentState = eventDict['content_state']
-		if contentState == pysvn.wc_notify_state.conflicted :
-			self.conflicted.append( path )
-			# Overridden wcNotifyActionMap[] result
-			lookup = 'C'
-
-		if lookup not in statistics :
-			statistics[lookup] = 1
+	def increments( self, type ):
+		if type not in self.details :
+			self.details[type] = 1
 		else:
-			statistics[lookup] += 1
+			self.details[type] += 1
 
-		print lookup, "\t",
-		print convertPathAbsToRel( self.sbf.myProjectPathName, path )
+	def addConflicted( self, projectPathName, absPath ):
+		self.conflicted.append( (projectPathName, absPath) )
+
+	def printReport( self ):
+		for (k,v) in self.details.iteritems():
+			print ('%s:%i' %(k,v) ),
+		if len(self.details) > 0 :
+			print
 
 
 
-class svnCallbackNotifyWrapper:
-	def __init__( self, sbf ) :
+class CallbackNotifyWrapper:
+
+	def __init__( self, sbf, subversion ):
 		self.sbf		= sbf
+		self.subversion	= subversion
 
+		# @todo move
 		self.statistics = {}
 		self.conflicted = []
 
-	def __call__( self, eventDict ) :
-		svnCallbackNotify( self, self.statistics, eventDict )
+	def __call__( self, eventDict ):
+		self.__callbackNotify( eventDict )
+
+	def __callbackNotify( self, eventDict ):
+		path = eventDict['path']
+		if len(path) == 0 :
+			# empty path, nothing to do
+			return
+
+		action = eventDict['action']
+
+		if (wcNotifyActionMap.has_key(action) and (wcNotifyActionMap[action] is not None)						# known action that must trigger a message
+		and not (action == pysvn.wc_notify_action.update_update and eventDict['kind'] == pysvn.node_kind.dir)	# but not in this special case
+		):
+			lookupAction = wcNotifyActionMap[action]
+
+			# Checks if there is a conflict
+			contentState = eventDict['content_state']
+			if contentState == pysvn.wc_notify_state.conflicted :
+				self.conflicted.append( path )
+				# Overridden wcNotifyActionMap[] result
+				lookupAction = 'C'
+
+			# Updates statistics
+			if lookupAction not in self.statistics :
+				self.statistics[lookupAction] = 1
+			else:
+				self.statistics[lookupAction] += 1
+
+			print lookupAction, "\t",
+			print convertPathAbsToRel( self.sbf.myProjectPathName, path )
 
 
 
-#
-# @todo svnCallbackNotifyWrapper
 # svnCallback_ssl_server_trust_prompt
 # svnCallback_get_login
 class Subversion ( IVersionControlSystem ) :
 
+	__mergeToolLaunchingPolicy	= None
+	stats						= Statistics()
 
+	# Merge
+	def __getMergeToolLaunchingPolicy( self ):
+		if self.__mergeToolLaunchingPolicy not in [ 'A', 'N' ] :
+			# Asks user
+			choice = raw_input("(A)lways, (N)ever or (O)nce edit conflicts (default:O) ?")
+			if choice not in [ 'A', 'N', 'O' ] :
+				choice = 'O'
+			# Saves choice
+			self.__mergeToolLaunchingPolicy = choice
+
+		return self.__mergeToolLaunchingPolicy
+
+	def __mustLaunchMergeTool( self ):
+		policy = self.__getMergeToolLaunchingPolicy()
+		if policy == 'N':
+			return False
+		else:
+			return True
+
+	# URL
 	def __getURLFromSBFOptions( self, projectName ):
 		svnUrlsDict = self.sbf.myEnv['svnUrls']
 		if projectName in svnUrlsDict :
@@ -251,7 +301,7 @@ class Subversion ( IVersionControlSystem ) :
 
 		#
 		self.client = pysvn.Client()
-		self.client.callback_notify						= svnCallbackNotifyWrapper( sbf )
+		self.client.callback_notify						= CallbackNotifyWrapper( sbf, self )
 		self.client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
 		self.client.callback_get_login					= svnCallback_get_login
 		self.client.exception_style						= 0
@@ -281,33 +331,43 @@ class Subversion ( IVersionControlSystem ) :
 
 	def update( self, myProjectPathName, myProject ):
 		try:
+			self.stats.clear()
+			self.client.callback_notify.conflicted = []
+
 			revision = self.client.update( myProjectPathName )
 
-	#		for (k,v) in self.client.callback_notify.statistics.iteritems():
-	#			print ('%s:%i' %(k,v) ),
-	#		if len(self.client.callback_notify.statistics) > 0 :
-	#			print
+	#		self.stats.printReport()
 
-	#		conflicted = self.client.callback_notify.conflicted
-	#		if len(conflicted) > 0 :
+			conflicted = self.client.callback_notify.conflicted
+			if len(conflicted) > 0 :
 	#			print
 	#			print 'files with merge conflicts:'
 	#			for f in conflicted:
 	#				print convertPathAbsToRel( myProjectPathName, f )
 
-#				for pathFilename in conflicted:
-#					changes = self.client.status( pathFilename )
-#					for f in changes:
-#						dirPath	= os.path.dirname(f.path)
-#						new		= f.entry.conflict_new
-#						old		= f.entry.conflict_old
-#						work	= f.entry.conflict_work
+				for pathFilename in conflicted:
+					changes = self.client.status( pathFilename )
+					for f in changes:
+						dirPath	= os.path.dirname(f.path)
+						new		= f.entry.conflict_new
+						old		= f.entry.conflict_old
+						work	= f.entry.conflict_work
+						merged	= f.entry.name
 
-#						if self.sbf.myPlatform == 'win32':
-#							self.sbf.myEnv.Execute(	'@TortoiseMerge %s %s %s' %
-	#												(os.path.join( dirPath, old), os.path.join( dirPath, work ), os.path.join( dirPath, new )) )
-						#self.sbf.myEnv.Execute( 'TortoiseUDiff' )
+						if self.sbf.myPlatform == 'win32':
+							if self.__mustLaunchMergeTool():
+								# @todo Tests if TortoiseMerge is available
+								# @todo TortoiseUDiff ?
+								cmd =	"@TortoiseMerge.exe /base:\"%s\" /theirs:\"%s\" /mine:\"%s\" /merged:\"%s\"" % (
+											os.path.join( dirPath, old ),
+											os.path.join( dirPath, new ),
+											os.path.join( dirPath, work ),
+											os.path.join( dirPath, merged ) )
+								cmd +=	"/basename:\"%s\" /theirsname:\"%s\" /minename:\"%s\" /mergedname:\"%s\"" % ( old, new, work, merged )
+								self.sbf.myEnv.Execute( cmd )
+
 			return printSvnInfo( self.sbf, self.client )
+
 		except pysvn.ClientError, e :
 			print str(e), "\n"
 			return False
@@ -399,62 +459,3 @@ class Subversion ( IVersionControlSystem ) :
 		except pysvn.ClientError, e :
 			print str(e), "\n"
 			return False
-
-
-#===============================================================================
-# def svnUpdate( sbf ) :
-#	# Try an update
-#	import pysvn
-#	client = pysvn.Client()
-#	client.callback_notify = svnCallbackNotifyWrapper( sbf )
-#	client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
-#	client.callback_get_login				= svnCallback_get_login
-#	client.exception_style					= 0
-#
-#	try :
-# #
-#		#changes = client.status( sbf.myProjectPathName )
-#		#print 'files with merge conflicts:'
-#		#print [f.path for f in changes if f.text_status == pysvn.wc_status_kind.conflicted]
-# #		for f in changes:
-# #			if f.text_status == pysvn.wc_status_kind.conflicted:
-# #				print f
-# #				print f.path
-# #				print f.entry
-# #				print f.text_status
-# #				print
-# #				print f.entry.commit_author
-# #
-# #
-#		revision = client.update( sbf.myProjectPathName )
-#
-#		for (k,v) in client.callback_notify.statistics.iteritems():
-#			print ('%s = %i' %(k,v) )
-#
-#		conflicted = client.callback_notify.conflicted
-#		if len(conflicted) > 0 :
-#			print
-#			print 'files with merge conflicts:'
-#			for f in conflicted:
-#				print convertPathAbsToRel( sbf.myProjectPathName, f )
-#			#print [f.path for f in changes if f.text_status == pysvn.wc_status_kind.conflicted]
-#			#print conflicted
-#
-#			for pathFilename in conflicted:
-#				changes = client.status( pathFilename )
-#				for f in changes:
-#					dirPath	= os.path.dirname(f.path)
-#					new		= f.entry.conflict_new
-#					old		= f.entry.conflict_old
-#					work	= f.entry.conflict_work
-#
-#					if sbf.myPlatform == 'win32':
-#						sbf.myEnv.Execute(	'@TortoiseMerge %s %s %s' %
-#											(os.path.join( dirPath, old), os.path.join( dirPath, work ), os.path.join( dirPath, new )) )
-#					#sbf.myEnv.Execute( 'TortoiseUDiff' )
-#
-#		return printSvnInfo( sbf, client )
-#	except pysvn.ClientError, e :
-#		print str(e), "\n"
-#		return False
-#===============================================================================
