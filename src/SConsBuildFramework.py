@@ -463,8 +463,9 @@ class SConsBuildFramework :
 Type:
  'scons sbfCheck' to check sbf and related tools installation.
 
- 'scons svnAdd'
+ 'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
  'scons svnCheckout'
+ 'scons svnCleanup'
  'scons svnStatus'
  'scons svnUpdate'
 
@@ -937,16 +938,6 @@ SConsBuildFramework options:
 
 	def vcsOperation( self, lenv, vcsOperation, opDescription ) :
 
-		# Checks if this project must skip vcs operation
-		if self.myProject in self.mySvnCheckoutExclude :
-			if lenv.GetOption('verbosity') :
-				#print
-				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
-				print "sbfInfo: Exclude from vcs %s." % opDescription
-				print "sbfInfo: Skip to the next project..."
-				print
-			return
-
 		# Checks if vcs operation of this project has already failed
 		if self.myProject not in self.myFailedVcsProjects :
 			#print
@@ -965,14 +956,41 @@ SConsBuildFramework options:
 			return False
 
 
-	def vcsCheckout( self, lenv ):
-		return self.vcsOperation( lenv, self.myVcs.checkout, 'checkout' )
+	def vcsAdd( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.add, 'add' )
 
-	def vcsUpdate( self, lenv ):
-		return self.vcsOperation( lenv, self.myVcs.update, 'update' )
+	def vcsCheckout( self, lenv ):
+		opDescription = 'checkout'
+		# Checks if this project must skip vcs operation
+		if self.myProject in self.mySvnCheckoutExclude :
+			if lenv.GetOption('verbosity') :
+				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
+				print "sbfInfo: Exclude from vcs %s." % opDescription
+				print "sbfInfo: Skip to the next project..."
+				print
+			return
+		else:
+			return self.vcsOperation( lenv, self.myVcs.checkout, opDescription )
+
+	def vcsCleanup( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.cleanup, 'cleanup' )
 
 	def vcsStatus( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
+
+	def vcsUpdate( self, lenv ):
+		opDescription = 'update'
+		# Checks if this project must skip vcs operation
+		if self.myProject in self.mySvnUpdateExclude :
+			if lenv.GetOption('verbosity') :
+				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
+				print "sbfInfo: Exclude from vcs %s." % opDescription
+				print "sbfInfo: Skip to the next project..."
+				print
+			return
+		else:
+			return self.vcsOperation( lenv, self.myVcs.update, opDescription )
+
 
 
 	###### Build a project ######
@@ -1067,6 +1085,18 @@ SConsBuildFramework options:
 			self.myFailedVcsProjects.add( self.myProject )
 			return
 
+#===============================================================================
+#		# a vcs add ?
+#		tryVcsAdd = 'svnAdd' in self.myBuildTargets
+#
+#		if tryVcsAdd :
+#			if lenv['vcsUse'] == 'yes' :	# @todo moves this test in vcsOperation
+#				self.vcsAdd( lenv )
+#			else:
+#				if lenv.GetOption('verbosity') :
+#					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+#===============================================================================
+
 		# User wants a vcs update ?
 		tryVcsUpdate = ('svnUpdate' in self.myBuildTargets) or (self.myProject+'_svnUpdate' in self.myBuildTargets)
 
@@ -1074,7 +1104,7 @@ SConsBuildFramework options:
 			if lenv['vcsUse'] == 'yes' :
 				self.vcsUpdate( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
-			else :
+			else:
 				if lenv.GetOption('verbosity') :
 					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 				# @todo only if verbose
@@ -1529,13 +1559,14 @@ SConsBuildFramework options:
 		#@todo myproject_zip
 
 		### Configures lenv
-		lenv['sbf_bin']							= []
+		lenv['sbf_bin']							= []		# @todo removes
 		lenv['sbf_include']						= filesFromInclude
 		lenv['sbf_share']						= filesFromShare
 		lenv['sbf_src']							= filesFromSrc
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
 		lenv['sbf_files']						= glob.glob( self.myProjectPathName + os.sep + '*.options' )
+# @todo sbf_rc, others ?
 
 		for elt in installInBinTarget :
 			lenv['sbf_bin'].append( elt.abspath )
@@ -1566,6 +1597,15 @@ SConsBuildFramework options:
 #env.Alias( 'clean',		aliasProjectClean		)
 #env.Alias( 'mrproper',	aliasProjectMrproper	)
 
+		# a vcs add ?
+		tryVcsAdd = 'svnAdd' in self.myBuildTargets
+
+		if tryVcsAdd :
+			#if lenv['vcsUse'] == 'yes' :	# @todo moves this test in vcsOperation
+			self.vcsAdd( lenv )
+			#else:
+			#	if lenv.GetOption('verbosity') :
+			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 
 
 	###### Helpers ######

@@ -15,14 +15,20 @@ class IVersionControlSystem :
 	def __init__( self ):
 		raise StandardError("IVersionControlSystem::__init__() not implemented")
 
+	def add( self ):
+		raise StandardError("IVersionControlSystem::add() not implemented")
+
 	def checkout( self ):
 		raise StandardError("IVersionControlSystem::checkout() not implemented")
 
-	def update( self ):
-		raise StandardError("IVersionControlSystem::update() not implemented")
+	def cleanup( self ):
+		raise StandardError("IVersionControlSystem::cleanup() not implemented")
 
 	def status( self ):
 		raise StandardError("IVersionControlSystem::status() not implemented")
+
+	def update( self ):
+		raise StandardError("IVersionControlSystem::update() not implemented")
 
 
 
@@ -57,6 +63,7 @@ wcNotifyActionMap = {
 }
 
 
+# @todo moves
 def svnGetURL( path ) :
 	import pysvn
 
@@ -115,7 +122,7 @@ def svnExport( sbf, project, destinationPath ) :
 				print project, "at revision", revision.date
 			return True
 		except pysvn.ClientError, e :
-			print str(e), "\n"
+			print str(e), '\n'
 	else:
 		return False
 
@@ -124,18 +131,6 @@ def svnExportAction( target, source, env ) :
 	project			= str(source[0])
 
 	svnExport( env.sbf, project, destinationPath )
-
-
-def printSvnInfo( sbf, client ) :
-	entry = client.info( sbf.myProjectPathName )
-	if not entry :
-		# no entry (i.e. None and co), project probably not under svn
-		return False
-	if entry.revision.kind == pysvn.opt_revision_kind.number :
-		print sbf.myProject, "at revision", entry.revision.number
-	else :
-		print sbf.myProject, "at revision", entry.revision.date
-	return True
 
 
 
@@ -233,7 +228,11 @@ class CallbackNotifyWrapper:
 
 			# Checks if there is a conflict
 			contentState = eventDict['content_state']
-			if contentState == pysvn.wc_notify_state.conflicted :
+			# @todo checks in depth wc_notify_state => M(erge)
+			if contentState == pysvn.wc_notify_state.merged :
+				# @todo merged.append()...
+				lookupAction = 'G'
+			elif contentState == pysvn.wc_notify_state.conflicted :
 				self.conflicted.append( path )
 				# Overridden wcNotifyActionMap[] result
 				lookupAction = 'C'
@@ -258,11 +257,11 @@ class Subversion ( IVersionControlSystem ) :
 
 	# Merge
 	def __getMergeToolLaunchingPolicy( self ):
-		if self.__mergeToolLaunchingPolicy not in [ 'A', 'N' ] :
+		if self.__mergeToolLaunchingPolicy not in [ 'a', 'n' ] :
 			# Asks user
-			choice = raw_input("(A)lways, (N)ever or (O)nce edit conflicts (default:O) ?")
-			if choice not in [ 'A', 'N', 'O' ] :
-				choice = 'O'
+			choice = raw_input("Select edit conflict policy:\n (a)lways, n(ever) or the default choice (o)nce ?")
+			if choice not in [ 'a', 'n', 'o' ] :
+				choice = 'o'
 			# Saves choice
 			self.__mergeToolLaunchingPolicy = choice
 
@@ -270,7 +269,7 @@ class Subversion ( IVersionControlSystem ) :
 
 	def __mustLaunchMergeTool( self ):
 		policy = self.__getMergeToolLaunchingPolicy()
-		if policy == 'N':
+		if policy == 'n':
 			return False
 		else:
 			return True
@@ -295,6 +294,20 @@ class Subversion ( IVersionControlSystem ) :
 			return svnUrl + '/' + projectName + '/trunk'
 
 
+	#
+	def __printSvnInfo( self, myProjectPathName, myProject ):
+		entry = self.client.info( myProjectPathName )
+		if not entry :
+			# no entry (i.e. None and co), project probably not under svn
+			return False
+		if entry.revision.kind == pysvn.opt_revision_kind.number :
+			print myProject, "at revision", entry.revision.number
+		else :
+			print myProject, "at revision", entry.revision.date
+		return True
+
+
+	#
 	def __init__( self, sbf ):
 		#
 		self.sbf	= sbf
@@ -305,6 +318,47 @@ class Subversion ( IVersionControlSystem ) :
 		self.client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
 		self.client.callback_get_login					= svnCallback_get_login
 		self.client.exception_style						= 0
+
+
+	def add( self, myProjectPathName, myProject ):
+		# Tests if project is under vcs
+		# @todo isUnderVCS() isControlled() ?
+		projectURL = svnGetURL( myProjectPathName )
+		if len(projectURL) == 0:					# @todo adds the whole project
+			return
+
+		# Retrieves env for the incoming project
+		lenv = self.sbf.myParsedProjects[ myProject ]
+
+		# Retrieves all files for the project
+		# @todo rc ?
+		projectFiles = lenv['sbf_include'] + lenv['sbf_share'] + lenv['sbf_src'] + lenv['sbf_files']
+
+		# @todo only one client.status() call for the project
+		try:
+			self.client.exception_style						= 1		# @todo Changes the exception style in __init__()
+			for file in projectFiles:
+				try:
+					changes = self.client.status( file )
+					if (len(changes) == 1) and (changes[0].text_status == pysvn.wc_status_kind.unversioned):
+						self.client.add( os.path.join(myProjectPathName, file), recurse=False, ignore=True )
+					# else nothing to do
+				except pysvn.ClientError, e :
+					for message, code in e.args[1]:
+						if code == 720003 :
+							# Directory is not under vcs
+							pathfilename = os.path.join(myProjectPathName, file)
+							self.client.add( os.path.dirname(pathfilename), recurse=False, ignore=True )
+							break
+						#print 'Code:',code,'Message:',message
+					else:
+						print e.args[0]
+			return True
+		except pysvn.ClientError, e :
+			print e.args[0], '\n'
+			return False
+		finally:
+			self.client.exception_style = 0
 
 
 	def checkout( self, myProjectPathName, myProject ):
@@ -323,12 +377,18 @@ class Subversion ( IVersionControlSystem ) :
 			try :
 				revision = self.client.checkout( url = svnUrl, path = myProjectPathName )
 				print "sbfInfo:", myProject, "found at", svnUrl
-				return printSvnInfo( self.sbf, self.client )
+				return self.__printSvnInfo( myProjectPathName, myProject )
 			except pysvn.ClientError, e :
-				print str(e), "\n"
+				print str(e), '\n'
 
 		return False
 
+
+	def cleanup( self, myProjectPathName, myProject ):
+		pass
+
+
+	# @todo switch update <-> sataus
 	def update( self, myProjectPathName, myProject ):
 		try:
 			self.stats.clear()
@@ -356,6 +416,7 @@ class Subversion ( IVersionControlSystem ) :
 
 						if self.sbf.myPlatform == 'win32':
 							if self.__mustLaunchMergeTool():
+								# @todo WhereIs( TortoiseMerge ) to check availibility (here and in sbfCheck too)
 								# @todo Tests if TortoiseMerge is available
 								# @todo TortoiseUDiff ?
 								cmd =	"@TortoiseMerge.exe /base:\"%s\" /theirs:\"%s\" /mine:\"%s\" /merged:\"%s\"" % (
@@ -366,10 +427,10 @@ class Subversion ( IVersionControlSystem ) :
 								cmd +=	"/basename:\"%s\" /theirsname:\"%s\" /minename:\"%s\" /mergedname:\"%s\"" % ( old, new, work, merged )
 								self.sbf.myEnv.Execute( cmd )
 
-			return printSvnInfo( self.sbf, self.client )
+			return self.__printSvnInfo( myProjectPathName, myProject )
 
 		except pysvn.ClientError, e :
-			print str(e), "\n"
+			print str(e), '\n'
 			return False
 
 	def status( self, myProjectPathName, myProject ):
@@ -455,7 +516,7 @@ class Subversion ( IVersionControlSystem ) :
 #					print ( '%s:%i' % (k, len(v) ) ),
 #					print
 #===============================================================================
-			return printSvnInfo( self.sbf, self.client )
+			return self.__printSvnInfo( myProjectPathName, myProject )
 		except pysvn.ClientError, e :
-			print str(e), "\n"
+			print str(e), '\n'
 			return False
