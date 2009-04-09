@@ -50,14 +50,49 @@ const Module & Module::get( const std::string & name )
 
 
 
-const std::string Module::toString( const PathType type )
+Module::Module( const std::string & name, const std::string & version )
+:	m_name( name ),
+	m_version( version )
 {
-	switch( type )
+	const Module & found = get(m_name);
+
+	if( ! found )
 	{
-	case Share:	return "share";
-	case Var:	return "var";
-	default:	return "";
+		m_registry.push_back(this);
 	}
+}
+
+
+
+Module::~Module()
+{
+	Container::iterator	found = std::find(m_registry.begin(), m_registry.end(), this);
+
+	if( found != m_registry.end() )
+	{
+		m_registry.erase( found );
+	}
+}
+
+
+
+const std::string Module::getName() const
+{
+	return m_name;
+}
+
+
+
+const std::string Module::getVersion() const
+{
+	return m_version;
+}
+
+
+
+Module::operator const bool () const
+{
+	return m_name.empty() == false && m_version.empty() == false;
 }
 
 
