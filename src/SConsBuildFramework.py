@@ -1050,7 +1050,7 @@ SConsBuildFramework options:
 			if successful :
 				if tryVcsCheckout :
 					if lenv['vcsUse'] == 'yes' :
-						projectURL = svnGetURL(self.myProjectPathName)
+						projectURL = self.myVcs.getUrl( self.myProjectPathName )
 						if len(projectURL) > 0 :
 							# @todo only if verbose
 							print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
@@ -1352,22 +1352,30 @@ SConsBuildFramework options:
 
 			# Adds rc directory to CPPPATH
 			rcPath = os.path.join(self.myProjectPathName, 'rc')
-			if os.path.isdir( rcPath ) :
+			if os.path.isdir( rcPath ):
+				# Appends rc to CPPPATH
 				rcEnv.Append( CPPPATH = rcPath )
 
-			### resource.rc file
-			# Constructs path to resource file
+			# Compiles resource.rc
 			rcFile = os.path.join(rcPath, 'resource.rc')
-			# Tests existance of recource file
-			if os.path.isfile( rcFile ) :
+			if os.path.isfile( rcFile ):
 				# Compiles the resource file
 				objFiles += rcEnv.RES( rcFile )
+				lenv['sbf_rc'] = [rcFile]
+			else:
+				lenv['sbf_rc'] = []
 
 			# Generates resource_sbf.rc file
 			sbfRCFile = os.path.join(self.myProjectBuildPathExpanded, 'resource_sbf.rc')
 			Alias(	self.myProject + '_resource_generation',
 					rcEnv.Command( sbfRCFile, 'dummy.in', Action( resourceFileGeneration, printGenerate ) ) )
 			objFiles += rcEnv.RES( sbfRCFile )
+
+			# @todo FIXME not very cute, same code in sbfRC
+			iconFile		= lenv['sbf_project'] + '.ico'
+			iconAbsPathFile	= os.path.join(lenv['sbf_projectPathName'], 'rc', iconFile )
+			if os.path.isfile( iconAbsPathFile ) :
+				lenv['sbf_rc'].append( iconAbsPathFile )
 
 		### final result of project ###
 		objProject = os.path.join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion
@@ -1559,7 +1567,7 @@ SConsBuildFramework options:
 		#@todo myproject_zip
 
 		### Configures lenv
-		lenv['sbf_bin']							= []		# @todo removes
+		lenv['sbf_bin']							= []
 		lenv['sbf_include']						= filesFromInclude
 		lenv['sbf_share']						= filesFromShare
 		lenv['sbf_src']							= filesFromSrc

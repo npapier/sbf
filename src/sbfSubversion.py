@@ -63,24 +63,6 @@ wcNotifyActionMap = {
 }
 
 
-# @todo moves
-def svnGetURL( path ) :
-	import pysvn
-
-	client = pysvn.Client()
-	client.exception_style = 0
-
-	try :
-		info = client.info( path )
-		if not info :
-			return ""
-		else :
-			return info.url
-
-	except pysvn.ClientError, e :
-		print str(e)
-		return ""
-
 def svnGetAllVersionedFiles( path ) :
 
 	import pysvn
@@ -296,6 +278,7 @@ class Subversion ( IVersionControlSystem ) :
 
 	#
 	def __printSvnInfo( self, myProjectPathName, myProject ):
+#?
 		entry = self.client.info( myProjectPathName )
 		if not entry :
 			# no entry (i.e. None and co), project probably not under svn
@@ -307,6 +290,38 @@ class Subversion ( IVersionControlSystem ) :
 		return True
 
 
+	def isVersioned( self, path ):
+		try:
+			info = self.client.info( path )
+			if not info :
+				return False
+			else:
+				return True
+		except pysvn.ClientError, e :
+			for message, code in e.args[1]:
+				if code == 155007 :
+					# Directory is not a working copy
+					return False
+			else:
+				print e.args[0]
+		return False
+
+
+	def isUnversioned( self, path ):
+		return not self.isVersioned( path )
+
+
+	def getUrl( self, path ):
+		try:
+			info = self.client.info( path )
+			if not info :
+				return ""
+			else:
+				return info.url
+		except pysvn.ClientError, e :
+			print e.args[0]
+			return ""
+
 	#
 	def __init__( self, sbf ):
 		#
@@ -317,26 +332,22 @@ class Subversion ( IVersionControlSystem ) :
 		self.client.callback_notify						= CallbackNotifyWrapper( sbf, self )
 		self.client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
 		self.client.callback_get_login					= svnCallback_get_login
-		self.client.exception_style						= 0
+		self.client.exception_style						= 1
 
 
 	def add( self, myProjectPathName, myProject ):
 		# Tests if project is under vcs
-		# @todo isUnderVCS() isControlled() ?
-		projectURL = svnGetURL( myProjectPathName )
-		if len(projectURL) == 0:					# @todo adds the whole project
+		if self.isUnversioned( myProjectPathName ):
 			return
 
 		# Retrieves env for the incoming project
 		lenv = self.sbf.myParsedProjects[ myProject ]
 
 		# Retrieves all files for the project
-		# @todo rc ?
-		projectFiles = lenv['sbf_include'] + lenv['sbf_share'] + lenv['sbf_src'] + lenv['sbf_files']
+		projectFiles = lenv['sbf_include'] + lenv['sbf_src'] + lenv['sbf_share'] + lenv['sbf_rc'] + lenv['sbf_files']
 
 		# @todo only one client.status() call for the project
 		try:
-			self.client.exception_style						= 1		# @todo Changes the exception style in __init__()
 			for file in projectFiles:
 				try:
 					changes = self.client.status( file )
@@ -357,8 +368,6 @@ class Subversion ( IVersionControlSystem ) :
 		except pysvn.ClientError, e :
 			print e.args[0], '\n'
 			return False
-		finally:
-			self.client.exception_style = 0
 
 
 	def checkout( self, myProjectPathName, myProject ):
@@ -379,7 +388,7 @@ class Subversion ( IVersionControlSystem ) :
 				print "sbfInfo:", myProject, "found at", svnUrl
 				return self.__printSvnInfo( myProjectPathName, myProject )
 			except pysvn.ClientError, e :
-				print str(e), '\n'
+				print e.args[0], '\n'
 
 		return False
 
@@ -390,6 +399,10 @@ class Subversion ( IVersionControlSystem ) :
 
 	# @todo switch update <-> sataus
 	def update( self, myProjectPathName, myProject ):
+		# Tests if project is under vcs
+		if self.isUnversioned( myProjectPathName ):
+			return
+
 		try:
 			self.stats.clear()
 			self.client.callback_notify.conflicted = []
@@ -430,11 +443,11 @@ class Subversion ( IVersionControlSystem ) :
 			return self.__printSvnInfo( myProjectPathName, myProject )
 
 		except pysvn.ClientError, e :
-			print str(e), '\n'
+			print e.args[0], '\n'
 			return False
 
 	def status( self, myProjectPathName, myProject ):
-		try :
+		try:
 			changes = self.client.status( myProjectPathName, get_all = False, update = True )
 
 			normalStatus = [pysvn.wc_status_kind.normal, pysvn.wc_status_kind.none]
@@ -518,5 +531,5 @@ class Subversion ( IVersionControlSystem ) :
 #===============================================================================
 			return self.__printSvnInfo( myProjectPathName, myProject )
 		except pysvn.ClientError, e :
-			print str(e), '\n'
+			print e.args[0], '\n'
 			return False
