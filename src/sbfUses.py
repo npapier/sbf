@@ -167,7 +167,23 @@ class Use_boost( IUse ):
 		if self.platform == 'win32' :
 			if version == '1-38-0':
 				# autolinking, so nothing to do.
-				return [], [] # @todo FIXME
+				if self.config == 'release' :
+					pakLibs = [	'boost_date_time-vc80-mt-1_38', 'boost_filesystem-vc80-mt-1_38', 'boost_graph-vc80-mt-1_38',
+								'boost_iostreams-vc80-mt-1_38', 'boost_math_c99-vc80-mt-1_38', 'boost_math_c99f-vc80-mt-1_38',
+								'boost_math_c99l-vc80-mt-1_38', 'boost_math_tr1-vc80-mt-1_38', 'boost_math_tr1f-vc80-mt-1_38',
+								'boost_math_tr1l-vc80-mt-1_38', 'boost_prg_exec_monitor-vc80-mt-1_38', 'boost_program_options-vc80-mt-1_38',
+								'boost_python-vc80-mt-1_38', 'boost_regex-vc80-mt-1_38', 'boost_serialization-vc80-mt-1_38',
+								'boost_signals-vc80-mt-1_38', 'boost_system-vc80-mt-1_38', 'boost_thread-vc80-mt-1_38',
+								'boost_unit_test_framework-vc80-mt-1_38', 'boost_wave-vc80-mt-1_38', 'boost_wserialization-vc80-mt-1_38' ]
+				else:
+					pakLibs = [	'boost_date_time-vc80-mt-gd-1_38', 'boost_filesystem-vc80-mt-gd-1_38', 'boost_graph-vc80-mt-gd-1_38',
+								'boost_iostreams-vc80-mt-gd-1_38', 'boost_math_c99-vc80-mt-gd-1_38', 'boost_math_c99f-vc80-mt-gd-1_38',
+								'boost_math_c99l-vc80-mt-gd-1_38', 'boost_math_tr1-vc80-mt-gd-1_38', 'boost_math_tr1f-vc80-mt-gd-1_38',
+								'boost_math_tr1l-vc80-mt-gd-1_38', 'boost_prg_exec_monitor-vc80-mt-gd-1_38', 'boost_program_options-vc80-mt-gd-1_38',
+								'boost_python-vc80-mt-gd-1_38', 'boost_regex-vc80-mt-gd-1_38', 'boost_serialization-vc80-mt-gd-1_38',
+								'boost_signals-vc80-mt-gd-1_38', 'boost_system-vc80-mt-gd-1_38', 'boost_thread-vc80-mt-gd-1_38',
+								'boost_unit_test_framework-vc80-mt-gd-1_38', 'boost_wave-vc80-mt-gd-1_38', 'boost_wserialization-vc80-mt-gd-1_38' ]
+				return [], pakLibs
 			elif version == '1-34-1':
 				if self.config == 'release' :
 					libs = [	'boost_date_time-vc80-mt-1_34_1', 'boost_filesystem-vc80-mt-1_34_1', 'boost_graph-vc80-mt-1_34_1',
