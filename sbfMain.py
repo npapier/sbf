@@ -481,7 +481,7 @@ def execute( command ):
 def checkTool( env, toolName, toolCmd ):
 	whereis = env.WhereIs( toolName )
 	if whereis :
-		print ( '%s found at %s' % (toolName, whereis.lower()) )
+		print ( '%s found at %s' % (toolName, whereis) )
 		print ( '%s version : ' % toolName ),
 		sys.stdout.flush()
 		env.Execute( toolCmd )
@@ -499,7 +499,7 @@ def sbfCheck(target = None, source = None, env = None) :
 
 	whereis_scons = env.WhereIs( 'scons' )
 	if whereis_scons :
-		print 'scons found at', whereis_scons.lower()
+		print 'scons found at', whereis_scons
 		print 'scons version :', SCons.__version__
 		sys.stdout.flush()
 		#print execute( 'scons --version' )
@@ -524,7 +524,7 @@ def sbfCheck(target = None, source = None, env = None) :
 
 	whereis_rsync = env.WhereIs( 'rsync' )				# @todo whereis for others tools
 	if whereis_rsync :
-		print 'rsync found at', whereis_rsync.lower()
+		print 'rsync found at', whereis_rsync
 		print 'rsync version :',
 		sys.stdout.flush()
 		print execute( 'rsync --version' )
@@ -534,12 +534,20 @@ def sbfCheck(target = None, source = None, env = None) :
 
 	whereis_ssh = env.WhereIs( 'ssh' )
 	if whereis_ssh :
-		print 'ssh found at', whereis_ssh.lower()
+		print 'ssh found at', whereis_ssh
 		print 'ssh version   :',
 		sys.stdout.flush()
 		print execute( 'ssh -v' )
 	else:
 		print 'ssh not found'
+	print
+
+	whereis_TortoiseMerge = env.WhereIs( 'TortoiseMerge' )
+	if whereis_TortoiseMerge :
+		print 'TortoiseMerge.exe found at', whereis_TortoiseMerge
+		sys.stdout.flush()
+	else:
+		print 'TortoiseMerge.exe not found'
 	print
 
 	#@todo nsis
@@ -658,10 +666,11 @@ env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 env.sbf.buildProject( env['sbf_projectPathName'] )
 
 
-### special targets: svnAdd svnCheckout svnStatus svnUpdate ###
+### special targets: svnAdd svnCheckout svnCleanup svnStatus svnUpdate ###
 
 Alias( 'svnAdd',		Command('dummySvnCheckout.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnCheckout',	Command('dummySvnCheckout.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnCleanup',	Command('dummySvnCleanup.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnStatus',		Command('dummySvnStatus.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
 #Alias( 'svnCheckout', env.Command('dummySvnCheckout.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
