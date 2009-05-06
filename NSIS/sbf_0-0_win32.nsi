@@ -212,7 +212,7 @@ Page instfiles
 ;PageExEnd
 
 Function launchBootstrap
-  ReadRegStr $0 HKLM PYTHON_REG_INSTALLPATH ""
+  ReadRegStr $0 HKLM ${PYTHON_REG_INSTALLPATH} ""
   ;MessageBox MB_OK "launchBootstrap:Python is installed at: $0"
   ;ReadEnvStr $1 SCONS_BUILD_FRAMEWORK
   ;MessageBox MB_OK "launchBootstrap:SCONS_BUILD_FRAMEWORK=$1"
@@ -372,7 +372,7 @@ ExecWait "$0\uninst-nsis.exe"
 !insertmacro UninstallString "doxygen" DOXYGEN_UNINSTALL_STRING
 !insertmacro RmRedistributable ${DOXYGEN}
 ; GRAPHVIZ
-ReadRegStr $0 HKLM GRAPHVIZ_REG_INSTALLPATH InstallPath
+ReadRegStr $0 HKLM ${GRAPHVIZ_REG_INSTALLPATH} InstallPath
 MessageBox MB_YESNO "Uninstall Graphviz ?" /SD IDYES IDNO +2
 ExecWait "$0\Uninstall.exe"
 !insertmacro RmRedistributable ${GRAPHVIZ}
