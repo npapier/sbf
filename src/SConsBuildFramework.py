@@ -23,9 +23,6 @@ from SCons.Script import *
 
 
 
-#from SCons.
-
-
 #import SCons.Action
 #import SCons.Util
 #import SCons.Builder
@@ -465,7 +462,7 @@ Type:
 
  'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
  'scons svnCheckout'
- 'scons svnCleanup'
+ 'scons svnClean'
  'scons svnStatus'
  'scons svnUpdate'
 
@@ -972,8 +969,8 @@ SConsBuildFramework options:
 		else:
 			return self.vcsOperation( lenv, self.myVcs.checkout, opDescription )
 
-	def vcsCleanup( self, lenv ):
-		return self.vcsOperation( lenv, self.myVcs.cleanup, 'cleanup' )
+	def vcsClean( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.clean, 'clean' )
 
 	def vcsStatus( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
@@ -1599,16 +1596,17 @@ SConsBuildFramework options:
 		Alias( 'all',		aliasProject			)
 		Alias( 'clean',		aliasProjectClean		)
 		Alias( 'mrproper',	aliasProjectMrproper	)
-#env.Alias( 'build',		aliasProjectBuild		)
-#env.Alias( 'install',	aliasProjectInstall		)
-#env.Alias( 'all',		aliasProject			)
-#env.Alias( 'clean',		aliasProjectClean		)
-#env.Alias( 'mrproper',	aliasProjectMrproper	)
+
+		# a vcs cleanup ?
+		if 'svnClean' in self.myBuildTargets:
+			if lenv['vcsUse'] == 'yes' :
+				self.vcsClean( lenv )
+			#else:
+			#	if lenv.GetOption('verbosity') :
+			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 
 		# a vcs add ?
-		tryVcsAdd = 'svnAdd' in self.myBuildTargets
-
-		if tryVcsAdd :
+		if 'svnAdd' in self.myBuildTargets:
 			#if lenv['vcsUse'] == 'yes' :	# @todo moves this test in vcsOperation
 			self.vcsAdd( lenv )
 			#else:

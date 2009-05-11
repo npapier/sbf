@@ -3,33 +3,12 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+import atexit
 import os
 import pysvn
 
+from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
-
-
-
-# Interface to version control system
-class IVersionControlSystem :
-	def __init__( self ):
-		raise StandardError("IVersionControlSystem::__init__() not implemented")
-
-	def add( self ):
-		raise StandardError("IVersionControlSystem::add() not implemented")
-
-	def checkout( self ):
-		raise StandardError("IVersionControlSystem::checkout() not implemented")
-
-	def cleanup( self ):
-		raise StandardError("IVersionControlSystem::cleanup() not implemented")
-
-	def status( self ):
-		raise StandardError("IVersionControlSystem::status() not implemented")
-
-	def update( self ):
-		raise StandardError("IVersionControlSystem::update() not implemented")
-
 
 
 ##### Svn ######
@@ -63,56 +42,37 @@ wcNotifyActionMap = {
 }
 
 
-def svnGetAllVersionedFiles( path ) :
-
-	import pysvn
-
-	client = pysvn.Client()
-	client.exception_style = 0
-
-	try :
-		statusList = client.status( path )
-
-		allFiles = [ status.path for status in statusList
-						if status.is_versioned and
-						(status.entry is not None and status.entry.kind == pysvn.node_kind.file) ]
-
-		return allFiles
-
-	except pysvn.ClientError, e :
-		print str(e)
-		return []
-
-
-def svnExport( sbf, project, destinationPath ) :
-	# try an svn export
-	import pysvn
-	client = pysvn.Client()
-	client.exception_style = 0
-
-	for repository in sbf.mySvnUrls :
-		svnUrl	= repository + project + '/trunk'		#@todo function to create svnUrl
-		#svnUrl	= repository + '/' + sbf.myProject + '/trunk'
-		print "sbfInfo: Try to export a working copy to ", destinationPath, " from", svnUrl, ":"
-		try :
-			revision	= client.export(	src_url_or_path = svnUrl,
-											dest_path = destinationPath )
-			print "sbfInfo:", project, "found at", svnUrl
-			if ( revision.kind == pysvn.opt_revision_kind.number ) :
-				print project, "at revision", revision.number
-			else :
-				print project, "at revision", revision.date
-			return True
-		except pysvn.ClientError, e :
-			print str(e), '\n'
-	else:
-		return False
-
-def svnExportAction( target, source, env ) :
-	destinationPath	= str(target[0])
-	project			= str(source[0])
-
-	svnExport( env.sbf, project, destinationPath )
+#===============================================================================
+# def svnExport( sbf, project, destinationPath ) :
+#	# try an svn export
+#	import pysvn
+#	client = pysvn.Client()
+#	client.exception_style = 0
+#
+#	for repository in sbf.mySvnUrls :
+#		svnUrl	= repository + project + '/trunk'		#@todo function to create svnUrl
+#		#svnUrl	= repository + '/' + sbf.myProject + '/trunk'
+#		print "sbfInfo: Try to export a working copy to ", destinationPath, " from", svnUrl, ":"
+#		try :
+#			revision	= client.export(	src_url_or_path = svnUrl,
+#											dest_path = destinationPath )
+#			print "sbfInfo:", project, "found at", svnUrl
+#			if ( revision.kind == pysvn.opt_revision_kind.number ) :
+#				print project, "at revision", revision.number
+#			else :
+#				print project, "at revision", revision.date
+#			return True
+#		except pysvn.ClientError, e :
+#			print str(e), '\n'
+#	else:
+#		return False
+#
+# def svnExportAction( target, source, env ) :
+#	destinationPath	= str(target[0])
+#	project			= str(source[0])
+#
+#	svnExport( env.sbf, project, destinationPath )
+#===============================================================================
 
 
 
@@ -157,13 +117,16 @@ def svnCallback_get_login( realm, username, may_save ):
 
 
 
-class Statistics:
-	details		= {}
-	conflicted	= []
 
-	def clear( self ):
-		self.details.clear()
-		self.conflicted = []
+class Statistics:
+
+	def __init__( self ):
+		self.reset()
+
+	def reset( self ):
+		self.details	= {}
+		self.conflicted	= []
+		self.merged		= []
 
 	def increments( self, type ):
 		if type not in self.details :
@@ -174,11 +137,27 @@ class Statistics:
 	def addConflicted( self, projectPathName, absPath ):
 		self.conflicted.append( (projectPathName, absPath) )
 
+	def addMerged( self, projectPathName, absPath ):
+		self.merged.append( (projectPathName, absPath) )
+
 	def printReport( self ):
+		if len(self.details) + len(self.conflicted) + len(self.merged) > 0 :
+			print 'svn report:'
+
 		for (k,v) in self.details.iteritems():
 			print ('%s:%i' %(k,v) ),
 		if len(self.details) > 0 :
 			print
+
+		if len(self.conflicted) > 0:
+			print 'conflicted:'
+			for (projectPathname, pathFilename) in self.conflicted:
+				print convertPathAbsToRel(projectPathname, pathFilename)
+
+		if len(self.merged) > 0:
+			print 'merged:'
+			for (projectPathname, pathFilename) in self.merged:
+				print convertPathAbsToRel(projectPathname, pathFilename)
 
 
 
@@ -188,9 +167,13 @@ class CallbackNotifyWrapper:
 		self.sbf		= sbf
 		self.subversion	= subversion
 
-		# @todo move
-		self.statistics = {}
-		self.conflicted = []
+
+	def resetStatistics( self ):
+		self.stats = Statistics()
+
+	def getStatistics( self ):
+		return self.stats
+
 
 	def __call__( self, eventDict ):
 		self.__callbackNotify( eventDict )
@@ -212,29 +195,37 @@ class CallbackNotifyWrapper:
 			contentState = eventDict['content_state']
 			# @todo checks in depth wc_notify_state => M(erge)
 			if contentState == pysvn.wc_notify_state.merged :
-				# @todo merged.append()...
 				lookupAction = 'G'
+				self.stats.addMerged( self.sbf.myProjectPathName, path )
+				self.subversion.stats.addMerged( self.sbf.myProjectPathName, path )
 			elif contentState == pysvn.wc_notify_state.conflicted :
-				self.conflicted.append( path )
 				# Overridden wcNotifyActionMap[] result
 				lookupAction = 'C'
+				self.stats.addConflicted( self.sbf.myProjectPathName, path )
+				self.subversion.stats.addConflicted( self.sbf.myProjectPathName, path )
 
 			# Updates statistics
-			if lookupAction not in self.statistics :
-				self.statistics[lookupAction] = 1
-			else:
-				self.statistics[lookupAction] += 1
+			self.stats.increments( lookupAction )
+			self.subversion.stats.increments( lookupAction )
 
 			print lookupAction, "\t",
 			print convertPathAbsToRel( self.sbf.myProjectPathName, path )
 
 
+def atExitPrintStatistics( stats ):
+	print
+	stats.printReport()
 
+# @todo isBuildNeeded() => buildbot
+# Usage without sbf
+# create/applyPatch
 # svnCallback_ssl_server_trust_prompt
 # svnCallback_get_login
 class Subversion ( IVersionControlSystem ) :
 
 	__mergeToolLaunchingPolicy	= None
+
+	# Global statistics
 	stats						= Statistics()
 
 	# Merge
@@ -324,6 +315,9 @@ class Subversion ( IVersionControlSystem ) :
 
 	#
 	def __init__( self, sbf ):
+		# Prints global statistics at exit
+		atexit.register( atExitPrintStatistics, self.stats )
+
 		#
 		self.sbf	= sbf
 
@@ -393,32 +387,44 @@ class Subversion ( IVersionControlSystem ) :
 		return False
 
 
-	def cleanup( self, myProjectPathName, myProject ):
-		pass
+	def clean( self, myProjectPathName, myProject ):
+		# Tests if project is under vcs
+		if self.isUnversioned( myProjectPathName ):
+			return
+
+		try:
+			self.client.cleanup( myProjectPathName )
+			return True
+		except pysvn.ClientError, e :
+			print e.args[0], '\n'
+			return False
 
 
-	# @todo switch update <-> sataus
+	# @todo switch update <-> status
 	def update( self, myProjectPathName, myProject ):
 		# Tests if project is under vcs
 		if self.isUnversioned( myProjectPathName ):
 			return
 
 		try:
-			self.stats.clear()
-			self.client.callback_notify.conflicted = []
+			self.client.callback_notify.resetStatistics()
+
+			#self.stats.clear()
+			#self.client.callback_notify.conflicted = []
 
 			revision = self.client.update( myProjectPathName )
 
+			self.client.callback_notify.getStatistics().printReport()
 	#		self.stats.printReport()
 
-			conflicted = self.client.callback_notify.conflicted
+			conflicted = self.client.callback_notify.getStatistics().conflicted
 			if len(conflicted) > 0 :
 	#			print
 	#			print 'files with merge conflicts:'
 	#			for f in conflicted:
 	#				print convertPathAbsToRel( myProjectPathName, f )
 
-				for pathFilename in conflicted:
+				for (projectPathname, pathFilename) in conflicted:
 					changes = self.client.status( pathFilename )
 					for f in changes:
 						dirPath	= os.path.dirname(f.path)
@@ -445,6 +451,7 @@ class Subversion ( IVersionControlSystem ) :
 		except pysvn.ClientError, e :
 			print e.args[0], '\n'
 			return False
+
 
 	def status( self, myProjectPathName, myProject ):
 		try:
@@ -481,11 +488,16 @@ class Subversion ( IVersionControlSystem ) :
 				pysvn.wc_status_kind.unversioned: '?',
 				}
 
+			self.client.callback_notify.resetStatistics()
+
 			if len(localChanges) > 0 :
 				print ('only local modifications:')
 				for c in localChanges:
 					if c.text_status in dictStatus :
-						print ('%s %s' % (dictStatus[c.text_status], convertPathAbsToRel(myProjectPathName, c.path)) )
+						text = dictStatus[c.text_status]
+						self.client.callback_notify.getStatistics().increments( text )
+						self.stats.increments( text )
+						print ('%s %s' % (text, convertPathAbsToRel(myProjectPathName, c.path)) )
 					else:
 						print ('%s %s' % (c.text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
 				print
@@ -495,8 +507,11 @@ class Subversion ( IVersionControlSystem ) :
 			if len(repoChanges) > 0 :
 				print ('only remote modifications:')
 				for c in repoChanges:
+					text = dictStatus[c.repos_text_status]
+					self.client.callback_notify.getStatistics().increments( text )
+					self.stats.increments( text )
 					if c.repos_text_status in dictStatus :
-						print ('%s %s' % (dictStatus[c.repos_text_status], convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s' % (text, convertPathAbsToRel(myProjectPathName, c.path)) )
 					else:
 						print ('%s %s' % (c.repos_text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
 				print
@@ -506,14 +521,22 @@ class Subversion ( IVersionControlSystem ) :
 			if len(bothChanges) > 0 :
 				print ('local and remote modifications:')
 				for c in bothChanges:
+					text = dictStatus[c.text_status]
+					repos_text = dictStatus[c.repos_text_status]
+					self.client.callback_notify.getStatistics().increments( text )
+					self.client.callback_notify.getStatistics().increments( repos_text )
+					self.stats.increments( text )
+					self.stats.increments( repos_text )
 					if (c.text_status in dictStatus) and (c.repos_text_status in dictStatus) :
-						print ('%s %s %s' % (dictStatus[c.text_status], dictStatus[c.repos_text_status], convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s %s' % (text, repos_text, convertPathAbsToRel(myProjectPathName, c.path)) )
 					else:
 						print ('%s %s %s' % (c.text_status, c.repos_text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
 				print
 			else:
 				print ('no local and remote modifications')
 
+			print
+			self.client.callback_notify.getStatistics().printReport()
 #===============================================================================
 #			for (k,v) in stats.iteritems():
 #				if len(v) == 0:
@@ -533,3 +556,17 @@ class Subversion ( IVersionControlSystem ) :
 		except pysvn.ClientError, e :
 			print e.args[0], '\n'
 			return False
+
+
+	#
+	def getAllVersionedFiles( self, myProjectPathName ):
+		try:
+			statusList = self.client.status( myProjectPathName )
+
+			allFiles = [ status.path for status in statusList
+							if status.is_versioned and
+							(status.entry is not None and status.entry.kind == pysvn.node_kind.file) ]
+			return allFiles
+		except pysvn.ClientError, e :
+			print e.args[0], '\n'
+			return []

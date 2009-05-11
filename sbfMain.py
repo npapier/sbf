@@ -667,14 +667,11 @@ env.sbf.buildProject( env['sbf_projectPathName'] )
 
 
 ### special targets: svnAdd svnCheckout svnCleanup svnStatus svnUpdate ###
-
-Alias( 'svnAdd',		Command('dummySvnCheckout.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnCheckout',	Command('dummySvnCheckout.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnCleanup',	Command('dummySvnCleanup.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnStatus',		Command('dummySvnStatus.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-#Alias( 'svnCheckout', env.Command('dummySvnCheckout.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
-#Alias( 'svnUpdate', env.Command('dummySvnUpdate.out1', 'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnAdd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnCheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnClean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnStatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
 
 ### special target : vcproj ###
@@ -1162,7 +1159,6 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 # @todo zip*_[build,install,clean,mrproper]
 # @todo zip doxygen
 
-from src.sbfSubversion import svnGetAllVersionedFiles
 from src.sbfUses import UseRepository
 
 
@@ -1326,7 +1322,7 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 		# Adds files to src zip
 		if lenv['vcsUse'] == 'yes' :
-			allFiles = svnGetAllVersionedFiles( projectPathName )
+			allFiles = sbf.myVcs.getAllVersionedFiles( projectPathName )
 
 			projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
 
