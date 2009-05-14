@@ -41,10 +41,22 @@ class IUse :
 	platform	= None
 	config		= None
 
+	# See SConsBuildFramework class
+	cc					= None
+	ccVersionNumber		= None
+	isExpressEdition	= None
+	ccVersion			= None
+
 	@classmethod
-	def initialize( self, platform, config ):
+	def initialize( self, platform, config, cc, ccVersionNumber, isExpressEdition, ccVersion ):
 		self.platform	= platform
 		self.config		= config
+
+		#
+		self.cc					= cc
+		self.ccVersionNumber	= ccVersionNumber
+		self.isExpressEdition	= isExpressEdition
+		self.ccVersion			= ccVersion
 
 	def getName( self ):
 		raise StandardError("IUse::getName() not implemented")
@@ -635,8 +647,8 @@ class Use_wxWidgetsGL( IUse ):
 #
 class UseRepository :
 	__verbosity		= None
-	__platform		= None
-	__config		= None
+#__platform		= None
+#__config		= None
 
 	__repository	= {}
 
@@ -659,10 +671,11 @@ class UseRepository :
 
 		# Initializes verbosity, platform and config
 		self.__verbosity	= sbf.myEnv.GetOption('verbosity')
-		self.__platform		= sbf.myPlatform
-		self.__config		= sbf.myConfig
+#self.__platform	= sbf.myPlatform
+#self.__config		= sbf.myConfig
 
-		IUse.initialize( sbf.myPlatform, sbf.myConfig )
+		IUse.initialize(	sbf.myPlatform, sbf.myConfig,
+							sbf.myCC, sbf.myCCVersionNumber, sbf.myIsExpressEdition, sbf.myCCVersion )
 
 		#
 		self.__initialized = True
@@ -841,7 +854,6 @@ class Use_gtkmm( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-
 			libs = ['glade-2.0',
 					'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
 					'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',

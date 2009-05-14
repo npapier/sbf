@@ -722,11 +722,13 @@ SConsBuildFramework options:
 
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
-							allowed_values = ( '7.1', '8.0Exp', '8.0', 'highest' ),
+							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', 'highest' ),
 							map={
 									'2003'		: '7.1',
 									'2005Exp'	: '8.0Exp',
 									'2005'		: '8.0',
+									'2008Exp'	: '9.0Exp',
+									'2008'		: '9.0'
 									} ),
 
 			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
