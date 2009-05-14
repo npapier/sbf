@@ -503,18 +503,18 @@ class Use_sofa( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			libs = ['glew32', 'libxml2', 'Gdi32', 'Shell32']
+			libs = ['glew32', 'Gdi32', 'Shell32']
 			pakLibs = []
 			if self.config == 'release' :
 				libs += ['miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
+						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree', 'tinyxml']
 				pakLibs += ['sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
 						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
 			else:
 				libs += ['miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
 						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
 				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-						'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
+						'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld']
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
@@ -531,11 +531,17 @@ class Use_sofa( IUse ):
 
 		if self.platform == 'win32' :
 			if self.config == 'release' :
-				path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
+				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC9')
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
 				libPath.append( path )
 				pakLibPath.append( path )
 			else :
-				path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
+				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC9')
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
 				libPath.append( path )
 				pakLibPath.append( path )
 
@@ -862,11 +868,19 @@ class Use_gtkmm( IUse ):
 
 			if version == '2-14-3' :
 				if self.config == 'release' :
-					libs += [	'glademm-vc80-2_4', 'xml++-vc80-2_6', 'gtkmm-vc80-2_4', 'gdkmm-vc80-2_4', 'atkmm-vc80-1_6',
-								'pangomm-vc80-1_4', 'glibmm-vc80-2_4', 'giomm-vc80-2_4', 'cairomm-vc80-1_0', 'sigc-vc80-2_0' ]
+					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs += [	'glademm-vc90-2_4', 'xml++-vc90-2_6', 'gtkmm-vc90-2_4', 'gdkmm-vc90-2_4', 'atkmm-vc90-1_6',
+									'pangomm-vc90-1_4', 'glibmm-vc90-2_4', 'giomm-vc90-2_4', 'cairomm-vc90-1_0', 'sigc-vc90-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs += [	'glademm-vc80-2_4', 'xml++-vc80-2_6', 'gtkmm-vc80-2_4', 'gdkmm-vc80-2_4', 'atkmm-vc80-1_6',
+									'pangomm-vc80-1_4', 'glibmm-vc80-2_4', 'giomm-vc80-2_4', 'cairomm-vc80-1_0', 'sigc-vc80-2_0' ]
 				else:
-					libs += [	'glademm-vc80-d-2_4', 'xml++-vc80-d-2_6', 'gtkmm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'atkmm-vc80-d-1_6',
-								'pangomm-vc80-d-1_4', 'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4', 'cairomm-vc80-d-1_0', 'sigc-vc80-d-2_0' ]
+					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs += [	'glademm-vc90-d-2_4', 'xml++-vc90-d-2_6', 'gtkmm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'atkmm-vc90-d-1_6',
+									'pangomm-vc90-d-1_4', 'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4', 'cairomm-vc90-d-1_0', 'sigc-vc90-d-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs += [	'glademm-vc80-d-2_4', 'xml++-vc80-d-2_6', 'gtkmm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'atkmm-vc80-d-1_6',
+									'pangomm-vc80-d-1_4', 'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4', 'cairomm-vc80-d-1_0', 'sigc-vc80-d-2_0' ]
 			else :
 				if self.config == 'release' :
 					libs += [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
@@ -966,11 +980,11 @@ def use_gtkmm( self, lenv, elt ) :
 #										'gmodule-2.0', 'glib-2.0', 'intl', 'iconv' ] )
 
 		if self.myConfig == 'release' :
-			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-										'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
+			lenv.AppendUnique( LIBS = [	'glademm-vc80-2.4', 'xml++-vc80-2.6', 'gtkmm-vc80-2.4', 'gdkmm-vc80-2.4', 'atkmm-vc80-1.6',
+										'pangomm-vc80-1.4', 'glibmm-vc80-2.4', 'giomm-vc80-2.4', 'cairomm-vc80-1.0', 'sigc-vc80-2.0' ] )
 		else:
-			lenv.AppendUnique( LIBS = [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
-										'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
+			lenv.AppendUnique( LIBS = [	'glademm-vc80-2.4d', 'xml++-vc80-2.6d', 'gtkmm-vc80-2.4d', 'gdkmm-vc80-2.4d', 'atkmm-vc80-1.6d',
+										'pangomm-vc80-1.4d', 'glibmm-vc80-2.4d', 'giomm-vc80-2.4d', 'cairomm-vc80-1.0d', 'sigc-vc80-2.0d' ] )
 
 		lenv.AppendUnique( LIBS = [	'glade-2.0',
 									'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
