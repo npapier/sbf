@@ -153,6 +153,7 @@ class Statistics:
 			print 'conflicted:'
 			for (projectPathname, pathFilename) in self.conflicted:
 				print convertPathAbsToRel(projectPathname, pathFilename)
+			print
 
 		if len(self.merged) > 0:
 			print 'merged:'
@@ -342,6 +343,7 @@ class Subversion ( IVersionControlSystem ) :
 
 		# @todo only one client.status() call for the project
 		try:
+			self.client.callback_notify.resetStatistics()
 			for file in projectFiles:
 				try:
 					changes = self.client.status( file )
@@ -358,6 +360,7 @@ class Subversion ( IVersionControlSystem ) :
 						#print 'Code:',code,'Message:',message
 					else:
 						print e.args[0]
+			self.client.callback_notify.getStatistics().printReport()
 			return True
 		except pysvn.ClientError, e :
 			print e.args[0], '\n'
