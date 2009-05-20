@@ -374,6 +374,7 @@ class Subversion ( IVersionControlSystem ) :
 			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
 
 		# Try a checkout
+		self.client.callback_notify.resetStatistics()
 		svnUrls = self.__getURLFromSBFOptions( myProject )
 
 		for svnUrl in svnUrls :
@@ -382,6 +383,7 @@ class Subversion ( IVersionControlSystem ) :
 			print "sbfInfo: Try to check out a working copy from", svnUrl, ":"
 			try :
 				revision = self.client.checkout( url = svnUrl, path = myProjectPathName )
+				self.client.callback_notify.getStatistics().printReport()
 				print "sbfInfo:", myProject, "found at", svnUrl
 				return self.__printSvnInfo( myProjectPathName, myProject )
 			except pysvn.ClientError, e :
