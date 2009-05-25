@@ -836,7 +836,7 @@ class Use_gtkmm( IUse ):
 		return 'gtkmm'
 
 	def getVersions( self ):
-		return [ '2-14-3', '2-14-1' ]
+		return [ '2-16-0', '2-14-3', '2-14-1' ]
 
 	def getCPPPATH( self, version ):
 		gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
@@ -866,7 +866,7 @@ class Use_gtkmm( IUse ):
 					'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv']
 			pakLibs = []
 
-			if version == '2-14-3' :
+			if version in ['2-16-0', '2-14-3'] :
 				if self.config == 'release' :
 					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs += [	'glademm-vc90-2_4', 'xml++-vc90-2_6', 'gtkmm-vc90-2_4', 'gdkmm-vc90-2_4', 'atkmm-vc90-1_6',
@@ -881,13 +881,16 @@ class Use_gtkmm( IUse ):
 					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
 						libs += [	'glademm-vc80-d-2_4', 'xml++-vc80-d-2_6', 'gtkmm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'atkmm-vc80-d-1_6',
 									'pangomm-vc80-d-1_4', 'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4', 'cairomm-vc80-d-1_0', 'sigc-vc80-d-2_0' ]
-			else :
+			elif version == '2-14-1':
 				if self.config == 'release' :
 					libs += [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
 								'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ]
 				else:
 					libs += [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
 								'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ]
+			else:
+				return
+
 			return libs, pakLibs
 		#if self.platform == 'posix' :
 		#	pass
@@ -918,8 +921,14 @@ class Use_gtkmm( IUse ):
 		return libPath, pakLibPath
 
 	def getCPPFLAGS( self, version ):
-		if self.platform == 'win32' :
-			return ['/vd2', '/wd4250']
+		if self.platform == 'win32':
+			if version == '2-16-0':
+				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					return ['/vd2', '/wd4250']
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					return ['/vd2', '/wd4250', '/wd4312']
+			else:
+				return ['/vd2', '/wd4250']
 		else:
 			return []
 
@@ -980,11 +989,11 @@ def use_gtkmm( self, lenv, elt ) :
 #										'gmodule-2.0', 'glib-2.0', 'intl', 'iconv' ] )
 
 		if self.myConfig == 'release' :
-			lenv.AppendUnique( LIBS = [	'glademm-vc80-2.4', 'xml++-vc80-2.6', 'gtkmm-vc80-2.4', 'gdkmm-vc80-2.4', 'atkmm-vc80-1.6',
-										'pangomm-vc80-1.4', 'glibmm-vc80-2.4', 'giomm-vc80-2.4', 'cairomm-vc80-1.0', 'sigc-vc80-2.0' ] )
+			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
+										'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
 		else:
-			lenv.AppendUnique( LIBS = [	'glademm-vc80-2.4d', 'xml++-vc80-2.6d', 'gtkmm-vc80-2.4d', 'gdkmm-vc80-2.4d', 'atkmm-vc80-1.6d',
-										'pangomm-vc80-1.4d', 'glibmm-vc80-2.4d', 'giomm-vc80-2.4d', 'cairomm-vc80-1.0d', 'sigc-vc80-2.0d' ] )
+			lenv.AppendUnique( LIBS = [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
+										'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
 
 		lenv.AppendUnique( LIBS = [	'glade-2.0',
 									'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
