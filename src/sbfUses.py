@@ -467,6 +467,23 @@ class Use_glut( IUse ):
 			return libs, libs
 
 
+class Use_gtest( IUse ):
+	def getName(self ):
+		return "gtest"
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32' :
+			if self.config == 'release' :
+				libs = ['gtest']
+				return libs, []
+			else:
+				libs = ['gtestd']
+				return libs, []
+		else:
+			libs = ['gtest']
+			return libs, []		
+
+
 # TODO: SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
 class Use_sofa( IUse ):
@@ -667,7 +684,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_gtkmm(), Use_opengl(), Use_itk(),
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_opengl(), Use_itk(),
 					Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
