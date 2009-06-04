@@ -1289,7 +1289,7 @@ SConsBuildFramework options:
 
 	#	print 'usesSet', usesSet
 		#usesSet = usesSet.difference( set( ['sofa', 'cairo1-7-6', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
-		usesSet = usesSet.difference( set( ['cairo1-7-6', 'gtkmm2-14-3', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
+		usesSet = usesSet.difference( set( ['cairo1-2-6', 'cairo1-7-6', 'cairo1-8-6', 'gtkmm2-14-1', 'gtkmm2-14-3', 'gtkmm2-16-0', 'itk3-4-0'] ) ) # @todo not very cute and robust to different gtkmm version.
 	#	print 'usesSet filtered', usesSet
 	#	print
 

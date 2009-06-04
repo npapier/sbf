@@ -5,6 +5,7 @@
 
 import os
 import re
+import sys
 import string
 import SCons.Errors
 
@@ -12,10 +13,95 @@ from sbfUtils import getPathFromEnv, convertToList
 
 
 
+# @todo better place (should be shared with bootstrap.py)
+def getRegistry( key, subkey = '' ):
+	# @todo import at this place is not recommended
+	import win32api
+	import win32con
+	try:
+		regKey = win32api.RegOpenKey( win32con.HKEY_LOCAL_MACHINE, key )
+		value, dataType = win32api.RegQueryValueEx( regKey, subkey )
+		regKey.Close()
+		return value
+	except:
+		return ''
+
+def getInstallPath( key, subkey = '', text = '' ):
+	value = getRegistry( key, subkey )
+	if len(value) > 0:
+		print ( '%s is installed in directory : %s' % (text, value) )
+	else:
+		print ( '%s is not installed' % text )
+	return os.path.normpath(value)
+
+
+#@todo moves to sbfConfig.py ?
+class sofaConfig:
+	__basePath = None
+
+	@classmethod
+	def __initialize( cls ):
+		# Retrieves SOFA_PATH
+		cls.__basePath = getPathFromEnv('SOFA_PATH')
+
+		if cls.__basePath is None:
+			raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
+
+	@classmethod
+	def getBasePath( cls ):
+		if cls.__basePath is None:
+			cls.__initialize()
+		return cls.__basePath
+
+
+class gtkConfig:
+	__gtkBasePath		= None
+	__gtkmmBasePath		= None
+
+	@classmethod
+	def __initialize( cls ):
+		if sys.platform == 'win32':
+			# Retrieves gtkmm path and version from windows registry
+			gtkmmRegistryPath = 'SOFTWARE\\gtkmm\\2.4'
+			gtkmmBasePath = getInstallPath( gtkmmRegistryPath, 'Path', 'gtkmm' )
+			if len(gtkmmBasePath) > 0:
+				version = getRegistry( gtkmmRegistryPath, 'Version' )
+				print ( 'Assumes gtk and gtkmm installed in the same directory.\nFound gtkmm version: %s\n' % version )
+				cls.__gtkBasePath = gtkmmBasePath
+				cls.__gtkmmBasePath = gtkmmBasePath
+
+		if cls.__gtkBasePath is None:
+			# Retrieves GTK_BASEPATH
+			cls.__gtkBasePath	= getPathFromEnv('GTK_BASEPATH')
+
+		if cls.__gtkmmBasePath is None:
+			# Retrieves GTKMM_BASEPATH
+			cls.__gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
+
+		# Post-conditions
+		if cls.__gtkBasePath is None:
+			raise SCons.Errors.UserError("Unable to configure gtk.")
+
+		if cls.__gtkmmBasePath is None:
+			raise SCons.Errors.UserError("Unable to configure gtkmm.")
+
+	@classmethod
+	def getBasePath( cls ):
+		if cls.__gtkBasePath is None:
+			cls.__initialize()
+		return cls.__gtkBasePath
+
+	@classmethod
+	def getGtkmmBasePath( cls ):
+		if cls.__gtkmmBasePath is None:
+			cls.__initialize()
+		return cls.__gtkmmBasePath
+
+
 #===============================================================================
 # OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
 #					'boost1-34-1', 'cairo1-2-6', 'cairomm1-2-4', 'colladadom2-0', 'glu', 'glut', 'gtkmm2-14', 'itk3-4-0', 'ode', 'opengl',
-#					'openil', 'openilu', 'physx2-8-1', 'sdl', 'sofa', 'wx2-8-8', 'wxgl2-8-8' ]
+#					'openil', 'openilu', 'physx2-8-1', 'sdl']
 #					# cg|cgFX|imageMagick6|imageMagick++6
 #===============================================================================
 #OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
@@ -225,18 +311,11 @@ class Use_boost( IUse ):
 #		lenv.AppendUnique( LIBS = ['cairo', 'fontconfig', 'freetype', 'png', 'z' ] )
 class Use_cairo( IUse ):
 
-	__gtkBasePath = None
-
-	def __init__( self ):
-		if self.platform == 'win32' :
-			# Retrieves GTK_BASEPATH
-			self.__gtkBasePath = getPathFromEnv('GTK_BASEPATH')
-
 	def getName( self ):
 		return 'cairo'
 
 	def getVersions( self ):
-		return ['1-7-6', '1-2-6']
+		return ['1-8-6', '1-7-6', '1-2-6']
 
 
 	def getCPPFLAGS( self, version ):
@@ -247,13 +326,11 @@ class Use_cairo( IUse ):
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
-			if self.__gtkBasePath is None :
-				return None
 			# Sets CPPPATH
 			gtkCppPath = [ 'include/cairo', 'include' ]
 			cppPath = []
 			for path in gtkCppPath :
-				cppPath.append( os.path.join(self.__gtkBasePath, path) )
+				cppPath.append( os.path.join(gtkConfig.getBasePath(), path) )
 			return cppPath
 		elif self.platform == 'posix' :
 			# Sets CPPPATH
@@ -262,7 +339,7 @@ class Use_cairo( IUse ):
 			return cppPath
 
 	def getLIBS( self, version ):
-		if (self.platform == 'win32') and (version in ['1-7-6', '1-2-6']) :
+		if (self.platform == 'win32') and (version in ['1-8-6', '1-7-6', '1-2-6']) :
 			libs = [ 'cairo' ]
 			pakLibs = [ 'libcairo-2' ]
 			return libs, pakLibs
@@ -272,13 +349,12 @@ class Use_cairo( IUse ):
 
 	def getLIBPATH( self, version ):
 		if self.platform == 'win32' :
-			if self.__gtkBasePath is None :
-				return None
-			else:
-				return [ os.path.join(self.__gtkBasePath, 'lib') ], [ os.path.join(self.__gtkBasePath, 'bin') ]
+			return [ os.path.join(gtkConfig.getBasePath(), 'lib') ], [ os.path.join(gtkConfig.getBasePath(), 'bin') ]
 		elif self.platform == 'posix' :
 			return [], []
 
+
+# @todo cairomm
 
 
 class Use_colladadom( IUse ):
@@ -472,8 +548,8 @@ class Use_gtest( IUse ):
 		return "gtest"
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
-			if self.config == 'release' :
+		if self.platform == 'win32':
+			if self.config == 'release':
 				libs = ['gtest']
 				return libs, []
 			else:
@@ -481,19 +557,12 @@ class Use_gtest( IUse ):
 				return libs, []
 		else:
 			libs = ['gtest']
-			return libs, []		
+			return libs, []
 
 
-# TODO: SOFA_PATH documentation
+# @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
 class Use_sofa( IUse ):
-	__sofa_path = None
-
-	def __init__( self ):
-		# Retrieves SOFA_PATH
-		self.__sofa_path = getPathFromEnv('SOFA_PATH')
-#if self.__sofa_path is None :
-#	raise SCons.Errors.UserError("Unable to configure sofa")
 
 	def getName( self ):
 		return 'sofa'
@@ -508,10 +577,10 @@ class Use_sofa( IUse ):
 			return []
 
 	def getCPPPATH( self, version ):
-		cppPath = [	os.path.join(self.__sofa_path, 'modules'),
-					os.path.join(self.__sofa_path, 'framework'),
-					os.path.join(self.__sofa_path, 'include'),
-					os.path.join(self.__sofa_path, 'extlibs/miniFlowVR/include') ]
+		cppPath = [	os.path.join(sofaConfig.getBasePath(), 'modules'),
+					os.path.join(sofaConfig.getBasePath(), 'framework'),
+					os.path.join(sofaConfig.getBasePath(), 'include'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
 		if self.platform == 'posix':
 			cppPath += ['/usr/include/libxml2']
@@ -526,12 +595,12 @@ class Use_sofa( IUse ):
 				libs += ['miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
 						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree', 'tinyxml']
 				pakLibs += ['sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
+							'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
 			else:
 				libs += ['miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
 						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
 				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-						'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld']
+							'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld']
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
@@ -539,7 +608,7 @@ class Use_sofa( IUse ):
 			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
-					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
+						'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
@@ -549,23 +618,24 @@ class Use_sofa( IUse ):
 		if self.platform == 'win32' :
 			if self.config == 'release' :
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC9')
+					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/ReleaseVC9')
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					path = os.path.join( self.__sofa_path, 'lib/win32/ReleaseVC8')
+					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/ReleaseVC8')
 				libPath.append( path )
 				pakLibPath.append( path )
 			else :
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC9')
+					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/DebugVC9')
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					path = os.path.join( self.__sofa_path, 'lib/win32/DebugVC8')
+					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/DebugVC8')
 				libPath.append( path )
 				pakLibPath.append( path )
 
-			libPath.append( os.path.join( self.__sofa_path, 'lib/win32/Common' ) )
+			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
 			return libPath, pakLibPath
+
 		elif self.platform == 'posix' :
-			path = os.path.join( self.__sofa_path, 'lib/linux')
+			path = os.path.join( sofaConfig.getBasePath(), 'lib/linux')
 			libPath.append( path )
 			pakLibPath.append( path )
 			return libPath, pakLibPath
@@ -827,6 +897,9 @@ def use_cairomm( self, lenv, elt ) :
 			lenv.AppendUnique( LIBS = [	'cairomm-1.0' ] )
 		else:
 			lenv.AppendUnique( LIBS = [	'cairomm-1.0d' ] )
+#			lenv.AppendUnique( LIBS = [	'cairomm-vc80-1_0' ] )
+#		else:
+#			lenv.AppendUnique( LIBS = [	'cairomm-vc80-d-1_0' ] )
 
 		lenv.AppendUnique( LIBPATH = [ os.path.join(gtkmmBasePath, 'lib') ] )
 	else :
@@ -837,23 +910,14 @@ def use_cairomm( self, lenv, elt ) :
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 # @todo support pakLibs
 class Use_gtkmm( IUse ):
-	__gtkBasePath	= None
-	__gtkmmBasePath	= None
-
-	def __init__( self ):
-		if self.platform == 'win32' :
-			# Retrieves GTK_BASEPATH
-			self.__gtkBasePath		= getPathFromEnv('GTK_BASEPATH')
-			# Retrieves GTKMM_BASEPATH
-			self.__gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
-#		if (self.__gtkBasePath is None) or (self.__gtkmmBasePath is None ) :
-#			raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
 	def getName( self ):
 		return 'gtkmm'
 
 	def getVersions( self ):
+		# @todo Don't forget to check SconsBuildFramework.py:buildProject() : usesSet = usesSet.difference(...
 		return [ '2-16-0', '2-14-3', '2-14-1' ]
+
 
 	def getCPPPATH( self, version ):
 		gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
@@ -869,8 +933,8 @@ class Use_gtkmm( IUse ):
 							'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
 							'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
 
-		path =	[ os.path.join(self.__gtkmmBasePath, item)	for item in gtkmmCppPath ]
-		path +=	[ os.path.join(self.__gtkBasePath, item)	for item in gtkCppPath ]
+		path =	[ os.path.join(gtkConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
+		path +=	[ os.path.join(gtkConfig.getBasePath(), item)	for item in gtkCppPath ]
 
 		return path
 
@@ -883,7 +947,7 @@ class Use_gtkmm( IUse ):
 					'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv']
 			pakLibs = []
 
-			if version in ['2-16-0', '2-14-3'] :
+			if version in ['2-16-0', '2-14-3']:
 				if self.config == 'release' :
 					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs += [	'glademm-vc90-2_4', 'xml++-vc90-2_6', 'gtkmm-vc90-2_4', 'gdkmm-vc90-2_4', 'atkmm-vc90-1_6',
@@ -922,18 +986,13 @@ class Use_gtkmm( IUse ):
 		pakLibPath	= []
 
 		if self.platform == 'win32' :
-			path = os.path.join( self.__gtkBasePath, 'lib')
+			path = os.path.join( gtkConfig.getBasePath(), 'lib' )
 			libPath.append( path )
 			pakLibPath.append( path )
 
-			path = os.path.join( self.__gtkmmBasePath, 'bin')
+			path = os.path.join( gtkConfig.getGtkmmBasePath(), 'bin' )
 			libPath.append( path )
 			pakLibPath.append( path )
-
-	#	if self.platform == "posix" :
-	#		path = os.path.join( self.__sofa_path, 'lib/linux')
-	#		libPath.append( path )
-	#		pakLibPath.append( path )
 
 		return libPath, pakLibPath
 
