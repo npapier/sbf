@@ -1,0 +1,7 @@
+# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# Distributed under the terms of the GNU General Public License (GPL)
+# as published by the Free Software Foundation.
+# Author Nicolas Papier
+
+# This file is here only to be able to launch sbf from its main installation directory.
+type = 'none'
