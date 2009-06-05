@@ -3,11 +3,6 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-#from SCons.Script.SConsOptions import *
-#from SCons.Script.SConscript import SConsEnvironment
-
-
-
 import datetime
 import glob
 import os
@@ -20,13 +15,6 @@ from sbfUtils import *
 from SCons.Environment import *
 from SCons.Options import *
 from SCons.Script import *
-
-
-
-#import SCons.Action
-#import SCons.Util
-#import SCons.Builder
-#import SCons.Tool
 
 
 
@@ -459,12 +447,13 @@ class SConsBuildFramework :
 		Help("""
 Type:
  'scons sbfCheck' to check sbf and related tools installation.
+ 'scons sbfPak' to launch sbf packaging system.
 
  'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
- 'scons svnCheckout'
- 'scons svnClean'
- 'scons svnStatus'
- 'scons svnUpdate'
+ 'scons svnCheckout' to check out a working copy from a repository.
+ 'scons svnClean' to clean up recursively the working copy.
+ 'scons svnStatus' to print the status of working copy files and directories.
+ 'scons svnUpdate' to update your working copy.
 
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
  'scons clean' to clean intermediate files (see buildPath option).
@@ -811,7 +800,6 @@ SConsBuildFramework options:
 
 	###### Configures CxxFlags & LinkFlags ######
 	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ) :
-
 		# Configures Microsoft Platform SDK for Windows Server 2003 R2 (TODO: FIXME : should be done by SCons...)
 		if self.myIsExpressEdition :
 			#print 'self.myCppPath=', self.myCppPath

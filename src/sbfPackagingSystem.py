@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -14,13 +14,14 @@ import zipfile
 
 
 
+# @todo usable as a library or a cmd
+# @todo without SConstruct() stuff
+
 # @todo improves stats (see test() for missing stats), and install/remove/test() prints the same stats => flags to select interesting stats)).
 # @todo renames into sbf-get and uses apt-get syntax.
 # @todo search
 # @todo verbose mode (see sbf ?)
 # @todo verbose option
-# @todo usable as a library or a cmd
-# @todo without SConstruct() stuff
 class PackagingSystem:
 	#
 	__localPath					= None
@@ -120,11 +121,7 @@ class PackagingSystem:
 
 
 
-	def __init__( self ) :
-		# Initializes the sbf main class to retrieve configuration
-		from src.SConsBuildFramework import SConsBuildFramework
-		sbf = SConsBuildFramework()
-
+	def __init__( self, sbf ) :
 		self.__localPath				= sbf.myInstallPaths[0]
 		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
 		self.__pakPaths 				= [os.path.join( self.__localExtPath, 'sbfPak' )]
@@ -589,45 +586,30 @@ class sbfPakCmd( cmd.Cmd ):
 			self.__packagingSystem.info( pathPakName, pattern )
 
 
+def runSbfPakCmd( sbf ):
+	shell = sbfPakCmd( PackagingSystem(sbf) )
+	shell.cmdloop("Welcome to interactive mode of sbfPak")
 
-if __name__ == "SCons.Script" : # @todo Should be "__main__" ?
-	import sys
-	arguments = sys.argv[1:]
-	arguments.remove( '-f' )
-	arguments.remove( 'sbfPackagingSystem.py' )
-
-	shell = sbfPakCmd( PackagingSystem() )
-
-	if len(arguments) == 0 :
-		#
-		shell.cmdloop("Welcome to interactive mode of sbfPak")
-		exit(0)
-	else :
-		# Constructs a string containg the command to execute
-		command = ''
-		for arg in arguments :
-			command += arg + ' '
-
-		# Executes the command
-		shell.onecmd( command )
-		exit(0)
-
-#if not ( (len(arguments) == 1 and arguments[0] in ['interactive']) or \
-#(len(arguments) in [1,2] and arguments[0] in ['list']) or \
-#(len(arguments) == 2 and arguments[0] in ['info', 'install', 'remove', 'test']) or \
-#(len(arguments) == 3 and arguments[0] in ['info']) ):
-#	print "Usage:"
-	#print " sbfPak install|remove|test pakName"
-#	print " sbfPak info pakName [sub-package-name]"
-	#print " sbfPak list [sub-package-name]"
-#	print " sbfPak interactive : Run in interactive mode."
-#	exit(1)
-
-# Constructs the full package name (if needed)
-#pakName	= arguments[1]
-
-#if len(os.path.splitext( pakName )[1]) == 0:
-#	pakName = packagingSystem.completeFilename(pakName)
-
-#print ("Incoming package : %s" % pathPakName )
-#print
+#===============================================================================
+# if __name__ == "SCons.Script" : # @todo Should be "__main__" ?
+#	import sys
+#	arguments = sys.argv[1:]
+#	arguments.remove( '-f' )
+#	arguments.remove( 'sbfPackagingSystem.py' )
+#
+#	shell = sbfPakCmd( PackagingSystem() )
+#
+#	if len(arguments) == 0 :
+#		#
+#		shell.cmdloop("Welcome to interactive mode of sbfPak")
+#		exit(0)
+#	else :
+#		# Constructs a string containg the command to execute
+#		command = ''
+#		for arg in arguments :
+#			command += arg + ' '
+#
+#		# Executes the command
+#		shell.onecmd( command )
+#		exit(0)
+#===============================================================================

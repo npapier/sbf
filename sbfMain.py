@@ -628,8 +628,8 @@ env = SConsEnvironment.sbf.myEnv # TODO remove me (this line is just for compati
 # Prints current 'config' option
 print "\nConfiguration: %s\n" % env['config']
 
-# Dumping construction environment (for debugging).																	# TODO : a method printDebugInfo()
-#env.Dump()
+# Dumping construction environment (for debugging).
+#print env.Dump()
 
 # rsync builder
 env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'] )
@@ -654,8 +654,16 @@ def createRsyncAction( env, target, source, alias = None ):
 env.AddMethod( createRsyncAction )
 
 # target 'sbfCheck'
-Alias('sbfCheck', env.Command('dummyCheckVersion.out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
-Alias('sbfCheck', env.Command('dummyCheckVersion.out2', 'dummy.in', Action( sbfCheck, nopAction ) ) )
+Alias('sbfCheck', env.Command('dummyCheckVersion.out2', 'dummy.in', Action( sbfCheck, printEmptyLine ) ) )
+
+# target 'sbfPak'
+import src.sbfPackagingSystem
+
+def sbfPakAction(target = None, source = None, env = None):
+	src.sbfPackagingSystem.runSbfPakCmd(SConsEnvironment.sbf)
+	return 0
+
+Alias('sbfPak', Command('dummySbfPak.out', 'dummy.in', Action( sbfPakAction, nopAction ) ) )
 
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
