@@ -210,7 +210,7 @@ class IUse :
 
 				if env.GetOption('weak_localext') and (self.getName() not in env['weakLocalExtExclude']):
 					for path in cpppathAbs :
-						env.AppendUnique( CCFLAGS = ['-I' + path ] )
+						env.AppendUnique( CCFLAGS = ['${INCPREFIX}' + path ] )
 				else :
 					env.AppendUnique( CPPPATH = cpppathAbs )
 		else :
@@ -886,7 +886,7 @@ def use_cairomm( self, lenv, elt ) :
 
 	if lenv.GetOption('weak_localext') :
 		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkmmBasePath, cppPath)] )
+			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkmmBasePath, cppPath)] )
 	else :
 		for cppPath in gtkmmCppPath :
 			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
@@ -1037,7 +1037,7 @@ def use_gtkmm( self, lenv, elt ) :
 
 	if lenv.GetOption('weak_localext') :
 		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkmmBasePath, cppPath)] )
+			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkmmBasePath, cppPath)] )
 	else :
 		for cppPath in gtkmmCppPath :
 			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
@@ -1050,7 +1050,7 @@ def use_gtkmm( self, lenv, elt ) :
 
 	if lenv.GetOption('weak_localext') :
 		for cppPath in gtkCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(gtkBasePath, cppPath)] )
+			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkBasePath, cppPath)] )
 	else :
 		for cppPath in gtkCppPath :
 			lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
@@ -1099,7 +1099,7 @@ def use_physx( self, lenv, elt ) :
 
 	if lenv.GetOption('weak_localext') :
 		for cppPath in physxCppPath :
-			lenv.AppendUnique( CCFLAGS = ['-I' + os.path.join(physxBasePath, cppPath)] )
+			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(physxBasePath, cppPath)] )
 	else :
 		for cppPath in physxCppPath :
 			lenv.AppendUnique( CPPPATH = os.path.join(physxBasePath, cppPath) )

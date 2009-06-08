@@ -215,8 +215,8 @@ class SConsBuildFramework :
 				# env["MSVS_VERSION"] = "8.0"
 				# Tool("msvc")(env)
 
-			pathFromEnv = os.environ['PATH'] ### FIXME not very recommended
-			if pathFromEnv != None :
+			pathFromEnv = os.environ['PATH'] ### @todo uses getInstallPath() on win32 to FIXME not very recommended
+			if pathFromEnv != None:
 				self.myEnv['ENV']['PATH'] += pathFromEnv
 			#print "self.myEnv['MSVS']", self.myEnv['MSVS']
 			#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
@@ -438,7 +438,7 @@ class SConsBuildFramework :
 		#
 		self.initializeGlobalsFromEnv( self.myEnv )
 
-		# Initializes 'use' repository
+		# Initializes 'uses' repository
 		if UseRepository.isInitialized() == False :
 			UseRepository.initialize( self )
 			UseRepository.add( UseRepository.getAll() )
@@ -596,8 +596,8 @@ SConsBuildFramework options:
 		if self.myEnv.GetOption('weak_localext') :
 			self.myGlobalCppPath = self.myIncludesInstallPaths
 			for element in self.myIncludesInstallExtPaths :
-				self.myEnv.Append( CCFLAGS = ['-I' + element] )
-		else :
+				self.myEnv.Append( CCFLAGS = ['${INCPREFIX}' + element] )
+		else:
 			self.myGlobalCppPath = self.myIncludesInstallPaths + self.myIncludesInstallExtPaths
 
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
@@ -799,17 +799,42 @@ SConsBuildFramework options:
 
 
 	###### Configures CxxFlags & LinkFlags ######
-	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ) :
-		# Configures Microsoft Platform SDK for Windows Server 2003 R2 (TODO: FIXME : should be done by SCons...)
-		if self.myIsExpressEdition :
-			#print 'self.myCppPath=', self.myCppPath
-			if lenv.GetOption('weak_localext') :
-				lenv.Append( CCFLAGS = ['-IC:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'] )
-			else :
-				lenv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
-			#self.myCppPath.append( 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
-			#print 'self.myCppPath=', self.myCppPath
-			lenv.Append( LIBPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib' )
+	# @todo This method is called for each project => OPTME 0.5s for 50 projects
+	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
+		# Assumes cl compiler has been selected
+
+		if self.myCCVersionNumber >= 9.000000:
+			# Configures Microsoft Visual C++ 2008
+			# @todo FIXME should be done by SCons...
+			visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\INCLUDE'
+			visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\LIB'
+			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
+			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\lib'
+
+			if self.myIsExpressEdition:
+				# at least for rc.exe
+				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+
+				if lenv.GetOption('weak_localext'):
+					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
+				else:
+					lenv.Append( CPPPATH = [visualInclude, msSDKInclude] )
+
+				lenv.Append( LIBPATH = [visualLib, msSDKLib] )
+
+		elif self.myCCVersionNumber >= 8.000000:
+			# Configures Microsoft Platform SDK for Windows Server 2003 R2
+			# @todo FIXME should be done by SCons...
+			psdkInclude	= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'
+			psdkLib		= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib'
+
+			if self.myIsExpressEdition:
+				if lenv.GetOption('weak_localext'):
+					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % psdkInclude] )
+				else:
+					lenv.Append( CPPPATH = [psdkInclude] )
+
+				lenv.Append( LIBPATH = psdkLib )
 
 		#
 		if self.myCCVersionNumber >= 8.000000 :
