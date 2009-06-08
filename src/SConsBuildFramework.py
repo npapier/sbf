@@ -837,7 +837,10 @@ SConsBuildFramework options:
 				lenv.Append( LIBPATH = psdkLib )
 
 		#
-		if self.myCCVersionNumber >= 8.000000 :
+		if self.myCCVersionNumber >= 9.000000 :
+			self.myCxxFlags += ' /GS- '
+			self.myCxxFlags += ' /EHsc '
+		elif self.myCCVersionNumber >= 8.000000 :
 			self.myCxxFlags += ' /EHsc '			# /GX is deprecated in Visual C++ 2005
 		elif self.myCCVersionNumber >= 7.000000 :
 			self.myCxxFlags += ' /GX '
