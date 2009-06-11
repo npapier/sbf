@@ -803,6 +803,8 @@ SConsBuildFramework options:
 	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
 		# Assumes cl compiler has been selected
 
+		# CPPPATH of rcEnv must be configured like below too. !!! BE CAREFUL !!!
+		# @todo CL9, CL8 classes to configure env and/or retrieves the whole configuration. Idem for gcc...
 		if self.myCCVersionNumber >= 9.000000:
 			# Configures Microsoft Visual C++ 2008
 			# @todo FIXME should be done by SCons...
@@ -1357,13 +1359,20 @@ SConsBuildFramework options:
 #env.Alias( self.myProject + '_resource.rc_generation' )
 		Alias( self.myProject + '_resource.rc_generation' )
 
-		if self.myPlatform == 'win32' :
-			# Uses a specialized environment for rc compiler
+		if self.myPlatform == 'win32':
+			# Uses a specialized environment for rc compiler (with CPPPATH correctly initialized)
 			rcEnv = lenv.Clone()
 
-			# Configures CPPPATH for PSDK
-			if self.myIsExpressEdition :
-				rcEnv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
+			if rcEnv.GetOption('weak_localext'):
+				if self.myCCVersionNumber >= 9.000000:
+					# Configures Microsoft Visual C++ 2008
+					msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
+					if self.myIsExpressEdition:
+						rcEnv.Append( CPPPATH = [msSDKInclude] )
+				elif self.myCCVersionNumber >= 8.000000:
+					if self.myIsExpressEdition:
+						# Configures CPPPATH for PSDK
+						rcEnv.Append( CPPPATH = 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include' )
 
 			# Adds rc directory to CPPPATH
 			rcPath = os.path.join(self.myProjectPathName, 'rc')
