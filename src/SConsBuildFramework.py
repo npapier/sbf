@@ -446,25 +446,36 @@ class SConsBuildFramework :
 		# Generates help
 		Help("""
 Type:
+SBF related targets
  'scons sbfCheck' to check sbf and related tools installation.
  'scons sbfPak' to launch sbf packaging system.
 
+svn related targets
  'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
  'scons svnCheckout' to check out a working copy from a repository.
  'scons svnClean' to clean up recursively the working copy.
  'scons svnStatus' to print the status of working copy files and directories.
  'scons svnUpdate' to update your working copy.
 
+build related targets
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
  'scons clean' to clean intermediate files (see buildPath option).
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
+run related targets
+ 'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
+ 'scons onlyrun' idem to 'onlyRun'
+ 'scons run' to launch the executable (if any), but firstly build the project.
+
+visual studio related targets
  'scons vcproj' to build Microsoft Visual Studio project file(s).
  'scons vcproj_clean' or 'scons vcproj_mrproper'
 
+doxygen related targets
  'scons dox' to generate doxygen documentation.
  'scons dox_clean' or 'scons dox_mrproper'
 
+packaging related targets
  'scons zipRuntime'
  'scons zipDeps'
  'scons zipPortable'
@@ -1639,6 +1650,17 @@ SConsBuildFramework options:
 			#else:
 			#	if lenv.GetOption('verbosity') :
 			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+
+		# Target: onlyRun (or onlyrun)
+		if len(lenv['sbf_bin']) > 0:
+			executableFilename	= os.path.basename(lenv['sbf_bin'][0])
+			pathForExecutable	= os.path.join(self.myInstallDirectory, 'bin')
+
+			Alias(	['onlyRun', 'onlyrun'],
+					lenv.Command('dummyRun.out', 'dummy.in',
+							Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
+									'Launching executable %s from %s...' % (executableFilename, pathForExecutable) ) ) )
+
 
 
 	###### Helpers ######

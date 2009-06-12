@@ -682,6 +682,11 @@ Alias( 'svnStatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( no
 Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
 
+### special targets: onlyRun (or onlyrun) and run ###
+Alias( ['onlyRun', 'onlyrun'] )
+Alias( 'run', ['build', 'onlyrun'] )
+
+
 ### special target : vcproj ###
 from src.SConsBuildFramework import printGenerate
 
