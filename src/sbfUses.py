@@ -255,8 +255,11 @@ class Use_boost( IUse ):
 			return []
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32' and version == '1-38-0' :
-			return [ 'boost1-38-0' ]
+		if self.platform == 'win32':
+			if version == '1-38-0':
+				return [ 'boost1-38-0' ]
+			elif version == '1-34-1':
+				return [ 'boost1-34-1' ]
 		else:
 			return []
 
