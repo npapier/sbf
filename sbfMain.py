@@ -151,6 +151,7 @@ class PosixTarget:
 			return str(target[0])
 
 ###### Archiver action ######
+# @todo Uses 7Zip (because make_archive seems to allocate a lot of memory for big files...)
 def zipArchiver( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
@@ -683,8 +684,10 @@ Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( no
 
 
 ### special targets: onlyRun (or onlyrun) and run ###
-Alias( ['onlyRun', 'onlyrun'] )
-Alias( 'run', ['build', 'onlyrun'] )
+Alias( 'onlyRun' )
+Alias( 'onlyrun', 'onlyRun' )
+
+Alias( 'run' )
 
 
 ### special target : vcproj ###

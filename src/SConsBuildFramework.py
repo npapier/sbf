@@ -1651,15 +1651,18 @@ SConsBuildFramework options:
 			#	if lenv.GetOption('verbosity') :
 			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 
-		# Target: onlyRun (or onlyrun)
+		# Targets: onlyRun and run
 		if len(lenv['sbf_bin']) > 0:
 			executableFilename	= os.path.basename(lenv['sbf_bin'][0])
 			pathForExecutable	= os.path.join(self.myInstallDirectory, 'bin')
 
-			Alias(	['onlyRun', 'onlyrun'],
-					lenv.Command('dummyRun.out', 'dummy.in',
-							Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
-									'Launching executable %s from %s...' % (executableFilename, pathForExecutable) ) ) )
+			Alias( 'onlyRun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
+								Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
+										'\n' + stringFormatter(lenv, 'Launching %s' % executableFilename) ) ) )
+
+			Alias( 'run', lenv.Command(self.myProject + '_run.out', 'install',
+								Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
+										'\n' + stringFormatter(lenv, 'Launching %s' % executableFilename) ) ) )
 
 
 
