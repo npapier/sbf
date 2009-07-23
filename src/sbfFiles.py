@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -88,3 +88,14 @@ def searchAllFiles( searchDirectory, oFiles ) :
 			pathfilename = os.path.join(dirpath,file)
 			oFiles.append(pathfilename)
 	### print 'oFiles=', oFiles
+
+
+# Gets all files and directories
+def searchAllFilesAndDirectories( searchDirectory, oFiles, oDirectories, walkTopDown = True ):
+	for dirpath, dirnames, filenames in os.walk( searchDirectory, topdown = walkTopDown ):
+		for dir in dirnames:
+			oDirectories.append( os.path.join(dirpath, dir) )
+			#print 'oDirectories+=', os.path.join(dirpath, dir)
+		for file in filenames:
+			oFiles.append( os.path.join(dirpath, file) )
+			#print 'oFiles+=', os.path.join(dirpath, file)

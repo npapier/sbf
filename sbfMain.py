@@ -342,6 +342,7 @@ Section "Uninstall"
 
   ; Remove files
 !include "${SBFPROJECTNAME}_uninstall_files.nsi"
+  RmDir "$INSTDIR\\var"
 
   ; Remove redistributable
 !insertmacro RmRedistributableTscc
@@ -370,96 +371,68 @@ SectionEnd
 
 
 
+# @todo moves to sbfFiles.py
 def computeDepth( path ) :
 	return len( os.path.normpath( path ).split( os.sep ) )
 
 
-def zipPrinterForNSISInstallFiles( target, source, env ) :
+def zipPrinterForNSISInstallFiles( target, source, env ):
 	# Retrieves informations
-	targetName = str(target[0])
-	sourceName = str(source[0])
+	targetName = str( target[0] )
+	sourceName = str( source[0] )
+	parentOfSource = os.path.dirname( sourceName )
 
-	# Opens zip file (source) and creates target file
-	import zipfile
+	encounteredFiles		= []
+	encounteredDirectories	= []
+	searchAllFilesAndDirectories( sourceName, encounteredFiles, encounteredDirectories )
 
-	sourceRoot = os.path.splitext(sourceName)[0]
-	encounteredDirectory = set()
-	encounteredFiles = []
-
-	zip = zipfile.ZipFile( sourceName )
-	with open( targetName, 'w' ) as file :
-		for name in zip.namelist() :
-			normalizeName = os.path.normpath(name)
-
-			# Stores informations for CreateDirectory
-			directoryName = os.path.dirname(normalizeName)
-			if directoryName not in encounteredDirectory :
-				# Adds this new directory
-				encounteredDirectory.add( directoryName )
-
-			# Stores informations for Copy
-			encounteredFiles.append( "File \"/oname=$OUTDIR\%s\" \"%s\%s\"\n" % (normalizeName, sourceRoot, normalizeName) )
-		zip.close()
-
+	# Creates target file
+	with open( targetName, 'w' ) as outputFile:
 		# Creates directories
-		sortedDirectories = sorted( encounteredDirectory, key = computeDepth, reverse = False )
-		for directory in sortedDirectories :
-			file.write( "CreateDirectory \"$OUTDIR\%s\"\n" % directory )
+		for directory in encounteredDirectories:
+			outputFile.write( "CreateDirectory \"$OUTDIR\%s\"\n" % convertPathAbsToRel(sourceName, directory) )
 
 		# Copies files
-		for filesCommand in encounteredFiles :
-			file.write( filesCommand )
+		for file in encounteredFiles:
+			outputFile.write( "File \"/oname=$OUTDIR\%s\" \"%s\"\n" % (convertPathAbsToRel(sourceName, file), file) )
 
 
-def zipPrinterForNSISUninstallFiles( target, source, env ) :
+def zipPrinterForNSISUninstallFiles( target, source, env ):
 	# Retrieves informations
-	targetName = str(target[0])
-	sourceName = str(source[0])
+	targetName = str( target[0] )
+	sourceName = str( source[0] )
+	parentOfSource = os.path.dirname( sourceName )
 
-	# Opens zip file (source) and creates target file
-	import zipfile
+	encounteredFiles		= []
+	encounteredDirectories	= []
+	searchAllFilesAndDirectories( sourceName, encounteredFiles, encounteredDirectories, walkTopDown = False )
 
-	sourceRoot = os.path.splitext(sourceName)[0]
-	encounteredDirectory = set()
+	# Creates target file
+	with open( targetName, 'w' ) as outputFile:
+		# Removes files
+		for file in encounteredFiles:
+			outputFile.write( "Delete \"$INSTDIR\%s\"\n" % convertPathAbsToRel(sourceName, file) )
 
-	zip = zipfile.ZipFile( sourceName )
-	with open( targetName, 'w' ) as file :
-		for name in zip.namelist() :
-			normalizeName = os.path.normpath(name)
+		# Removes directories
+		for directory in encounteredDirectories:
+			outputFile.write( "RmDir \"$INSTDIR\%s\"\n" % convertPathAbsToRel(sourceName, directory) )
 
-			# Stores informations for RmDir done after Delete
-			directoryName = os.path.dirname(normalizeName)
-			if directoryName not in encounteredDirectory :
-				# Removes this new directory (not recursively)
-				encounteredDirectory.add( directoryName )
-
-				# Removes this new directory RECURSIVELY if needed
-				while True :
-					(directoryName, dummy) = os.path.split( directoryName )
-					if len(directoryName) == 0 :
-						break
-					if directoryName not in encounteredDirectory :
-						encounteredDirectory.add( directoryName )
-			# Delete file
-			file.write( "Delete \"$INSTDIR\%s\"\n" % normalizeName )
-		zip.close()
-
-		# Deletes encountered directories
-		sortedDirectories = sorted( encounteredDirectory, key = computeDepth, reverse = True )
-		for directory in sortedDirectories :
-			file.write( "RmDir \"$INSTDIR\%s\"\n" % directory )
 
 
 def printZipPrinterForNSISInstallFiles( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
-	return ("Generates %s (nsis install files) from %s" % (targetName, sourceName) )
+	return ("Generates %s (nsis install files) from %s" % (os.path.basename(targetName), sourceName) )
 
 def printZipPrinterForNSISUninstallFiles( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
-	return ("Generates %s (nsis uninstall files) from %s" % (targetName, sourceName) )
+	return ("Generates %s (nsis uninstall files) from %s" % (os.path.basename(targetName), sourceName) )
 
+def printZipPrinterForNSISGeneration( target, source, env ) :
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return ("Generates %s (nsis main script)" % os.path.basename(targetName) )
 
 
 ###### Action function for sbfCheck target #######
@@ -672,6 +645,12 @@ env['sbf_projectPathName'	]	= env['sbf_launchDir']
 env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 
+
+# Builds sbf library
+if env['nodeps'] == False:
+	env.sbf.buildProject( env.sbf.mySbfLibraryRoot )
+
+# Builds the root project (i.e. launchDir).
 env.sbf.buildProject( env['sbf_projectPathName'] )
 
 
@@ -1212,12 +1191,24 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 	# Creates builders for zip and nsis
 	# @todo Do the same without Builder ?
+	# @todo Moves in sbfSevenZip.py and co
+
+	env['SEVENZIP']			= '7z'
+	# @todo checks win32 registry (idem for nsis)
+	env['SEVENZIPPATH']		= "C:\\Program Files\\7-Zip"
+	env['SEVENZIPCOM']		= "\"$SEVENZIPPATH\\$SEVENZIP\""
+	env['SEVENZIPCOMSTR']	= "Zipping ${TARGET.file}"
+	env['SEVENZIPADDFLAGS']	= "a -r"
+	env['SEVENZIPFLAGS']	= "-bd"
+	env['SEVENZIPSUFFIX']	= ".7z"
+	env['BUILDERS']['SevenZipAdd'] = Builder( action = Action( "$SEVENZIPCOM $SEVENZIPADDFLAGS $SEVENZIPFLAGS $TARGET $SOURCE", env['SEVENZIPCOMSTR'] ) )
+
 	import SCons																			# from SCons.Script.SConscript import SConsEnvironment
-	zipBuilder = env.Builder(	action=Action(zipArchiver,printZipArchiver),
-								source_factory=SCons.Node.FS.default_fs.Entry,
-								target_factory=SCons.Node.FS.default_fs.Entry,
-								multi=0 )
-	env['BUILDERS']['zipArchiver'] = zipBuilder
+#	zipBuilder = env.Builder(	action=Action(zipArchiver,printZipArchiver),
+#								source_factory=SCons.Node.FS.default_fs.Entry,
+#								target_factory=SCons.Node.FS.default_fs.Entry,
+#								multi=0 )
+#	env['BUILDERS']['zipArchiver'] = zipBuilder
 
 	zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles),
 										source_factory=SCons.Node.FS.default_fs.Entry,
@@ -1231,7 +1222,7 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 										multi=0 )
 	env['BUILDERS']['zipPrinterForNSISUninstallFiles'] = zipPrinterBuilder
 
-	zipPrinterBuilder = rootProjectEnv.Builder(	action=Action(nsisGeneration, printZipPrinterForNSISUninstallFiles ),
+	zipPrinterBuilder = rootProjectEnv.Builder(	action=Action(nsisGeneration, printZipPrinterForNSISGeneration ),
 										source_factory=SCons.Node.FS.default_fs.Entry,
 										target_factory=SCons.Node.FS.default_fs.Entry,
 										multi=0 )
@@ -1342,7 +1333,7 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 
 			projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
 
-			for absFile in allFiles :
+			for absFile in allFiles:
 				relFile = convertPathAbsToRel( projectPathName, absFile )
 				srcZipFiles += InstallAs( os.path.join(srcZipPath, projectRelPath, relFile), absFile )
 		# else nothing to do
@@ -1385,54 +1376,49 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 			else:
 				raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
 
-	runtimeZipArchiverAction = env.zipArchiver( runtimeZipPath + '.zip', runtimeZipPath )
-	env.Depends( runtimeZipArchiverAction, runtimeZipFiles )
-	Alias( 'zipRuntime',	[runtimeZipFiles, runtimeZipArchiverAction] )
+	runtimeZip = runtimeZipPath + env['SEVENZIPSUFFIX']
+	Alias( 'zipRuntime_generate7z', env.SevenZipAdd( runtimeZip, Dir(runtimeZipPath) ) )
+	Alias( 'zipRuntime',	[runtimeZipFiles, 'zipRuntime_generate7z'] )
 
-	depsZipArchiverAction = env.zipArchiver( depsZipPath + '.zip', depsZipPath )
-	env.Depends( depsZipArchiverAction, depsZipFiles )
-	Alias( 'zipDeps',		[depsZipFiles, depsZipArchiverAction] )
+	depsZip = depsZipPath + env['SEVENZIPSUFFIX']
+	Alias( 'zipDeps_generate7z', env.SevenZipAdd( depsZip, Dir(depsZipPath) ) )
+	Alias( 'zipDeps',		[depsZipFiles, 'zipDeps_generate7z'] )
 
-	portableZipArchiverAction = env.zipArchiver( portableZipPath + '.zip', portableZipPath )
-	env.Depends( portableZipArchiverAction, portableZipFiles )
-	Alias( 'zipPortable',	[portableZipFiles, portableZipArchiverAction] )
+	portableZip = portableZipPath + env['SEVENZIPSUFFIX']
+	Alias( 'zipPortable_generate7z', env.SevenZipAdd( portableZip, Dir(portableZipPath) ) )
+	Alias( 'zipPortable',	[portableZipFiles, 'zipPortable_generate7z' ] )
 
-	devZipArchiverAction = env.zipArchiver( devZipPath + '.zip', devZipPath )
-	env.Depends( devZipArchiverAction, devZipFiles )
-	Alias( 'zipDev',		[devZipFiles, devZipArchiverAction] )
+	devZip = devZipPath + env['SEVENZIPSUFFIX']
+	Alias( 'zipDev_generate7z', env.SevenZipAdd( devZip, Dir(devZipPath) ) )
+	Alias( 'zipDev',		[devZipFiles, 'zipDev_generate7z'] )
 
-	if len(srcZipFiles) > 0 :
-		srcZipArchiverAction = env.zipArchiver(	srcZipPath + '.zip', srcZipPath )
-		env.Depends( srcZipArchiverAction, srcZipFiles )
-		Alias( 'zipSrc',	[srcZipFiles, srcZipArchiverAction] )
+	if len(srcZipFiles) > 0:
+		srcZip = srcZipPath + env['SEVENZIPSUFFIX']
+		Alias( 'zipSrc_generate7z', env.SevenZipAdd( srcZip, Dir(srcZipPath) ) )
+		Alias( 'zipSrc',	[srcZipFiles, 'zipSrc_generate7z'] )
 	else:
 		Alias( 'zipSrc',	srcZipFiles )
 
-	if env['publishOn'] :
-		# @todo print message
-		zipRsyncAction = env.createRsyncAction( os.path.basename(runtimeZipPath + '.zip'), File(runtimeZipPath + '.zip'), 'zipRuntime' )
-		env.Depends( zipRsyncAction, runtimeZipArchiverAction )
+	if env['publishOn']:
+# @todo print message
+		zipRsyncAction = env.createRsyncAction( os.path.basename(runtimeZip), File(runtimeZip), 'zipRuntime' )
 
-		zipRsyncAction = env.createRsyncAction( os.path.basename(depsZipPath + '.zip'), File(depsZipPath + '.zip'), 'zipDeps' )
-		env.Depends( zipRsyncAction, depsZipArchiverAction )
+		zipRsyncAction = env.createRsyncAction( os.path.basename(depsZip), File(depsZip), 'zipDeps' )
 
-		zipRsyncAction = env.createRsyncAction( os.path.basename(portableZipPath + '.zip'), File(portableZipPath + '.zip'), 'zipPortable' )
-		env.Depends( zipRsyncAction, portableZipArchiverAction )
+		zipRsyncAction = env.createRsyncAction( os.path.basename(portableZip), File(portableZip), 'zipPortable' )
 
-		zipRsyncAction = env.createRsyncAction( os.path.basename(devZipPath + '.zip'), File(devZipPath + '.zip'), 'zipDev' )
-		env.Depends( zipRsyncAction, devZipArchiverAction )
+		zipRsyncAction = env.createRsyncAction( os.path.basename(devZip), File(devZip), 'zipDev' )
 
-		if len(srcZipFiles) > 0 :
-			zipRsyncAction = env.createRsyncAction( os.path.basename(srcZipPath + '.zip'), File(srcZipPath + '.zip'), 'zipSrc' )
-			env.Depends( zipRsyncAction, srcZipArchiverAction )
+		if len(srcZipFiles) > 0:
+			zipRsyncAction = env.createRsyncAction( os.path.basename(srcZip), File(srcZip), 'zipSrc' )
 		#else: nothing to do
 
 	Alias( 'zip', ['zipRuntime', 'zipDeps', 'zipPortable', 'zipDev', 'zipSrc'] )
 
-	Alias( 'nsis', 'zipPortable' )
-	Alias( 'nsis', env.Install( zipPakPath, os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis', 'redistributables.nsi') ) )
-	# @todo Creates a function to InstallAs( dirDest, dirSrc * )
+	Alias( 'nsis', ['build', portableZipFiles] )
 	sbfRcNsisPath = os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
+	Alias( 'nsis', env.Install( zipPakPath, os.path.join(sbfRcNsisPath, 'redistributables.nsi') ) )
+	# @todo Creates a function to InstallAs( dirDest, dirSrc * )
 	redistributableFiles = []
 	searchFiles(	os.path.join(sbfRcNsisPath, 'Redistributable'),
 					redistributableFiles,
@@ -1441,11 +1427,11 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 	for file in redistributableFiles :
 		installRedistributableFiles += env.InstallAs( os.path.join( zipPakPath, file.replace(sbfRcNsisPath + os.sep, '') ), file )
 	Alias( 'nsis', installRedistributableFiles )
-	Alias( 'nsis', env.zipPrinterForNSISInstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi'),
-														portableZipPath + '.zip' ) )
-	Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	os.path.join(zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi'),
-														portableZipPath + '.zip' ) )
-	Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', portableZipPath + '.zip' ) )
+	nsisInstallFiles	= os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi' )
+	nsisUninstallFile	= os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi' )
+	Alias( 'nsis', env.zipPrinterForNSISInstallFiles( nsisInstallFiles, portableZipPath ) )
+	Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	nsisUninstallFile, portableZipPath ) )
+	Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisInstallFiles, nsisUninstallFile] ) )#portableZipPath + '.zip' ) )
 	# @todo FIXME nsisRootPath
 	# @todo Nsis builder
 	nsisRootPath = "C:\\Program Files\\NSIS"
