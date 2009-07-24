@@ -167,7 +167,8 @@ class SConsBuildFramework :
 	myFailedVcsProjects				= set()
 	myParsedProjects				= {}
 	myParsedProjectsSet				= set()
-
+	# @todo checks usage of myBuiltProjects instead of myParsedProjects
+	myBuiltProjects					= {}
 
 
 
@@ -1131,6 +1132,8 @@ SConsBuildFramework options:
 		return self.vcsOperation( lenv, self.myVcs.add, 'add' )
 
 	def vcsCheckout( self, lenv ):
+		opDescription = 'checkout'
+
 		# Checks validity of 'svnUrls' option.
 		if len(self.mySvnUrls) == 0:
 			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
@@ -1138,7 +1141,6 @@ SConsBuildFramework options:
 		# Checks if this project must skip vcs operation
 		if self.myProject in self.mySvnCheckoutExclude :
 			if lenv.GetOption('verbosity') :
-				opDescription = 'checkout'
 				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
 				print "sbfInfo: Exclude from vcs %s." % opDescription
 				print "sbfInfo: Skip to the next project..."
@@ -1155,6 +1157,7 @@ SConsBuildFramework options:
 
 	def vcsUpdate( self, lenv ):
 		opDescription = 'update'
+
 		# Checks if this project must skip vcs operation
 		if self.myProject in self.mySvnUpdateExclude :
 			if lenv.GetOption('verbosity') :
@@ -1283,6 +1286,9 @@ SConsBuildFramework options:
 
 		if lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] or configureOnly:
 			return
+		else:
+			# Adds the new environment
+			self.myBuiltProjects[self.myProject] = lenv
 
 		### Starts building stage
 		os.chdir( projectPathName )

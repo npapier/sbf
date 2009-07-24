@@ -992,8 +992,8 @@ if	'vcproj_build' in env.sbf.myBuildTargets or \
 	# target vcproj_build
 	env.Alias( 'vcproj_build', 'vcproj_build_print' )
 
-	for projectName in env.sbf.myParsedProjects :
-		lenv			= env.sbf.myParsedProjects[projectName]
+	for projectName in env.sbf.myBuiltProjects:
+		lenv			= env.sbf.myBuiltProjects[projectName]
 		projectPathName	= lenv['sbf_projectPathName']
 		project			= lenv['sbf_project']
 		output1			= getNormalizedPathname( projectPathName + os.sep + project + '.vcproj' )
