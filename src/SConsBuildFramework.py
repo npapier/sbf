@@ -806,7 +806,9 @@ SConsBuildFramework options:
 				usesConverter ),
 
 			('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
-			('stdlibs', 'The list of standard libraries used during the link stage.', [])
+			('stdlibs', 'The list of standard libraries used during the link stage.', []),
+			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
+							allowed_values=('none', 'gtest'), ignorecase=1 )
 								)
 
 		return myOptions
@@ -1332,6 +1334,12 @@ SConsBuildFramework options:
 		uses( self, lenv, lenv['uses'] )
 		# @todo moves usesAlreadyConfigured into uses() function
 		usesAlreadyConfigured = set( lenv['uses'] )
+
+		# Configures lenv[*] with lenv['test']
+		if lenv['test'] != 'none':
+			uses( self, lenv, [lenv['test']] )
+			# @todo moves usesAlreadyConfigured into uses() function
+			usesAlreadyConfigured.add( lenv['test'] )
 
 		# Configures lenv[*] with lenv['uses'] from dependencies
 		# @todo OPTME

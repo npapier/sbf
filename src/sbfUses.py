@@ -395,6 +395,17 @@ class Use_colladadom( IUse ):
 				return libs, libs
 
 
+class Use_ffmpeg( IUse ):
+	def getName( self ):
+		return 'ffmpeg'
+
+	def getLIBS( self, version ):
+		libs = [ 'avcodec-52', 'avdevice-52', 'avformat-52', 'avutil-49', 'swscale-0' ]
+		#libs = [ 'avcodec-52', 'avformat-52', 'avutil-49' ]
+		if self.platform == 'win32':
+			return libs, libs
+
+
 class Use_opengl( IUse ):
 	def getName( self ):
 		return "opengl"
@@ -549,6 +560,9 @@ class Use_glut( IUse ):
 class Use_gtest( IUse ):
 	def getName(self ):
 		return "gtest"
+
+	def getCPPDEFINES( self, version ):
+		return ['SBF_GTEST']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
@@ -757,7 +771,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_opengl(), Use_itk(),
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_opengl(), Use_itk(),
 					Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod

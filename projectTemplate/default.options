@@ -9,3 +9,4 @@ type				= 'shared'	# exec, static, shared, none
 #uses				= []
 #libs				= []
 #stdlibs			= []
+#test				= 'none' # gtest
