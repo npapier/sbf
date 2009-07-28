@@ -594,7 +594,8 @@ class Use_sofa( IUse ):
 			return []
 
 	def getCPPPATH( self, version ):
-		cppPath = [	os.path.join(sofaConfig.getBasePath(), 'modules'),
+		cppPath = [	os.path.join(sofaConfig.getBasePath(), 'applications'),
+					os.path.join(sofaConfig.getBasePath(), 'modules'),
 					os.path.join(sofaConfig.getBasePath(), 'framework'),
 					os.path.join(sofaConfig.getBasePath(), 'include'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
@@ -610,12 +611,12 @@ class Use_sofa( IUse ):
 			pakLibs = []
 			if self.config == 'release' :
 				libs += ['miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree', 'tinyxml']
+						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'tinyxml']
 				pakLibs += ['sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
 							'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
 			else:
 				libs += ['miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed']
+						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofaguid', 'sofasimulationd', 'sofatreed']
 				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
 							'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld']
 			return libs, pakLibs
@@ -623,7 +624,7 @@ class Use_sofa( IUse ):
 			libs = ['xml2', 'z']
 			pakLibs = []
 			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
-					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
+					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofagui', 'libsofasimulation', 'libsofatree']
 			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 						'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 			return libs, pakLibs
