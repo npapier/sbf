@@ -647,7 +647,7 @@ env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 
 
 # Builds sbf library
-if env['nodeps'] == False:
+if env['nodeps'] == False and env['sbf_project'] != 'sbf':
 	env.sbf.buildProject( env.sbf.mySbfLibraryRoot )
 
 # Builds the root project (i.e. launchDir).
