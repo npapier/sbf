@@ -63,6 +63,23 @@ def printGenerate( target, source, localenv ) :
 
 
 
+###### Options : validators and converters ######
+def passthruValidator( key, val, env ):
+	#print ('passthruValidator: %s' % val)
+	pass
+
+
+def passthruConverter( val ):
+	#print ('passthruConverter: %s' % val)
+
+	list_of_values = convertToList( val )
+
+	#print ('passthruConverter: %s' % list_of_values)
+
+	return list_of_values
+
+
+
 ###### SConsBuildFramework main class ######
 
 class SConsBuildFramework :
@@ -808,7 +825,12 @@ SConsBuildFramework options:
 			('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
 			('stdlibs', 'The list of standard libraries used during the link stage.', []),
 			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
-							allowed_values=('none', 'gtest'), ignorecase=1 )
+							allowed_values=('none', 'gtest'), ignorecase=1 ),
+
+			(	'runParams',
+				"The list of parameters given to executable by targets 'run' and 'onlyRun'. To specify multiple parameters at command-line uses a comma-separated list of parameters, which will get translated into a space-separated list for passing to the launching command.",
+				[],
+				passthruValidator, passthruConverter )
 								)
 
 		return myOptions
@@ -1022,7 +1044,11 @@ SConsBuildFramework options:
 		tryVcsCheckout = 'svnCheckout' in self.myBuildTargets #or (self.myProject+'_svnCheckout' in self.myBuildTargets)
 
 		#
-		lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = tryVcsCheckout or tryVcsStatus
+		if (tryVcsCheckout or tryVcsStatus) == False:
+			lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = False
+			return
+		else:
+			lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = True
 
 		# What must be done for this project ?
 		#existanceOfProjectPathName	tryVcsCheckout		action
@@ -1204,7 +1230,7 @@ SConsBuildFramework options:
 
 
 		# Tests existance of project path name
-		if os.path.isdir(self.myProjectPathName) :
+		if os.path.isdir(self.myProjectPathName):
 			successful = self.readProjectOptionsAndUpdateEnv( lenv )
 			if successful:
 				# Adds the new environment
@@ -1642,13 +1668,21 @@ SConsBuildFramework options:
 			executableFilename	= os.path.basename(lenv['sbf_bin'][0])
 			pathForExecutable	= os.path.join(self.myInstallDirectory, 'bin')
 
+			cmdParameters = ''
+			for param in lenv['runParams']:
+				cmdParameters += ' ' + param
+
+			printMsg = '\n' + stringFormatter(lenv, 'Launching %s' % executableFilename)
+			if len(cmdParameters) > 0:
+				printMsg += stringFormatter(lenv, 'with parameters:%s' % cmdParameters)
+
 			Alias( 'onlyRun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
-								Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
-										'\n' + stringFormatter(lenv, 'Launching %s' % executableFilename) ) ) )
+								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
+										printMsg ) ) )
 
 			Alias( 'run', lenv.Command(self.myProject + '_run.out', 'install',
-								Action(	'cd %s && %s' % (pathForExecutable, executableFilename),
-										'\n' + stringFormatter(lenv, 'Launching %s' % executableFilename) ) ) )
+								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
+										printMsg ) ) )
 
 
 
