@@ -372,8 +372,16 @@ SectionEnd
 
 
 # @todo moves to sbfFiles.py
-def computeDepth( path ) :
-	return len( os.path.normpath( path ).split( os.sep ) )
+def computeDepth( path ):
+	path = os.path.normpath( path )
+	if path == '.':
+		return 0
+
+	countNonEmpty = 0
+	for elt in path.split( os.sep ):
+		if len(elt) > 0:
+			countNonEmpty += 1
+	return countNonEmpty
 
 
 def zipPrinterForNSISInstallFiles( target, source, env ):
@@ -679,12 +687,12 @@ from src.SConsBuildFramework import printGenerate
 # @todo Generates vcproj but with c++ project and not makefile project.
 # @todo Generates eclipse cdt project.
 
-def printVisualStudioProjectStage( target, source, localenv ) :
-	return '\n' + stringFormatter( localenv, "Visual Studio Project generation stage" ) + '\n'
-
 def printVisualStudioProjectBuild( target, source, localenv ) :
 	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Project" % localenv['sbf_project'] )
 #	return "---- Build %s Visual Studio Project ----\n---- from %s ----" % (localenv['sbf_project'], localenv['sbf_projectPath'])
+
+def printVisualStudioSolutionBuild( target, source, localenv ):
+	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Solution" % localenv['sbf_project'] )
 
 
 
@@ -760,6 +768,7 @@ def vcprojDebugFileAction( target, source, env ) :
 	remoteMachine	= platform.node()
 
 	# Opens output file
+# @todo Version="8,00" => Version="%s"
 	with open( targetName, 'w' ) as file :
 		fileStr = """<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioUserFile
@@ -829,9 +838,10 @@ def vcprojDebugFileAction( target, source, env ) :
 		file.write( fileStr % (workingDirectory, remoteMachine, workingDirectory, remoteMachine ) )
 
 
-def vcprojAction( target, source, env ) :
+def vcprojAction( target, source, env ):
 
 	# Retrieves template location
+#@todo takes care of cl version
 	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
 
 	# Retrieves/computes additionnal informations
@@ -849,7 +859,7 @@ def vcprojAction( target, source, env ) :
 	elif len(env['sbf_lib_object']) > 0 :
 		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
 		MSVSProjectBuildTargetDirectory = 'lib'
-	else :
+	else:
 		# Nothing to debug (project of type 'none')
 		return
 
@@ -864,6 +874,11 @@ def vcprojAction( target, source, env ) :
 		MSVSProjectBuildTargetRelease	= MSVSProjectBuildTarget.replace('_D.', '.', 1)
 		MSVSProjectBuildTargetDebug		= MSVSProjectBuildTarget
 
+	# Generates project GUID
+# @todo uses uuid module and moves import elsewhere
+	import pythoncom
+	env['sbf_projectGUID'] = str(pythoncom.CreateGuid())
+
 	# Creates new output file (vcproj)
 	targetFile = open( targetName, 'w')
 
@@ -872,15 +887,16 @@ def vcprojAction( target, source, env ) :
 		# Computes regular expressions
 		customizePoint		= r"^#sbf"
 		reCustomizePoint	= re.compile( customizePoint )
-		re_sbfProjectName		= re.compile( customizePoint + r"(.*)(sbfProjectName)(.*)$" )
-		re_sbfProjectPathName	= re.compile( customizePoint + r"(.*)(sbfProjectPathName)(.*)$" )
-		re_sbfOutputDebug		= re.compile( customizePoint + r"(.*)(sbfOutputDebug)(.*)$" )
-		re_sbfOutputRelease		= re.compile( customizePoint + r"(.*)(sbfOutputRelease)(.*)$" )
-		re_sbfDefines			= re.compile( customizePoint + r"(.*)(sbfDefines)(.*)$" )
-		re_sbfInclude			= re.compile( customizePoint + r"(.*)(sbfInclude)(.*)$" )
-		re_sbfShare				= re.compile( customizePoint + r"(.*)(sbfShare)(.*)$" )
-		re_sbfSrc				= re.compile( customizePoint + r"(.*)(sbfSrc)(.*)$" )
-		re_sbfFiles				= re.compile( customizePoint + r"(.*)(sbfFiles)(.*)$" )
+		re_sbfProjectName			= re.compile( customizePoint + r"(.*)(sbfProjectName)(.*)$" )
+		re_sbfProjectGUID			= re.compile( customizePoint + r"(.*)(sbfProjectGUID)(.*)$" )
+		re_sbfOutputDebug			= re.compile( customizePoint + r"(.*)(sbfOutputDebug)(.*)$" )
+		re_sbfOutputRelease			= re.compile( customizePoint + r"(.*)(sbfOutputRelease)(.*)$" )
+		re_sbfDefines				= re.compile( customizePoint + r"(.*)(sbfDefines)(.*)$" )
+		re_sbfIncludeSearchPath		= re.compile( customizePoint + r"(.*)(sbfIncludeSearchPath)(.*)$" )
+		re_sbfInclude				= re.compile( customizePoint + r"(.*)(sbfInclude)(.*)$" )
+		re_sbfShare					= re.compile( customizePoint + r"(.*)(sbfShare)(.*)$" )
+		re_sbfSrc					= re.compile( customizePoint + r"(.*)(sbfSrc)(.*)$" )
+		re_sbfFiles					= re.compile( customizePoint + r"(.*)(sbfFiles)(.*)$" )
 
 		for line in sourceFile :
 			# Tests if the incoming line has a customization point, i.e. '#sbf' at the beginning.
@@ -897,10 +913,10 @@ def vcprojAction( target, source, env ) :
 					targetFile.write( newLine )
 					continue
 
-				# sbfProjectPathName customization point
-				res = re_sbfProjectPathName.match(line)
+				# sbfProjectGUID customization point
+				res = re_sbfProjectGUID.match(line)
 				if res != None :
-					newLine = res.expand( r"\1%s\3\n" % env['sbf_projectPathName'].replace('\\', '\\\\') )
+					newLine = res.expand( r"\1%s\3\n" % env['sbf_projectGUID'] )
 					targetFile.write( newLine )
 					continue
 
@@ -938,6 +954,33 @@ def vcprojAction( target, source, env ) :
 					targetFile.write( newLine )
 					continue
 
+				# sbfIncludeSearchPath customization point
+				res = re_sbfIncludeSearchPath.match(line)
+				if res != None :
+					# Adds 'include' directory of all dependencies
+# @todo Adds localext/include ?
+# @todo a function (see same code in slnAction())
+					projectsRoot = env.sbf.getProjectsRoot(env)
+					depthFromProjectsRoot = computeDepth( convertPathAbsToRel(projectsRoot, env['sbf_projectPathName']) )
+					relPathToProjectsRoot = "..\\" * depthFromProjectsRoot
+
+					allDependencies = env.sbf.getAllDependencies( env )
+
+					includeSearchPath = 'include;'
+					for dependency in allDependencies:
+						dependencyEnv = env.sbf.myParsedProjects[ dependency ]
+						pathToInclude = getNormalizedPathname( os.path.join( dependencyEnv['sbf_projectPathName'], 'include' ) )
+						if not os.path.exists(pathToInclude):
+							# Skip project without 'include' sub-directory
+							continue
+
+						newPath = relPathToProjectsRoot + convertPathAbsToRel(projectsRoot, pathToInclude)
+						includeSearchPath += newPath + ';'
+
+					newLine = res.group(1) + includeSearchPath + res.group(3) + '\n'
+					targetFile.write( newLine )
+					continue
+
 				# sbfInclude customization point
 				res = re_sbfInclude.match(line)
 				if res != None :
@@ -969,6 +1012,63 @@ def vcprojAction( target, source, env ) :
 
 
 
+# Creates Visual Studio Solution file (.sln).
+def slnAction( target, source, env ):
+	# Retrieves/computes additional informations
+	targetName = str(target[0])
+
+	myProjectPathName	= env['sbf_projectPathName']
+	myProject			= env['sbf_project']
+
+	# Opens output file
+	with open( targetName, 'w' ) as file :
+#@todo takes care of cl version
+		fileStr = """Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual C++ Express 2005
+%s
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+"""
+		# Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgsdkTestGtk", "vgsdkTestGtk.vcproj", "{D09E3669-F458-4EDB-90F9-F8E1BD99428C}"
+		projectStr = """Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "%s", "%s", "%s"
+EndProject
+"""
+
+		# Adds all dependencies
+		projectsRoot = env.sbf.getProjectsRoot(env)
+		depthFromProjectsRoot = computeDepth( convertPathAbsToRel(projectsRoot, myProjectPathName) )
+		relPathToProjectsRoot = "..\\" * depthFromProjectsRoot
+
+		allDependencies = env.sbf.getAllDependencies( env )
+
+		ProjectEndProjectSection = ''
+		for dependency in allDependencies + [myProject]:
+			dependencyEnv = env.sbf.myParsedProjects[ dependency ]
+# @todo vgBase (no GUID) should not by skipped and sbf (not in deps) ?
+			if 'sbf_projectGUID' not in dependencyEnv:
+				#print ('Skip %s' % dependencyEnv['sbf_project'] )
+				continue
+
+			pathToVcprojFile = getNormalizedPathname( os.path.join( dependencyEnv['sbf_projectPathName'], dependencyEnv['sbf_project'] + '.vcproj' ) )
+
+			ProjectEndProjectSection += projectStr % (
+												dependencyEnv['sbf_project'],
+												relPathToProjectsRoot + convertPathAbsToRel(projectsRoot, pathToVcprojFile),
+												dependencyEnv['sbf_projectGUID'] )
+
+		file.write( fileStr % ProjectEndProjectSection )
+
+
+
 if	'vcproj_build' in env.sbf.myBuildTargets or \
 	'vcproj' in env.sbf.myBuildTargets or \
 	'vcproj_clean' in env.sbf.myBuildTargets or \
@@ -986,26 +1086,34 @@ if	'vcproj_build' in env.sbf.myBuildTargets or \
 
 	vcprojDebugFilePostFix = "." + remoteMachine + "." + user + ".user"
 
-	#
-	env.Alias( 'vcproj_build_print', env.Command('vcproj_build_print.out1', 'dummy.in', Action( nopAction, printVisualStudioProjectStage ) ) )
-
 	# target vcproj_build
-	env.Alias( 'vcproj_build', 'vcproj_build_print' )
-
 	for projectName in env.sbf.myBuiltProjects:
 		lenv			= env.sbf.myBuiltProjects[projectName]
 		projectPathName	= lenv['sbf_projectPathName']
 		project			= lenv['sbf_project']
+
 		output1			= getNormalizedPathname( projectPathName + os.sep + project + '.vcproj' )
 		output2			= output1 + vcprojDebugFilePostFix
+		slnOutput		= getNormalizedPathname( projectPathName + os.sep + project + '.sln' )
+
+		#
 		env.Alias( 'vcproj_build', lenv.Command('vcproj_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
+
 		# Creates the project file (.vcproj)
 		env.Alias( 'vcproj_build', lenv.Command( output1, 'dummy.in', Action( vcprojAction, printGenerate) ) )
+
 		# Creates project file (.vcproj) containing informations about the debug session.
 		env.Alias( 'vcproj_build', lenv.Command( output2, 'dummy.in', Action( vcprojDebugFileAction, printGenerate) ) )
+
 		env.AlwaysBuild( [ output1, output2 ] )
 
-	env.Alias( 'vcproj', 'vcproj_build' )
+		# Creates the solution file (.sln)
+		env.Alias( 'sln_build', lenv.Command('sln_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioSolutionBuild ) ) )
+		env.Alias( 'sln_build', lenv.Command( slnOutput, 'dummy.in', Action( slnAction, printGenerate) ) )
+		env.AlwaysBuild( slnOutput )
+
+	env.Alias( 'vcproj', ['vcproj_build', 'sln_build'] )
+# @todo Removes .ncb and .suo
 	env.Alias( 'vcproj_clean', 'vcproj' )
 	env.Alias( 'vcproj_mrproper', 'vcproj_clean' )
 
@@ -1260,13 +1368,8 @@ if (	('zipRuntime'		in env.sbf.myBuildTargets) or
 	Alias( 'zipSrc',		['build', 'zip_print', 'zipSrc_print'] )
 
 	# Computes common root of all projects
-	projectPathNameList = []
-	for projectName in sbf.myParsedProjects :
-		lenv = sbf.myParsedProjects[projectName]
-		projectPathNameList.append( lenv['sbf_projectPathName'] )
+	rootOfProjects = env.sbf.getProjectsRoot( rootProjectEnv )
 
-	rootOfProjects = getNormalizedPathname( os.path.commonprefix( projectPathNameList ) )
-#print "rootOfProjects=", rootOfProjects
 	# Collects files to create the zip
 	runtimeZipFiles 	= []
 	depsZipFiles		= []

@@ -106,7 +106,9 @@ class SConsBuildFramework :
 
 	# sbf_version_major
 	# sbf_version_minor
-	# 'sbf_version_maintenance
+	# sbf_version_maintenance
+
+	# sbf_projectGUID
 	#@todo completes this list
 
 	# Options instances
@@ -501,7 +503,7 @@ run related targets
  'scons run' to launch the executable (if any), but firstly build the project.
 
 visual studio related targets
- 'scons vcproj' to build Microsoft Visual Studio project file(s).
+ 'scons vcproj' to build Microsoft Visual Studio project (.vcproj) and solution (.sln) files.
  'scons vcproj_clean' or 'scons vcproj_mrproper'
 
 doxygen related targets
@@ -1769,3 +1771,18 @@ SConsBuildFramework options:
 
 		# Returns the list
 		return recursiveDependencies
+
+
+	# Computes common root of all projects
+	# Returns the desired path
+	def getProjectsRoot( self, lenv ):
+		projectPathNameList = [ lenv['sbf_projectPathName'] ]
+		for projectName in self.getAllDependencies(lenv):
+			projectPathNameList.append( self.myParsedProjects[projectName]['sbf_projectPathName'] )
+
+		projectsRoot = getNormalizedPathname( os.path.commonprefix( projectPathNameList ) )
+
+		if os.path.exists(projectsRoot):
+			return projectsRoot
+		else:
+			return os.path.dirname(projectsRoot)

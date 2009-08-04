@@ -3,7 +3,7 @@
 	ProjectType="Visual C++"
 	Version="8,00"
 #sbf	Name="sbfProjectName"
-#sbf	ProjectGUID="sbfProjectPathName"
+#sbf	ProjectGUID="sbfProjectGUID"
 	Keyword="MakeFileProj"
 	>
 	<Platforms>
@@ -27,7 +27,7 @@
 				CleanCommandLine="scons debug clean"
 #sbf				Output="sbfOutputDebug"
 #sbf				PreprocessorDefinitions="sbfDefines"
-				IncludeSearchPath="include"
+#sbf				IncludeSearchPath="sbfIncludeSearchPath"
 				ForcedIncludes=""
 				AssemblySearchPath=""
 				ForcedUsingAssemblies=""
