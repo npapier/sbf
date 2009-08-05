@@ -611,14 +611,14 @@ class Use_sofa( IUse ):
 			pakLibs = []
 			if self.config == 'release' :
 				libs += ['miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'tinyxml']
+						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'tinyxml', 'TriangularMeshRefiner']
 				pakLibs += ['sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-							'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree']
+							'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner']
 			else:
 				libs += ['miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofaguid', 'sofasimulationd', 'sofatreed']
+						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofaguid', 'sofasimulationd', 'sofatreed', 'TriangularMeshRefinerd']
 				pakLibs += ['sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-							'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld']
+							'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld', 'TriangularMeshRefinerd']
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
@@ -650,6 +650,7 @@ class Use_sofa( IUse ):
 				pakLibPath.append( path )
 
 			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
+			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/sofa-plugins' ) )
 			return libPath, pakLibPath
 
 		elif self.platform == 'posix' :
