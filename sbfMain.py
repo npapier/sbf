@@ -603,7 +603,7 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 #Export('env') not needed.
 
 EnsurePythonVersion(2, 5)
-EnsureSConsVersion(1, 0, 0)
+EnsureSConsVersion(1, 2, 0)
 
 SConsEnvironment.sbf = SConsBuildFramework()
 env = SConsEnvironment.sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
@@ -875,9 +875,11 @@ def vcprojAction( target, source, env ):
 		MSVSProjectBuildTargetDebug		= MSVSProjectBuildTarget
 
 	# Generates project GUID
-# @todo uses uuid module and moves import elsewhere
-	import pythoncom
-	env['sbf_projectGUID'] = str(pythoncom.CreateGuid())
+	# {7CB2C740-32F7-4EE3-BE34-B98DFD1CE0C1}
+	# @todo moves import elsewhere
+	import uuid
+	env['sbf_projectGUID'] = '{%s}' % str(uuid.uuid4()).upper()
+#	env['sbf_projectGUID'] = str(pythoncom.CreateGuid())
 
 	# Creates new output file (vcproj)
 	targetFile = open( targetName, 'w')
