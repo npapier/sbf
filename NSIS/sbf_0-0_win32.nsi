@@ -39,7 +39,7 @@
 ; @todo silent mode
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-0"
+!define SBFPROJECTVERSION	"0-1"
 !define PRODUCTNAME			"SConsBuildFramework"
 
 ;--------------------------------
@@ -66,6 +66,9 @@
 !define TORTOISESVN64		"TortoiseSVN-1.6.1.16129-x64-svn-1.6.1.msi"
 
 
+!define GTKMM_DEVEL			"gtkmm-win32-devel-2.16.0-2.exe"
+
+
 !define PYREADLINE_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.5"
 !define SCONS_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.5"
 !define PYSVN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.5 PySVN_is1"
@@ -75,6 +78,9 @@
 !define GRAPHVIZ_REG_INSTALLPATH	"SOFTWARE\ATT\Graphviz"
 
 !define SVNCLIENT_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CollabNet Subversion Client"
+
+
+!define GTKMM_DEVEL_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gtkmm"
 
 
 ### Redistributable ###
@@ -233,6 +239,55 @@ UninstPage instfiles
 
 ;--------------------------------
 
+
+; Optional section (can be disabled by the user)
+Section "Documentation tools"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${DOXYGEN}
+!insertmacro InstallAndLaunchRedistributable ${GRAPHVIZ}
+
+SectionEnd
+
+
+; Optional section (can be disabled by the user)
+Section "Version control system"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${SVNCLIENT}
+!insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN} "/i"
+!insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN64} "/i"
+
+; @todo portable apps for dt (eclipse, npp)
+
+SectionEnd
+
+
+; Optional section (can be disabled by the user)
+Section "gtkmm"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${GTKMM_DEVEL}
+
+SectionEnd
+
+
+
 ; The stuff to install
 ; @todo separates prerequisites and core
 Section "Sbf prerequisites and core (required)"
@@ -285,39 +340,6 @@ Section "Sbf prerequisites and core (required)"
 SectionEnd
 
 
-; Optional section (can be disabled by the user)
-Section "Documentation tools"
-
-  SetShellVarContext all
-
-  ; Set output path to the installation directory.
-  SetOutPath $INSTDIR
-
-  ; Redistributable
-!insertmacro InstallAndLaunchRedistributable ${DOXYGEN}
-!insertmacro InstallAndLaunchRedistributable ${GRAPHVIZ}
-
-SectionEnd
-
-
-; Optional section (can be disabled by the user)
-Section "Version control system"
-
-  SetShellVarContext all
-
-  ; Set output path to the installation directory.
-  SetOutPath $INSTDIR
-
-  ; Redistributable
-!insertmacro InstallAndLaunchRedistributable ${SVNCLIENT}
-!insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN} "/i"
-!insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN64} "/i"
-
-; @todo portable apps for dt (eclipse, npp)
-
-SectionEnd
-
-
 ; @todo Adds menu shortcuts for launching sub-installer and sbf uninstall.
 
 ; Optional section (can be disabled by the user)
@@ -353,23 +375,23 @@ ExecWait "$0\uninst-nsis.exe"
 !insertmacro RmRedistributable ${NSIS}
 
 ; PYREADLINE
-!insertmacro UninstallString "pyreadline" PYREADLINE_UNINSTALL_STRING
+!insertmacro UninstallString "pyreadline" ${PYREADLINE_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${PYREADLINE}
 ; SCONS
-!insertmacro UninstallString "scons" SCONS_UNINSTALL_STRING
+!insertmacro UninstallString "scons" ${SCONS_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${SCONS}
 ; PYSVN
-!insertmacro UninstallString "pysvn" PYSVN_UNINSTALL_STRING
+!insertmacro UninstallString "pysvn" "${PYSVN_UNINSTALL_STRING}"
 !insertmacro RmRedistributable ${PYSVN}
 ; PYWIN32
-!insertmacro UninstallString "pywin32" PYWIN32_UNINSTALL_STRING
+!insertmacro UninstallString "pywin32" ${PYWIN32_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${PYWIN32}
 ; PYTHON
 !insertmacro MSIUninstallRedistributable ${PYTHON}
 !insertmacro RmRedistributable ${PYTHON}
 
 ; DOXYGEN
-!insertmacro UninstallString "doxygen" DOXYGEN_UNINSTALL_STRING
+!insertmacro UninstallString "doxygen" ${DOXYGEN_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${DOXYGEN}
 ; GRAPHVIZ
 ReadRegStr $0 HKLM ${GRAPHVIZ_REG_INSTALLPATH} InstallPath
@@ -378,7 +400,7 @@ ExecWait "$0\Uninstall.exe"
 !insertmacro RmRedistributable ${GRAPHVIZ}
 
 ; SVNCLIENT
-!insertmacro UninstallString "CollabNet subversion (client version)" SVNCLIENT_UNINSTALL_STRING
+!insertmacro UninstallString "CollabNet subversion (client version)" "${SVNCLIENT_UNINSTALL_STRING}"
 !insertmacro RmRedistributable ${SVNCLIENT}
 ; TORTOISESVN
 !insertmacro MSIUninstallRedistributable ${TORTOISESVN}
@@ -386,6 +408,10 @@ ExecWait "$0\Uninstall.exe"
 ; TORTOISESVN64
 !insertmacro MSIUninstallRedistributable ${TORTOISESVN64}
 !insertmacro RmRedistributable ${TORTOISESVN64}
+
+; GTKMM_DEVEL
+!insertmacro UninstallString "gtkmm" ${GTKMM_DEVEL_UNINSTALL_STRING}
+!insertmacro RmRedistributable ${GTKMM_DEVEL}
 
   RmDir $INSTDIR\Redistributable
 
