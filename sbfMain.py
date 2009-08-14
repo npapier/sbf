@@ -119,6 +119,7 @@ import SCons.Errors
 from src.sbfFiles	import *
 from src.sbfUses	import uses
 from src.sbfUtils	import *
+from src.sbfVersion import printSBFVersion
 from src.SConsBuildFramework import stringFormatter
 
 
@@ -574,25 +575,10 @@ def checkCC(target = None, source = None, env = None) :
 	checkTool( env, 'gcc', '@gcc -dumpversion' )
 
 
-def printSBFVersion() :
-	print 'SConsBuildFramework version : %s' % getSBFVersion()
-
-
-def getSBFVersion() :
-	# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
-	sbfRoot = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
-
-	# Reads version number in VERSION file
-	versionFile	= os.path.join(sbfRoot, 'VERSION')
-	if os.path.lexists( versionFile ) :
-		with open( versionFile ) as file :
-			return file.readline()
-	else :
-		return "Missing %s file. So version number is unknown." % versionFile
-
-
 
 from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLine
+
+
 
 ###### Initial environment ######
 #

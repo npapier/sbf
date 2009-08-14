@@ -13,6 +13,7 @@ from sbfSubversion import *
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUses import Use_cairo, Use_gtkmm, Use_itk
 from sbfUtils import *
+from sbfVersion import printSBFVersion
 from SCons.Environment import *
 from SCons.Options import *
 from SCons.Script import *
@@ -1257,8 +1258,9 @@ SConsBuildFramework options:
 		# Constructs dependencies
 		#print "sbfDebug:%s dependencies are %s" % (self.myProject, lenv['deps'])
 
-		# Adds help on project options only for the first project.
-		if len(self.myParsedProjects) == 1 :
+		# Adds help on project options only for the "first" project ( exclude lib/sbf when automatically added to dependencies ).
+		if	( len(self.myParsedProjects) == 1 and lenv['sbf_launchDir'] == self.myProjectPathName ) or\
+			( len(self.myParsedProjects) == 2 and lenv['nodeps'] == False ):
 			Help("""
 
 
