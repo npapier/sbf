@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+#sbf	Version="sbfFileVersion"
 #sbf	Name="sbfProjectName"
 #sbf	ProjectGUID="sbfProjectGUID"
 	Keyword="MakeFileProj"

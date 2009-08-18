@@ -664,21 +664,41 @@ Alias( 'run' )
 
 
 ### special target : vcproj ###
+
 from src.SConsBuildFramework import printGenerate
 
 # @todo Creates a new python file for vcproj stuffs and embedded file sbfTemplateMakefile.vcproj
-# @todo Generates section "Header Files", "Share Files" and "Source Files" only if not empty.
-# @todo Generates sln
 # @todo Configures localExt include path.
+
+# @todo Generates section "Header Files", "Share Files" and "Source Files" only if not empty.
 # @todo Generates vcproj but with c++ project and not makefile project.
 # @todo Generates eclipse cdt project.
 
-def printVisualStudioProjectBuild( target, source, localenv ) :
-	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Project" % localenv['sbf_project'] )
-#	return "---- Build %s Visual Studio Project ----\n---- from %s ----" % (localenv['sbf_project'], localenv['sbf_projectPath'])
+#@todo Moves to a more private location
+VisualStudioDict = {	'slnHeader'				: '',
+						'vcprojHeader'			: '',
+
+
+						'slnHeader9'			:
+"""Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C++ Express 2008
+""",
+						'vcprojHeader9'			: '9,00',
+
+
+						'slnHeader8'			:
+"""Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual C++ Express 2005
+""",
+						'vcprojHeader8'			: '8,00',
+
+}
 
 def printVisualStudioSolutionBuild( target, source, localenv ):
 	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Solution" % localenv['sbf_project'] )
+
+def printVisualStudioProjectBuild( target, source, localenv ) :
+	return '\n' + stringFormatter( localenv, "Build %s Visual Studio Project" % localenv['sbf_project'] )
 
 
 
@@ -754,12 +774,11 @@ def vcprojDebugFileAction( target, source, env ) :
 	remoteMachine	= platform.node()
 
 	# Opens output file
-# @todo Version="8,00" => Version="%s"
 	with open( targetName, 'w' ) as file :
 		fileStr = """<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioUserFile
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="%s"
 	ShowAllFiles="false"
 	>
 	<Configurations>
@@ -821,13 +840,12 @@ def vcprojDebugFileAction( target, source, env ) :
 		</Configuration>
 	</Configurations>
 </VisualStudioUserFile>"""
-		file.write( fileStr % (workingDirectory, remoteMachine, workingDirectory, remoteMachine ) )
+		file.write( fileStr % (VisualStudioDict['vcprojHeader'], workingDirectory, remoteMachine, workingDirectory, remoteMachine ) )
 
 
 def vcprojAction( target, source, env ):
 
 	# Retrieves template location
-#@todo takes care of cl version
 	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
 
 	# Retrieves/computes additionnal informations
@@ -875,6 +893,7 @@ def vcprojAction( target, source, env ):
 		# Computes regular expressions
 		customizePoint		= r"^#sbf"
 		reCustomizePoint	= re.compile( customizePoint )
+		re_sbfFileVersion			= re.compile( customizePoint + r"(.*)(sbfFileVersion)(.*)$" )
 		re_sbfProjectName			= re.compile( customizePoint + r"(.*)(sbfProjectName)(.*)$" )
 		re_sbfProjectGUID			= re.compile( customizePoint + r"(.*)(sbfProjectGUID)(.*)$" )
 		re_sbfOutputDebug			= re.compile( customizePoint + r"(.*)(sbfOutputDebug)(.*)$" )
@@ -893,6 +912,13 @@ def vcprojAction( target, source, env ):
 				targetFile.write( line )
 			else :
 				# The line must be customized
+
+				# sbfFileVersion customization point
+				res = re_sbfFileVersion.match(line)
+				if res != None :
+					newLine = res.group(1) + VisualStudioDict['vcprojHeader'] + res.group(3) + '\n'
+					targetFile.write( newLine )
+					continue
 
 				# sbfProjectName customization point
 				res = re_sbfProjectName.match(line)
@@ -1010,10 +1036,7 @@ def slnAction( target, source, env ):
 
 	# Opens output file
 	with open( targetName, 'w' ) as file :
-#@todo takes care of cl version
-		fileStr = """Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual C++ Express 2005
-%s
+		fileStr = VisualStudioDict['slnHeader'] + """%s
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -1073,6 +1096,21 @@ if	'vcproj_build' in env.sbf.myBuildTargets or \
 	remoteMachine	= platform.node()
 
 	vcprojDebugFilePostFix = "." + remoteMachine + "." + user + ".user"
+
+	# Configures VisualStudioDict
+	if env.sbf.myCC == 'cl':
+		if env.sbf.myCCVersionNumber >= 9.000000 :
+			VisualStudioDict['slnHeader']			= VisualStudioDict['slnHeader9']
+			VisualStudioDict['vcprojHeader']		= VisualStudioDict['vcprojHeader9']
+		elif env.sbf.myCCVersionNumber >= 8.000000 :
+			VisualStudioDict['slnHeader']			= VisualStudioDict['slnHeader8']
+			VisualStudioDict['vcprojHeader']		= VisualStudioDict['vcprojHeader8']
+		else:
+			raise SCons.Errors.UserError( "Unsupported cl compiler version: %i" % env.sbf.myCCVersionNumber )
+	else:
+		# Uses cl8-0 by default
+		VisualStudioDict['slnHeader']			= VisualStudioDict['slnHeader8']
+		VisualStudioDict['vcprojHeader']		= VisualStudioDict['vcprojHeader8']
 
 	# target vcproj_build
 	for projectName in env.sbf.myBuiltProjects:
