@@ -47,7 +47,7 @@
 				CleanCommandLine="scons release clean"
 #sbf				Output="sbfOutputRelease"
 #sbf				PreprocessorDefinitions="sbfDefines"
-				IncludeSearchPath="include"
+#sbf				IncludeSearchPath="sbfIncludeSearchPath"
 				ForcedIncludes=""
 				AssemblySearchPath=""
 				ForcedUsingAssemblies=""
