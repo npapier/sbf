@@ -55,6 +55,14 @@ SBF_API const boost::filesystem::path getTopLevel( const Type & type );
  */
 SBF_API const boost::filesystem::path get( const Type & type, const Module & module = Module() );
 
+/**
+ * @brief	Creates folders recursively if don't exists.
+ *
+ * @param	path		the path
+ *
+ * @return	true folder were create
+ */
+SBF_API const bool mkdirs( const std::string path );
 
 
 } // namespace path
