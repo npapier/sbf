@@ -18,6 +18,7 @@ import shutil
 from Environment import Environment, Paths
 
 # @todo Improves output
+# @todo takes care of PATH for machine (not only PATH for current user).
 # @todo Moves functions in sbfUtils.py ?
 
 # @todo function getInstallPath( program, .... ).
@@ -135,6 +136,11 @@ pakPaths = [ 'V:\\Dev\\localExt_win32_cl8-0', 'V:\\Dev\\localExt_win32_cl8-0\\pe
 #svnUrls = { 'glContext'	: 'http://oglpp.googlecode.com/svn/glContext/trunk',
 #            'gle'			: 'http://oglpp.googlecode.com/svn/gle/trunk',
 #            'glo'			: 'http://oglpp.googlecode.com/svn/glo/trunk',
+#            'vgsdk'		: 'http://vgsdk.googlecode.com/svn/branches/0-4' } for ULIS (vgsdk branches/0-4 from googlecode)
+
+#svnUrls = { 'glContext'	: 'http://oglpp.googlecode.com/svn/glContext/trunk',
+#            'gle'			: 'http://oglpp.googlecode.com/svn/gle/trunk',
+#            'glo'			: 'http://oglpp.googlecode.com/svn/glo/trunk',
 #            'vgsdk'		: 'http://vgsdk.googlecode.com/svn/trunk' }
 
 # to authenticate check out the source code using your login: [ 'svn+ssh://login@orange/srv/svn/lib', 'svn+ssh://login@orange/srv/svn/bin' ]
@@ -231,8 +237,8 @@ addToPath( os.path.join(getDoxygenInstallPath(), 'bin'), paths )
 print
 
 # Adds svn to PATH
-addToPath( os.path.join(getCollabNetSubversionClientInstallPath(), 'bin'), paths )
-addToPath( os.path.join(getCollabNetSubversionServerInstallPath(), 'bin'), paths )
+addToPath( getCollabNetSubversionClientInstallPath(), paths )
+addToPath( getCollabNetSubversionServerInstallPath(), paths )
 print
 
 environment.set( 'PATH', paths.getString() )
