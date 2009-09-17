@@ -300,7 +300,7 @@ class Use_boost( IUse ):
 								'boost_signals-vc80-mt-gd-1_34_1', 'boost_thread-vc80-mt-gd-1_34_1', 'boost_unit_test_framework-vc80-mt-gd-1_34_1',
 								'boost_wave-vc80-mt-gd-1_34_1', 'boost_wserialization-vc80-mt-gd-1_34_1' ]
 					return libs, libs
-		elif self.platform == 'posix' and version == '1-34-1':
+		elif self.platform == 'posix' and version in ['1-38-0', '1-34-1']:
 			libs = [	'libboost_date_time-mt',	'libboost_filesystem-mt',		'libboost_graph-mt',
 						'libboost_iostreams-mt',	'libboost_prg_exec_monitor-mt',	'libboost_program_options-mt',
 						'libboost_regex-mt',		'libboost_serialization-mt',
