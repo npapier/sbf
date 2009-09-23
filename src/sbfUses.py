@@ -585,11 +585,11 @@ class Use_sofa( IUse ):
 		return 'sofa'
 
 	def getCPPDEFINES( self, version ):
-		return ['SOFA_DOUBLE', 'SOFA_DEV']
+		return ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS']
 
 	def getCPPFLAGS( self, version ):
 		if self.platform == 'win32' :
-			return ['/wd4250', '/wd4251', '/wd4275', '/wd4996']
+			return ['/wd4250', '/wd4251', '/wd4275', '/wd4800']
 		else:
 			return []
 
@@ -928,19 +928,6 @@ def use_cairomm( self, lenv, elt ) :
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 # @todo support pakLibs
-#
-		#	lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
-# pkg-config gtkmm-2.4 --cflags --libs
-		#if self.platform == 'posix' :
-		#	pass
-		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
-
-		#	lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
-
-
-# @todo fedora != ubuntu/debian
-# @todo 64 vs 32
-#
 class Use_gtkmm( IUse ):
 
 	def getName( self ):
@@ -948,36 +935,27 @@ class Use_gtkmm( IUse ):
 
 	def getVersions( self ):
 		# @todo Don't forget to check SconsBuildFramework.py:buildProject() : usesSet = usesSet.difference(...
-# @todo is this remarks always valid ?
 		return [ '2-16-0', '2-14-3', '2-14-1' ]
 
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
-			gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
-								'lib/giomm-2.4/include', 'include/giomm-2.4',
-								'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
-								'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
-								'lib/libglademm-2.4/include', 'include/libglademm-2.4',
-								'lib/libxml++-2.6/include', 'include/libxml++-2.6',
-								'lib/sigc++-2.0/include', 'include/sigc++-2.0',
-								'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0' ]
+		gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
+							'lib/giomm-2.4/include', 'include/giomm-2.4',
+							'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
+							'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
+							'lib/libglademm-2.4/include', 'include/libglademm-2.4',
+							'lib/libxml++-2.6/include', 'include/libxml++-2.6',
+							'lib/sigc++-2.0/include', 'include/sigc++-2.0',
+							'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0' ]
 
-			gtkCppPath = [		'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
-								'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
-								'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
+		gtkCppPath = [		'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
+							'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
+							'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
 
-			path =	[ os.path.join(gtkConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
-			path +=	[ os.path.join(gtkConfig.getBasePath(), item)	for item in gtkCppPath ]
+		path =	[ os.path.join(gtkConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
+		path +=	[ os.path.join(gtkConfig.getBasePath(), item)	for item in gtkCppPath ]
 
-			return path
-		elif self.platform == 'posix':
-			return [	'/usr/include/gtkmm-2.4', '/usr/lib64/gtkmm-2.4/include', '/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include',
-						'/usr/include/giomm-2.4', '/usr/lib64/giomm-2.4/include', '/usr/include/gdkmm-2.4', '/usr/lib64/gdkmm-2.4/include',
-						'/usr/include/pangomm-1.4', '/usr/include/atkmm-1.6', '/usr/include/gtk-2.0', '/usr/include/sigc++-2.0',
-						'/usr/lib64/sigc++-2.0/include', '/usr/include/glib-2.0', '/usr/lib64/glib-2.0/include', '/usr/lib64/gtk-2.0/include',
-						'/usr/include/cairomm-1.0', '/usr/include/pango-1.0', '/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
-						'/usr/include/libpng12', '/usr/include/atk-1.0' ]
+		return path
 
 
 	def getLIBS( self, version ):
@@ -1014,14 +992,12 @@ class Use_gtkmm( IUse ):
 				return
 
 			return libs, pakLibs
-		elif self.platform == 'posix':
-			libs = [	'gtkmm-2.4', 'giomm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-						'gtk-x11-2.0', 'pangomm-1.4', 'cairomm-1.0', 'glibmm-2.4',
-						'sigc-2.0', 'gdk-x11-2.0', 'atk-1.0', 'gio-2.0',
-						'pangoft2-1.0', 'gdk_pixbuf-2.0', 'pangocairo-1.0', 'cairo',
-						'pango-1.0', 'freetype', 'fontconfig', 'gobject-2.0', 'gmodule-2.0',
-						'glib-2.0' ]
-			return libs, []
+		#if self.platform == 'posix' :
+		#	pass
+		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
+		#	lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
+		#	lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
+
 
 
 	def getLIBPATH( self, version ):
@@ -1036,8 +1012,6 @@ class Use_gtkmm( IUse ):
 			path = os.path.join( gtkConfig.getGtkmmBasePath(), 'bin' )
 			libPath.append( path )
 			pakLibPath.append( path )
-		#else self.platform == 'posix':
-		#	libPath += '/usr/lib64'
 
 		return libPath, pakLibPath
 
