@@ -927,12 +927,12 @@ def use_cairomm( self, lenv, elt ) :
 # @todo support pakLibs
 #
 		#	lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
+#pkg-config gtkglext-1.0 --cflags --libs
 # pkg-config gtkmm-2.4 --cflags --libs
-		#if self.platform == 'posix' :
-		#	pass
-		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
+# @todo		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
 
-		#	lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
+  
+
 
 
 # @todo fedora != ubuntu/debian
@@ -969,12 +969,19 @@ class Use_gtkmm( IUse ):
 
 			return path
 		elif self.platform == 'posix':
-			return [	'/usr/include/gtkmm-2.4', '/usr/lib64/gtkmm-2.4/include', '/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include',
-						'/usr/include/giomm-2.4', '/usr/lib64/giomm-2.4/include', '/usr/include/gdkmm-2.4', '/usr/lib64/gdkmm-2.4/include',
-						'/usr/include/pangomm-1.4', '/usr/include/atkmm-1.6', '/usr/include/gtk-2.0', '/usr/include/sigc++-2.0',
-						'/usr/lib64/sigc++-2.0/include', '/usr/include/glib-2.0', '/usr/lib64/glib-2.0/include', '/usr/lib64/gtk-2.0/include',
-						'/usr/include/cairomm-1.0', '/usr/include/pango-1.0', '/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
-						'/usr/include/libpng12', '/usr/include/atk-1.0' ]
+			gtkglextCppPath	= [	'/usr/include/gtkglext-1.0', '/usr/lib64/gtkglext-1.0/include' ]
+			gtkmmCppPath	= [	'/usr/include/gtkmm-2.4', '/usr/lib64/gtkmm-2.4/include', '/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include',
+								'/usr/include/giomm-2.4', '/usr/lib64/giomm-2.4/include', '/usr/include/gdkmm-2.4', '/usr/lib64/gdkmm-2.4/include',
+								'/usr/include/pangomm-1.4', '/usr/include/atkmm-1.6', '/usr/include/gtk-2.0', '/usr/include/sigc++-2.0',
+								'/usr/lib64/sigc++-2.0/include', '/usr/include/glib-2.0', '/usr/lib64/glib-2.0/include', '/usr/lib64/gtk-2.0/include',
+								'/usr/include/cairomm-1.0', '/usr/include/pango-1.0', '/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
+								'/usr/include/libpng12', '/usr/include/atk-1.0' ]
+
+			return gtkglextCppPath + gtkmmCppPath
+
+
+
+
 
 
 	def getLIBS( self, version ):
@@ -1012,13 +1019,16 @@ class Use_gtkmm( IUse ):
 
 			return libs, pakLibs
 		elif self.platform == 'posix':
-			libs = [	'gtkmm-2.4', 'giomm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-						'gtk-x11-2.0', 'pangomm-1.4', 'cairomm-1.0', 'glibmm-2.4',
-						'sigc-2.0', 'gdk-x11-2.0', 'atk-1.0', 'gio-2.0',
-						'pangoft2-1.0', 'gdk_pixbuf-2.0', 'pangocairo-1.0', 'cairo',
-						'pango-1.0', 'freetype', 'fontconfig', 'gobject-2.0', 'gmodule-2.0',
-						'glib-2.0' ]
-			return libs, []
+			gtkglext	= [	'gtkglext-x11-1.0', 'gdkglext-x11-1.0',
+							'GLU', 'GL', 'Xmu', 'Xt', 'SM', 'ICE',
+							'pangox-1.0', 'X11' ]
+			gtkmm		= [	'gtkmm-2.4', 'giomm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
+							'gtk-x11-2.0', 'pangomm-1.4', 'cairomm-1.0', 'glibmm-2.4',
+							'sigc-2.0', 'gdk-x11-2.0', 'atk-1.0', 'gio-2.0',
+							'pangoft2-1.0', 'gdk_pixbuf-2.0', 'pangocairo-1.0', 'cairo',
+							'pango-1.0', 'freetype', 'fontconfig', 'gobject-2.0', 'gmodule-2.0',
+							'glib-2.0' ]
+			return gtkglext + gtkmm, []
 
 
 	def getLIBPATH( self, version ):
@@ -1047,6 +1057,8 @@ class Use_gtkmm( IUse ):
 					return ['/vd2', '/wd4250', '/wd4312']
 			else:
 				return ['/vd2', '/wd4250']
+		elif self.platform == 'posix':
+			return ['-Wl,--export-dynamic']
 		else:
 			return []
 
