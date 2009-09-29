@@ -988,6 +988,14 @@ SConsBuildFramework options:
 
 		# process myWarningLevel, adds always -Wall option.							TODO: adds more warnings with myWarningLevel = 'high' ?
 		lenv.Append( CXXFLAGS = '-Wall' )
+		lenv.Append( CXXFLAGS = '-Wno-deprecated' )
+		# @todo remove me
+		lenv.Append( CXXFLAGS = '-fpermissive' )
+#		lenv.Append( CXXFLAGS = '-fvisibility=hidden' )
+		lenv.Append( CXXFLAGS = '-fvisibility-inlines-hidden' )
+#		lenv.Append( CXXFLAGS = '-fvisibility-ms-compat' )
+		lenv.Append( LINKFLAGS = '-Wl,-rpath=%s' % os.path.join( self.myInstallDirectory, 'lib' ) )
+
 #		self.myCxxFlags	+= ' -Wall '
 
 
@@ -1705,14 +1713,14 @@ SConsBuildFramework options:
 		coef			= 1.0
 		for version in versionNumberList :
 			versionNumber += float(version) / coef
-			coef = coef / 1000.0
+			coef = coef * 1000.0
 		return versionNumber
 
 	def getVersionNumberTuple( self, versionNumber ) :
 		major				= int(versionNumber)
 		minorDotMaintenance	= (versionNumber-major)*1000
-		minor				= int(minorDotMaintenance)
-		maintenance			= int((minorDotMaintenance-minor)*1000)
+		minor				= int( round(minorDotMaintenance) )
+		maintenance			= int( round((minorDotMaintenance-minor)*1000) )
 		return ( major, minor, maintenance )
 
 	def getVersionNumberString1( self, versionNumber ) :
