@@ -25,10 +25,11 @@
 
 ;--------------------------------
 
+; @todo moves bootstrap.py into an sbf target
 ; @todo svn commit in sbf (run)
 ; @todo Adds 64 bits detection and switch to 64bits version
 ; @todo expert mode/basic mode (yes to all)
-; @todo Modern UI 
+; @todo Modern UI
 ; @todo a version without packages, but with download capabilities
 ; @todo unboostrap to undo what has been done
 
@@ -39,46 +40,50 @@
 ; @todo silent mode
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-1"
-!define PRODUCTNAME			"SConsBuildFramework"
+!define SBFPROJECTVERSION	"0-3-1"
+!define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
 
 !define REDISTDIR	"Redistributable"
 
-!define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.5\InstallPath"
+!define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.6\InstallPath"
 
-!define PYTHON			"python-2.5.4.msi"
-!define PYWIN32			"pywin32-212.win32-py2.5.exe"
-!define PYSVN			"py25-pysvn-svn161-1.7.0-1177.exe"
-!define SCONS			"scons-1.2.0.win32.exe"
-!define PYREADLINE		"pyreadline-1.5-win32-setup.exe"
+!define PYTHON					"python-2.6.3.msi"
+!define PYWIN32					"pywin32-214.win32-py2.6.exe"
+!define PYSVN					"py26-pysvn-svn161-1.7.0-1177.exe"
+!define SCONS					"scons-1.2.0.win32.exe"
+!define PYREADLINE				"pyreadline-1.5-win32-setup.exe"
 
-!define NSIS			"nsis-2.44-setup.exe"
+!define SEVENZIP				"7z465.exe"
+; @todo __7z465-x64.msi__
 
-
-!define DOXYGEN				"doxygen-1.5.8-setup.exe"
-!define GRAPHVIZ			"graphviz-2.16.1.exe"
-
-
-!define SVNCLIENT			"CollabNetSubversion-client-1.6.1-2.win32.exe"
-!define TORTOISESVN			"TortoiseSVN-1.6.1.16129-win32-svn-1.6.1.msi"
-!define TORTOISESVN64		"TortoiseSVN-1.6.1.16129-x64-svn-1.6.1.msi"
+!define NSIS					"nsis-2.45-setup.exe"
 
 
-!define GTKMM_DEVEL			"gtkmm-win32-devel-2.16.0-2.exe"
+!define DOXYGEN					"doxygen-1.6.1-setup.exe"
+!define GRAPHVIZ				"graphviz-2.16.1.exe"
 
 
-!define PYREADLINE_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.5"
-!define SCONS_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.5"
-!define PYSVN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.5 PySVN_is1"
-!define PYWIN32_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.5"
+!define SVNCLIENT				"CollabNetSubversion-client-1.6.1-2.win32.exe"
+!define TORTOISESVN				"TortoiseSVN-1.6.5.16974-win32-svn-1.6.5.msi"
+!define TORTOISESVN64			"TortoiseSVN-1.6.5.16974-x64-svn-1.6.5.msi"
 
-!define DOXYGEN_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1"
-!define GRAPHVIZ_REG_INSTALLPATH	"SOFTWARE\ATT\Graphviz"
 
-!define SVNCLIENT_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CollabNet Subversion Client"
+!define GTKMM_DEVEL				"gtkmm-win32-devel-2.16.0-2.exe"
 
+
+!define PYREADLINE_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.6"
+!define SCONS_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.6"
+!define PYSVN_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.6 PySVN_is1"
+!define PYWIN32_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.6"
+
+!define SEVENZIP_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip"
+
+!define DOXYGEN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1"
+!define GRAPHVIZ_REG_INSTALLPATH		"SOFTWARE\ATT\Graphviz"
+
+!define SVNCLIENT_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CollabNet Subversion Client"
 
 !define GTKMM_DEVEL_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gtkmm"
 
@@ -163,8 +168,9 @@ RequestExecutionLevel user /* RequestExecutionLevel REQUIRED! */
 ;Var SBF_DIR
 
 Function .onInit
+
 ;	UAC::IsAdmin
-;	${If} $0 < 1 
+;	${If} $0 < 1
 ;		MessageBox MB_OK "onInit:isAdmin then : NO"
 ;		ReadEnvStr $0 SCONS_BUILD_FRAMEWORK
 ;		MessageBox MB_OK "onInit:SCONS_BUILD_FRAMEWORK=$0"
@@ -212,7 +218,7 @@ Page components
 Page directory
 Page instfiles
 
-;FIXME 
+;FIXME
 ;PageEx directory
 ;  DirVar $SBF_DIR
 ;PageExEnd
@@ -238,6 +244,21 @@ UninstPage uninstConfirm
 UninstPage instfiles
 
 ;--------------------------------
+
+
+; Optional section (can be disabled by the user)
+;Section "Buildbot (slave only)"
+
+;  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+;  SetOutPath $INSTDIR
+
+  ; Redistributable
+; @todo Twisted_NoDocs-8.2.0.win32-py2.5.exe and buildbot-0.7.10p1.zip (p3 ?)
+; !insertmacro InstallAndLaunchRedistributable ${GTKMM_DEVEL}
+
+;SectionEnd
 
 
 ; Optional section (can be disabled by the user)
@@ -288,6 +309,9 @@ SectionEnd
 
 
 
+
+
+
 ; The stuff to install
 ; @todo separates prerequisites and core
 Section "Sbf prerequisites and core (required)"
@@ -315,13 +339,16 @@ Section "Sbf prerequisites and core (required)"
 ;PYREADLINE
 !insertmacro InstallAndLaunchRedistributable ${PYREADLINE}
 
+;SEVENZIP
+!insertmacro InstallAndLaunchRedistributable ${SEVENZIP}
+
 ;NSIS
 !insertmacro InstallAndLaunchRedistributable ${NSIS}
 
 ; bootstrap.py and Environment.py
   File "/oname=$INSTDIR\bootstrap.py" "bootstrap.py"
   File "/oname=$INSTDIR\Environment.py" "Environment.py"
- 
+
   HideWindow
   GetFunctionAddress $0 launchBootstrap
   UAC::ExecCodeSegment $0
@@ -374,6 +401,10 @@ MessageBox MB_YESNO "Uninstall NSIS ?" /SD IDYES IDNO +2
 ExecWait "$0\uninst-nsis.exe"
 !insertmacro RmRedistributable ${NSIS}
 
+;SEVENZIP
+!insertmacro UninstallString "7-Zip" ${SEVENZIP_UNINSTALL_STRING}
+!insertmacro RmRedistributable ${SEVENZIP}
+
 ; PYREADLINE
 !insertmacro UninstallString "pyreadline" ${PYREADLINE_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${PYREADLINE}
@@ -414,6 +445,10 @@ ExecWait "$0\Uninstall.exe"
 !insertmacro RmRedistributable ${GTKMM_DEVEL}
 
   RmDir $INSTDIR\Redistributable
+
+ ; bootstrap.py and Environment.py
+  Delete $INSTDIR\bootstrap.py
+  Delete $INSTDIR\Environment.py
 
   ; Remove registry keys
   DeleteRegKey HKLM "SOFTWARE\${PRODUCTNAME}"
