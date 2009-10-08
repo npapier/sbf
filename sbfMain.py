@@ -116,6 +116,7 @@ import sys
 from SCons.Script.SConscript import SConsEnvironment
 import SCons.Errors
 
+from src.sbfCygwin	import *
 from src.sbfFiles	import *
 from src.sbfUses	import uses
 from src.sbfUtils	import *
@@ -123,33 +124,6 @@ from src.sbfVersion import printSBFVersion
 from src.SConsBuildFramework import stringFormatter
 
 
-
-# cygpath utilities (used by rsync)
-def callCygpath2Unix( path ):
-	return os.popen('cygpath -u "' + path + '"' ).readline().rstrip('\n')
-
-class PosixSource:
-	def __init__( self, platform ):
-		self.platform = platform
-
-	def __call__( self, target, source, env, for_signature ):
-		if self.platform == 'win32' :
-			return callCygpath2Unix(str(source[0]))
-#			return "`cygpath -u '" + str(source[0]) + "'`"
-		else:
-			return str(source[0])
-
-
-class PosixTarget:
-	def __init__( self, platform ):
-		self.platform = platform
-
-	def __call__( self, target, source, env, for_signature ):
-		if self.platform == 'win32' :
-			return callCygpath2Unix(str(target[0]))
-#			return "`cygpath -u '" + str(target[0]) + "'`"
-		else:
-			return str(target[0])
 
 ###### Archiver action ######
 # @todo Uses 7Zip (because make_archive seems to allocate a lot of memory for big files...)
