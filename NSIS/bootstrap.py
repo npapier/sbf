@@ -5,42 +5,49 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-from __future__ import with_statement
-
 from win32api import *
 from win32con import *
 import win32gui
 
+import datetime
+import logging
 import os
 import pysvn
 import shutil
 
 from Environment import Environment, Paths
 
-# @todo Improves output
+# @todo uninstall graphviz setup (new temporary files)
 # @todo takes care of PATH for machine (not only PATH for current user).
 # @todo Moves functions in sbfUtils.py ?
 
+myDate = str(datetime.datetime.today().strftime("%Y-%m-%d_%Hh%Mm%Ss"))
+
 # @todo function getInstallPath( program, .... ).
-# @todo no win32 version
+# @todo posix version
 def getInstallPath( key, subkey = '', text = '' ):
 	try:
 		regKey = RegOpenKey( HKEY_LOCAL_MACHINE, key )
 		value, dataType = RegQueryValueEx( regKey, subkey )
 		regKey.Close()
 		if len(text) > 0:
-			print ( '%s is installed in directory : %s' % (text, value) )
+			logging.info( '%s is installed in directory : %s' % (text, value) )
+			#print ( '%s is installed in directory : %s' % (text, value) )
 		return value
 	except:
 		if len(text) > 0:
-			print ( '%s is not installed' % text )
+			logging.warning( '%s is not installed' % text )
+			#print ( '%s is not installed' % text )
 		return ''
 
 def getPythonInstallPath():
-	return getInstallPath( 'SOFTWARE\\Python\\PythonCore\\2.5\\InstallPath', '', 'Python' )
+	return getInstallPath( 'SOFTWARE\\Python\\PythonCore\\2.6\\InstallPath', '', 'Python' )
 
 def getCygwinInstallPath():
 	return getInstallPath( 'SOFTWARE\\Cygnus Solutions\\Cygwin\\mounts v2\\/', 'native', 'Cygwin' )
+
+def getSevenZipInstallPath():
+	return getInstallPath( 'SOFTWARE\\7-Zip', 'Path', '7-Zip' )
 
 def getGraphvizInstallPath():
 	return getInstallPath( 'SOFTWARE\\ATT\\Graphviz', 'InstallPath', 'Graphviz' )
@@ -69,39 +76,49 @@ def directoryInput( text, defaultValue ):
 			else:
 				continue
 		else:
-			print ( 'Directory %s already exists' % directory_normalized )		# ????????? improves message
+			logging.info( 'Directory %s already exists' % directory_normalized )
+			#print ( 'Directory %s already exists' % directory_normalized )
 			return directory_normalized
 
 #
-raw_input('Start execution of SConsBuildFramework bootstrap. Press return.\n')
+raw_input('Start execution of SConsBuildFramework bootstrap script. Press return.\n')
 
-# @todo FIXME
-# startFrom (NSIS $INSTDIR)
-#startFrom = os.getcwd()
-#print "DEBUG:startFrom", startFrom
-#print
+logFilename = 'sbf-wininst_%s.log'% myDate
+logging.basicConfig(filename=logFilename, level=logging.DEBUG,)
+print ("Creates installation log file %s" % logFilename )
+print
 
 #
 environment = Environment()
 
 # Sets SCONS_BUILD_FRAMEWORK environment variable
-print ('------ Sets SCONS_BUILD_FRAMEWORK environment variable')
+logging.info('\n------ Sets SCONS_BUILD_FRAMEWORK environment variable')
+print ('\n------ Sets SCONS_BUILD_FRAMEWORK environment variable')
+#print
 sbf_root = environment.get( 'SCONS_BUILD_FRAMEWORK' )
+#print
 
 if sbf_root == None or len(sbf_root) == 0 :
-	sbf_root = 'D:\\Dev\\bin\\SConsBuildFramework'
-sbf_root = os.path.normpath( os.path.expandvars( os.path.abspath(sbf_root) ) )
+	sbf_root = r'D:\\Dev\\bin\\SConsBuildFramework'
+else:
+	sbf_root = os.path.normpath( os.path.expandvars( os.path.abspath(sbf_root) ) )
+	sbf_root = sbf_root.replace( '\\', '\\\\' )
 
 # sbf_root defined
+print
 sbf_root = directoryInput( 'SCONS_BUILD_FRAMEWORK root directory ? ', sbf_root )
 sbf_root = os.path.normpath( os.path.expandvars( os.path.abspath(sbf_root) ) )
 
+#print
 environment.set( 'SCONS_BUILD_FRAMEWORK', sbf_root )
 SCONS_BUILD_FRAMEWORK	= environment.get( 'SCONS_BUILD_FRAMEWORK', False ) # = sbf_root DEBUG
 print
 
 # Check out the current version of the sbf project
-print ('------ svn checkout')
+logging.info('\n------ svn checkout')
+print ('\n------ svn checkout')
+print
+
 def svnCheckoutSBF( destination ):
 	cwdSaved = os.getcwd()
 	os.chdir( destination )
@@ -110,10 +127,12 @@ def svnCheckoutSBF( destination ):
 	client.set_interactive( True )
 	client.exception_style = 1
 	try:
-		print ( 'Checkout with svn http://sbf.googlecode.com/svn/trunk/ in %s' % destination )
+		logging.info( 'Retrieves sbf from http://sbf.googlecode.com/svn/trunk/ in %s' % destination )
+		print ( 'Retrieves sbf from http://sbf.googlecode.com/svn/trunk/ in %s' % destination )
 		client.checkout( 'http://sbf.googlecode.com/svn/trunk/', '.' )
 		return True
 	except pysvn.ClientError, e :
+		logging.error(e.args[0], '\n')
 		print e.args[0], '\n'
 		return False
 	finally:
@@ -121,22 +140,18 @@ def svnCheckoutSBF( destination ):
 
 # @todo improves this test => isUnderSvn()
 if os.path.exists( os.path.join(SCONS_BUILD_FRAMEWORK, 'sbfMain.py' ) ):
+	logging.info( 'SConsBuildFramework is already checkout in %s ' % SCONS_BUILD_FRAMEWORK )
 	print ( 'SConsBuildFramework is already checkout in %s ' % SCONS_BUILD_FRAMEWORK )
 else:
 	svnCheckoutSBF( SCONS_BUILD_FRAMEWORK )
 print
 
 # $SCONS_BUILD_FRAMEWORK\SConsBuildFramework.options
-print ('------ Writes the main configuration file (SConsBuildFramework.options)')
+logging.info('\n------ Writes the main configuration file (SConsBuildFramework.options)')
+print ('\n------ Writes the main configuration file (SConsBuildFramework.options)')
+print
 SConsBuildFramework_optionsString = """numJobs = %s
-pakPaths = [ 'V:\\Dev\\localExt_win32_cl8-0', 'V:\\Dev\\localExt_win32_cl8-0\\pending' ]
-
-#svnUrls = { '' : ['http://svn.gna.org/svn/gle', 'http://svn.gna.org/svn'] } for ULIS (vgsdk 0-4 from gna)
-
-#svnUrls = { 'glContext'	: 'http://oglpp.googlecode.com/svn/glContext/trunk',
-#            'gle'			: 'http://oglpp.googlecode.com/svn/gle/trunk',
-#            'glo'			: 'http://oglpp.googlecode.com/svn/glo/trunk',
-#            'vgsdk'		: 'http://vgsdk.googlecode.com/svn/branches/0-4' } for ULIS (vgsdk branches/0-4 from googlecode)
+pakPaths = [ 'V:\\Dev\\localExt_win32_cl9-0' ]
 
 #svnUrls = { 'glContext'	: 'http://oglpp.googlecode.com/svn/glContext/trunk',
 #            'gle'			: 'http://oglpp.googlecode.com/svn/gle/trunk',
@@ -157,91 +172,129 @@ buildPath    = '%s'"""
 sbf_options = os.path.join( SCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' )
 
 if os.path.exists( sbf_options ):
-	print( 'Backups SConsBuildFramework.options into SConsBuildFramework.optionsORI' )
-	shutil.copyfile( sbf_options, os.path.join( SCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.optionsORI' ) )
+	backup = 'SConsBuildFramework.options_' + myDate + '.backup.txt'
+	logging.info( 'Backups SConsBuildFramework.options into %s' % backup )
+	print( 'Backups SConsBuildFramework.options into %s' % backup )
+	shutil.copyfile( sbf_options, os.path.join( SCONS_BUILD_FRAMEWORK, backup ) )
+
 
 # @todo Asks numJobs
-numJobs			= os.getenv('NUMBER_OF_PROCESSORS')	#@todo no win32 and non existence for NUM_OF_PROC
-sbfLocalPath	= directoryInput( 'sbf local directory ? ', 'd:\\local' )
-sbfTmpPath		= directoryInput( 'sbf tmp directory ? ', 'd:\\tmp\\sbf\\build' )
+numJobs			= os.getenv('NUMBER_OF_PROCESSORS')	#@todo non win32 and non existence for NUM_OF_PROC
+print
+sbfLocalPath	= directoryInput( 'sbf local directory ? ', r'd:\\local' )
+print
+sbfTmpPath		= directoryInput( 'sbf tmp directory ? ', r'd:\\tmp\\sbf\\build' )
 
+print
 with open( sbf_options, 'w' ) as file :
+	logging.info( 'Writes %s' % sbf_options )
 	print ( 'Writes %s' % sbf_options )
 	tmp = SConsBuildFramework_optionsString % (numJobs, sbfLocalPath, sbfTmpPath)
 	file.write( tmp.replace( '\\', '\\\\' ) )				# @todo non win32
 print
 
 # Gets PATH, saves path.txt and updates PATH
-print ('------ Updates PATH')
+logging.info('\n------ Updates PATH')
+print ('\n------ Updates PATH')
+print
+
 # gets
 PATH = environment.get( 'PATH' )
+#print
 
-# saves
-with open( 'path.txt', 'w' ) as file :
-	print ( 'Backup PATH in path.txt' )
-	file.write( 'PATH=\n%s' % PATH )
+# backups PATH environment variable
+backup = os.path.join( SCONS_BUILD_FRAMEWORK, 'PATH_%s.backup.txt' % myDate )
+with open( backup, 'w' ) as file :
+	logging.info( 'Backups PATH in %s' % backup )
+	print ( 'Backups PATH in %s' % backup )
+	file.write( 'PATH=%s' % PATH )
+print
 
 # updates
-def addToPath( path, paths ):
-	if not os.path.exists(path):
+def addToPath( path, paths, addEvenNonExisting = False ):
+	if	addEvenNonExisting == False and \
+		not os.path.exists(path):
 		return False
 
 	if paths.count( path ) == 0 :
 		# Adds path to paths
-		print( 'Adds %s to PATH' % path )
+		logging.info( 'Adds %s to PATH' % path )
+		print( 'Adds %s to PATH\n' % path )
 		paths.append( path )
 		return True
 	else:
-		print( '%s already in PATH' % path )
+		logging.info( '%s already in PATH' % path )
+		#print( '%s already in PATH' % path )
 		return False
+
+def removeAllNonExisting( paths ):
+	while( True ):
+		nonExistingPath = paths.findFirstNonExisting()
+		if nonExistingPath == None:
+			break
+		else:
+			logging.info( 'Removes non existing path %s to PATH' % nonExistingPath )
+			print( 'Removes non existing path %s to PATH' % nonExistingPath )
+			paths.remove( nonExistingPath )
 
 paths = Paths( PATH )
 
-# try $SCONS_BUILD_FRAMEWORK in PATH => scons and sbfPak (@todo FIXME scons fox linux)
+# Cleans PATH
+removeAllNonExisting( paths )
+print
+
+# Prepends $SCONS_BUILD_FRAMEWORK in PATH for 'scons' file containing scons.bat $*
 if paths.count( SCONS_BUILD_FRAMEWORK ) == 0:
+	logging.info( 'Adds %s to PATH' % SCONS_BUILD_FRAMEWORK )
 	print( 'Adds %s to PATH' % SCONS_BUILD_FRAMEWORK )
+	print
 	paths.prepend( SCONS_BUILD_FRAMEWORK )
 else:
 	paths.remove( SCONS_BUILD_FRAMEWORK )
 	paths.prepend( SCONS_BUILD_FRAMEWORK )
-print
 
-# Add c:\python25 (where c:\python25 is the path to your python's installation directory) to your PATH environment variable (See Tips for Vista Users).
+# Add c:\pythonXY (where c:\pythonXY is the path to your python's installation directory) to your PATH environment variable (See Tips for Vista Users).
 # This is important to be able to run the Python executable from any directory in the command line.
 pythonInstallPath = getPythonInstallPath()
 addToPath( pythonInstallPath, paths )
-
-# Adds C:\Python25\Scripts
+# Adds C:\PythonXY\Scripts
 addToPath( os.path.join(pythonInstallPath, 'Scripts'), paths )
-print
+#print
 
 # Adds c:\cygwin\bin to PATH
 addToPath( getCygwinInstallPath(), paths )
-print
+#print
+
+# @todo Adds TortoiseMerge to PATH
+
+# Adds SevenZip to PATH
+addToPath( getSevenZipInstallPath(), paths )
+#print
 
 # PATH environment variable installPaths[0]\bin and intallPaths[0]\lib and Ext version
-addToPath( os.path.join(sbfLocalPath, 'bin' ), paths )
-addToPath( os.path.join(sbfLocalPath, 'lib' ), paths )
-
-sbfLocalExtPathlocal = sbfLocalPath + 'Ext_win32_cl8-0Exp'					# @todo not very robust
-addToPath( os.path.join(sbfLocalExtPathlocal, 'bin' ), paths )
-addToPath( os.path.join(sbfLocalExtPathlocal, 'lib' ), paths )
-print
+addToPath( os.path.join(sbfLocalPath, 'bin' ), paths, True )
+addToPath( os.path.join(sbfLocalPath, 'lib' ), paths, True )
+# @todo not very robust to different compiler versions
+sbfLocalExtPath = sbfLocalPath + 'Ext_win32_cl9-0Exp'
+addToPath( os.path.join(sbfLocalExtPath, 'bin' ), paths, True )
+addToPath( os.path.join(sbfLocalExtPath, 'lib' ), paths, True )
+#print
 
 # Adds graphviz to PATH
 addToPath( os.path.join(getGraphvizInstallPath(), 'bin'), paths )
-print
+#print
 
 # Adds doxygen to PATH
 addToPath( os.path.join(getDoxygenInstallPath(), 'bin'), paths )
-print
+#print
 
 # Adds svn to PATH
 addToPath( getCollabNetSubversionClientInstallPath(), paths )
 addToPath( getCollabNetSubversionServerInstallPath(), paths )
-print
+#print
 
 environment.set( 'PATH', paths.getString() )
+print
 
 #
-raw_input('Finish execution of SConsBuildFramework bootstrap. Press return.')
+raw_input('Finish execution of SConsBuildFramework bootstrap script. Press return.')

@@ -10,6 +10,7 @@ from win32api import *
 from win32con import *
 import win32gui
 
+import logging
 import os
 
 # IEnvironment and co
@@ -32,10 +33,12 @@ class Environment( IEnvironment ):
 			value, dataType = RegQueryValueEx( regKey, varname )
 			regKey.Close()
 			if output :
-				print 'Current %s is : %s' % (varname, value)
+				logging.info( 'Current %s is : %s' % (varname, value) )
+				#print 'Current %s is : %s' % (varname, value)
 			return value
 		except:
 			if output :
+				logging.info( 'No %s' % varname )
 				print 'No %s' % varname
 			return None
 
@@ -46,9 +49,11 @@ class Environment( IEnvironment ):
 		RegSetValueEx( regKey, varname, 0, REG_SZ, value )
 		regKey.Close()
 		if output :
-			print 'Set %s in registry to : %s ' % (varname, value)
+			logging.info( 'Set %s in registry to : %s ' % (varname, value) )
+			#print ( 'Set %s in registry to : %s ' % (varname, value) )
 
-		print 'Broadcasting settings change message...'
+		logging.info( 'Broadcasting settings change message...' )
+		#print 'Broadcasting settings change message...'
 		win32gui.SendMessageTimeout( HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment", 0, 1000 )
 
 
@@ -101,6 +106,13 @@ class Paths:
 				del self.__paths[i]
 				return True
 		return False
+
+	# Removes the first non existing paths
+	def findFirstNonExisting( self ):
+		for path in self.__paths:
+			path_normalized = self.__getNormalizedPathname(path)
+			if os.path.exists( path_normalized ) == False:
+				return path
 
 	# Removes all occurences of the specified path in the path list
 	# @todo
