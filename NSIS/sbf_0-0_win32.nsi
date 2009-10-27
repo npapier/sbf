@@ -40,7 +40,7 @@
 ; @todo silent mode
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-3-1"
+!define SBFPROJECTVERSION	"0-3-2"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -70,7 +70,7 @@
 !define TORTOISESVN64			"TortoiseSVN-1.6.5.16974-x64-svn-1.6.5.msi"
 
 
-!define GTKMM_DEVEL				"gtkmm-win32-devel-2.16.0-2.exe"
+!define GTKMM_DEVEL				"gtkmm-win32-devel-2.16.0-4.exe"
 
 
 !define PYREADLINE_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.6"
