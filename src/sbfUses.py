@@ -13,6 +13,10 @@ from sbfUtils import getPathFromEnv, convertToList
 
 
 
+# @todo use for glm (to be able to auto-install it).
+
+
+
 # @todo better place (should be shared with bootstrap.py)
 def getRegistry( key, subkey = '' ):
 	# @todo import at this place is not recommended
@@ -154,6 +158,7 @@ class IUse :
 		#raise StandardError("IUse::getVersions() not implemented")
 
 
+	# for compiler
 	def getCPPDEFINES( self, version ):
 		return []
 
@@ -164,6 +169,7 @@ class IUse :
 		return []
 
 
+	# for linker
 	def getLIBS( self, version ):
 		return [], []
 
@@ -171,7 +177,12 @@ class IUse :
 		return [], []
 
 
+	# for packager
 	def getLicences( self, version ):															# @todo implements for derived
+		return []
+
+	def getRedist( self, version ):
+		"""Returns the redistributable to include in nsis setup program. A redistributable must be a zip file or an executable available in SCONS_BUILD_FRAMEWORK/rc/nsis/ directory"""
 		return []
 
 	def __call__( self, useVersion, env, skipLinkStageConfiguration = False ):
@@ -184,7 +195,7 @@ class IUse :
 		if cppdefines != None :
 			if len(cppdefines) > 0 :
 				env.AppendUnique( CPPDEFINES = cppdefines )
-		else :
+		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPDEFINES)." % (useNameVersion, self.platform) )
 
 		# CPPFLAGS
@@ -192,7 +203,7 @@ class IUse :
 		if cppflags != None :
 			if len(cppflags) > 0 :
 				env.AppendUnique( CPPFLAGS = cppflags )
-		else :
+		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPFLAGS)." % (useNameVersion, self.platform) )
 
 		# CPPPATH
@@ -211,9 +222,9 @@ class IUse :
 				if env.GetOption('weak_localext') and (self.getName() not in env['weakLocalExtExclude']):
 					for path in cpppathAbs :
 						env.AppendUnique( CCFLAGS = ['${INCPREFIX}' + path ] )
-				else :
+				else:
 					env.AppendUnique( CPPPATH = cpppathAbs )
-		else :
+		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPPATH)." % (useNameVersion, self.platform) )
 
 		### Configuration of link stage
@@ -233,7 +244,7 @@ class IUse :
 		if (libpath != None) and (len(libpath) == 2) :
 			if len(libpath[0]) > 0 :
 				env.AppendUnique( LIBPATH = libpath[0] )
-		else :
+		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBPATH)." % (useNameVersion, self.platform) )
 
 
@@ -245,7 +256,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-38-0', '1-34-1' ]
+		return [ '1-40-0', '1-38-0', '1-34-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -256,17 +267,59 @@ class Use_boost( IUse ):
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
-			if version == '1-38-0':
+			if version == '1-40-0':
+				return [ 'boost1-40-0' ]
+			elif version == '1-38-0':
 				return [ 'boost1-38-0' ]
 			elif version == '1-34-1':
 				return [ 'boost1-34-1' ]
 		else:
 			return []
 
-	# @todo boost only for vc80, checks compiler and compiler version ?
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			if version == '1-38-0':
+			if version == '1-40-0':
+				# autolinking, so nothing to do.
+				if self.config == 'release' :
+					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						pakLibs = [	'boost_date_time-vc90-mt-1_40', 'boost_filesystem-vc90-mt-1_40', 'boost_graph-vc90-mt-1_40',
+									'boost_iostreams-vc90-mt-1_40', 'boost_math_c99-vc90-mt-1_40', 'boost_math_c99f-vc90-mt-1_40',
+									'boost_math_c99l-vc90-mt-1_40', 'boost_math_tr1-vc90-mt-1_40', 'boost_math_tr1f-vc90-mt-1_40',
+									'boost_math_tr1l-vc90-mt-1_40', 'boost_prg_exec_monitor-vc90-mt-1_40', 'boost_program_options-vc90-mt-1_40',
+									'boost_python-vc90-mt-1_40', 'boost_regex-vc90-mt-1_40', 'boost_serialization-vc90-mt-1_40',
+									'boost_signals-vc90-mt-1_40', 'boost_system-vc90-mt-1_40', 'boost_thread-vc90-mt-1_40',
+									'boost_unit_test_framework-vc90-mt-1_40', 'boost_wave-vc90-mt-1_40', 'boost_wserialization-vc90-mt-1_40' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [	'boost_date_time-vc80-mt-1_40', 'boost_filesystem-vc80-mt-1_40', 'boost_graph-vc80-mt-1_40',
+									'boost_iostreams-vc80-mt-1_40', 'boost_math_c99-vc80-mt-1_40', 'boost_math_c99f-vc80-mt-1_40',
+									'boost_math_c99l-vc80-mt-1_40', 'boost_math_tr1-vc80-mt-1_40', 'boost_math_tr1f-vc80-mt-1_40',
+									'boost_math_tr1l-vc80-mt-1_40', 'boost_prg_exec_monitor-vc80-mt-1_40', 'boost_program_options-vc80-mt-1_40',
+									'boost_python-vc80-mt-1_40', 'boost_regex-vc80-mt-1_40', 'boost_serialization-vc80-mt-1_40',
+									'boost_signals-vc80-mt-1_40', 'boost_system-vc80-mt-1_40', 'boost_thread-vc80-mt-1_40',
+									'boost_unit_test_framework-vc80-mt-1_40', 'boost_wave-vc80-mt-1_40', 'boost_wserialization-vc80-mt-1_40' ]
+					else:
+						return
+				else:
+					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						pakLibs = [ 'boost_date_time-vc90-mt-gd-1_40', 'boost_filesystem-vc90-mt-gd-1_40', 'boost_graph-vc90-mt-gd-1_40',
+									'boost_iostreams-vc90-mt-gd-1_40', 'boost_math_c99-vc90-mt-gd-1_40', 'boost_math_c99f-vc90-mt-gd-1_40',
+									'boost_math_c99l-vc90-mt-gd-1_40', 'boost_math_tr1-vc90-mt-gd-1_40', 'boost_math_tr1f-vc90-mt-gd-1_40',
+									'boost_math_tr1l-vc90-mt-gd-1_40', 'boost_prg_exec_monitor-vc90-mt-gd-1_40', 'boost_program_options-vc90-mt-gd-1_40',
+									'boost_python-vc90-mt-gd-1_40', 'boost_regex-vc90-mt-gd-1_40', 'boost_serialization-vc90-mt-gd-1_40',
+									'boost_signals-vc90-mt-gd-1_40', 'boost_system-vc90-mt-gd-1_40', 'boost_thread-vc90-mt-gd-1_40',
+									'boost_unit_test_framework-vc90-mt-gd-1_40', 'boost_wave-vc90-mt-gd-1_40', 'boost_wserialization-vc90-mt-gd-1_40' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [ 'boost_date_time-vc80-mt-gd-1_40', 'boost_filesystem-vc80-mt-gd-1_40', 'boost_graph-vc80-mt-gd-1_40',
+									'boost_iostreams-vc80-mt-gd-1_40', 'boost_math_c99-vc80-mt-gd-1_40', 'boost_math_c99f-vc80-mt-gd-1_40',
+									'boost_math_c99l-vc80-mt-gd-1_40', 'boost_math_tr1-vc80-mt-gd-1_40', 'boost_math_tr1f-vc80-mt-gd-1_40',
+									'boost_math_tr1l-vc80-mt-gd-1_40', 'boost_prg_exec_monitor-vc80-mt-gd-1_40', 'boost_program_options-vc80-mt-gd-1_40',
+									'boost_python-vc80-mt-gd-1_40', 'boost_regex-vc80-mt-gd-1_40', 'boost_serialization-vc80-mt-gd-1_40',
+									'boost_signals-vc80-mt-gd-1_40', 'boost_system-vc80-mt-gd-1_40', 'boost_thread-vc80-mt-gd-1_40',
+									'boost_unit_test_framework-vc80-mt-gd-1_40', 'boost_wave-vc80-mt-gd-1_40', 'boost_wserialization-vc80-mt-gd-1_40' ]
+					else:
+						return
+				return [], pakLibs
+			elif version == '1-38-0':
 				# autolinking, so nothing to do.
 				if self.config == 'release' :
 					pakLibs = [	'boost_date_time-vc80-mt-1_38', 'boost_filesystem-vc80-mt-1_38', 'boost_graph-vc80-mt-1_38',
@@ -398,6 +451,10 @@ class Use_colladadom( IUse ):
 class Use_ffmpeg( IUse ):
 	def getName( self ):
 		return 'ffmpeg'
+
+	def getVersions( self ):
+		return [ '16537' ]
+
 
 	def getLIBS( self, version ):
 		libs = [ 'avcodec-52', 'avdevice-52', 'avformat-52', 'avutil-49', 'swscale-0' ]
@@ -650,7 +707,9 @@ class Use_sofa( IUse ):
 				pakLibPath.append( path )
 
 			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
+			pakLibPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
 			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/sofa-plugins' ) )
+			pakLibPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/sofa-plugins' ) )
 			return libPath, pakLibPath
 
 		elif self.platform == 'posix' :
@@ -931,7 +990,7 @@ def use_cairomm( self, lenv, elt ) :
 # pkg-config gtkmm-2.4 --cflags --libs
 # @todo		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
 
-  
+
 
 
 
@@ -1061,6 +1120,16 @@ class Use_gtkmm( IUse ):
 			return ['-Wl,--export-dynamic']
 		else:
 			return []
+
+	def getRedist( self, version ):
+		if self.platform == 'win32':
+			if version == '2-16-0':
+				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					return ['gtkmm_redist2-16-0-4_win32_cl9-0Exp.zip']
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					return ['gtkmm_redist2-16-0-4_win32_cl8-0Exp.zip']
+				else:
+					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
 
 
@@ -1249,7 +1318,7 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 			useName, useVersion = UseRepository.extract( useNameVersion )
 			use = UseRepository.getUse( useName )
 
-			if use != None :
+			if use:
 				# Tests if the version is supported
 				supportedVersions = use.getVersions()
 				if (len(supportedVersions) == 0) or (useVersion in supportedVersions) :
