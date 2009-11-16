@@ -636,7 +636,7 @@ class Use_gtest( IUse ):
 
 # @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
-class Use_sofa( IUse ):
+class Use_sofa( IUse, sofaConfig ):
 
 	def getName( self ):
 		return 'sofa'
@@ -651,11 +651,11 @@ class Use_sofa( IUse ):
 			return []
 
 	def getCPPPATH( self, version ):
-		cppPath = [	os.path.join(sofaConfig.getBasePath(), 'applications'),
-					os.path.join(sofaConfig.getBasePath(), 'modules'),
-					os.path.join(sofaConfig.getBasePath(), 'framework'),
-					os.path.join(sofaConfig.getBasePath(), 'include'),
-					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
+		cppPath = [	os.path.join(self.getBasePath(), 'applications'),
+					os.path.join(self.getBasePath(), 'modules'),
+					os.path.join(self.getBasePath(), 'framework'),
+					os.path.join(self.getBasePath(), 'include'),
+					os.path.join(self.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
 		if self.platform == 'posix':
 			cppPath += ['/usr/include/libxml2']
@@ -664,18 +664,25 @@ class Use_sofa( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			libs = ['glew32', 'Gdi32', 'Shell32']
-			pakLibs = []
+			libs = []
+			pakLibs = ['glew32', 'glut32']
+
+			libsBoth = ['BeamAdapter', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
+						'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller',
+						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
+						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
+						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
+						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner' ]
+			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
+
 			if self.config == 'release' :
-				libs += ['BeamAdapter', 'miniFlowVR', 'newmat', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-						 'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'tinyxml', 'TriangularMeshRefiner']
-				pakLibs += ['BeamAdapter', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel', 'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass', 'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
-							'sofacore', 'sofadefaulttype', 'sofahelper', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner']
+				libs += libsBoth + staticLibs
+				pakLibs += libsBoth
 			else:
-				libs += ['BeamAdapterd', 'miniFlowVRd', 'newmatd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd', 'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-						 'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofaguid', 'sofasimulationd', 'sofatreed', 'TriangularMeshRefinerd']
-				pakLibs += ['BeamAdapterd', 'sofaautomateschedulerd', 'sofacomponentd', 'sofacomponentbased', 'sofacomponentbehaviormodeld', 'sofacomponentcollisiond', 'sofacomponentconstraintd', 'sofacomponentcontextobjectd', 'sofacomponentcontrollerd', 'sofacomponentfemd', 'sofacomponentforcefieldd', 'sofacomponentinteractionforcefieldd', 'sofacomponentlinearsolverd',  'sofacomponentmappingd', 'sofacomponentmassd', 'sofacomponentmastersolverd', 'sofacomponentmiscd', 'sofacomponentodesolverd', 'sofacomponentvisualmodeld',
-							'sofacored', 'sofadefaulttyped', 'sofahelperd', 'sofasimulationd', 'sofatreed', 'tinyxmld', 'TriangularMeshRefinerd']
+				libsBothDebug = [ lib + 'd' for lib in libsBoth ]
+				staticLibsDebug = [ lib + 'd' for lib in staticLibs ]
+				libs += libsBothDebug + staticLibsDebug
+				pakLibs += libsBothDebug
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
@@ -687,37 +694,32 @@ class Use_sofa( IUse ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		libPath		= []
-		pakLibPath	= []
+		libPath = []
 
 		if self.platform == 'win32' :
 			if self.config == 'release' :
-				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/ReleaseVC9')
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/ReleaseVC8')
+				if self.cc == 'cl':
+					path = os.path.join( self.getBasePath(), 'lib/win32/ReleaseVC{0:d}'.format(int(self.ccVersionNumber)) )
 				libPath.append( path )
-				pakLibPath.append( path )
-			else :
-				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/DebugVC9')
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					path = os.path.join( sofaConfig.getBasePath(), 'lib/win32/DebugVC8')
+			else:
+				if self.cc == 'cl':
+					path = os.path.join( self.getBasePath(), 'lib/win32/DebugVC{0:d}'.format(int(self.ccVersionNumber)) )
 				libPath.append( path )
-				pakLibPath.append( path )
-
-			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
-			pakLibPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/win32/Common' ) )
-			libPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/sofa-plugins' ) )
-			pakLibPath.append( os.path.join( sofaConfig.getBasePath(), 'lib/sofa-plugins' ) )
-			return libPath, pakLibPath
+			commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
+			pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
+			libPath.append( commonPath )
+			libPath.append( pluginsPath )
+			return libPath, libPath
 
 		elif self.platform == 'posix' :
-			path = os.path.join( sofaConfig.getBasePath(), 'lib/linux')
+			path = os.path.join( self.getBasePath(), 'lib/linux')
 			libPath.append( path )
 			pakLibPath.append( path )
 			return libPath, pakLibPath
 
+
+	def getLicences( self, version ):
+		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
