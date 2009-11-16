@@ -6,6 +6,9 @@
 #ifndef _SFB_MODULES_HPP_
 #define _SFB_MODULES_HPP_
 
+#pragma warning (push)
+#pragma warning (disable: 4251)
+
 #include <algorithm>
 #include <cassert>
 #include <vector>
@@ -104,5 +107,6 @@ private:
 } // namespace sbf
 
 
+#pragma warning (pop)
 
 #endif // _SFB_MODULES_HPP_
