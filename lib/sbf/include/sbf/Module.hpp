@@ -6,13 +6,16 @@
 #ifndef _SFB_MODULES_HPP_
 #define _SFB_MODULES_HPP_
 
+#ifdef WIN32
 #pragma warning (push)
 #pragma warning (disable: 4251)
+#endif
 
 #include <algorithm>
 #include <cassert>
-#include <vector>
 #include <string>
+#include <vector>
+
 
 #include <boost/filesystem.hpp>
 
@@ -106,7 +109,8 @@ private:
 
 } // namespace sbf
 
-
+#ifdef WIN32
 #pragma warning (pop)
+#endif
 
 #endif // _SFB_MODULES_HPP_
