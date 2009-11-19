@@ -178,7 +178,7 @@ class IUse :
 
 
 	# for packager
-	def getLicences( self, version ):															# @todo implements for derived
+	def getLicenses( self, version ):
 		return []
 
 	def getRedist( self, version ):
@@ -463,6 +463,30 @@ class Use_ffmpeg( IUse ):
 			return libs, libs
 
 
+class Use_hid( IUse ):
+	def getName( self ):
+		return 'hid'
+
+	def getVersions( self ):
+		return [ '2-17' ]
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = [ 'libhid_2-17_win32_{0}Exp'.format( self.ccVersion.replace('Exp','') ) ]
+				pakLibs = libs + ['libusb0']
+				return libs, pakLibs
+			else:
+				libs = [ 'libhid_2-17_win32_{0}Exp_D'.format( self.ccVersion.replace('Exp','') ) ]
+				pakLibs = libs + ['libusb0']
+				return libs, pakLibs
+
+
+	def getLicenses( self, version ):
+		return [ 'license.hidparser.txt', 'license.libhid2-17.txt' ]
+
+
 class Use_opengl( IUse ):
 	def getName( self ):
 		return "opengl"
@@ -634,6 +658,7 @@ class Use_gtest( IUse ):
 			return libs, []
 
 
+# @todo getSvnRevision()
 # @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
 class Use_sofa( IUse, sofaConfig ):
@@ -718,7 +743,7 @@ class Use_sofa( IUse, sofaConfig ):
 			return libPath, pakLibPath
 
 
-	def getLicences( self, version ):
+	def getLicenses( self, version ):
 		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
 
 
@@ -834,8 +859,8 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_opengl(), Use_itk(),
-					Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(),
+					Use_opengl(), Use_itk(), Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):
