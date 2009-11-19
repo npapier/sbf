@@ -484,7 +484,7 @@ class Use_hid( IUse ):
 
 
 	def getLicenses( self, version ):
-		return [ 'license.hidparser.txt', 'license.libhid2-17.txt' ]
+		return [ '0license.libusb.txt', '1license.libusb.txt', 'license.hidparser.txt', 'license.libhid2-17.txt' ]
 
 
 class Use_opengl( IUse ):
