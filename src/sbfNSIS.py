@@ -8,8 +8,13 @@ from __future__ import with_statement
 from SCons.Script import *
 
 from src.sbfFiles	import *
-from src.sbfUses import UseRepository
+from src.sbfUses	import UseRepository
 from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAction
+
+# @todo always generated nsis files
+# @todo uninstallRedist
+# @todo Improves redist macros (adding message and with/without confirmation)
+
 
 def nsisGeneration( target, source, env ):
 
@@ -30,7 +35,7 @@ def nsisGeneration( target, source, env ):
 
 		# Generates PRODUCTNAME
 		PRODUCTNAME = ''
-		for (i, product) in enumerate(products) :
+		for (i, product) in enumerate(products):
 			PRODUCTNAME += "!define PRODUCTNAME%s	\"%s\"\n" % (i, product)
 		PRODUCTNAME += "!define PRODUCTNAME	${PRODUCTNAME0}\n"
 
@@ -45,8 +50,9 @@ def nsisGeneration( target, source, env ):
 			UNINSTALL_SHORTCUT	= ''
 
 		for (i, executable) in enumerate(executables) :
-			PRODUCTEXE	+=	"!define PRODUCTEXE%s	\"%s\"\n" % (i, executable)
-			if i > 0 :
+			PRODUCTEXE	+=	"!define PRODUCTEXE{0}	\"{1}\"\n".format( i, executable)
+# @todo uses string.format()
+			if i > 0:
 				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
 			else:
 				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
@@ -85,9 +91,11 @@ def nsisGeneration( target, source, env ):
 %s
 ;--------------------------------
 
-!include "redistributables.nsi"
+
 
 ;--------------------------------
+
+SetCompressor lzma
 
 ; The name of the installer
 Name "${PRODUCTNAME}"
@@ -130,6 +138,8 @@ Section "${PRODUCTNAME} core (required)"
 
   ; Put files there
 !include "${SBFPROJECTNAME}_install_files.nsi"
+
+  ; Create 'var' directory
   CreateDirectory "$INSTDIR\\var"
 
   ; Changes ACL
@@ -140,18 +150,13 @@ Section "${PRODUCTNAME} core (required)"
   ; After the initial installation of the operating system, the only member is the Authenticated Users group.
   ; When a computer joins a domain, the Domain Users group is added to the Users group on the computer.
 
-  AccessControl::GrantOnFile "$INSTDIR\share" "(S-1-5-32-545)" "GenericRead + GenericWrite"
+;AccessControl::GrantOnFile "$INSTDIR\share" "(S-1-5-32-545)" "GenericRead + GenericWrite"
 ;AccessControl::EnableFileInheritance "$INSTDIR\share"
   AccessControl::GrantOnFile "$INSTDIR\\var" "(S-1-5-32-545)" "FullAccess"
 ;AccessControl::EnableFileInheritance "$INSTDIR\\var"
 
   ; Redistributable
-  CreateDirectory $INSTDIR\Redistributable
-!insertmacro InstallRedistributableVCPP2005SP1
-!insertmacro InstallRedistributableTscc
-
-!insertmacro LaunchRedistributableVCPP2005SP1
-!insertmacro LaunchRedistributableTscc
+  !include "${SBFPROJECTNAME}_redist.nsi"
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
@@ -164,6 +169,8 @@ Section "${PRODUCTNAME} core (required)"
   WriteUninstaller "uninstall.exe"
 
 SectionEnd
+
+
 
 ; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
@@ -192,9 +199,7 @@ Section "Uninstall"
   RmDir "$INSTDIR\\var"
 
   ; Remove redistributable
-!insertmacro RmRedistributableTscc
-!insertmacro RmRedistributableVCPP2005SP1
-  RmDir $INSTDIR\Redistributable
+!include "${SBFPROJECTNAME}_uninstall_redist.nsi"
 
   ; Remove registry keys
   DeleteRegKey HKLM "SOFTWARE\${PRODUCTNAME}"
@@ -215,6 +220,66 @@ Section "Uninstall"
 SectionEnd
 """ % (env['sbf_project'], env['version'], PRODUCTNAME, PRODUCTEXE, SHORTCUT, UNINSTALL_SHORTCUT)
 		file.write( str_sbfNSISTemplate )
+
+
+
+def redistGeneration( target, source, env ):
+	"""target must be [${SBFPROJECTNAME}_redist.nsi , ${SBFPROJECTNAME}_uninstall_redist.nsi]"""
+
+	# Retrieves/computes additional information
+	targetNameRedist = str(target[0])
+	targetNameUninstallRedist = str(target[1])
+
+	sbf = env.sbf
+
+	# compiler
+	CLXYEXP = sbf.myCCVersion.replace( '-', '', 1 ).upper()
+
+	uses = sorted(list( sbf.getAllUses(env) ))
+	redistFiles = []
+
+	for useNameVersion in uses:
+		useName, useVersion = UseRepository.extract( useNameVersion )
+		use = UseRepository.getUse( useName )
+		if use:
+			redist = use.getRedist( useVersion )
+			if len(redist)>0:
+				redistFiles += redist
+
+	# Open output file ${SBFPROJECTNAME}_redist.nsi
+	with open( targetNameRedist, 'w' ) as file:
+		file.write(
+"""!include "redistributable.nsi"
+!include "redistributableDatabase.nsi"
+\n\n""" )
+
+		# Redistributable for cl compiler
+		file.write( "; Redistributable for cl compiler\n" )
+		file.write( """!insertmacro InstallAndLaunchRedistributable "${{{0}}}"\n\n\n""".format(CLXYEXP) )
+
+		# Redistributable for 'uses'
+		if len(redistFiles)>0:
+			file.write( "; Redistributable for 'uses'\n" )
+			for redistFile in redistFiles:
+				redistFileExtension = os.path.splitext(redistFile)[1]
+				if redistFileExtension == '.zip':
+					file.write( """!insertmacro InstallAndUnzipRedistributable "{0}" "$INSTDIR"\n""".format(redistFile.replace('/', '\\') ) )
+				elif redistFileExtension == '.exe' :
+					file.write( """!insertmacro InstallAndLaunchRedistributable "{0}"\n""".format(redistFile.replace('/', '\\') ) )
+				else:
+					raise SCons.Errors.StopError, "Unsupported type of redistributable {0}".format(redistFile)
+
+	# Open output file ${SBFPROJECTNAME}_uninstall_redist.nsi
+	with open( targetNameUninstallRedist, 'w' ) as file:
+		pass
+		# @todo
+
+#!include "${SBFPROJECTNAME}_uninstall_redist.nsi"
+#!insertmacro RmRedistributableTscc
+#!insertmacro RmRedistributableVCPP2005SP1
+#  RmDir $INSTDIR\Redistributable
+
+
 
 def zipPrinterForNSISInstallFiles( target, source, env ):
 	# Retrieves informations
@@ -349,6 +414,12 @@ def configureZipAndNSISTargets( env ):
 											multi=0 )
 		rootProjectEnv['BUILDERS']['nsisGeneration'] = zipPrinterBuilder
 
+		zipPrinterBuilder = env.Builder(	action=Action(redistGeneration, printZipPrinterForNSISInstallFiles), # @todo printZipPrinterForNSISInstallFiles
+											source_factory=SCons.Node.FS.default_fs.Entry,
+											target_factory=SCons.Node.FS.default_fs.Entry,
+											multi=0 )
+		rootProjectEnv['BUILDERS']['redistGeneration'] = zipPrinterBuilder
+
 		# compute zipPath (where files are copying before creating the zip file)
 		# zipPathBase = /mnt/data/sbf/build/pak/vgsdk_0-4
 		zipPakPath	=	os.path.join( sbf.myBuildPath, 'pak' )
@@ -390,8 +461,9 @@ def configureZipAndNSISTargets( env ):
 		devZipFiles			= []
 		srcZipFiles			= []
 
-		usesSet				= set()
-		extension			= env['SHLIBSUFFIX']
+		usesSet					= set()
+		extension				= env['SHLIBSUFFIX']
+		licenseInstallExtPaths	= [ os.path.join(element, 'license') for element in sbf.myInstallExtPaths ]
 
 		for projectName in sbf.myParsedProjects :
 			lenv			= sbf.myParsedProjects[projectName]
@@ -422,9 +494,9 @@ def configureZipAndNSISTargets( env ):
 				usesSet.add( element )
 
 			# Processes the 'stdlibs' project option
-			if len(lenv['stdlibs']) > 0 :
+			if len(lenv['stdlibs']) > 0:
 				searchPathList = sbf.myLibInstallExtPaths[:]
-				for stdlib in lenv['stdlibs'] :
+				for stdlib in lenv['stdlibs']:
 					filename = os.path.splitext(stdlib)[0] + extension
 					pathFilename = searchFileInDirectories( filename, searchPathList )
 					if pathFilename:
@@ -456,7 +528,7 @@ def configureZipAndNSISTargets( env ):
 
 		# Processes external dependencies
 		listOfExternalDependencies = sorted(list(usesSet))
-	#print ("List of external dependencies for %s :" % env['sbf_project'])
+		#print ("List of external dependencies for %s :" % env['sbf_project'])
 
 		# For each external dependency, do
 		for useNameVersion in listOfExternalDependencies:
@@ -466,7 +538,7 @@ def configureZipAndNSISTargets( env ):
 
 			# Retrieves use object for incoming dependency
 			use = UseRepository.getUse( useName )
-			if use != None :
+			if use:
 
 				# Retrieves LIBS of incoming dependency
 				libs = use.getLIBS( useVersion )
@@ -491,6 +563,41 @@ def configureZipAndNSISTargets( env ):
 							raise SCons.Errors.UserError( "File %s not found." % filename )
 				else:
 					raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
+
+				# Retrieves license file(s) of incoming dependency
+				# from IUse class
+				warningAboutLicense = True
+				licenses = use.getLicenses( useVersion )
+				if licenses and len(licenses)>0:
+					for filename in licenses:
+						pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
+						if pathFilename:
+							print ("Found license %s" % pathFilename)
+							warningAboutLicense = False
+							depsZipFiles		+= Install( os.path.join(depsZipPath, 'license'), pathFilename )
+							portableZipFiles	+= Install( os.path.join(portableZipPath, 'license'), pathFilename )
+						else:
+							raise SCons.Errors.UserError( "File %s not found." % filename )
+				# else: warningAboutLicense = True
+
+				# implicit license file(s) if any
+				# license file without prefix (case: only one license file)
+				licenses = ['license.{0}{1}.txt'.format( useName, useVersion)]
+				# license file with prefix (case: several license files)
+				for prefix in range(9):
+					licenses += ['{0}license.{1}{2}.txt'.format( prefix, useName, useVersion)]
+				for filename in licenses:
+					pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
+					if pathFilename:
+						print ("Found license %s" % pathFilename)
+						warningAboutLicense = False
+						depsZipFiles		+= Install( os.path.join(depsZipPath, 'license'), pathFilename )
+						portableZipFiles	+= Install( os.path.join(portableZipPath, 'license'), pathFilename )
+					#else:
+					#	raise SCons.Errors.UserError( "File %s not found." % filename )
+				# Prints warning if needed
+				if warningAboutLicense:
+					print ('sbfWarning: No license file for {0}'.format(useNameVersion))
 
 		runtimeZip = runtimeZipPath + env['SEVENZIPSUFFIX']
 		Alias( 'zipRuntime_generate7z', env.SevenZipAdd( runtimeZip, Dir(runtimeZipPath) ) )
@@ -531,23 +638,36 @@ def configureZipAndNSISTargets( env ):
 
 		Alias( 'zip', ['zipRuntime', 'zipDeps', 'zipPortable', 'zipDev', 'zipSrc'] )
 
+		### nsis target ###
+
 		Alias( 'nsis', ['build', portableZipFiles] )
+
+		# Copies redistributable related files
+		sbfNSISPath = os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'NSIS' )
 		sbfRcNsisPath = os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
-		Alias( 'nsis', env.Install( zipPakPath, os.path.join(sbfRcNsisPath, 'redistributables.nsi') ) )
+		Alias( 'nsis', env.Install( zipPakPath, os.path.join(sbfNSISPath, 'redistributable.nsi') ) )
+		Alias( 'nsis', env.Install( zipPakPath, os.path.join(sbfRcNsisPath, 'redistributableDatabase.nsi') ) )
+
 		# @todo Creates a function to InstallAs( dirDest, dirSrc * )
 		redistributableFiles = []
 		searchFiles(	os.path.join(sbfRcNsisPath, 'Redistributable'),
 						redistributableFiles,
 						['.svn'] )
+
 		installRedistributableFiles = []
 		for file in redistributableFiles :
 			installRedistributableFiles += env.InstallAs( os.path.join( zipPakPath, file.replace(sbfRcNsisPath + os.sep, '') ), file )
+		# endtodo
 		Alias( 'nsis', installRedistributableFiles )
+
+		# Generates several nsis files
+		nsisRedistFiles		=	[ os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_redist.nsi' ), os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_redist.nsi' ) ]
 		nsisInstallFiles	= os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi' )
 		nsisUninstallFile	= os.path.join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi' )
+		Alias( 'nsis', rootProjectEnv.redistGeneration( nsisRedistFiles, portableZipPath ) )
 		Alias( 'nsis', env.zipPrinterForNSISInstallFiles( nsisInstallFiles, portableZipPath ) )
 		Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	nsisUninstallFile, portableZipPath ) )
-		Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisInstallFiles, nsisUninstallFile] ) )#portableZipPath + '.zip' ) )
+		Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile] ) )#portableZipPath + '.zip' ) )
 		# @todo FIXME nsisRootPath
 		# @todo Nsis builder
 		nsisRootPath = "C:\\Program Files\\NSIS"

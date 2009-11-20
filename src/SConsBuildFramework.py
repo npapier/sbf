@@ -48,6 +48,7 @@ def printEmptyLine(target = None, source = None, env = None) :
 	print ''
 
 def printBuild( target, source, localenv ) :
+	# echo -e "\033[34m test" gives a blue "test"
 	return stringFormatter( localenv, "Build %s" % localenv['sbf_projectPathName'] )
 
 def printInstall( target, source, localenv ) :
@@ -353,8 +354,11 @@ class SConsBuildFramework :
 
 		# myDate, myDateTime
 		self.myDate		= str(datetime.date.today()).replace('-', '_')
+
 		# format compatible with that specified in the RFC 2822 Internet email standard.
-		self.myDateTime	= str(datetime.datetime.today().strftime("%a, %d %b %Y %H:%M:%S +0000"))
+		# self.myDateTime	= str(datetime.datetime.today().strftime("%a, %d %b %Y %H:%M:%S +0000"))
+
+		self.myDateTime	= str(datetime.datetime.today().strftime("%Y-%m-%d_%Hh%Mm%Ss"))
 
 		# Prints sbf version, date and time at sbf startup
 		if self.myEnv.GetOption('verbosity') :
@@ -1781,6 +1785,24 @@ SConsBuildFramework options:
 
 		# Returns the list
 		return recursiveDependencies
+
+
+	def getAllUses( self, lenv ):
+		"""Computes the set of all 'uses' for the project described by lenv and all its dependencies"""
+
+		# The return value containing all 'uses'
+		retValUses = set()
+
+		# Retrieves all dependencies
+		dependencies = self.getAllDependencies(lenv)
+
+		# Adds 'uses' to return value, for each dependency
+		for dependency in dependencies:
+			dependencyEnv = self.myParsedProjects[ dependency ]
+			retValUses = retValUses.union( set(dependencyEnv['uses']) )
+
+		# Returns the computed set
+		return retValUses
 
 
 	# Computes common root of all projects
