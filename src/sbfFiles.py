@@ -25,6 +25,19 @@ def convertPathAbsToRel( basePathName, absPathName ):
 	return absPathName[length+1:]
 
 
+def computeDepth( path ):
+	"""Returns the depth of the path. Returns 0 for '.' and for '\\' on win and for '/' on posix. Returns 1 for '/first', 2 for '/a/b' and so on."""
+	path = os.path.normpath( path )
+	if path == '.':
+		return 0
+
+	countNonEmpty = 0
+	for elt in path.split( os.sep ):
+		if len(elt) > 0:
+			countNonEmpty += 1
+	return countNonEmpty
+
+
 #########################################
 ###### Directory related functions ######
 #########################################
