@@ -373,7 +373,7 @@ class PackagingSystem:
 
 
 	def list( self, pattern = '', enablePrint = True ):
-		filenames = []
+		filenames = set()
 
 		platformAndCCFilter = self.__my_Platform_myCCVersion
 		if self.__myPlatform == 'win32':
@@ -395,8 +395,8 @@ class PackagingSystem:
 				  continue
 				if enablePrint:
 					print splitted[0].ljust(30), filename
-				filenames.append(filename)
-		return filenames
+				filenames.add(filename)
+		return list(filenames)
 
 
 
@@ -818,7 +818,7 @@ class sbfPakCmd( cmd.Cmd ):
 
 		# Initializes pakName
 		pakName = self.__mkdbLocatePackage( parameterList[0] )
-		if pakName != None:
+		if pakName:
 			self.__packagingSystem.mkPak( pakName )
 
 
