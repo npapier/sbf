@@ -262,7 +262,7 @@ addToPath( os.path.join(pythonInstallPath, 'Scripts'), paths )
 #print
 
 # Adds c:\cygwin\bin to PATH
-addToPath( getCygwinInstallPath(), paths )
+addToPath( os.path.join(getCygwinInstallPath(), 'bin'), paths )
 #print
 
 # @todo Adds TortoiseMerge to PATH
