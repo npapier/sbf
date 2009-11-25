@@ -707,6 +707,9 @@ class sbfPakCmd( cmd.Cmd ):
 
 	def do_exit( self, param ):
 		return True
+		
+	def do_EOF( self, param ):
+		return True
 
 
 	def help_list( self ):
