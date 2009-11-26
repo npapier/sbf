@@ -707,8 +707,9 @@ class sbfPakCmd( cmd.Cmd ):
 
 	def do_exit( self, param ):
 		return True
-		
+
 	def do_EOF( self, param ):
+		print ('\n')
 		return True
 
 
@@ -828,4 +829,4 @@ class sbfPakCmd( cmd.Cmd ):
 
 def runSbfPakCmd( sbf ):
 	shell = sbfPakCmd( PackagingSystem(sbf) )
-	shell.cmdloop("Welcome to interactive mode of sbfPak")
+	shell.cmdloop("Welcome to interactive mode of sbfPak\n")
