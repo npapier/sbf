@@ -1419,7 +1419,7 @@ SConsBuildFramework options:
 
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
 
-		searchFiles( 'src',		filesFromSrc,		['.svn'], basenameWithDotRe + r"cpp$" )
+		searchFiles( 'src',		filesFromSrc,		['.svn'], basenameWithDotRe + r"(?:cpp|c)$" )
 		#searchFiles1( 'src',		['.svn'], ['.cpp'], filesFromSrc )
 
 		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|h|inl)$" )
