@@ -1,7 +1,7 @@
 ; SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
-# Distributed under the terms of the GNU General Public License (GPL)
-# as published by the Free Software Foundation.
-# Author Nicolas Papier
+; Distributed under the terms of the GNU General Public License (GPL)
+; as published by the Free Software Foundation.
+; Author Nicolas Papier
 ;
 ; This script :
 ; @todo begin(Updates what the script do)
@@ -24,32 +24,30 @@
 ; @todo end(Updates what the script do)
 
 ;--------------------------------
-
+; @todo others tools ( cygwin/rsync_ssh...)
+; @todo installs python module for gtest
+; @todo buildbot slave
+; @todo adds new page(s) to select tools to install
 ; @todo moves bootstrap.py into an sbf target
-; @todo svn commit in sbf (run)
 ; @todo Adds 64 bits detection and switch to 64bits version
 ; @todo expert mode/basic mode (yes to all)
 ; @todo Modern UI
 ; @todo a version without packages, but with download capabilities
 ; @todo unboostrap to undo what has been done
-
-; @todo AccessControl.zip plugin installation (for NSIS)
-; @toto Redistributable.zip installation (for NSIS)
-
-; @todo others tools ( cygwin/rsync_ssh...)
 ; @todo silent mode
+; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-3-2"
+!define SBFPROJECTVERSION	"0-3-3"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
 
-!define REDISTDIR	"Redistributable"
+!define REDISTDIR				"Redistributable"
 
 !define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.6\InstallPath"
 
-!define PYTHON					"python-2.6.3.msi"
+!define PYTHON					"python-2.6.4.msi"
 !define PYWIN32					"pywin32-214.win32-py2.6.exe"
 !define PYSVN					"py26-pysvn-svn161-1.7.0-1177.exe"
 !define SCONS					"scons-1.2.0.win32.exe"
@@ -58,16 +56,24 @@
 !define SEVENZIP				"7z465.exe"
 ; @todo __7z465-x64.msi__
 
-!define NSIS					"nsis-2.45-setup.exe"
+!define NSIS						"nsis-2.45-setup.exe"
+; http://nsis.sourceforge.net/Nsisunz_plug-in
+!define NSIS_PLUGIN_NSISUNZ			"NSIS_nsisunz.zip"
+; http://nsis.sourceforge.net/AccessControl_plug-in
+!define NSIS_PLUGIN_ACCESSCONTROL	"NSIS_AccessControl.zip"
+; http://nsis.sourceforge.net/UAC_plug-in
+!define NSIS_PLUGIN_UAC				"NSIS_UAC0-0-11d.zip"
 
+; SConsBuildFramework redistributable
+!define SCONS_BUILD_FRAMEWORK_REDIST	"Redistributable.zip"
 
-!define DOXYGEN					"doxygen-1.6.1-setup.exe"
-!define GRAPHVIZ				"graphviz-2.16.1.exe"
+!define DOXYGEN							"doxygen-1.6.1-setup.exe"
+!define GRAPHVIZ						"graphviz-2.16.1.exe"
 
 
 !define SVNCLIENT				"CollabNetSubversion-client-1.6.1-2.win32.exe"
-!define TORTOISESVN				"TortoiseSVN-1.6.5.16974-win32-svn-1.6.5.msi"
-!define TORTOISESVN64			"TortoiseSVN-1.6.5.16974-x64-svn-1.6.5.msi"
+!define TORTOISESVN				"TortoiseSVN-1.6.6.17493-win32-svn-1.6.6.msi"
+!define TORTOISESVN64			"TortoiseSVN-1.6.6.17493-x64-svn-1.6.6.msi"
 
 
 !define GTKMM_DEVEL				"gtkmm-win32-devel-2.16.0-4.exe"
@@ -88,75 +94,47 @@
 !define GTKMM_DEVEL_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gtkmm"
 
 
+### Functions ###
+Function launchBootstrap
+  ReadRegStr $0 HKLM ${PYTHON_REG_INSTALLPATH} ""
+  ;MessageBox MB_OK "launchBootstrap:Python is installed at: $0"
+  ;ReadEnvStr $1 SCONS_BUILD_FRAMEWORK
+  ;MessageBox MB_OK "launchBootstrap:SCONS_BUILD_FRAMEWORK=$1"
+  MessageBox MB_YESNO "Launch SConsBuildFramework bootstrap python script ?" /SD IDYES IDNO +2
+  ExecWait '"$0python.exe" "$INSTDIR\bootstrap.py"'
+
+FunctionEnd
+
+Function getUser_SCONS_BUILD_FRAMEWORK
+  ReadEnvStr $0 SCONS_BUILD_FRAMEWORK
+  ;MessageBox MB_OK "getUser_SCONS_BUILD_FRAMEWORK=$0"
+  FileOpen $1 $EXEDIR\SCONS_BUILD_FRAMEWORK.txt w
+  FileWrite $1 $0
+  FileClose $1
+FunctionEnd
+
+
+
 ### Redistributable ###
-; @todo should go in redistributables.nsi, because more generic
-!macro InstallRedistributable file
+
+!include redistributable.nsi
+
+!macro InstallAndUnzipRedistributableOfNSISPlugins file
+	MessageBox MB_YESNO "Install ${file} ?" /SD IDYES IDNO +9
+	IfFileExists "$INSTDIR\Redistributable\*.*" +2
 	CreateDirectory "$INSTDIR\Redistributable"
 	File "/oname=$INSTDIR\Redistributable\${file}" "Redistributable\${file}"
-!macroend
-
-!macro InstallRedistributableExt directory file
-	CreateDirectory "$INSTDIR\${directory}"
-	File "/oname=$INSTDIR\${directory}\${file}" "${directory}\${file}"
-!macroend
-
-
-!macro RmRedistributable file
-	Delete "$INSTDIR\Redistributable\${file}"
-	RmDir "$INSTDIR\Redistributable"
-!macroend
-
-!macro RmRedistributableExt directory file
-	Delete "$INSTDIR\${directory}\${file}"
-	RmDir "$INSTDIR\${directory}"
+	ReadRegStr $0 HKLM "Software\NSIS" ""
+	nsisunz::UnzipToLog "$INSTDIR\Redistributable\${file}" $0
+	; Always check result on stack
+	Pop $0
+	StrCmp $0 "success" +2
+	DetailPrint "$0" ;print error message to log
 !macroend
 
 
-!macro LaunchRedistributable file
-	MessageBox MB_YESNO "Install ${file} ?" /SD IDYES IDNO +2
-	ExecWait "$INSTDIR\Redistributable\${file}"
-!macroend
-
-!macro LaunchRedistributableExt directory file
-	MessageBox MB_YESNO "Install ${file} ?" /SD IDYES IDNO +2
-	ExecWait "$INSTDIR\${directory}\${file}"
-!macroend
-
-
-!macro MSILaunchRedistributableParams file params
-	MessageBox MB_YESNO "Install ${file} ?" /SD IDYES IDNO +2
-	ExecWait '"msiexec" ${params} "$INSTDIR\Redistributable\${file}"'
-!macroend
-
-!macro MSIUninstallRedistributable file
-	MessageBox MB_YESNO "Uninstall ${file} ?" /SD IDYES IDNO +2
-	ExecWait '"msiexec" /x "$INSTDIR\Redistributable\${file}"'
-!macroend
-
-
-; @todo Checks if $0  empty
-!macro UninstallString name hklmPath
-	ReadRegStr $0 HKLM "${hklmPath}" "UninstallString"
-	MessageBox MB_YESNO "Uninstall ${name} ?" /SD IDYES IDNO +2
-	ExecWait $0
-!macroend
-
-
-
-
-
-
-!macro InstallAndLaunchRedistributable file
-	!insertmacro InstallRedistributable ${file}
-	!insertmacro LaunchRedistributable ${file}
-!macroend
-
-!macro InstallAndMSILaunchRedistributableParams file params
-	!insertmacro InstallRedistributable ${file}
-	!insertmacro MSILaunchRedistributableParams ${file} "${params}"
-!macroend
-
-;!include "redistributables.nsi"
+;
+SetCompressor lzma
 
 ;
 RequestExecutionLevel user /* RequestExecutionLevel REQUIRED! */
@@ -165,10 +143,11 @@ RequestExecutionLevel user /* RequestExecutionLevel REQUIRED! */
 !include WinMessages.nsh
 
 ; @todo see MultiUser.nsh
-;Var SBF_DIR
+; Contains SCONS_BUILD_FRAMEWORK environment variable (not initialized at the beginning)
+Var SBF_DIR
 
 Function .onInit
-
+	InitPluginsDir
 ;	UAC::IsAdmin
 ;	${If} $0 < 1
 ;		MessageBox MB_OK "onInit:isAdmin then : NO"
@@ -218,28 +197,6 @@ Page components
 Page directory
 Page instfiles
 
-;FIXME
-;PageEx directory
-;  DirVar $SBF_DIR
-;PageExEnd
-
-Function launchBootstrap
-  ReadRegStr $0 HKLM ${PYTHON_REG_INSTALLPATH} ""
-  ;MessageBox MB_OK "launchBootstrap:Python is installed at: $0"
-  ;ReadEnvStr $1 SCONS_BUILD_FRAMEWORK
-  ;MessageBox MB_OK "launchBootstrap:SCONS_BUILD_FRAMEWORK=$1"
-;MessageBox MB_OK "launchBootstrap:OUTDIR=$OUTDIR"
-;Push $OUTDIR
-;SetOutPath $INSTDIR
-  MessageBox MB_YESNO "Launch SConsBuildFramework bootstrap python script ?" /SD IDYES IDNO +2
-  ExecWait '"$0python.exe" "$INSTDIR\bootstrap.py"'
-;Pop $0
-;SetOutPath $0
-;MessageBox MB_OK "launchBootstrap:OUTDIR=$OUTDIR"
-
-FunctionEnd
-
-
 UninstPage uninstConfirm
 UninstPage instfiles
 
@@ -253,10 +210,10 @@ UninstPage instfiles
 
   ; Set output path to the installation directory.
 ;  SetOutPath $INSTDIR
+  ;SetDetailsView show
 
   ; Redistributable
 ; @todo Twisted_NoDocs-8.2.0.win32-py2.5.exe and buildbot-0.7.10p1.zip (p3 ?)
-; !insertmacro InstallAndLaunchRedistributable ${GTKMM_DEVEL}
 
 ;SectionEnd
 
@@ -268,6 +225,7 @@ Section "Documentation tools"
 
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
+  SetDetailsView show
 
   ; Redistributable
 !insertmacro InstallAndLaunchRedistributable ${DOXYGEN}
@@ -283,32 +241,29 @@ Section "Version control system"
 
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
+  SetDetailsView show
 
   ; Redistributable
 !insertmacro InstallAndLaunchRedistributable ${SVNCLIENT}
 !insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN} "/i"
 !insertmacro InstallAndMSILaunchRedistributableParams ${TORTOISESVN64} "/i"
 
-; @todo portable apps for dt (eclipse, npp)
-
 SectionEnd
 
 
 ; Optional section (can be disabled by the user)
-Section "gtkmm"
+Section "gtkmm SDK"
 
   SetShellVarContext all
 
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
+  SetDetailsView show
 
   ; Redistributable
 !insertmacro InstallAndLaunchRedistributable ${GTKMM_DEVEL}
 
 SectionEnd
-
-
-
 
 
 
@@ -322,11 +277,9 @@ Section "Sbf prerequisites and core (required)"
 
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
+  SetDetailsView show
 
   ; Redistributable
-  CreateDirectory $INSTDIR\${REDISTDIR}
-
-  SetDetailsView show
 
 ;PYTHON
 !insertmacro InstallAndMSILaunchRedistributableParams ${PYTHON} "/i" ; @todo "ALLUSERS=1 ADDLOCAL=DefaultFeature"
@@ -345,14 +298,36 @@ Section "Sbf prerequisites and core (required)"
 ;NSIS
 !insertmacro InstallAndLaunchRedistributable ${NSIS}
 
+;NSIS plugins
+!insertmacro InstallAndUnzipRedistributableOfNSISPlugins ${NSIS_PLUGIN_NSISUNZ}
+!insertmacro InstallAndUnzipRedistributableOfNSISPlugins ${NSIS_PLUGIN_ACCESSCONTROL}
+!insertmacro InstallAndUnzipRedistributableOfNSISPlugins ${NSIS_PLUGIN_UAC}
+
 ; bootstrap.py and Environment.py
+  MessageBox MB_YESNO "Launch SConsBuildFramework bootstrap python script ?" /SD IDYES IDNO +7
   File "/oname=$INSTDIR\bootstrap.py" "bootstrap.py"
   File "/oname=$INSTDIR\Environment.py" "Environment.py"
-
   HideWindow
   GetFunctionAddress $0 launchBootstrap
   UAC::ExecCodeSegment $0
   showWindow $HWNDPARENT "${SW_SHOW}"
+
+; Installs SConsBuildFramework Redistributable.zip
+  ; Initializes SBF_DIR (i.e. SCONS_BUILD_FRAMEWORK env var)
+  HideWindow
+  GetFunctionAddress $0 getUser_SCONS_BUILD_FRAMEWORK
+  UAC::ExecCodeSegment $0
+  FileOpen $0 $EXEDIR\SCONS_BUILD_FRAMEWORK.txt r
+  FileRead $0 $1
+  FileClose $0
+  ; MessageBox MB_OK "from $EXEDIR\SCONS_BUILD_FRAMEWORK.txt:SCONS_BUILD_FRAMEWORK=$1"
+  StrCpy $SBF_DIR $1
+  ; MessageBox MB_OK "SBF_DIR:SCONS_BUILD_FRAMEWORK=$SBF_DIR"
+  Delete "$EXEDIR\SCONS_BUILD_FRAMEWORK.txt"
+  showWindow $HWNDPARENT "${SW_SHOW}"
+
+  ; Installs SCONS_BUILD_FRAMEWORK_REDIST
+  !insertmacro InstallAndUnzipRedistributable ${SCONS_BUILD_FRAMEWORK_REDIST} "$SBF_DIR\rc\nsis"
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
@@ -395,6 +370,12 @@ Section "Uninstall"
   SetShellVarContext all
 
   ; Remove redistributables
+; @todo uninstall SConsBuildFramework redistributable
+
+; @todo unbootstrap
+
+; @todo NSIS plugins
+
 ; NSIS
 ReadRegStr $0 HKLM "Software\NSIS" ""
 MessageBox MB_YESNO "Uninstall NSIS ?" /SD IDYES IDNO +2
