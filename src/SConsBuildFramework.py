@@ -375,8 +375,8 @@ class SConsBuildFramework :
 				mustAddAlias = False
 				break
 
-		Alias(		'all' )
-		Default(	'all' )
+		Alias( 'all' )
+		Default( 'all' )
 		Alias( self.myCmdLineOptionsList )
 		if mustAddAlias :
 			Alias( self.myCmdLineOptionsList, 'all' )
@@ -496,6 +496,9 @@ svn related targets
  'scons svnClean' to clean up recursively the working copy.
  'scons svnStatus' to print the status of working copy files and directories.
  'scons svnUpdate' to update your working copy.
+
+configuration related target
+ 'scons info' to print informations about the current project, its dependencies and external packages needed.
 
 build related targets
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
@@ -763,13 +766,15 @@ SConsBuildFramework options:
 
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
-							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', 'highest' ),
+							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', 'highest' ),
 							map={
 									'2003'		: '7.1',
 									'2005Exp'	: '8.0Exp',
 									'2005'		: '8.0',
 									'2008Exp'	: '9.0Exp',
-									'2008'		: '9.0'
+									'2008'		: '9.0',
+									'2010Exp'	: '10.0Exp',
+									'2010'		: '10.0'
 									} ),
 
 			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
@@ -865,11 +870,32 @@ SConsBuildFramework options:
 
 		# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
 		if self.myCCVersionNumber >= 8.000000 :
-			self.myEnv['LINKCOM'	] = [self.myEnv['LINKCOM'	], 'mt /nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;1']
-			self.myEnv['SHLINKCOM'	] = [self.myEnv['SHLINKCOM'], 'mt /nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;2']
+			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
 
-		# @todo CL9, CL8 classes to configure env and/or retrieves the whole configuration. Idem for gcc...
-		if self.myCCVersionNumber >= 9.000000:
+		# @todo CL10, CL9, CL8 classes to configure env and/or retrieves the whole configuration. Idem for gcc...
+		if self.myCCVersionNumber >= 10.000000:
+			# Configures Microsoft Visual C++ 2010
+			# @todo FIXME should be done by SCons...
+			visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\include'
+			visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\lib'
+			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Include'
+			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Lib'
+
+			if self.myIsExpressEdition:
+				# at least for rc.exe
+				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
+
+				if lenv.GetOption('weak_localext'):
+					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
+				else:
+					lenv.Append( CPPPATH = [visualInclude, msSDKInclude] )
+
+				lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % msSDKInclude )
+
+				lenv.Append( LIBPATH = [visualLib, msSDKLib] )
+
+
+		elif self.myCCVersionNumber >= 9.000000:
 			# Configures Microsoft Visual C++ 2008
 			# @todo FIXME should be done by SCons...
 			visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\INCLUDE'
@@ -909,7 +935,11 @@ SConsBuildFramework options:
 
 
 		#
-		if self.myCCVersionNumber >= 9.000000 :
+		if self.myCCVersionNumber >= 10.000000 :
+			lenv.Append( LINKFLAGS = '/MANIFEST' )
+			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+		elif self.myCCVersionNumber >= 9.000000 :
+			lenv.Append( LINKFLAGS = '/MANIFEST' )
 			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
 		elif self.myCCVersionNumber >= 8.000000 :
 			# /GX is deprecated in Visual C++ 2005
@@ -926,13 +956,23 @@ SConsBuildFramework options:
 		# Defines
 		lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
 
+#			print lenv['CXXFLAGS'], lenv['CCFLAGS']
+		#lenv.Append( CXXFLAGS = ['/MP{0}'.format(self.myNumJobs)] )
+
 		if self.myConfig == 'release' :							### TODO: use /Zd in release mode to be able to debug a little.
-			lenv.Append( CXXFLAGS = ['/DNDEBUG', '/MD', '/O2'] )
+			lenv.Append( CXXFLAGS = ['/DNDEBUG'] )
+			lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
 		else:
 			lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
 			# /Od : Disable (Debug)
-			lenv.Append( CXXFLAGS = ['/MDd', '/Od', '/Z7'] )
-			lenv.Append( LINKFLAGS = '/DEBUG' )
+			lenv.Append( CXXFLAGS = ['/MDd', '/Od'] )
+			# Enable Function-Level Linking
+			lenv.Append( CXXFLAGS = ['/Gy'] )
+			lenv['CCPDBFLAGS'] = ['${(PDB and "/Zi /Fd%s" % File(PDB)) or ""}']
+
+			# /Yd is deprecated in Visual C++ 2005; Visual C++ now supports multiple objects writing to a single .pdb file,
+			# use /Zi instead (Microsoft Visual Studio 2008/.NET Framework 3.5).
+
 			# /Zi : Produces a program database (PDB) that contains type information and symbolic debugging information
 			# for use with the debugger. The symbolic debugging information includes the names and types of variables,
 			# as well as functions and line numbers. Using the /Zi instead may yield improved link-time performance,
@@ -940,7 +980,6 @@ SConsBuildFramework options:
 			# the default $CCPDBFLAGS variable
 			# /ZI : Produces a program database in a format that supports the Edit and Continue feature.
 			# /Gm : Enable Minimal Rebuild.
-			#self.myCxxFlags += ' /ZI /Gm ' TODO not compatible with parallel (-j) builds.
 
 		# Warnings
 		if self.myWarningLevel == 'normal' :		### TODO: it is dependent of the myConfig. Must be changed ? yes, do it...
@@ -950,6 +989,7 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = ['/W4', '/Wall'] )
 
 
+	# @todo incremental in release, but not for portable app and nsis
 	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
 		# Subsystem and incremental flags
 		self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
@@ -959,17 +999,15 @@ SConsBuildFramework options:
 			if self.mySubsystemNotDefined :
 				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
 
-			# To ensure that the final release build does not contain padding or thunks, link nonincrementally.
+			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
 			lenv.Append( LINKFLAGS = '/INCREMENTAL:NO' )
 		else:
 			# subsystem sets to console to output debugging informations.
 			if self.mySubsystemNotDefined :
-				lenv.Append( LINKFLAGS = '/SUBSYSTEM:CONSOLE' )
-				#lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
+				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
 
 			# By default, the linker runs in incremental mode.
-
-		# self.myLinkFlags	+= ' /VERSION:%s ' % self.myVersion.replace('-','.')	@todo use a .def file
+			lenv.Append( LINKFLAGS = [ '/DEBUG', '/INCREMENTAL' ] )
 
 		if self.myType == 'exec':
 			# /GA : Results in more efficient code for an .exe file for accessing thread-local storage (TLS) variables.
@@ -1507,29 +1545,25 @@ SConsBuildFramework options:
 		else :
 			print 'sbfWarning: during final setup of project'
 
-#===============================================================================
-#		if self.myType in ['exec', 'static', 'shared'] :
-#			# projectTarget is not deleted before it is rebuilt.
-#			lenv.Precious( projectTarget )
-#===============================================================================
+		if self.myType in ['exec', 'static', 'shared'] :
+			# projectTarget is not deleted before it is rebuilt.
+			lenv.Precious( projectTarget )
 
+		# @todo /PDBSTRIPPED:pdb_file_name
 		# PDB: pdb only generate on win32 and in debug mode.
-#===============================================================================
-#		if (self.myPlatform == 'win32') and (self.myConfig == 'debug') :
-#			# PDB Generation
-#			# static library don't generate pdb.
-#			if	self.myType in ['exec', 'shared'] :
-#				#lenv['PDB'] = objProject + '.pdb'
-#				#lenv.SideEffect( lenv['PDB'], projectTarget )
-#				# it is not deleted before it is rebuilt.
-#				#lenv.Precious( lenv['PDB'] )
-#
-#			# PDB Installation
-#			if		self.myType == 'exec' :
-#				installInBinTarget.append(	File(lenv['PDB'])	)
-#			elif	self.myType == 'shared' :
-#				installInLibTarget.append(	File(lenv['PDB'])	)
-#===============================================================================
+		if (self.myPlatform == 'win32') and (self.myConfig == 'debug'):
+			# PDB Generation. Static library don't generate pdb.
+			if	self.myType in ['exec', 'shared']:
+				lenv['PDB'] = objProject + '.pdb'
+				lenv.SideEffect( lenv['PDB'], projectTarget )
+				# it is not deleted before it is rebuilt.
+				lenv.Precious( lenv['PDB'] )
+
+			# PDB Installation
+			if self.myType == 'exec':
+				installInBinTarget.append( File(lenv['PDB']) )
+			elif self.myType == 'shared':
+				installInLibTarget.append( File(lenv['PDB']) )
 
 
 		######	setup targets : myProject_build myProject_install myProject myProject_clean myProject_mrproper ######
@@ -1654,7 +1688,7 @@ SConsBuildFramework options:
 			lenv['sbf_bin'].append( elt.abspath )
 
 		# @todo not very platform independent
-		for elt in installInLibTarget :
+		for elt in installInLibTarget:
 			# @todo must be optimize
 			absPathFilename	= elt.abspath
 			filename		= os.path.split(absPathFilename)[1]
@@ -1662,6 +1696,7 @@ SConsBuildFramework options:
 
 			if filenameExt == '.exp':
 				# exclude *.exp
+				# print "skip:", filenameExt
 				continue
 
 			if filenameExt == '.lib' : # in ['.pdb', '.lib'] :
@@ -1818,3 +1853,13 @@ SConsBuildFramework options:
 			return projectsRoot
 		else:
 			return os.path.dirname(projectsRoot)
+
+
+	def getEnv( self, projectName ):
+		"""Returns the environment for the given project name.
+		@pre projectName must be an existing project name"""
+		return self.myParsedProjects[ projectName ]
+
+	def getRootProjectEnv( self ):
+		"""Returns the environment for the project that has started the scons command."""
+		return self.getEnv( self.myEnv['sbf_launchProject'] )

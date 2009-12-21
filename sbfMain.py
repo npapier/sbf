@@ -268,7 +268,7 @@ def checkCC(target = None, source = None, env = None) :
 	if env['CC'] == 'cl' :
 		#ccVersionAction		= Action( 'cl /help' )
 		print 'cl version :', env['MSVS']['VERSION']
-		print 'The available versions of cl installed are', env['MSVS']['VERSIONS']
+		print 'The available versions of cl installed are', sorted(env['MSVS']['VERSIONS'])
 
 	checkTool( env, 'gcc', '@gcc -dumpversion' )
 
@@ -314,7 +314,7 @@ env['BUILDERS']['Rsync']	= Builder( action = "rsync $RSYNCFLAGS $RSYNCRSH $POSIX
 def createRsyncAction( env, target, source, alias = None ):
 	rsyncAction = env.Rsync( Value(target), source )
 	env.AlwaysBuild( rsyncAction )
-	if alias is not None :
+	if alias:
 		env.Alias( alias, rsyncAction )
 	return rsyncAction
 env.AddMethod( createRsyncAction )
@@ -337,7 +337,7 @@ env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
 env['sbf_projectPathName'	]	= env['sbf_launchDir']
 env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
-
+env['sbf_launchProject'		]	= env['sbf_project']
 
 # Builds sbf library
 buildStage = True
@@ -368,6 +368,19 @@ Alias( 'onlyRun' )
 Alias( 'onlyrun', 'onlyRun' )
 
 Alias( 'run' )
+
+
+### target configure ###
+# @todo
+
+
+### target sbfConfigure ###
+# @todo
+
+
+### target info ###
+from src.sbfInfo import configureInfoTarget
+configureInfoTarget( env )
 
 
 ### special target : vcproj ###
