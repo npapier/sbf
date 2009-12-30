@@ -504,7 +504,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 	env.AlwaysBuild( [commandGenerateDoxyfile, commandCompileDoxygen] )
 
 	# target dox_install
-	dox_install_cmd = env.Command( os.path.join(doxInstallPath,'dummy.out'), os.path.join(doxBuildPath, 'html'), Action(syncAction, printDoxygenInstall) )
+	dox_install_cmd = env.Command( os.path.join(doxInstallPath,'dummy.out'), Dir(os.path.join(doxBuildPath, 'html')), Action(syncAction, printDoxygenInstall) )
 	env.Alias( 'dox_install', [	'dox_build', dox_install_cmd ] )
 	env.AlwaysBuild( dox_install_cmd )
 	env.Depends( dox_install_cmd, 'dox_build' )
