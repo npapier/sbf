@@ -148,16 +148,21 @@ import subprocess
 def execute( command ):
 	# Executes command
 	pipe = subprocess.Popen( command, shell=True, bufsize = 0, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
+	pipe.wait()
 
 	# Retrieves stdout or stderr
 	lines = pipe.stdout.readlines()
 	if len(lines) == 0 :
 		lines = pipe.stderr.readlines()
+		if len(lines) == 0:
+			return "No output"
 
-	for line in lines :
+	for line in lines:
 		line = line.rstrip('\n')
-		if len(line) > 0 :
+		if len(line) > 0:
 			return line
+
+
 
 def checkTool( env, toolName, toolCmd ):
 	whereis = env.WhereIs( toolName )
@@ -320,7 +325,9 @@ def createRsyncAction( env, target, source, alias = None ):
 env.AddMethod( createRsyncAction )
 
 # target 'sbfCheck'
-Alias('sbfCheck', env.Command('dummyCheckVersion.out2', 'dummy.in', Action( sbfCheck, printEmptyLine ) ) )
+if 'sbfCheck' in BUILD_TARGETS:
+	sbfCheck('dummyCheckVersion.out1', 'dummy.in', env)
+	Exit(0)
 
 # target 'sbfPak'
 import src.sbfPackagingSystem
