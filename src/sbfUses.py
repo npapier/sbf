@@ -104,8 +104,8 @@ class gtkConfig:
 
 #===============================================================================
 # OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
-#					'cairo1-2-6', 'cairomm1-2-4', 'colladadom2-0', 'glu', 'glut', 'gtkmm2-14', 'itk3-4-0', 'ode', 'opengl',
-#					'openil', 'openilu', 'physx2-8-1', 'sdl']
+#					'cairo1-2-6', 'cairomm1-2-4', 'colladadom2-0', 'glu', 'glut', 'itk3-4-0', 'ode',
+#					'physx2-8-1', 'sdl']
 #					# cg|cgFX|imageMagick6|imageMagick++6
 #===============================================================================
 #OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
@@ -117,7 +117,6 @@ class gtkConfig:
 #		'cairo'			: 'cairo1-2-6',
 #		'cairomm'		: 'cairomm1-2-4',
 #		'colladadom'	: 'colladadom2-0',
-#		'gtkmm'			: 'gtkmm2-14',
 #		'itk'			: 'itk3-4-0',
 #		'physx'			: 'physx2-8-1',
 #		'wx'			: 'wx2-8-8',
@@ -255,7 +254,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-40-0', '1-41-0', '1-38-0', '1-34-1' ]
+		return [ '1-41-0', '1-40-0', '1-38-0', '1-34-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -282,7 +281,15 @@ class Use_boost( IUse ):
 			if version == '1-41-0':
 				# autolinking, so nothing to do.
 				if self.config == 'release' :
-					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						pakLibs = [	'boost_date_time-vc100-mt-1_41', 'boost_filesystem-vc100-mt-1_41', 'boost_graph-vc100-mt-1_41',
+									'boost_iostreams-vc100-mt-1_41', 'boost_math_c99-vc100-mt-1_41', 'boost_math_c99f-vc100-mt-1_41',
+									'boost_math_c99l-vc100-mt-1_41', 'boost_math_tr1-vc100-mt-1_41', 'boost_math_tr1f-vc100-mt-1_41',
+									'boost_math_tr1l-vc100-mt-1_41', 'boost_prg_exec_monitor-vc100-mt-1_41', 'boost_program_options-vc100-mt-1_41',
+									'boost_python-vc100-mt-1_41', 'boost_regex-vc100-mt-1_41', 'boost_serialization-vc100-mt-1_41',
+									'boost_signals-vc100-mt-1_41', 'boost_system-vc100-mt-1_41', 'boost_thread-vc100-mt-1_41',
+									'boost_unit_test_framework-vc100-mt-1_41', 'boost_wave-vc100-mt-1_41', 'boost_wserialization-vc100-mt-1_41' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						pakLibs = [	'boost_date_time-vc90-mt-1_41', 'boost_filesystem-vc90-mt-1_41', 'boost_graph-vc90-mt-1_41',
 									'boost_iostreams-vc90-mt-1_41', 'boost_math_c99-vc90-mt-1_41', 'boost_math_c99f-vc90-mt-1_41',
 									'boost_math_c99l-vc90-mt-1_41', 'boost_math_tr1-vc90-mt-1_41', 'boost_math_tr1f-vc90-mt-1_41',
@@ -301,7 +308,15 @@ class Use_boost( IUse ):
 					else:
 						return
 				else:
-					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						pakLibs = [	'boost_date_time-vc100-mt-gd-1_41', 'boost_filesystem-vc100-mt-gd-1_41', 'boost_graph-vc100-mt-gd-1_41',
+									'boost_iostreams-vc100-mt-gd-1_41', 'boost_math_c99-vc100-mt-gd-1_41', 'boost_math_c99f-vc100-mt-gd-1_41',
+									'boost_math_c99l-vc100-mt-gd-1_41', 'boost_math_tr1-vc100-mt-gd-1_41', 'boost_math_tr1f-vc100-mt-gd-1_41',
+									'boost_math_tr1l-vc100-mt-gd-1_41', 'boost_prg_exec_monitor-vc100-mt-gd-1_41', 'boost_program_options-vc100-mt-gd-1_41',
+									'boost_python-vc100-mt-gd-1_41', 'boost_regex-vc100-mt-gd-1_41', 'boost_serialization-vc100-mt-gd-1_41',
+									'boost_signals-vc100-mt-gd-1_41', 'boost_system-vc100-mt-gd-1_41', 'boost_thread-vc100-mt-gd-1_41',
+									'boost_unit_test_framework-vc100-mt-gd-1_41', 'boost_wave-vc100-mt-gd-1_41', 'boost_wserialization-vc100-mt-gd-1_41' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						pakLibs = [	'boost_date_time-vc90-mt-gd-1_41', 'boost_filesystem-vc90-mt-gd-1_41', 'boost_graph-vc90-mt-gd-1_41',
 									'boost_iostreams-vc90-mt-gd-1_41', 'boost_math_c99-vc90-mt-gd-1_41', 'boost_math_c99f-vc90-mt-gd-1_41',
 									'boost_math_c99l-vc90-mt-gd-1_41', 'boost_math_tr1-vc90-mt-gd-1_41', 'boost_math_tr1f-vc90-mt-gd-1_41',
@@ -537,7 +552,8 @@ class Use_opengl( IUse ):
 		if self.platform == 'win32' :
 			# opengl32	: OpenGL and wgl functions
 			# gdi32		: Pixelformat and swap related functions
-			libs = [ 'opengl32', 'gdi32']
+			# user32	: ChangeDisplaySettings* functions
+			libs = [ 'opengl32', 'gdi32', 'user32' ]
 			return libs, []
 		else:
 			libs = ['GL']
@@ -582,45 +598,26 @@ class Use_openil( IUse ):
 	def getName( self ):
 		return "openil"
 
+	def getVersions( self ):
+		return ['1-7-8']
+
+
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
 			if self.config == 'release' :
-				libs = ['DevIL']
+				libs = ['DevIL', 'ILU']
 				return libs, libs
 			else:
-				libs = ['DevIL']
+				libs = ['DevIL', 'ILU']
 				return libs, libs #['DevILd'] @todo openil should be compiled in debug on win32 platform
 		else:
 			if self.config == 'release' :
-				libs = ['IL']
+				libs = ['IL', 'ILU']
 				return libs, libs
 			else :
-				libs = ['IL']
+				libs = ['IL', 'ILU']
 				# @remark openil not compiled in debug in ubuntu 8.10
 				#libs = ['ILd']
-				return libs, libs
-
-
-class Use_openilu( IUse ):
-	def getName( self ):
-		return "openilu"
-
-	def getLIBS( self, version ):
-		if self.platform == 'win32' :
-			if self.config == 'release' :
-				libs = ['ILU']
-				return libs, libs
-			else :
-				libs = ['ILU']
-				return libs, libs #['ILUd'] @todo openilu should be compiled in debug on win32 platform
-		else:
-			if self.config == 'release' :
-				libs = ['ILU']
-				return libs, libs
-			else :
-				# @remark openil not compiled in debug in ubuntu 8.10
-				libs = ['ILU']
-				#libs = ['ILUd']
 				return libs, libs
 
 
@@ -902,7 +899,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(),
-					Use_opengl(), Use_itk(), Use_openil(), Use_openilu(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):
@@ -1109,32 +1106,42 @@ class Use_gtkmm( IUse ):
 
 
 
-
-
-
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			libs = ['glade-2.0',
-					'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
-					'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-					'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv']
-			pakLibs = []
+			libs = [ 'glade-2.0', 'gtk-win32-2.0', 'gdk-win32-2.0', 'gdk_pixbuf-2.0',
+					'pangowin32-1.0', 'pangocairo-1.0', 'pangoft2-1.0', 'pango-1.0',
+					'atk-1.0', 'cairo',
+					'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
+					'intl' ]
+			libs += [ 'libxml2', 'iconv' ]
 
 			if version in ['2-16-0', '2-14-3']:
 				if self.config == 'release' :
 					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glademm-vc90-2_4', 'xml++-vc90-2_6', 'gtkmm-vc90-2_4', 'gdkmm-vc90-2_4', 'atkmm-vc90-1_6',
-									'pangomm-vc90-1_4', 'glibmm-vc90-2_4', 'giomm-vc90-2_4', 'cairomm-vc90-1_0', 'sigc-vc90-2_0' ]
+						libs += [	'glademm-vc90-2_4', 'gdkmm-vc90-2_4', 'pangomm-vc90-1_4',
+									'atkmm-vc90-1_6', 'cairomm-vc90-1_0',
+									'glibmm-vc90-2_4', 'giomm-vc90-2_4',
+									'xml++-vc90-2_6', 'sigc-vc90-2_0',
+									'gtkmm-vc90-2_4' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glademm-vc80-2_4', 'xml++-vc80-2_6', 'gtkmm-vc80-2_4', 'gdkmm-vc80-2_4', 'atkmm-vc80-1_6',
-									'pangomm-vc80-1_4', 'glibmm-vc80-2_4', 'giomm-vc80-2_4', 'cairomm-vc80-1_0', 'sigc-vc80-2_0' ]
+						libs += [	'glademm-vc80-2_4', 'gdkmm-vc80-2_4', 'pangomm-vc80-1_4',
+									'atkmm-vc80-1_6', 'cairomm-vc80-1_0',
+									'glibmm-vc80-2_4', 'giomm-vc80-2_4',
+									'xml++-vc80-2_6', 'sigc-vc80-2_0',
+									'gtkmm-vc80-2_4' ]
 				else:
 					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glademm-vc90-d-2_4', 'xml++-vc90-d-2_6', 'gtkmm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'atkmm-vc90-d-1_6',
-									'pangomm-vc90-d-1_4', 'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4', 'cairomm-vc90-d-1_0', 'sigc-vc90-d-2_0' ]
+						libs += [	'glademm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'pangomm-vc90-d-1_4',
+									'atkmm-vc90-d-1_6', 'cairomm-vc90-d-1_0',
+									'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4',
+									'xml++-vc90-d-2_6', 'sigc-vc90-d-2_0',
+									'gtkmm-vc90-d-2_4' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glademm-vc80-d-2_4', 'xml++-vc80-d-2_6', 'gtkmm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'atkmm-vc80-d-1_6',
-									'pangomm-vc80-d-1_4', 'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4', 'cairomm-vc80-d-1_0', 'sigc-vc80-d-2_0' ]
+						libs += [	'glademm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'pangomm-vc80-d-1_4',
+									'atkmm-vc80-d-1_6', 'cairomm-vc80-d-1_0',
+									'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4',
+									'xml++-vc80-d-2_6', 'sigc-vc80-d-2_0',
+									'gtkmm-vc80-d-2_4' ]
 			elif version == '2-14-1':
 				if self.config == 'release' :
 					libs += [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
@@ -1145,7 +1152,8 @@ class Use_gtkmm( IUse ):
 			else:
 				return
 
-			return libs, pakLibs
+			return libs, []
+
 		elif self.platform == 'posix':
 			gtkglext	= [	'gtkglext-x11-1.0', 'gdkglext-x11-1.0',
 							'GLU', 'GL', 'Xmu', 'Xt', 'SM', 'ICE',
@@ -1166,11 +1174,9 @@ class Use_gtkmm( IUse ):
 		if self.platform == 'win32' :
 			path = os.path.join( gtkConfig.getBasePath(), 'lib' )
 			libPath.append( path )
-			pakLibPath.append( path )
 
 			path = os.path.join( gtkConfig.getGtkmmBasePath(), 'bin' )
 			libPath.append( path )
-			pakLibPath.append( path )
 		#else self.platform == 'posix':
 		#	libPath += '/usr/lib64'
 
@@ -1194,9 +1200,15 @@ class Use_gtkmm( IUse ):
 		if self.platform == 'win32':
 			if version == '2-16-0':
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					return ['gtkmm_redist2-16-0-4_win32_cl9-0Exp.zip']
+					if self.config == 'release':
+						return ['gtkmmRedist2-16-0-4_win32_cl9-0Exp.zip']
+					else:
+						return ['gtkmmRedist2-16-0-4_win32_cl9-0Exp_D.zip']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					return ['gtkmm_redist2-16-0-4_win32_cl8-0Exp.zip']
+					if self.config == 'release':
+						return ['gtkmmRedist2-16-0-4_win32_cl8-0Exp.zip']
+					else:
+						return ['gtkmmRedist2-16-0-4_win32_cl8-0Exp_D.zip']
 				else:
 					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
