@@ -158,7 +158,7 @@ def execute( command ):
 			return "No output"
 
 	for line in lines:
-		line = line.rstrip('\n')
+		line = line.strip()
 		if len(line) > 0:
 			return line
 
@@ -170,15 +170,16 @@ def checkTool( env, toolName, toolCmd ):
 		print ( '%s found at %s' % (toolName, whereis) )
 		print ( '%s version : ' % toolName ),
 		sys.stdout.flush()
-		env.Execute( toolCmd )
+		print execute( toolCmd )
+		#env.Execute( '@' + toolCmd )
 	else:
 		print ( '%s not found' % toolName )
 	print
 
-def sbfCheck(target = None, source = None, env = None) :
+def sbfCheck( env ):
 	print stringFormatter( env, 'Availability and version of tools' )
 
-	checkTool( env, 'python', '@python --version' )
+	checkTool( env, 'python', 'python --version' )
 
 	print 'Version of python used by scons :', sys.version
 	print
@@ -202,11 +203,11 @@ def sbfCheck(target = None, source = None, env = None) :
 		print 'svn version (for pysvn): %d.%d.%d-%s' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
 	print
 
-	checkTool( env, 'svn', '@svn --version --quiet' )
+	checkTool( env, 'svn', 'svn --version --quiet' )
 
 	env.Execute( checkCC, nopAction )
 
-	checkTool( env, 'doxygen', '@doxygen --version' )
+	checkTool( env, 'doxygen', 'doxygen --version' )
 
 	whereis_rsync = env.WhereIs( 'rsync' )				# @todo whereis for others tools
 	if whereis_rsync :
@@ -236,10 +237,10 @@ def sbfCheck(target = None, source = None, env = None) :
 		print 'TortoiseMerge.exe not found'
 	print
 
-	#@todo nsis
+	checkTool( env, '7z', '7z' )
 
+	#@todo nsis
 	#@todo others tools (ex : swig, ...)
-	#@todo Adds checking for the existance of tools (svn, doxygen...)
 
 	printSBFVersion()
 
@@ -275,7 +276,7 @@ def checkCC(target = None, source = None, env = None) :
 		print 'cl version :', env['MSVS']['VERSION']
 		print 'The available versions of cl installed are', sorted(env['MSVS']['VERSIONS'])
 
-	checkTool( env, 'gcc', '@gcc -dumpversion' )
+	checkTool( env, 'gcc', 'gcc -dumpversion' )
 
 
 
@@ -326,7 +327,7 @@ env.AddMethod( createRsyncAction )
 
 # target 'sbfCheck'
 if 'sbfCheck' in BUILD_TARGETS:
-	sbfCheck('dummyCheckVersion.out1', 'dummy.in', env)
+	sbfCheck( env )
 	Exit(0)
 
 # target 'sbfPak'
@@ -345,6 +346,12 @@ env['sbf_projectPathName'	]	= env['sbf_launchDir']
 env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 env['sbf_launchProject'		]	= env['sbf_project']
+
+# Updates SConsBuildFramework
+if 'svnUpdate' in BUILD_TARGETS:
+	print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
+	env.sbf.myVcs.update( env.sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK) )
+	print
 
 # Builds sbf library
 buildStage = True
@@ -536,7 +543,6 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 ### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
 from src.sbfNSIS import configureZipAndNSISTargets
-
 configureZipAndNSISTargets( env )
 
 #print (datetime.datetime.now() - sbfMainBeginTime).microseconds/1000
