@@ -868,6 +868,12 @@ SConsBuildFramework options:
 		if self.myCC != 'cl':
 			raise SCons.Errors.UserError( "Unexpected compiler %s on Windows platform." % self.myCC )
 
+		# Useful for cygwin 1.7
+		# The Microsoft linker requires that the environment variable TMP is set.
+		if not os.getenv('TMP'):
+			lenv['ENV']['TMP'] = self.myBuildPath
+			print ('TMP sets to {0}'.format(self.myBuildPath))
+
 		# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
 		if self.myCCVersionNumber >= 8.000000 :
 			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
@@ -903,9 +909,15 @@ SConsBuildFramework options:
 			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
 			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\lib'
 
+#			visualInclude	= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\include'
+#			visualLib		= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\lib'
+#			msSDKInclude	= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Include'
+#			msSDKLib		= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Lib'
+
 			if self.myIsExpressEdition:
 				# at least for rc.exe
 				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+#				lenv.AppendENVPath( 'PATH', 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
 					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
