@@ -70,6 +70,22 @@ const boost::filesystem::path get( const Type & type, const Module & module )
 
 
 
+const boost::filesystem::path getSafe( const Type & type, const Module & module )
+{
+	namespace bfs = boost::filesystem;
+
+	const bfs::path	path( get(type, module) );
+
+	if ( bfs::exists( path ) == false )
+	{
+		bfs::create_directories( path );
+	}
+	
+	return path;
+}
+
+
+
 const bool mkdirs( const std::string path )
 {
 	namespace bfs = boost::filesystem;

@@ -56,6 +56,16 @@ SBF_API const boost::filesystem::path getTopLevel( const Type & type );
 SBF_API const boost::filesystem::path get( const Type & type, const Module & module = Module() );
 
 /**
+ * @brief	Retrieves the system path for the given type and module, or creates the path if none exists.
+ *
+ * @param	type	the path type
+ * @param	module	a module (the current by default)
+ *
+ * @return	the absolute system path, empty if an error occured
+ */
+SBF_API const boost::filesystem::path getSafe( const Type & type, const Module & module = Module() );
+
+/**
  * @brief	Creates folders recursively if don't exists.
  *
  * @param	path		the path
