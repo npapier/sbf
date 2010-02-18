@@ -46,6 +46,13 @@ SBF_API const std::string toString( const Type & type );
 SBF_API const boost::filesystem::path getTopLevel( const Type & type );
 
 /**
+ * @brief	Retrieves the system path for the given type, and creates the path if none exists.
+ *
+ * @return	the absolute system path, empty if none
+ */
+SBF_API const boost::filesystem::path getTopLevelSafe( const Type & type );
+
+/**
  * @brief	Retrieves the system path for the given type and module.
  *
  * @param	type		the path type
@@ -56,7 +63,7 @@ SBF_API const boost::filesystem::path getTopLevel( const Type & type );
 SBF_API const boost::filesystem::path get( const Type & type, const Module & module = Module() );
 
 /**
- * @brief	Retrieves the system path for the given type and module, or creates the path if none exists.
+ * @brief	Retrieves the system path for the given type and module, and creates the path if none exists.
  *
  * @param	type	the path type
  * @param	module	a module (the current by default)
