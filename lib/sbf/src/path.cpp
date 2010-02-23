@@ -1,4 +1,4 @@
-// SConsBuildFramework - Copyright (C) 2009, Guillaume Brocker
+// SConsBuildFramework - Copyright (C) 2009, 2010, Guillaume Brocker
 // Distributed under the terms of the GNU General Public License (GPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
@@ -124,7 +124,7 @@ const boost::filesystem::path getSafe( const Type & type, const Module & module 
 	// Builds the desired path.
 	bfs::path	path = topLevelPath / bfs::path(module.getName()) / bfs::path(module.getVersion());
 	
-	if( bfs::create_directories(path) == false )
+	if( !bfs::exists(path) && !bfs::create_directories(path) )
 	{
 		path.clear();
 	}
