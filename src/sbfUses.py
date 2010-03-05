@@ -697,6 +697,43 @@ class Use_gtest( IUse ):
 			return libs, []
 
 
+class Use_opencollada( IUse ):
+	def getName(self ):
+		return "opencollada"
+
+	def getVersions( self ):
+		return ['736']		
+		
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32':
+			return [ 	'opencollada/COLLADAFramework/',
+						'opencollada/COLLADABaseUtils/',
+						'opencollada/COLLADABaseUtils/Math',
+						'opencollada/COLLADASaxFrameworkLoader/',
+						'opencollada/COLLADASaxFrameworkLoader/generated14',
+						'opencollada/COLLADASaxFrameworkLoader/generated15',
+						'opencollada/GeneratedSaxParser/',
+						'opencollada/MathMLSolver/',
+						'opencollada/MathMLSolver/AST',
+						'opencollada/LibXML/'
+						'opencollada/LibXML/libxml',
+						'opencollada/pcre/']
+		else:
+			return []		
+		
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML']
+				return libs, []
+			else:
+				libs = ['COLLADABaseUtils-d', 'COLLADAFramework-d', 'COLLADASaxFrameworkLoader-d', 'GeneratedSaxParser-d', 'pcre-d', 'MathMLSolver-d', 'LibXML-d']
+				return libs, []
+		else:
+			libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML']
+			return libs, []			
+
+
 # @todo getSvnRevision()
 # @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
@@ -898,7 +935,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_gtkmm(),
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(), Use_gtkmm(),
 					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
