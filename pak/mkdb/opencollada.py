@@ -19,7 +19,7 @@ To create the zip file:
 	* rename build configuration "Debug LibXML and Release LibXML respectively to "Debug" and "Release".
 	* save and quit.
 	* create zip archive of the openCOLLADA folder and put it on orange.
-	* update "projetFolderName" variable.
+	* update "projetFolderName" variable in opencollada.py file.
 '''
 
 if CCVersionNumber == 9: 
