@@ -66,7 +66,7 @@ const boost::filesystem::path getTopLevelSafe( const Type & type )
 		// Retrieves the initial path.
 		const bfs::path	initialPath	= bfs::initial_path();
 
-		// Builds the therical desired toplevel path relatively to the bin directory.
+		// Builds the theorical desired toplevel path relatively to the bin directory.
 		if( initialPath.filename() == "bin" )
 		{
 			basePath = initialPath / ".." / toString(type);
@@ -79,7 +79,7 @@ const boost::filesystem::path getTopLevelSafe( const Type & type )
 		// Builds the toplevel path.
 		if( !bfs::create_directories(basePath) )
 		{
-			basePath.clear();
+			return boost::filesystem::path();
 		}
 	}
 	
@@ -126,7 +126,7 @@ const boost::filesystem::path getSafe( const Type & type, const Module & module 
 	
 	if( !bfs::exists(path) && !bfs::create_directories(path) )
 	{
-		path.clear();
+		return boost::filesystem::path();
 	}
 	
 	return path;
