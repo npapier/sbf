@@ -340,7 +340,10 @@ class PackagingSystem:
 
 		# Copies lib files
 		for lib in pakDescriptor.get('lib', []):
-			copy( lib, 'lib/', sourceDir, pakDirectory )
+			if isinstance(lib, tuple):
+				copy( lib[0], join( 'lib', lib[1] ), sourceDir, pakDirectory )
+			else:		
+				copy( lib, 'lib/', sourceDir, pakDirectory )
 		#else:
 			print
 

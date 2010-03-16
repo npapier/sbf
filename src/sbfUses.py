@@ -712,25 +712,31 @@ class Use_opencollada( IUse ):
 						'opencollada/COLLADASaxFrameworkLoader/',
 						'opencollada/COLLADASaxFrameworkLoader/generated14',
 						'opencollada/COLLADASaxFrameworkLoader/generated15',
+						'opencollada/COLLADAStreamWriter/',
 						'opencollada/GeneratedSaxParser/',
 						'opencollada/MathMLSolver/',
 						'opencollada/MathMLSolver/AST',
 						'opencollada/LibXML/'
 						'opencollada/LibXML/libxml',
-						'opencollada/pcre/']
+						'opencollada/pcre/',
+						'opencollada/libBuffer/',
+						'opencollada/libBuffer/performanceTest',
+						'opencollada/libftoa/',
+						'opencollada/libftoa/performanceTest',
+						'opencollada/libftoa/unitTest']
 		else:
 			return []		
 		
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
 			if self.config == 'release':
-				libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML']
+				libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'COLLADAStreamWriter', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML', 'libBuffer', 'libftoa']
 				return libs, []
 			else:
-				libs = ['COLLADABaseUtils-d', 'COLLADAFramework-d', 'COLLADASaxFrameworkLoader-d', 'GeneratedSaxParser-d', 'pcre-d', 'MathMLSolver-d', 'LibXML-d']
+				libs = ['COLLADABaseUtils-d', 'COLLADAFramework-d', 'COLLADASaxFrameworkLoader-d', 'COLLADAStreamWriter-d', 'GeneratedSaxParser-d', 'pcre-d', 'MathMLSolver-d', 'LibXML-d', 'libBuffer-d', 'libftoa-d']
 				return libs, []
 		else:
-			libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML']
+			libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'COLLADAStreamWriter', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML', 'libBuffer', 'libftoa']
 			return libs, []			
 
 
