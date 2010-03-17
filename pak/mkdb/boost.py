@@ -6,13 +6,21 @@
 # Author Nicolas Papier
 
 # cl8-0Exp, cl9-0Exp, and cl10-0Exp
+# gcc
 
-msg = 'WARNING: building this package must be done from a Visual Studio Command Prompt'
-print ( '{0}\n{1}\n{0}\n'.format( '-' * len(msg), msg ) )
+if platform == 'win32':
+	msg = 'WARNING: building this package must be done from a Visual Studio Command Prompt'
+	print ( '{0}\n{1}\n{0}\n'.format( '-' * len(msg), msg ) )
 
-builds_cl = {	8  : 'bjam --toolset=msvc-8.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
-				9  : 'bjam --toolset=msvc-9.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
-				10 : 'bjam --toolset=msvc-10.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage' }
+	builds_cl = {	8  : 'bjam --toolset=msvc-8.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
+					9  : 'bjam --toolset=msvc-9.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
+					10 : 'bjam --toolset=msvc-10.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage' }
+
+	build = [ 'bootstrap', builds_cl[CCVersionNumber] ]
+	lib = ['stage/lib/*.lib', 'stage/lib/*.dll']
+else:
+	build = ['./bootstrap.sh',  './bjam --toolset=gcc --build-type=minimal threading=multi link=shared runtime-link=shared stage' ]
+	lib = ['stage/lib/*.so', 'stage/lib/*.so.*']
 
 descriptor = {
  'urls'			: [	#"http://sourceforge.net/projects/boost/files/boost-jam/3.1.17/boost-jam-3.1.17-1-ntx86.zip/download",
@@ -22,7 +30,7 @@ descriptor = {
  					],
 
  'rootBuildDir'	: 'boost_1_41_0', #'boost_1_40_0',
- 'builds'		: [	'bootstrap', builds_cl[CCVersionNumber] ],
+ 'builds'		: build,
 
  'name'			: 'boost',
  'version'		: '1-41-0', #'1-40-0',
@@ -31,7 +39,7 @@ descriptor = {
  'license'		: ['LICENSE_1_0.txt'],
  'include'		: [('boost', 'boost1-41-0/boost/')],
  #'include'		: [('boost', 'boost1-40-0/boost/')],
- 'lib'			: ['stage/lib/*.lib', 'stage/lib/*.dll']
+ 'lib'			: lib
 }
 
 # info boost1-41-0_win32_cl8-0Exp.zip mt-gd-1_41
