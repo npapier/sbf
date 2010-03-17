@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,9 +9,10 @@ from SCons.Script import *
 
 from src.sbfFiles	import *
 from src.sbfUses	import UseRepository
+from src.sbfUI		import askQuestion
 from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAction
 
-# @todo always generated nsis files
+from SCons.Script import *# @todo always generated nsis files
 # @todo uninstallRedist
 # @todo Improves redist macros (adding message and with/without confirmation)
 
@@ -363,17 +364,17 @@ def printZipSrc( target, source, localenv ) :
 
 
 def configureZipAndNSISTargets( env ):
-	if (	('zipRuntime'		in env.sbf.myBuildTargets) or
-			('zipDeps'			in env.sbf.myBuildTargets) or
-			('zipPortable'		in env.sbf.myBuildTargets) or
-			('zipDev'			in env.sbf.myBuildTargets) or
-			('zipSrc'			in env.sbf.myBuildTargets) or
-			('zip'				in env.sbf.myBuildTargets) or
-			('nsis'				in env.sbf.myBuildTargets)	):
-																								# FIXME: lazzy scons env construction => TODO: generalize (but must be optional)
-		#
+	zipAndNSISTargets = set( ['zipRuntime', 'zipDeps', 'zipPortable', 'zipDev', 'zipSrc', 'zip', 'nsis'] )
+	if len(zipAndNSISTargets & env.sbf.myBuildTargets) > 0:
+		# Checks project exclusion to warn user
+		if env['exclude'] and len(env['projectExclude'])>0:
+			answer = askQuestion(	"WARNING: The following projects are excluded from the build : {0}\nWould you stop the process".format(env['projectExclude']),
+									['yes', 'no'] )
+			if answer == 'y':
+				raise SCons.Errors.UserError( "Build interrupted by user." )
+			#else continue the build		# FIXME: lazzy scons env construction => TODO: generalize (but must be optional)		#
 		sbf = env.sbf
-		rootProjectEnv = sbf.myParsedProjects[env['sbf_project']]
+		rootProjectEnv = sbf.getRootProjectEnv()
 
 		# Creates builders for zip and nsis
 		# @todo Do the same without Builder ?
@@ -388,13 +389,6 @@ def configureZipAndNSISTargets( env ):
 		env['SEVENZIPFLAGS']	= "-bd"
 		env['SEVENZIPSUFFIX']	= ".7z"
 		env['BUILDERS']['SevenZipAdd'] = Builder( action = Action( "$SEVENZIPCOM $SEVENZIPADDFLAGS $SEVENZIPFLAGS $TARGET $SOURCE", env['SEVENZIPCOMSTR'] ) )
-
-		import SCons																			# from SCons.Script.SConscript import SConsEnvironment
-	#	zipBuilder = env.Builder(	action=Action(zipArchiver,printZipArchiver),
-	#								source_factory=SCons.Node.FS.default_fs.Entry,
-	#								target_factory=SCons.Node.FS.default_fs.Entry,
-	#								multi=0 )
-	#	env['BUILDERS']['zipArchiver'] = zipBuilder
 
 		zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles),
 											source_factory=SCons.Node.FS.default_fs.Entry,
@@ -461,6 +455,13 @@ def configureZipAndNSISTargets( env ):
 		devZipFiles			= []
 		srcZipFiles			= []
 
+		# Creates 'var' directory
+		varDirectory = join(runtimeZipPath, 'var')
+		runtimeZipFiles += Command('zipRuntime_mkdirVar.out', 'dummy.in', [Delete(varDirectory), Mkdir(varDirectory)] )
+		varDirectory = join(portableZipPath, 'var')
+		portableZipFiles += Command('zipPortable_mkdirVar.out', 'dummy.in', [Delete(varDirectory), Mkdir(varDirectory)] )
+
+		#
 		usesSet					= set()
 		extension				= env['SHLIBSUFFIX']
 		licenseInstallExtPaths	= [ os.path.join(element, 'license') for element in sbf.myInstallExtPaths ]
