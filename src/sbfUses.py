@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -254,18 +254,19 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-41-0', '1-40-0', '1-38-0', '1-34-1' ]
+		return [ '1-41-0', '1-42-0', '1-40-0', '1-38-0', '1-34-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			#if version in set( [ '1-38-0', '1-34-1' ] ) :
 			return [ 'BOOST_ALL_DYN_LINK' ]
 		else:
 			return []
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
-			if version == '1-41-0':
+			if version == '1-42-0':
+				return [ 'boost1-42-0' ]
+			elif version == '1-41-0':
 				return [ 'boost1-41-0' ]
 			elif version == '1-40-0':
 				return [ 'boost1-40-0' ]
@@ -278,7 +279,64 @@ class Use_boost( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			if version == '1-41-0':
+			if version == '1-42-0':
+				# autolinking, so nothing to do.
+				if self.config == 'release' :
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						pakLibs = [	'boost_date_time-vc100-mt-1_42', 'boost_filesystem-vc100-mt-1_42', 'boost_graph-vc100-mt-1_42',
+									'boost_iostreams-vc100-mt-1_42', 'boost_math_c99-vc100-mt-1_42', 'boost_math_c99f-vc100-mt-1_42',
+									'boost_math_c99l-vc100-mt-1_42', 'boost_math_tr1-vc100-mt-1_42', 'boost_math_tr1f-vc100-mt-1_42',
+									'boost_math_tr1l-vc100-mt-1_42', 'boost_prg_exec_monitor-vc100-mt-1_42', 'boost_program_options-vc100-mt-1_42',
+									'boost_python-vc100-mt-1_42', 'boost_regex-vc100-mt-1_42', 'boost_serialization-vc100-mt-1_42',
+									'boost_signals-vc100-mt-1_42', 'boost_system-vc100-mt-1_42', 'boost_thread-vc100-mt-1_42',
+									'boost_unit_test_framework-vc100-mt-1_42', 'boost_wave-vc100-mt-1_42', 'boost_wserialization-vc100-mt-1_42' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						pakLibs = [	'boost_date_time-vc90-mt-1_42', 'boost_filesystem-vc90-mt-1_42', 'boost_graph-vc90-mt-1_42',
+									'boost_iostreams-vc90-mt-1_42', 'boost_math_c99-vc90-mt-1_42', 'boost_math_c99f-vc90-mt-1_42',
+									'boost_math_c99l-vc90-mt-1_42', 'boost_math_tr1-vc90-mt-1_42', 'boost_math_tr1f-vc90-mt-1_42',
+									'boost_math_tr1l-vc90-mt-1_42', 'boost_prg_exec_monitor-vc90-mt-1_42', 'boost_program_options-vc90-mt-1_42',
+									'boost_python-vc90-mt-1_42', 'boost_regex-vc90-mt-1_42', 'boost_serialization-vc90-mt-1_42',
+									'boost_signals-vc90-mt-1_42', 'boost_system-vc90-mt-1_42', 'boost_thread-vc90-mt-1_42',
+									'boost_unit_test_framework-vc90-mt-1_42', 'boost_wave-vc90-mt-1_42', 'boost_wserialization-vc90-mt-1_42' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [	'boost_date_time-vc80-mt-1_42', 'boost_filesystem-vc80-mt-1_42', 'boost_graph-vc80-mt-1_42',
+									'boost_iostreams-vc80-mt-1_42', 'boost_math_c99-vc80-mt-1_42', 'boost_math_c99f-vc80-mt-1_42',
+									'boost_math_c99l-vc80-mt-1_42', 'boost_math_tr1-vc80-mt-1_42', 'boost_math_tr1f-vc80-mt-1_42',
+									'boost_math_tr1l-vc80-mt-1_42', 'boost_prg_exec_monitor-vc80-mt-1_42', 'boost_program_options-vc80-mt-1_42',
+									'boost_python-vc80-mt-1_42', 'boost_regex-vc80-mt-1_42', 'boost_serialization-vc80-mt-1_42',
+									'boost_signals-vc80-mt-1_42', 'boost_system-vc80-mt-1_42', 'boost_thread-vc80-mt-1_42',
+									'boost_unit_test_framework-vc80-mt-1_42', 'boost_wave-vc80-mt-1_42', 'boost_wserialization-vc80-mt-1_42' ]
+					else:
+						return
+				else:
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						pakLibs = [	'boost_date_time-vc100-mt-gd-1_42', 'boost_filesystem-vc100-mt-gd-1_42', 'boost_graph-vc100-mt-gd-1_42',
+									'boost_iostreams-vc100-mt-gd-1_42', 'boost_math_c99-vc100-mt-gd-1_42', 'boost_math_c99f-vc100-mt-gd-1_42',
+									'boost_math_c99l-vc100-mt-gd-1_42', 'boost_math_tr1-vc100-mt-gd-1_42', 'boost_math_tr1f-vc100-mt-gd-1_42',
+									'boost_math_tr1l-vc100-mt-gd-1_42', 'boost_prg_exec_monitor-vc100-mt-gd-1_42', 'boost_program_options-vc100-mt-gd-1_42',
+									'boost_python-vc100-mt-gd-1_42', 'boost_regex-vc100-mt-gd-1_42', 'boost_serialization-vc100-mt-gd-1_42',
+									'boost_signals-vc100-mt-gd-1_42', 'boost_system-vc100-mt-gd-1_42', 'boost_thread-vc100-mt-gd-1_42',
+									'boost_unit_test_framework-vc100-mt-gd-1_42', 'boost_wave-vc100-mt-gd-1_42', 'boost_wserialization-vc100-mt-gd-1_42' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						pakLibs = [	'boost_date_time-vc90-mt-gd-1_42', 'boost_filesystem-vc90-mt-gd-1_42', 'boost_graph-vc90-mt-gd-1_42',
+									'boost_iostreams-vc90-mt-gd-1_42', 'boost_math_c99-vc90-mt-gd-1_42', 'boost_math_c99f-vc90-mt-gd-1_42',
+									'boost_math_c99l-vc90-mt-gd-1_42', 'boost_math_tr1-vc90-mt-gd-1_42', 'boost_math_tr1f-vc90-mt-gd-1_42',
+									'boost_math_tr1l-vc90-mt-gd-1_42', 'boost_prg_exec_monitor-vc90-mt-gd-1_42', 'boost_program_options-vc90-mt-gd-1_42',
+									'boost_python-vc90-mt-gd-1_42', 'boost_regex-vc90-mt-gd-1_42', 'boost_serialization-vc90-mt-gd-1_42',
+									'boost_signals-vc90-mt-gd-1_42', 'boost_system-vc90-mt-gd-1_42', 'boost_thread-vc90-mt-gd-1_42',
+									'boost_unit_test_framework-vc90-mt-gd-1_42', 'boost_wave-vc90-mt-gd-1_42', 'boost_wserialization-vc90-mt-gd-1_42' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [	'boost_date_time-vc80-mt-gd-1_42', 'boost_filesystem-vc80-mt-gd-1_42', 'boost_graph-vc80-mt-gd-1_42',
+									'boost_iostreams-vc80-mt-gd-1_42', 'boost_math_c99-vc80-mt-gd-1_42', 'boost_math_c99f-vc80-mt-gd-1_42',
+									'boost_math_c99l-vc80-mt-gd-1_42', 'boost_math_tr1-vc80-mt-gd-1_42', 'boost_math_tr1f-vc80-mt-gd-1_42',
+									'boost_math_tr1l-vc80-mt-gd-1_42', 'boost_prg_exec_monitor-vc80-mt-gd-1_42', 'boost_program_options-vc80-mt-gd-1_42',
+									'boost_python-vc80-mt-gd-1_42', 'boost_regex-vc80-mt-gd-1_42', 'boost_serialization-vc80-mt-gd-1_42',
+									'boost_signals-vc80-mt-gd-1_42', 'boost_system-vc80-mt-gd-1_42', 'boost_thread-vc80-mt-gd-1_42',
+									'boost_unit_test_framework-vc80-mt-gd-1_42', 'boost_wave-vc80-mt-gd-1_42', 'boost_wserialization-vc80-mt-gd-1_42' ]
+					else:
+						return
+				return [], pakLibs
+			elif version == '1-41-0':
 				# autolinking, so nothing to do.
 				if self.config == 'release' :
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
