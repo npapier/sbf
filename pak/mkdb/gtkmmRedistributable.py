@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -10,6 +10,7 @@
 # See HOWTO Redistributing gtkmm on Microsoft Windows at http://live.gnome.org/gtkmm/MSWindows
 
 # gtk
+gtk_exe	= [ 'bin/gspawn-win32-helper.exe', 'bin/gspawn-win32-helper-console.exe' ]
 gtk_base = [	'bin/libglade-2.0-0', 'bin/libgtk-win32-2.0-0', 'bin/libgdk-win32-2.0-0', 'bin/libgdk_pixbuf-2.0-0',
 				'bin/libpangowin32-1.0-0', 'bin/libpangocairo-1.0-0', 'bin/libpangoft2-1.0-0', 'bin/libpango-1.0-0',
 				'bin/libatk-1.0-0', 'bin/libcairo-2',
@@ -47,8 +48,8 @@ externals_dll = [ elt + '.dll' for elt in externals_base ]
 
 # cl8-0exp and cl9-0exp
 descriptor = {
- 'urls'			: ['http://orange/files/Dev/localExt_win32_cl8-0/gtkmm-win32-devel-2.16.0-4.zip'],
- #'urls'			: ['http://orange/files/Dev/localExt_win32_cl9-0/gtkmm-win32-devel-2.16.0-4.zip'],
+ 'urls'			: ['http://orange/files/Dev/localExt_win32_cl9-0/gtkmm-win32-devel-2.16.0-4.zip'],
+# 'urls'			: ['http://orange/files/Dev/localExt_win32_cl8-0/gtkmm-win32-devel-2.16.0-4.zip'],
 
  'name'			: 'gtkmmRedist',
  'version'		: '2-16-0-4',
@@ -56,7 +57,7 @@ descriptor = {
  'rootDir'		: 'gtkmm-win32-devel-2.16.0-4/gtkmm/',
  'license'		: ['lgpl.txt'],
 
- 'bin'			: gtk_dll + xml_dll + gtkmm_dll + externals_dll,
+ 'bin'			: gtk_exe + gtk_dll + xml_dll + gtkmm_dll + externals_dll,
 
  'custom'		: [	'etc/pango/pango.modules', 'etc/gtk-2.0/gdk-pixbuf.loaders', 'etc/gtk-2.0/gtk.immodules', 'etc/gtk-2.0/gtkrc',
  					'lib/gtk-2.0/2.10.0/', 'share/themes/MS-Windows/gtk-2.0/gtkrc', 'share/locale/' ]
