@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # SConsBuildFramework - Copyright (C) 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
@@ -12,13 +11,26 @@
 import os.path
 
 print 	'''
-/!\ IMPORTANT /!\
+/!\ WARNING /!\
 To create the zip file:
 	* make an export of openCOLLADA project from the googlecode repository : http://code.google.com/p/opencollada/
-	* open the VC solution of dae2ogre project and convert it to the VC9 format. (contains all reader libs)
-	* rename build configuration "Debug LibXML and Release LibXML respectively to "Debug" and "Release".
+	* copy our "OpenCOLLADA.sln" in root directory or create it : it must contain:
+		* pcre (debug: debug / release: release)				
+		* libBuffer (debug: debug lib / release: release lib)
+		* libftoa (debug: debug lib / release: release lib)
+		* LibXML (debug: debug / release: release)
+		* expat_static (debug: debug / release: release)		
+		* MathMLSolver (debug: debug / release: release)
+		* GeneratedSaxParser (debug: debug LibXML / release: release LibXML)		
+		* COLLADABaseUtils (debug: debug / release: release)		
+		* COLLADAFramework (debug: debug / release: release)
+		* COLLADAStreamWriter (debug: debug / release: release)		
+		* COLLADASaxFrameworkLoader (debug: debug LibXML / release: release LibXML)
+		* COLLADAValidator (debug: debug LibXML / release: release LibXML)
+		* G3DWarehouseBrowser (debug: debug / release: release)
+	* take care of the build order / dependencies.
+	* open it and convert all projects to the VC9 format.
 	* save and quit.
-	* open the VC solution of StreamWriter project and convert it to the VC9 format. (contains all writer libs)
 	* create zip archive of the openCOLLADA folder and put it on orange.
 	* update "projetFolderName" variable in opencollada.py file.
 '''
@@ -27,12 +39,9 @@ if CCVersionNumber == 9:
 	vcexpress = r"C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe"
 	sbfPath = os.getenv("SCONS_BUILD_FRAMEWORK")
 	projetFolderName = 'opencollada736'
-	dae2ogreSln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName, projetFolderName, 'dae2ogre', 'dae2ogre.sln' )
-	streamWriterSln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName, projetFolderName, 'COLLADAStreamWriter', 'COLLADAStreamWriter.sln' )
-	cmdDae2ogreDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(vcexpress, dae2ogreSln)
-	cmdDae2ogreRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(vcexpress, dae2ogreSln)
-	cmdStreamWriterDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(vcexpress, streamWriterSln)
-	cmdStreamWriterRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(vcexpress, streamWriterSln)	
+	sln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName, projetFolderName, 'OpenCOLLADA.sln' )
+	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(vcexpress, sln)
+	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(vcexpress, sln)	
 	
 else:
 	print >>sys.stderr, "Wrong MSVC version. Version 9.0Exp Required."
@@ -44,7 +53,7 @@ descriptor = {
  'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada736.zip" ],
 
  'rootBuildDir'	: 'opencollada736',
- 'builds'		: [	cmdDae2ogreDebug, cmdDae2ogreRelease, cmdStreamWriterDebug, cmdStreamWriterRelease ],
+ 'builds'		: [	cmdDebug, cmdRelease ],
 
  'name'			: 'opencollada',
  'version'		: '736',
@@ -75,5 +84,10 @@ descriptor = {
 					('common/libBuffer/lib/win/Win32/Debug lib/libBuffer.lib', 'libBuffer-d.lib'),
 					'common/libBuffer/lib/win/Win32/Release lib/*.lib',
 					('common/libftoa/lib/win/Win32/Debug lib/libftoa.lib', 'libftoa-d.lib'),
-					'common/libftoa/lib/win/Win32/Release lib/*.lib']
+					'common/libftoa/lib/win/Win32/Release lib/*.lib',
+					('G3DWarehouseBrowser/lib/win/Win32/Debug/G3DWarehouseBrowser.lib', 'G3DWarehouseBrowser-d.lib'),
+					'G3DWarehouseBrowser/lib/win/Win32/Release/*.lib'],
+					
+'bin'			: [ ('COLLADAValidator/bin/win/Win32/Debug LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML-d.exe'),
+					('COLLADAValidator/bin/win/Win32/Release LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML.exe')]
 }

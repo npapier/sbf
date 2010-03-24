@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -349,7 +349,10 @@ class PackagingSystem:
 
 		# Copies bin files
 		for bin in pakDescriptor.get('bin', []):
-			copy( bin, bin, sourceDir, pakDirectory )
+			if isinstance(bin , tuple):
+				copy( bin[0], join( 'bin', bin[1] ), sourceDir, pakDirectory )
+			else:
+				copy( bin, 'bin/', sourceDir, pakDirectory )
 		#else:
 			print
 
