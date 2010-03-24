@@ -272,7 +272,7 @@ class SConsBuildFramework :
 				# On computers running Microsoft Windows XP or later, the maximum length
 				# of the string that you can use at the command prompt is 8191 characters.
 				# XP version is 5.1
-				self.myEnv['MAXLINELENGTH'] = 8191
+				self.myEnv['MAXLINELENGTH'] = 8000
 				# On computers running Microsoft Windows 2000 or Windows NT 4.0,
 				# the maximum length of the string that you can use at the command
 				# prompt is 2047 characters.
