@@ -1,11 +1,17 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 import atexit
 import os
-import pysvn
+
+try:
+	import pysvn
+except ImportError as e:
+	print ('sbfWarning: pysvn is not installed.')
+	raise e
+
 
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
