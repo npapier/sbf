@@ -1,19 +1,23 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 import datetime
 import glob
+import sbfIVersionControlSystem
 import os
 
 from sbfFiles import *
 from sbfRC import resourceFileGeneration
-from sbfSubversion import *
+
+from sbfAllVcs import *
+
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUses import Use_cairo, Use_gtkmm, Use_itk
 from sbfUtils import *
 from sbfVersion import printSBFVersion
+
 from SCons.Environment import *
 from SCons.Options import *
 from SCons.Script import *
@@ -206,7 +210,10 @@ class SConsBuildFramework :
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
 
 		# Sets the vcs subsystem (at this time only svn is supported).
-		self.myVcs = Subversion( self )
+		if isSubversionAvailable:
+			self.myVcs = Subversion( self )
+		else:
+			self.myVcs = sbfIVersionControlSystem.IVersionControlSystem()
 
 		# a project inherits 'uses' from its dependencies.
 		# But not for all (cairo, gtkmm and itk), so the uses set that must be excluded must be built
@@ -1529,6 +1536,8 @@ SConsBuildFramework options:
 			iconAbsPathFile	= os.path.join( lenv['sbf_projectPathName'], 'rc', iconFile )
 			if os.path.isfile( iconAbsPathFile ) :
 				lenv['sbf_rc'].append( iconAbsPathFile )
+		else:
+			lenv['sbf_rc'] = []
 
 
 		### final result of project ###
@@ -1746,7 +1755,6 @@ SConsBuildFramework options:
 			Alias( 'run', lenv.Command(self.myProject + '_run.out', 'install',
 								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
 										printMsg ) ) )
-
 
 
 	###### Helpers ######
