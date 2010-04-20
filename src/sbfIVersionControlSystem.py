@@ -17,6 +17,9 @@ class IVersionControlSystem :
 	def checkout( self, myProjectPathName, myProject ):
 		raise SCons.Errors.UserError("'checkout' operation is not available in the version control system.")
 
+	def export( self ):
+		raise SCons.Errors.UserError("'export' operation is not available in the version control system.")
+
 	def clean( self, myProjectPathName, myProject ):
 		raise SCons.Errors.UserError("'clean' operation is not available in the version control system.")
 
