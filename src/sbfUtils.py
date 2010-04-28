@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2008, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -34,15 +34,18 @@ def getPathFromEnv( varname, normalizedPathname = True ) :
 
 
 ### Splits the given string to obtain a list of values ###
-def convertToList( str ) :
-	if str.find(',') == -1 :
-		# no ','
-		# The words are separated by arbitrary strings of whitespace characters
-		return str.split()
+def convertToList( givenStr ) :
+	if isinstance(givenStr, str):
+		if givenStr.find(',') == -1 :
+			# no ','
+			# The words are separated by arbitrary strings of whitespace characters
+			return givenStr.split()
+		else:
+			# ','
+			# The words are comma-separated
+			return givenStr.replace(' ', '').split(',')
 	else:
-		# ','
-		# The words are comma-separated
-		return str.replace(' ', '').split(',')
+		return givenStr
 
 ### Constructs a string from a list or a set ###
 def convertToString( list ) :
