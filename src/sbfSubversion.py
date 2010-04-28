@@ -216,7 +216,10 @@ class CallbackNotifyWrapper:
 			self.subversion.stats.increments( lookupAction )
 
 			print lookupAction, "\t",
-			print convertPathAbsToRel( self.sbf.myProjectPathName, path )
+			if len(self.sbf.myProjectPathName)>0:
+				print convertPathAbsToRel( self.sbf.myProjectPathName, path )
+			else:
+				print path
 
 
 def atExitPrintStatistics( stats ):
@@ -342,30 +345,39 @@ class Subversion ( IVersionControlSystem ) :
 			return
 
 		# Retrieves env for the incoming project
-		lenv = self.sbf.myParsedProjects[ myProject ]
+		lenv = self.sbf.getEnv( myProject )
 
 		# Retrieves all files for the project
+# @todo SConsBuildFramework::getAllFiles()
 		projectFiles = lenv['sbf_include'] + lenv['sbf_src'] + lenv['sbf_share'] + lenv['sbf_rc'] + lenv['sbf_files']
 
 		# @todo only one client.status() call for the project
 		try:
 			self.client.callback_notify.resetStatistics()
 			for file in projectFiles:
+				pathfilename = os.path.join(myProjectPathName, file)
 				try:
 					changes = self.client.status( file )
 					if (len(changes) == 1) and (changes[0].text_status == pysvn.wc_status_kind.unversioned):
-						self.client.add( os.path.join(myProjectPathName, file), recurse=False, ignore=True )
+						# Adds a single file in a versioned directory
+						self.client.add( pathfilename, recurse=False, ignore=True )
 					# else nothing to do
 				except pysvn.ClientError, e :
 					for message, code in e.args[1]:
-						if code == 720003 :
+						if code in [155007, 720003]:
 							# Directory is not under vcs
-							pathfilename = os.path.join(myProjectPathName, file)
-							self.client.add( os.path.dirname(pathfilename), recurse=False, ignore=True )
-							break
-						#print 'Code:',code,'Message:',message
-					else:
-						print e.args[0]
+
+							# 155007: '' is not a working copy
+							# 720003: @todo
+						
+							# Adds the directory containing the file to vcs
+						# @todo this only works if the parent directory is already under vcs.
+							self.client.add( os.path.dirname(pathfilename), ignore=True, depth=pysvn.depth.empty )
+							# Adds a single file in a versioned directory
+							self.client.add( pathfilename, recurse=False, ignore=True )
+						else:
+							#print 'Code:',code,'Message:',message
+							print e.args[0]
 			self.client.callback_notify.getStatistics().printReport()
 			return True
 		except pysvn.ClientError, e :
@@ -501,6 +513,8 @@ class Subversion ( IVersionControlSystem ) :
 
 			self.client.callback_notify.resetStatistics()
 
+			projectParentDirectory = os.path.dirname(myProjectPathName)
+
 			if len(localChanges) > 0 :
 				print ('only local modifications:')
 				for c in localChanges:
@@ -508,9 +522,9 @@ class Subversion ( IVersionControlSystem ) :
 						text = dictStatus[c.text_status]
 						self.client.callback_notify.getStatistics().increments( text )
 						self.stats.increments( text )
-						print ('%s %s' % (text, convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s' % (text, convertPathAbsToRel(projectParentDirectory, c.path)) )
 					else:
-						print ('%s %s' % (c.text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s' % (c.text_status, convertPathAbsToRel(projectParentDirectory, c.path)) )
 				print
 			else:
 				print ('no only local modifications')
@@ -521,10 +535,10 @@ class Subversion ( IVersionControlSystem ) :
 					text = dictStatus[c.repos_text_status]
 					self.client.callback_notify.getStatistics().increments( text )
 					self.stats.increments( text )
-					if c.repos_text_status in dictStatus :
-						print ('%s %s' % (text, convertPathAbsToRel(myProjectPathName, c.path)) )
+					if c.repos_text_status in dictStatus:
+						print ('%s %s' % (text, convertPathAbsToRel(projectParentDirectory, c.path)) )
 					else:
-						print ('%s %s' % (c.repos_text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s' % (c.repos_text_status, convertPathAbsToRel(projectParentDirectory, c.path)) )
 				print
 			else:
 				print ('no only remote modifications')
@@ -539,9 +553,9 @@ class Subversion ( IVersionControlSystem ) :
 					self.stats.increments( text )
 					self.stats.increments( repos_text )
 					if (c.text_status in dictStatus) and (c.repos_text_status in dictStatus) :
-						print ('%s %s %s' % (text, repos_text, convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s %s' % (text, repos_text, convertPathAbsToRel(projectParentDirectory, c.path)) )
 					else:
-						print ('%s %s %s' % (c.text_status, c.repos_text_status, convertPathAbsToRel(myProjectPathName, c.path)) )
+						print ('%s %s %s' % (c.text_status, c.repos_text_status, convertPathAbsToRel(projectParentDirectory, c.path)) )
 				print
 			else:
 				print ('no local and remote modifications')
