@@ -254,7 +254,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-41-0', '1-42-0', '1-40-0', '1-38-0', '1-34-1' ]
+		return [ '1-42-0', '1-41-0', '1-40-0', '1-38-0', '1-34-1' ]	
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
