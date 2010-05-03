@@ -1,4 +1,4 @@
-// SConsBuildFramework - Copyright (C) 2009, Guillaume Brocker and Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2009, 2010, Guillaume Brocker and Nicolas Papier.
 // Distributed under the terms of the GNU General Public License (GPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker and Nicolas Papier
@@ -15,9 +15,6 @@
 #include <cassert>
 #include <string>
 #include <vector>
-
-
-#include <boost/filesystem.hpp>
 
 #include "sbf/sbf.hpp"
 
@@ -75,6 +72,16 @@ struct SBF_API Module
 	 * @name	Properties Access
 	 */
 	//@{
+	/**
+	 * @brief	Tells if the module has detailed information file.
+	 */
+	const bool hasInfoFile() const;
+
+	/**
+	 * @brief	Loads defailed informations from file.
+	 */
+	const std::string getInfoFromFile() const;
+
 	/**
 	 * @brief	Retrieves the name.
 	 */

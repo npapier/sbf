@@ -6,6 +6,8 @@
 #include "sbf/path.hpp"
 
 #include <cassert>
+#include <boost/filesystem/convenience.hpp>
+#include <boost/filesystem/operations.hpp>
 
 
 

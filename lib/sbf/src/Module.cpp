@@ -1,9 +1,14 @@
-// SConsBuildFramework - Copyright (C) 2009, Guillaume Brocker.
+// SConsBuildFramework - Copyright (C) 2009, 2010, Guillaume Brocker.
 // Distributed under the terms of the GNU General Public License (GPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
 
 #include "sbf/Module.hpp"
+
+#include <iostream>
+#include <boost/filesystem.hpp>
+
+#include "sbf/path.hpp"
 
 
 
@@ -26,6 +31,43 @@ Module::ConstIterator Module::begin()
 Module::ConstIterator Module::end()
 {
 	return m_registry.end();
+}
+
+
+
+const bool Module::hasInfoFile() const
+{
+	const boost::filesystem::path	infoPath = sbf::path::get(sbf::path::Share, *this) / "info.sbf";
+
+	return boost::filesystem::exists( infoPath );
+}
+
+
+
+const std::string Module::getInfoFromFile() const
+{
+	const boost::filesystem::path	infoPath = sbf::path::get(sbf::path::Share, *this) / "info.sbf";
+	std::string						buffer;
+
+	if( boost::filesystem::exists( infoPath ) )
+	{
+		std::ifstream	in( infoPath.file_string().c_str() );
+
+		while( in )
+		{
+			std::string	line;
+
+			std::getline( in, line );
+			buffer += line;
+			buffer += "\n";
+		}
+	}
+	else
+	{
+		std::cerr << "No information file available for module " << m_name << " (" << m_version << ")." << std::endl;
+	}
+
+	return buffer;
 }
 
 
