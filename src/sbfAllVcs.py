@@ -11,4 +11,3 @@ try:
 except ImportError:
 	print ('sbfWarning: sbf subversion support is not available.')
 	isSubversionAvailable = False
-

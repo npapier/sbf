@@ -7,6 +7,7 @@ import datetime
 import glob
 import sbfIVersionControlSystem
 import os
+import time
 
 from sbfFiles import *
 from sbfRC import resourceFileGeneration
@@ -127,7 +128,9 @@ class SConsBuildFramework :
 
 	# Globals attributes
 	myDate							= ''
+	myTime							= ''
 	myDateTime						= ''
+	myDateTimeForUI					= ''
 	myPlatform						= ''
 	myCC							= ''			# cl, gcc
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
@@ -359,21 +362,33 @@ class SConsBuildFramework :
 		#sys.stderr = sys.stdout = open( os.path.join( env['buildPath'], myProject + "_sbf.log"), 'w' )# or
 		#sys.stdout = sys.stderr = os.popen(logCommand, "w")
 
-		# myDate, myDateTime
-		self.myDate		= str(datetime.date.today()).replace('-', '_')
+		# myDate, myTime, myDateTime, myDateTimeForUI
+		currentTime = time.localtime()
+
+		self.myDate	= time.strftime( '%Y-%m-%d', currentTime )
+		self.myTime	= time.strftime( '%Hh%Mm%Ss', currentTime )
 
 		# format compatible with that specified in the RFC 2822 Internet email standard.
 		# self.myDateTime	= str(datetime.datetime.today().strftime("%a, %d %b %Y %H:%M:%S +0000"))
 
-		self.myDateTime	= str(datetime.datetime.today().strftime("%Y-%m-%d_%Hh%Mm%Ss"))
+		self.myDateTime	= '{0}_{1}'.format( self.myDate, self.myTime )
+
+		self.myDateTimeForUI = time.strftime( '%d-%b-%Y %H:%M:%S', currentTime )
 
 		# Prints sbf version, date and time at sbf startup
 		if self.myEnv.GetOption('verbosity') :
 			printSBFVersion()
-			print 'started', self.myDateTime
+			print 'started', self.myDateTimeForUI
 
-		# Retrives all targets
-		self.myBuildTargets = set( map(str, BUILD_TARGETS) )
+		# Retrieves all targets
+		self.myBuildTargets = []
+		for buildTarget in BUILD_TARGETS:
+			buildTarget = str(buildTarget).lower()
+			if buildTarget not in self.myBuildTargets:
+				self.myBuildTargets.append( buildTarget )
+
+		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
+		self.myBuildTargets = set(self.myBuildTargets)
 
 		# Takes care of alias definition needed for command line options.
 		mustAddAlias = True
@@ -602,8 +617,11 @@ SConsBuildFramework options:
 		for element in self.myInstallPaths :
 			self.myInstallExtPaths	+= [element + 'Ext' + self.my_Platform_myCCVersion]
 
-		if ( len(self.myInstallPaths) >= 1 ) :
+		if ( len(self.myInstallPaths) >= 1 ):
 			self.myInstallDirectory	= self.myInstallPaths[0]
+			if not os.path.exists(self.myInstallDirectory):
+				print ( 'Creates directory : {0}'.format(self.myInstallDirectory) )
+				os.mkdir( self.myInstallDirectory )
 		else :
 			print 'sbfError: empty installPaths'
 			Exit( 1 )
@@ -1110,10 +1128,10 @@ SConsBuildFramework options:
 	def doVcsCheckoutOrStatus( self, lenv ):
 		# @todo OPTME: just compute tryVcs* once and not for each project
 		# User wants a vcs status ?
-		tryVcsStatus = 'svnStatus' in self.myBuildTargets # or (self.myProject+'_svnStatus' in self.myBuildTargets)
+		tryVcsStatus = 'svnstatus' in self.myBuildTargets # or (self.myProject+'_svnStatus' in self.myBuildTargets)
 
 		# User wants a vcs checkout ?
-		tryVcsCheckout = 'svnCheckout' in self.myBuildTargets #or (self.myProject+'_svnCheckout' in self.myBuildTargets)
+		tryVcsCheckout = 'svncheckout' in self.myBuildTargets #or (self.myProject+'_svnCheckout' in self.myBuildTargets)
 
 		#
 		if (tryVcsCheckout or tryVcsStatus) == False:
@@ -1173,7 +1191,7 @@ SConsBuildFramework options:
 
 	def doVcsUpdate( self, lenv ):
 		# User wants a vcs update ?
-		tryVcsUpdate = 'svnUpdate' in self.myBuildTargets # or (self.myProject+'_svnUpdate' in self.myBuildTargets)
+		tryVcsUpdate = 'svnupdate' in self.myBuildTargets # or (self.myProject+'_svnUpdate' in self.myBuildTargets)
 
 		lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] or tryVcsUpdate
 
@@ -1192,7 +1210,7 @@ SConsBuildFramework options:
 
 	def doVcsCleanOrAdd( self, lenv ):
 		# a vcs cleanup ?
-		if 'svnClean' in self.myBuildTargets:
+		if 'svnclean' in self.myBuildTargets:
 			if lenv['vcsUse'] == 'yes' :
 				self.vcsClean( lenv )
 			#else:
@@ -1200,7 +1218,7 @@ SConsBuildFramework options:
 			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 
 		# a vcs add ?
-		if 'svnAdd' in self.myBuildTargets:
+		if 'svnadd' in self.myBuildTargets:
 			#if lenv['vcsUse'] == 'yes' :	# @todo moves this test in vcsOperation
 			self.vcsAdd( lenv )
 			#else:
@@ -1479,7 +1497,7 @@ SConsBuildFramework options:
 		searchFiles( 'src',		filesFromSrc,		['.svn'], basenameWithDotRe + r"(?:cpp|c)$" )
 		#searchFiles1( 'src',		['.svn'], ['.cpp'], filesFromSrc )
 
-		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|h|inl)$" )
+		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|inl|h)$" )
 		#searchFiles1( 'include', ['.svn'], ['.hpp','.hxx','.h'], filesFromInclude )
 
 		searchFiles( 'share',	filesFromShare,		['.svn'] )
@@ -1702,7 +1720,8 @@ SConsBuildFramework options:
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
 		lenv['sbf_files']						= glob.glob( self.myProjectPathName + os.sep + '*.options' )
-		# lenv['sbf_rc']
+		#lenv['sbf_info']
+		#lenv['sbf_rc']
 		# @todo configures sbf_... for msvc/eclipse ?
 
 		for elt in installInBinTarget :
@@ -1730,7 +1749,7 @@ SConsBuildFramework options:
 		Alias( 'install',	aliasProjectInstall		)
 		Alias( 'all',		aliasProject			)
 		Alias( 'clean',		aliasProjectClean		)
-		Alias( 'mrproper',	aliasProjectMrproper	)
+		Alias( 'mrproper',	[aliasProjectClean, aliasProjectMrproper] )
 
 		# VCS clean and add
 		self.doVcsCleanOrAdd( lenv )

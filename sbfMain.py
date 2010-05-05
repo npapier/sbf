@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -326,7 +326,7 @@ def createRsyncAction( env, target, source, alias = None ):
 env.AddMethod( createRsyncAction )
 
 # target 'sbfCheck'
-if 'sbfCheck' in BUILD_TARGETS:
+if 'sbfcheck' in BUILD_TARGETS:
 	sbfCheck( env )
 	Exit(0)
 
@@ -337,8 +337,7 @@ def sbfPakAction(target = None, source = None, env = None):
 	src.sbfPackagingSystem.runSbfPakCmd(SConsEnvironment.sbf)
 	return 0
 
-sbfPakTargets = ['sbfPak', 'sbfpak']
-Alias(sbfPakTargets, Command('dummySbfPak.out', 'dummy.in', Action( sbfPakAction, nopAction ) ) )
+Alias( 'sbfpak', Command('dummySbfPak.out', 'dummy.in', Action( sbfPakAction, nopAction ) ) )
 
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
@@ -348,17 +347,13 @@ env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 env['sbf_launchProject'		]	= env['sbf_project']
 
 # Updates SConsBuildFramework
-if 'svnUpdate' in BUILD_TARGETS:
+if 'svnupdate' in BUILD_TARGETS:
 	print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
 	env.sbf.myVcs.update( env.sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK) )
 	print
 
 # Builds sbf library
-buildStage = True
-for target in sbfPakTargets:
-	if target in BUILD_TARGETS:
-		buildStage = False
-		break
+buildStage = 'sbfpak' not in BUILD_TARGETS
 
 if buildStage:
 	if env['nodeps'] == False and env['sbf_project'] != 'sbf':
@@ -370,17 +365,15 @@ if buildStage:
 
 
 ### special targets: svnAdd svnCheckout svnCleanup svnStatus svnUpdate ###
-Alias( 'svnAdd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnCheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnClean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnStatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnUpdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
 
-### special targets: onlyRun (or onlyrun) and run ###
-Alias( 'onlyRun' )
-Alias( 'onlyrun', 'onlyRun' )
-
+### special targets: onlyRun and run ###
+Alias( 'onlyrun' )
 Alias( 'run' )
 
 

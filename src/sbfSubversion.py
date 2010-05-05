@@ -312,6 +312,25 @@ class Subversion ( IVersionControlSystem ) :
 		return not self.isVersioned( path )
 
 
+	def getRevision( self, path ):
+		"""Returns None if not under vcs, otherwise returns the revision number"""
+		try:
+			entry_list = self.client.info2( path, depth = pysvn.depth.empty )
+			if len(entry_list)==0:
+				return
+			else:
+				infoDict = entry_list[0][1]
+				return infoDict['rev'].number
+		except pysvn.ClientError, e :
+			for message, code in e.args[1]:
+				if code == 155007 :
+					# Directory is not a working copy
+					return
+			else:
+				print e.args[0]
+		return
+
+
 	def getUrl( self, path ):
 		try:
 			info = self.client.info( path )
