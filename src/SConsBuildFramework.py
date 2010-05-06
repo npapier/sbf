@@ -529,7 +529,6 @@ build related targets
 
 run related targets
  'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
- 'scons onlyrun' idem to 'onlyRun'
  'scons run' to launch the executable (if any), but firstly build the project.
 
 visual studio related targets
@@ -1767,7 +1766,7 @@ SConsBuildFramework options:
 			if len(cmdParameters) > 0:
 				printMsg += stringFormatter(lenv, 'with parameters:%s' % cmdParameters)
 
-			Alias( 'onlyRun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
+			Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
 								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
 										printMsg ) ) )
 
