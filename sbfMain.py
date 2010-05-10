@@ -331,13 +331,10 @@ if 'sbfcheck' in BUILD_TARGETS:
 	Exit(0)
 
 # target 'sbfPak'
-import src.sbfPackagingSystem
-
-def sbfPakAction(target = None, source = None, env = None):
+if 'sbfpak' in BUILD_TARGETS:
+	import src.sbfPackagingSystem
 	src.sbfPackagingSystem.runSbfPakCmd(SConsEnvironment.sbf)
-	return 0
-
-Alias( 'sbfpak', Command('dummySbfPak.out', 'dummy.in', Action( sbfPakAction, nopAction ) ) )
+	Exit(0)
 
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
