@@ -865,7 +865,7 @@ class Use_sofa( IUse, sofaConfig ):
 			pakLibs = ['glew32', 'glut32']
 
 			libsBoth = ['BeamAdapter', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
-						'sofacomponentcollision', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller',
+						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller',
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
 						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
