@@ -5,6 +5,7 @@
 
 #include "sbf/Module.hpp"
 
+#include <fstream>
 #include <iostream>
 #include <boost/filesystem.hpp>
 
