@@ -5,8 +5,9 @@
 
 from __future__ import with_statement
 
-from os.path import join
+from os.path import join, splitext
 
+from src.sbfArchives import extractArchive, isExtractionSupported
 from src.sbfFiles	import *
 #from src.sbfTools	import locateProgram
 from src.sbfUses	import UseRepository
@@ -15,7 +16,9 @@ from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAct
 
 from SCons.Script import *
 
-# @todo always generated nsis files
+
+# @todo clean and mrproper (at least remove project_0-0_win32_cl9-0Exp_portable_DATE like directories).
+# @todo debug zipsrc if a used file is no more under vcs.
 # @todo uninstallRedist
 # @todo Improves redist macros (adding message and with/without confirmation)
 
@@ -161,7 +164,7 @@ Section "${PRODUCTNAME} core (required)"
 ;AccessControl::EnableFileInheritance "$INSTDIR\\var"
 
   ; Redistributable
-  !include "${SBFPROJECTNAME}_redist.nsi"
+  !include "${SBFPROJECTNAME}_install_redist.nsi"
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
@@ -243,18 +246,18 @@ def redistGeneration( target, source, env ):
 	uses = sorted(list( sbf.getAllUses(env) ))
 	redistFiles = []
 
-	for useNameVersion in uses:
-		useName, useVersion = UseRepository.extract( useNameVersion )
-		use = UseRepository.getUse( useName )
-		if use:
-			redistributables = use.getRedist( useVersion )
-			for redistributable in redistributables:
+#	for useNameVersion in uses:
+#		useName, useVersion = UseRepository.extract( useNameVersion )
+#		use = UseRepository.getUse( useName )
+#		if use:
+#			redistributables = use.getRedist( useVersion )
+#			for redistributable in redistributables:
 				# '*.exe' launch executable,	('*.exe', 'question') ask and launch
 				# '*.zip' extract in deps,		('*.zip', 'question') ask and extract
-				if isinstance(redistributable, tuple):
-					pass
-				else:
-					redistFiles.append(redistributable)
+#				if isinstance(redistributable, tuple):
+#					pass
+#				else:
+#					redistFiles.append(redistributable)
 
 	# Open output file ${SBFPROJECTNAME}_redist.nsi
 	with open( targetNameRedist, 'w' ) as file:
@@ -271,7 +274,7 @@ def redistGeneration( target, source, env ):
 		if len(redistFiles)>0:
 			file.write( "; Redistributable for 'uses'\n" )
 			for redistFile in redistFiles:
-				redistFileExtension = os.path.splitext(redistFile)[1]
+				redistFileExtension = splitext(redistFile)[1]
 				if redistFileExtension == '.zip':
 					file.write( """!insertmacro InstallAndUnzipRedistributable "{0}" "$INSTDIR"\n""".format(redistFile.replace('/', '\\') ) )
 				elif redistFileExtension == '.exe' :
@@ -473,65 +476,54 @@ def configureZipAndNSISTargets( env ):
 		portableZipFiles += Command('zipPortable_mkdirVar.out', 'dummy.in', [Delete(varDirectory), Mkdir(varDirectory)] )
 
 		#
-		usesSet					= set()
-		extension				= env['SHLIBSUFFIX']
 		licenseInstallExtPaths	= [ join(element, 'license') for element in sbf.myInstallExtPaths ]
 
-		for projectName in sbf.myParsedProjects :
-			lenv			= sbf.myParsedProjects[projectName]
+		for projectName in sbf.myParsedProjects:
+			lenv			= sbf.getEnv(projectName)
 			projectPathName	= lenv['sbf_projectPathName']
 			project			= lenv['sbf_project']
 
-			# Adds files to runtime and portable zip
+			runtimeDestPath		= join(runtimeZipPath, 'share', project, lenv['version'])
+			portableDestPath	= join(portableZipPath, 'share', project, lenv['version'])
+
+			# Adds executables and libraries
 			runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
 			runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
 			portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
 			portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
+			devZipFiles			+= Install( join(devZipPath, 'bin'),		lenv['sbf_bin'] )
+			devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object'] )
 
-			runtimeDestPath		= join(runtimeZipPath, 'share', project, lenv['version'])
-			portableDestPath	= join(portableZipPath, 'share', project, lenv['version'])
+			devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object_for_developer'] )
+
+			# Processes the 'stdlibs' project option
+			for stdlib in lenv.get( 'stdlibs', [] ):
+				filename = splitext(stdlib)[0] + env['SHLIBSUFFIX']
+				pathFilename = searchFileInDirectories( filename, sbf.myLibInstallExtPaths )
+				if pathFilename:
+#					print("Found standard library %s" % pathFilename)
+					depsZipFiles		+= Install( join(depsZipPath, 'bin'), pathFilename )
+					portableZipFiles	+= Install( join(portableZipPath, 'bin'), pathFilename )
+				else:
+					print("Standard library %s not found (see 'stdlibs' project option of %s)." % (filename, projectName) )
+
+			# Processes the share directory
 			for file in lenv.get('sbf_share', []):
-				runtimeZipFiles += InstallAs(	file.replace('share', runtimeDestPath, 1),
-												join(projectPathName, file) )
-				portableZipFiles+= InstallAs(	file.replace('share', portableDestPath, 1),
-												join(projectPathName, file) )
+				sourceFile = join(projectPathName, file)
+				runtimeZipFiles += InstallAs(	file.replace('share', runtimeDestPath, 1), sourceFile )
+				portableZipFiles+= InstallAs(	file.replace('share', portableDestPath, 1), sourceFile )
 
+			# Processes the info files.
 			for file in lenv.get('sbf_info', []):
 				runtimeZipFiles += Install( runtimeDestPath, file )
 				portableZipFiles += Install( portableDestPath, file )
 
-			# Adds files to deps zip
-	#		print ("Dependencies (only 'uses' option) for %s :" % project), lenv['uses']
+			# Adds include files to dev zip
+			for file in lenv.get('sbf_include', []):
+				devZipFiles += InstallAs( join(devZipPath, file), join(projectPathName, file) )
 
-			for element in lenv['uses']:
-	#			if element not in usesSet:
-	#				print ("Found a new dependency : %s" % element)
-				usesSet.add( element )
-
-			# Processes the 'stdlibs' project option
-			if len(lenv['stdlibs']) > 0:
-				searchPathList = sbf.myLibInstallExtPaths[:]
-				for stdlib in lenv['stdlibs']:
-					filename = os.path.splitext(stdlib)[0] + extension
-					pathFilename = searchFileInDirectories( filename, searchPathList )
-					if pathFilename:
-						print("Found standard library %s" % pathFilename)
-						depsZipFiles		+= Install( join(depsZipPath, 'bin'), pathFilename )
-						portableZipFiles	+= Install( join(portableZipPath, 'bin'), pathFilename )
-					else:
-						print("Standard library %s not found (see 'stdlibs' project option of %s)." % (filename, projectName) )
-
-			# Adds files to dev zip
-			devZipFiles += Install(		join(devZipPath, 'bin'),			lenv['sbf_bin'] )
-
-			for file in lenv['sbf_include'] :
-				devZipFiles += InstallAs(	join(devZipPath, file),		join(projectPathName, file) )
-
-			devZipFiles += Install( join(devZipPath, 'lib'), lenv['sbf_lib_object'] )
-			devZipFiles += Install( join(devZipPath, 'lib'), lenv['sbf_lib_object_for_developer'] )
-
-			# Adds files to src zip
-			if lenv['vcsUse'] == 'yes' :
+			# Adds source files to src zip
+			if lenv['vcsUse'] == 'yes':
 				allFiles = sbf.myVcs.getAllVersionedFiles( projectPathName )
 
 				projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
@@ -541,11 +533,14 @@ def configureZipAndNSISTargets( env ):
 					srcZipFiles += InstallAs( join(srcZipPath, projectRelPath, relFile), absFile )
 			# else nothing to do
 
+		#
 		# Processes external dependencies
-		listOfExternalDependencies = sorted(list(usesSet))
-		#print ("List of external dependencies for %s :" % env['sbf_project'])
+		#
+
+		sbfRcNsisPath = join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
 
 		# For each external dependency, do
+		listOfExternalDependencies = sbf.getAllUses( sbf.getRootProjectEnv() )
 		for useNameVersion in listOfExternalDependencies:
 			# Extracts name and version of incoming external dependency
 			useName, useVersion = UseRepository.extract( useNameVersion )
@@ -554,24 +549,21 @@ def configureZipAndNSISTargets( env ):
 			# Retrieves use object for incoming dependency
 			use = UseRepository.getUse( useName )
 			if use:
-
 				# Retrieves LIBS of incoming dependency
 				libs = use.getLIBS( useVersion )
-				if libs != None and len(libs) == 2:
-
+				if libs and len(libs) == 2:
 					# Computes the search path list where libraries could be located
 					searchPathList = sbf.myLibInstallExtPaths[:]
 					libpath = use.getLIBPATH( useVersion )
-					if (libpath != None) and (len(libpath) == 2) :
-						if len(libpath[1]) > 0 :
-							searchPathList.extend( libpath[1] )
+					if libpath and (len(libpath) == 2):
+						searchPathList.extend( libpath[1] )
 
 					# For each library, do
 					for file in libs[1]:
-						filename = file + extension
+						filename = file + env['SHLIBSUFFIX']
 						pathFilename = searchFileInDirectories( filename, searchPathList )
 						if pathFilename:
-							print ("Found library %s" % pathFilename)
+#							print ("Found library %s" % pathFilename)
 							depsZipFiles		+= Install( join(depsZipPath, 'bin'), pathFilename )
 							portableZipFiles	+= Install( join(portableZipPath, 'bin'), pathFilename )
 						else:
@@ -579,15 +571,15 @@ def configureZipAndNSISTargets( env ):
 				else:
 					raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
 
-				# Retrieves license file(s) of incoming dependency
-				# from IUse class
+
+				# Retrieves license file(s) of incoming dependency from IUse class
 				warningAboutLicense = True
 				licenses = use.getLicenses( useVersion )
 				if licenses and len(licenses)>0:
 					for filename in licenses:
 						pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
 						if pathFilename:
-							print ("Found license %s" % pathFilename)
+#							print ("Found license %s" % pathFilename)
 							warningAboutLicense = False
 							depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
 							portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
@@ -595,7 +587,9 @@ def configureZipAndNSISTargets( env ):
 							raise SCons.Errors.UserError( "File %s not found." % filename )
 				# else: warningAboutLicense = True
 
-				# implicit license file(s) if any
+
+				# Retrieves license file(s) of incoming dependency using implicit license file(s) if any
+
 				# license file without prefix (case: only one license file)
 				licenses = ['license.{0}{1}.txt'.format( useName, useVersion)]
 				# license file with prefix (case: several license files)
@@ -604,15 +598,22 @@ def configureZipAndNSISTargets( env ):
 				for filename in licenses:
 					pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
 					if pathFilename:
-						print ("Found license %s" % pathFilename)
+#						print ("Found license %s" % pathFilename)
 						warningAboutLicense = False
 						depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
 						portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
-					#else:
-					#	raise SCons.Errors.UserError( "File %s not found." % filename )
+					#else nothing to do
+
 				# Prints warning if needed
 				if warningAboutLicense:
 					print ('sbfWarning: No license file for {0}'.format(useNameVersion))
+
+
+				# Retrieves redistributables of incoming dependency
+				for redistributable in use.getRedist( useVersion ):
+					if not isinstance(redistributable, tuple) and isExtractionSupported(redistributable):
+						extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), portableZipPath )
+						extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), depsZipPath )
 
 		runtimeZip = runtimeZipPath + env['SEVENZIPSUFFIX']
 		Alias( 'zipRuntime_generate7z', env.SevenZipAdd( runtimeZip, Dir(runtimeZipPath) ) )
@@ -654,20 +655,16 @@ def configureZipAndNSISTargets( env ):
 		Alias( 'zip', ['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc'] )
 
 		### nsis target ###
-
 		Alias( 'nsis', ['infofile', 'build', portableZipFiles] ) # @todo uses 'zipportable' and @todo check order 'build', 'infofile'
 
 		# Copies redistributable related files
 		sbfNSISPath = join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'NSIS' )
-		sbfRcNsisPath = join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
 		Alias( 'nsis', env.Install( zipPakPath, join(sbfNSISPath, 'redistributable.nsi') ) )
 		Alias( 'nsis', env.Install( zipPakPath, join(sbfRcNsisPath, 'redistributableDatabase.nsi') ) )
 
 		# @todo Creates a function to InstallAs( dirDest, dirSrc * )
 		redistributableFiles = []
-		searchFiles(	join(sbfRcNsisPath, 'Redistributable'),
-						redistributableFiles,
-						['.svn'] )
+		searchFiles( join(sbfRcNsisPath, 'Redistributable'), redistributableFiles, ['.svn'] )
 
 		installRedistributableFiles = []
 		for file in redistributableFiles :
@@ -676,21 +673,29 @@ def configureZipAndNSISTargets( env ):
 		Alias( 'nsis', installRedistributableFiles )
 
 		# Generates several nsis files
-		nsisRedistFiles		=	[ join( zipPakPath, rootProjectEnv['sbf_project'] + '_redist.nsi' ), join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_redist.nsi' ) ]
+		nsisRedistFiles		= [ join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_redist.nsi' ), join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_redist.nsi' ) ]
 		nsisInstallFiles	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi' )
 		nsisUninstallFile	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi' )
 		Alias( 'nsis', rootProjectEnv.redistGeneration( nsisRedistFiles, portableZipPath ) )
+		#AlwaysBuild( nsisRedistFiles )
 		Alias( 'nsis', env.zipPrinterForNSISInstallFiles( nsisInstallFiles, portableZipPath ) )
+		#AlwaysBuild( nsisInstallFiles )
 		Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	nsisUninstallFile, portableZipPath ) )
-		Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile] ) )#portableZipPath + '.zip' ) )
+		#AlwaysBuild( nsisUninstallFile )
+
+		# Main nsis file
+		Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile] ) )
+		AlwaysBuild( portableZipPath + '.nsi' )
 
 # @todo Nsis builder
 		nsisRootPath = "C:\\Program Files\\NSIS"
+		#nsisRootPath = "D:\\Program Files (x86)\\NSIS"
 		#nsisRootPath = locateProgram( 'nsis' )
-		nsisSetupFile = '%s_%s_setup.exe' % (env.sbf.myProject, env.sbf.myVersion)
+		nsisSetupFile = '{0}_{1}_setup.exe'.format(env.sbf.myProject, env.sbf.myVersion)
 		nsisBuildAction = env.Command(	nsisSetupFile, portableZipPath + '.nsi', #portableZipPath + '.exe'
-										"\"%s\" $SOURCES" % join(nsisRootPath, 'makensis.exe' ) )
+										"\"{0}\" $SOURCES".format( join(nsisRootPath, 'makensis.exe' ) ) )
 		Alias( 'nsis', nsisBuildAction )
+		AlwaysBuild( nsisBuildAction )
 
 		if env['publishOn'] :
 			# @todo print message
