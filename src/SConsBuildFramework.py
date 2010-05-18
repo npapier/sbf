@@ -521,6 +521,8 @@ svn related targets
 
 configuration related target
  'scons info' to print informations about the current project, its dependencies and external packages needed.
+ 'scons infoFile' to generate info.sbf file for the starting project only.
+	This file is generated in root of the project and intalled in the local/share directory of the project.
 
 build related targets
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
@@ -1499,7 +1501,7 @@ SConsBuildFramework options:
 		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|inl|h)$" )
 		#searchFiles1( 'include', ['.svn'], ['.hpp','.hxx','.h'], filesFromInclude )
 
-		searchFiles( 'share',	filesFromShare,		['.svn'] )
+		searchFiles( 'share',	filesFromShare,		['.svn'], r"^[^_]+.*$" )
 
 		objFiles = []
 		if		self.myType in ['exec', 'static'] :
