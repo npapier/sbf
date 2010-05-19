@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string/trim.hpp>
 
 #include "sbf/path.hpp"
 
@@ -59,6 +60,7 @@ const std::string Module::getInfoFromFile() const
 			std::string	line;
 
 			std::getline( in, line );
+			boost::algorithm::trim_right( line );
 			buffer += line;
 			buffer += "\n";
 		}
