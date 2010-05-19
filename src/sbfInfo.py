@@ -79,6 +79,9 @@ def doTargetInfoFile( target, source, env ):
 			if len(projectRelPath)==0:
 				projectRelPath = projectEnv['sbf_project']
 
+			# Adds vcs revision to project path (path@revision)
+			projectRelPath += '@' + str(sbf.myVcs.getRevision(projectPathName))
+
 			libs = ''
 			for useNameVersion in projectEnv['uses']:
 				useName, useVersion = UseRepository.extract( useNameVersion )
