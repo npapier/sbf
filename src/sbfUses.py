@@ -729,7 +729,7 @@ class Use_sdl( IUse ):
 			return []
 
 
-		def getLIBS( self, version ):
+	def getLIBS( self, version ):
 		if self.platform == 'win32' :
 			libs = [ 'SDL', 'SDLmain', 'SDL_mixer' ]
 			pakLibs = [ 'SDL', 'SDL_mixer' ]
