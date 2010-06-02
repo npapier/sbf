@@ -729,12 +729,13 @@ class Use_sdl( IUse ):
 			return []
 
 
-	def getLIBS( self, version ):
+		def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			libs = [ 'SDL', 'SDLmain' ]
-			pakLibs = [ 'SDL' ]
+			libs = [ 'SDL', 'SDLmain', 'SDL_mixer' ]
+			pakLibs = [ 'SDL', 'SDL_mixer' ]
 			return libs, pakLibs
 		elif self.platform == 'posix' :
+			# @todo SDL_mixer
 			return ['SDL', 'SDL']
 
 	def getLIBPATH( self, version ):
