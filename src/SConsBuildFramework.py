@@ -7,6 +7,7 @@ import datetime
 import glob
 import sbfIVersionControlSystem
 import os
+import re
 import time
 
 from sbfFiles import *
@@ -114,6 +115,7 @@ class SConsBuildFramework :
 	# sbf_version_major
 	# sbf_version_minor
 	# sbf_version_maintenance
+	# sbf_version_postfix
 
 	# sbf_projectGUID
 	#@todo completes this list
@@ -183,6 +185,7 @@ class SConsBuildFramework :
 	myVersionMajor					= None
 	myVersionMinor					= None
 	myVersionMaintenance			= None
+	myVersionPostfix				= None
 	myPostfixLinkedToMyConfig		= ''
 	my_PostfixLinkedToMyConfig		= ''
 	myFullPostfix					= ''
@@ -724,18 +727,21 @@ SConsBuildFramework options:
 			self.myProjectBuildPath = os.path.join( self.myProjectPathName, self.myBuildPath )
 
 		# processes myVersion
-		splittedVersion = self.myVersion.split( '-' )
-		if len(splittedVersion) not in [2, 3] :
-			raise SCons.Errors.UserError("In project configuration file, 'version' must used the following schemas : major-minor or major-minor-maintenance\nCurrent specified version: %s" % self.myVersion )
-		self.myVersionMajor = int(splittedVersion[0])
-		self.myVersionMinor = int(splittedVersion[1])
-		if len(splittedVersion) == 3 :
-			self.myVersionMaintenance = int(splittedVersion[2])
-		else :
-			self.myVersionMaintenance = 0
+		extractedVersion = self.extractVersion( self.myVersion )
+		self.myVersionMajor = int(extractedVersion[0])
+		self.myVersionMinor = int(extractedVersion[1])
+		#if extractVersion[2]:
+		#	self.myVersionMaintenance = int(extractedVersion[2])
+		#else:
+		self.myVersionMaintenance = 0
+		if extractedVersion[2]:
+			self.myVersionPostfix = extractedVersion[2]
+		else:
+			self.myVersionPostfix = ''
 		lenv['sbf_version_major']		= self.myVersionMajor
 		lenv['sbf_version_minor']		= self.myVersionMinor
 		lenv['sbf_version_maintenance']	= self.myVersionMaintenance
+		lenv['sbf_version_postfix']		= self.myVersionPostfix
 
 		### @todo not good if more than one config must be built
 		if self.myConfig == 'debug':
@@ -848,7 +854,8 @@ SConsBuildFramework options:
 							'none',
 							allowed_values=('exec', 'static','shared','none'),
 							map={}, ignorecase=1 ),
-			('version', "Sets the project version. The following version schemas must be used : major-minor or major-minor-maintenance. For example '1-0' or '1-0-1'", '0-0'),
+# @todo support for major-minor-maintenance[-postfix]
+			('version', "Sets the project version. The following version schemas must be used : major-minor-[postfix] or major-minor-maintenance[-postfix]. For example '1-0', '1-0-RC1', '1-0-1' or '0-99-technoPreview'", '0-0'),
 			('postfix', 'Adds a postfix to the target name.', ''),
 
 			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
@@ -1118,7 +1125,8 @@ SConsBuildFramework options:
 						("MODULE_VERSION",	"\\\"%s\\\"" % self.myVersion ),
 						("MODULE_MAJOR_VER",	"%s" % self.myVersionMajor ),
 						("MODULE_MINOR_VER",	"%s" % self.myVersionMinor ),
-						("MODULE_MAINT_VER",	"%s" % self.myVersionMaintenance )
+						("MODULE_MAINT_VER",	"%s" % self.myVersionMaintenance ),
+						("MODULE_POSTFIX_VER",	"%s" % self.myVersionPostfix ),
 						 ] )
 
 		# Completes myCxxFlags with some defines
@@ -1813,6 +1821,17 @@ SConsBuildFramework options:
 		tuple = self.getVersionNumberTuple( versionNumber )
 		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
 
+
+# @todo support for maintenance
+	def extractVersion( self, versionStr ):
+		"""Returns a tuple containing (major, minor, maintenance, postfix) version information from versionStr (major-minor[-postfix] or major-minor-maintenance[-postfix])."""
+
+		versionRE = re.compile( r'^(?P<major>[0-9]+)-(?P<minor>[0-9]+)(?:-(?P<postfix>[a-zA-Z0-9]+))?$' )
+		versionMatch = versionRE.match( versionStr )
+		if versionMatch:
+			return versionMatch.groups()
+		else:
+			raise SCons.Errors.UserError("Given version:{0}.\nThe project version must follow the schemas major-minor-[postfix] or major-minor-maintenance[-postfix].".format(versionStr) )
 
 
 	###
