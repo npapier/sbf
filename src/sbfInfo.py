@@ -15,7 +15,7 @@ from src.SConsBuildFramework import printEmptyLine, stringFormatter
 
 
 def printGenerate( target, source, localenv ) :
-	return "Generating {0} for {1}".format( str(os.path.basename(target[0].abspath)), localenv['sbf_project'] )
+	return "Generating {0} for {1}\n".format( str(os.path.basename(target[0].abspath)), localenv['sbf_project'] )
 
 # Creates info.sbf file containing informations about the current project and its dependencies.
 def doTargetInfoFile( target, source, env ):

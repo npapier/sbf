@@ -292,21 +292,7 @@ class Subversion ( IVersionControlSystem ) :
 
 
 	def isVersioned( self, path ):
-		try:
-			info = self.client.info( path )
-			if not info :
-				return False
-			else:
-				return True
-		except pysvn.ClientError, e :
-			for message, code in e.args[1]:
-				if code == 155007 :
-					# Directory is not a working copy
-					return False
-			else:
-				print e.args[0]
-		return False
-
+		return self.getRevision(path) != None
 
 	def isUnversioned( self, path ):
 		return not self.isVersioned( path )
@@ -315,19 +301,24 @@ class Subversion ( IVersionControlSystem ) :
 	def getRevision( self, path ):
 		"""Returns None if not under vcs, otherwise returns the revision number"""
 		try:
-			entry_list = self.client.info2( path, depth = pysvn.depth.empty )
+# @todo Don't share pysvn client instance (see below).
+			client = self.__createPysvnClient__()
+			entry_list = client.info2( path, depth = pysvn.depth.empty )
 			if len(entry_list)==0:
 				return
 			else:
 				infoDict = entry_list[0][1]
 				return infoDict['rev'].number
 		except pysvn.ClientError, e :
-			for message, code in e.args[1]:
-				if code == 155007 :
-					# Directory is not a working copy
-					return
+			if isinstance(e, tuple):
+				for message, code in e.args[1]:
+					if code == 155007 :
+						# Directory is not a working copy
+						return
+				else:
+					print e.args[0]
 			else:
-				print e.args[0]
+				print ('In project {0}, error {1}'.format(path, e))
 		return
 
 
@@ -343,6 +334,14 @@ class Subversion ( IVersionControlSystem ) :
 			return ""
 
 	#
+	def __createPysvnClient__(self):
+		client = pysvn.Client()
+		client.callback_notify						= CallbackNotifyWrapper( self.sbf, self )
+		client.callback_ssl_server_trust_prompt		= svnCallback_ssl_server_trust_prompt
+		client.callback_get_login					= svnCallback_get_login
+		client.exception_style						= 1
+		return client
+
 	def __init__( self, sbf ):
 		# Prints global statistics at exit
 		atexit.register( atExitPrintStatistics, self.stats )
@@ -351,11 +350,7 @@ class Subversion ( IVersionControlSystem ) :
 		self.sbf	= sbf
 
 		#
-		self.client = pysvn.Client()
-		self.client.callback_notify						= CallbackNotifyWrapper( sbf, self )
-		self.client.callback_ssl_server_trust_prompt	= svnCallback_ssl_server_trust_prompt
-		self.client.callback_get_login					= svnCallback_get_login
-		self.client.exception_style						= 1
+		self.client = self.__createPysvnClient__()
 
 
 	def add( self, myProjectPathName, myProject ):
@@ -427,6 +422,45 @@ class Subversion ( IVersionControlSystem ) :
 				print e.args[0], '\n'
 
 		return False
+
+
+	def export( self, myProjectPathName, myProject ):
+		# Checks validity of 'svnUrls' option
+		# @todo Checks if urls are valid
+		if len(self.sbf.mySvnUrls) == 0 :
+			raise SCons.Errors.UserError("Unable to do any svn export, because option 'svnUrls' is empty.")
+
+		# Try a export
+		self.client.callback_notify.resetStatistics()
+		svnUrls = self.__getURLFromSBFOptions( myProject )
+
+		for svnUrl in svnUrls :
+			# @todo improves robustness for svn urls
+			svnUrl = self.__completeUrl( svnUrl, myProject )
+			print "sbfInfo: Try to export a copy from", svnUrl, ":"
+			try :
+				revision = self.client.export( svnUrl, myProjectPathName )
+				self.client.callback_notify.getStatistics().printReport()
+				print "sbfInfo:", myProject, "found at", svnUrl
+				return
+				#return self.__printSvnInfo( myProjectPathName, myProject )
+			except pysvn.ClientError, e :
+				print e.args[0], '\n'
+
+		return False
+
+
+	def export( self, svnUrl, exportPath, projectName ):
+		self.client.callback_notify.resetStatistics()
+		try:
+			revision = self.client.export( svnUrl, exportPath )
+			self.client.callback_notify.getStatistics().printReport()
+			print "sbfInfo:", projectName, "found at", svnUrl
+			return True
+			#return self.__printSvnInfo( exportPath, projectName )
+		except pysvn.ClientError, e :
+			print e.args[0], '\n'
+			return False
 
 
 	def clean( self, myProjectPathName, myProject ):
