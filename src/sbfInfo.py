@@ -11,9 +11,11 @@ from SCons.Script import *
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem
 from src.sbfUses import UseRepository
-from src.SConsBuildFramework import printEmptyLine, printGenerate, stringFormatter
+from src.SConsBuildFramework import printEmptyLine, stringFormatter
 
 
+def printGenerate( target, source, localenv ) :
+	return "Generating {0} for {1}".format( str(os.path.basename(target[0].abspath)), localenv['sbf_project'] )
 
 # Creates info.sbf file containing informations about the current project and its dependencies.
 def doTargetInfoFile( target, source, env ):
@@ -113,13 +115,19 @@ def configureInfoTarget( env ):
 	# Target 'infofile'
 	sbf = env.sbf
 	rootProjectEnv = sbf.getRootProjectEnv()
-	# info.sbf is generated at the root of the project (PS: not in share directory, because it would be always rebuilt to be copy an updated version in local/share).
-	infoFile = os.path.join( rootProjectEnv['sbf_projectPathName'], 'info.sbf' )
-	rootProjectEnv['sbf_info'] = [infoFile] # @todo adds now and only if generated, but i don't have the information (see HOWTO for generated files).
-	rootProjectEnv.Alias( 'infofile', rootProjectEnv.Command( infoFile, 'dummy.in', rootProjectEnv.Action( doTargetInfoFile, printGenerate ) ) )
-	rootProjectEnv.Alias( 'infofile', rootProjectEnv.Install( sbf.getShareInstallDirectory(), infoFile ) )
-	rootProjectEnv.AlwaysBuild( infoFile )
-	Clean( ['clean', 'mrproper'], infoFile )
+	for projectName in sbf.myBuiltProjects:
+		lenv = sbf.myBuiltProjects[projectName]
+		if (lenv == rootProjectEnv) or lenv['generateInfoFile']:
+			# Must generate info.sbf file for this project (root project or option 'generateInfoFile').
+			projectPathName	= lenv['sbf_projectPathName']
+			project			= lenv['sbf_project']
+			# info.sbf is generated at the root of the project (PS: not in share directory, because it would be always rebuilt to copy an updated version in local/share).
+			infoFile = os.path.join( projectPathName, 'info.sbf' )
+			lenv['sbf_info'] = [infoFile] # @todo adds now and only if generated, but i don't have the information (see HOWTO for generated files).
+			Alias( 'infofile', lenv.Command( infoFile, 'dummy.in', lenv.Action( doTargetInfoFile, printGenerate ) ) )
+			Alias( 'infofile', lenv.Install( sbf.getShareInstallDirectory(lenv), infoFile ) )
+			lenv.AlwaysBuild( infoFile )
+			Clean( ['clean', 'mrproper'], infoFile )
 
 	# Target 'info'
 	if 'info' in env.sbf.myBuildTargets:

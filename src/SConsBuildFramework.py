@@ -854,9 +854,10 @@ SConsBuildFramework options:
 							'none',
 							allowed_values=('exec', 'static','shared','none'),
 							map={}, ignorecase=1 ),
-# @todo support for major-minor-maintenance[-postfix]
+
 			('version', "Sets the project version. The following version schemas must be used : major-minor-[postfix] or major-minor-maintenance[-postfix]. For example '1-0', '1-0-RC1', '1-0-1' or '0-99-technoPreview'", '0-0'),
 			('postfix', 'Adds a postfix to the target name.', ''),
+			BoolVariable('generateInfoFile', 'Sets to true enabled the generation of info.sbf file, false to disable it.', False ),
 
 			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
 
@@ -1787,11 +1788,17 @@ SConsBuildFramework options:
 
 	###### Helpers ######
 	### share directory
-	def getShareDirectory( self ) :
-		return os.path.join( 'share', self.myProject, self.myVersion )
+	def getShareDirectory( self, projectEnv = None ):
+		if projectEnv:
+			return os.path.join( 'share', projectEnv['sbf_project'], projectEnv['version'] )
+		else:
+			return os.path.join( 'share', self.myProject, self.myVersion )
 
-	def getShareInstallDirectory( self ) :
-		return os.path.join( self.myInstallDirectory, self.getShareDirectory() )
+	def getShareInstallDirectory( self, projectEnv = None ):
+		if projectEnv:
+			return os.path.join( self.myInstallDirectory, self.getShareDirectory(projectEnv) )
+		else:
+			return os.path.join( self.myInstallDirectory, self.getShareDirectory() )
 
 	### Management of version number
 	# @todo moves to sbfVersion.py
