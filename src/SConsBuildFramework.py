@@ -730,12 +730,12 @@ SConsBuildFramework options:
 		extractedVersion = self.extractVersion( self.myVersion )
 		self.myVersionMajor = int(extractedVersion[0])
 		self.myVersionMinor = int(extractedVersion[1])
-		#if extractVersion[2]:
-		#	self.myVersionMaintenance = int(extractedVersion[2])
-		#else:
-		self.myVersionMaintenance = 0
 		if extractedVersion[2]:
-			self.myVersionPostfix = extractedVersion[2]
+			self.myVersionMaintenance = int(extractedVersion[2])
+		else:
+			self.myVersionMaintenance = 0
+		if extractedVersion[3]:
+			self.myVersionPostfix = extractedVersion[3]
 		else:
 			self.myVersionPostfix = ''
 		lenv['sbf_version_major']		= self.myVersionMajor
@@ -1822,11 +1822,10 @@ SConsBuildFramework options:
 		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
 
 
-# @todo support for maintenance
 	def extractVersion( self, versionStr ):
 		"""Returns a tuple containing (major, minor, maintenance, postfix) version information from versionStr (major-minor[-postfix] or major-minor-maintenance[-postfix])."""
 
-		versionRE = re.compile( r'^(?P<major>[0-9]+)-(?P<minor>[0-9]+)(?:-(?P<postfix>[a-zA-Z0-9]+))?$' )
+		versionRE = re.compile( r'^(?P<major>[0-9]+)-(?P<minor>[0-9]+)(?:-(?P<maint>[0-9]+))?(?:-(?P<postfix>[a-zA-Z0-9]+))?$' )
 		versionMatch = versionRE.match( versionStr )
 		if versionMatch:
 			return versionMatch.groups()
