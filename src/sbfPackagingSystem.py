@@ -14,6 +14,7 @@ import os
 import zipfile
 
 from os.path import basename, dirname, exists, join, splitext
+from sbfArchives import extractArchive
 from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile
 from sbfUses import UseRepository
 
@@ -28,31 +29,6 @@ def pprintList( list ) :
 			currentString = ''
 		currentString += "'%s', " % element
 	print currentString[0:-2] + " ]"
-
-
-
-# @todo moves to sbfArchives.py
-def extract( filename, extractionDirectory = None ):
-	if splitext(filename)[1] == '.zip':
-		import zipfile
-		# Opens package
-		zipFile = zipfile.ZipFile( filename )
-		# Extracts
-		zipFile.extractall( extractionDirectory )
-		# Closes package
-		zipFile.close()
-	elif filename.rfind('.tar.bz2') != -1 or filename.rfind('.tar.gz') != -1:
-		import tarfile
-		tar = tarfile.open( filename )
-		tar.extractall( extractionDirectory )
-		tar.close()
-	else:
-		# @todo Support 7z
-		print ('Archive not yet supported')
-		exit(1)
-
-	print ( 'Extraction done.')
-	print
 
 
 
@@ -166,11 +142,14 @@ class PackagingSystem:
 	def __init__( self, sbf ) :
 		self.__SCONS_BUILD_FRAMEWORK	= sbf.mySCONS_BUILD_FRAMEWORK
 
+		self.__vcs						= sbf.myVcs
+
 		self.__localPath				= sbf.myInstallPaths[0]
 		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
 		self.__pakPaths 				= [ join( self.__mkPakGetDirectory() ) ]
 		self.__pakPaths.extend( sbf.myEnv['pakPaths'] )
 
+		self.__myConfig					= sbf.myConfig
 		self.__myPlatform				= sbf.myPlatform
 		self.__myCC						= sbf.myCC
 		self.__myCCVersionNumber		= sbf.myCCVersionNumber
@@ -214,7 +193,8 @@ class PackagingSystem:
 	def mkdbGetDescriptor( self, pakName ):
 		"""Retrieves the dictionary named 'descriptor' from the mkdb database for the desired package"""
 		globalsFileDict = {}
-		localsFileDict	= {	'platform'			: self.__myPlatform,
+		localsFileDict	= {	'config'			: self.__myConfig,
+							'platform'			: self.__myPlatform,
 							'CC'				: self.__myCC,
 							'CCVersionNumber'	: self.__myCCVersionNumber,
 							'UseRepository'		: UseRepository }
@@ -239,6 +219,12 @@ class PackagingSystem:
 		backupCWD = os.getcwd()
 		os.chdir( join(self.__mkPakGetDirectory() ) )
 
+		# SVNURL (export svn)
+		if 'svnUrl' in pakDescriptor:
+			print ( '* Retrieves {0} from {1}'.format( pakDescriptor['name'], pakDescriptor['svnUrl'] ) )
+			self.__vcs.export( pakDescriptor['svnUrl'], join(extractionDirectory, pakDescriptor['name']), pakDescriptor['name'] )
+			print
+			
 		# URLS (download and extract)
 		extractionDirectory = join('build', pakDescriptor['name'] + pakDescriptor['version'] )
 		removeDirectoryTree( extractionDirectory )
@@ -261,7 +247,8 @@ class PackagingSystem:
 
 			# Extracts
 			print ( '* Extracts %s in %s...' % (filename, extractionDirectory) )
-			extract( join('cache', filename), extractionDirectory )
+			extractArchive( join('cache', filename), extractionDirectory )
+			print ( 'Extraction done.\n' )
 
 		# BUILDS
 		import datetime
@@ -302,7 +289,12 @@ class PackagingSystem:
 			os.chdir( buildBackupCWD )
 
 		# CREATES PAK
-		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		if self.__myConfig == 'debug':
+			configPostfix = '_D'
+		else:
+			configPostfix = ''
+
+		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + configPostfix + '/' # '/' is needed to specify directory to copy()
 		sourceDir = join( extractionDirectory, pakDescriptor.get('rootDir','') )
 		if not exists( sourceDir ):
 			print ('{0} does not exist'.format( sourceDir) )
