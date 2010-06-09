@@ -487,14 +487,16 @@ def configureZipAndNSISTargets( env ):
 			portableDestPath	= join(portableZipPath, 'share', project, lenv['version'])
 
 			# Adds executables and libraries
-			runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
-			runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
-			portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
-			portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
-			devZipFiles			+= Install( join(devZipPath, 'bin'),		lenv['sbf_bin'] )
-			devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object'] )
-
-			devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object_for_developer'] )
+			if 'sbf_bin' in lenv:
+				runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
+				portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
+				devZipFiles			+= Install( join(devZipPath, 'bin'),		lenv['sbf_bin'] )
+			if 'sbf_lib_object' in lenv:
+				runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
+				portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
+				devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object'] )
+			if 'sbf_lib_object_for_developer' in lenv:
+				devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object_for_developer'] )
 
 			# Processes the 'stdlibs' project option
 			for stdlib in lenv.get( 'stdlibs', [] ):
@@ -640,16 +642,13 @@ def configureZipAndNSISTargets( env ):
 
 		if env['publishOn']:
 	# @todo print message
-			zipRsyncAction = env.createRsyncAction( os.path.basename(runtimeZip), File(runtimeZip), 'zipruntime' )
-
-			zipRsyncAction = env.createRsyncAction( os.path.basename(depsZip), File(depsZip), 'zipdeps' )
-
-			zipRsyncAction = env.createRsyncAction( os.path.basename(portableZip), File(portableZip), 'zipportable' )
-
-			zipRsyncAction = env.createRsyncAction( os.path.basename(devZip), File(devZip), 'zipdev' )
+			env.createRsyncAction( os.path.basename(runtimeZip), File(runtimeZip), 'zipruntime' )
+			env.createRsyncAction( os.path.basename(depsZip), File(depsZip), 'zipdeps' )
+			env.createRsyncAction( os.path.basename(portableZip), File(portableZip), 'zipportable' )
+			env.createRsyncAction( os.path.basename(devZip), File(devZip), 'zipdev' )
 
 			if len(srcZipFiles) > 0:
-				zipRsyncAction = env.createRsyncAction( os.path.basename(srcZip), File(srcZip), 'zipsrc' )
+				env.createRsyncAction( os.path.basename(srcZip), File(srcZip), 'zipsrc' )
 			#else: nothing to do
 
 		Alias( 'zip', ['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc'] )
@@ -692,14 +691,12 @@ def configureZipAndNSISTargets( env ):
 		#nsisRootPath = "D:\\Program Files (x86)\\NSIS"
 		#nsisRootPath = locateProgram( 'nsis' )
 		nsisSetupFile = '{0}_{1}_setup.exe'.format(env.sbf.myProject, env.sbf.myVersion)
-		nsisBuildAction = env.Command(	nsisSetupFile, portableZipPath + '.nsi', #portableZipPath + '.exe'
+		nsisBuildAction = env.Command(	join(zipPakPath, nsisSetupFile), portableZipPath + '.nsi',
 										"\"{0}\" $SOURCES".format( join(nsisRootPath, 'makensis.exe' ) ) )
-		Alias( 'nsis', nsisBuildAction )
 		AlwaysBuild( nsisBuildAction )
+		Alias( 'nsis', nsisBuildAction )
 
 		if env['publishOn'] :
 			# @todo print message
-			nsisRsyncAction = env.createRsyncAction( nsisSetupFile, File(join(zipPakPath, nsisSetupFile)), 'nsis' )
-			env.Depends( nsisRsyncAction, nsisBuildAction )
-
+			env.createRsyncAction( nsisSetupFile, File(join(zipPakPath, nsisSetupFile)), 'nsis' )
 		# @todo uses zip2exe on win32 ?
