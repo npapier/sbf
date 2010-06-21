@@ -866,10 +866,10 @@ class Use_sofa( IUse, sofaConfig ):
 			pakLibs = ['glew32', 'glut32']
 
 			libsBoth = ['BeamAdapter', 'sofacomponentfem', 'sofacomponentfemfetype', 'sofacomponentfemforcefield', 'sofacomponentfemmaterial', 'sofacomponentfemstraintensor', 'sofaautomatescheduler', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
-						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraint', 'sofacomponentcontextobject', 'sofacomponentcontroller',
+						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
-						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentvisualmodel',
+						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
 						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner' ]
 			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
 
@@ -885,7 +885,7 @@ class Use_sofa( IUse, sofaConfig ):
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
 			pakLibs = []
-			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
+			libs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraintset', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentprojectiveconstraintset', 'libsofacomponentvisualmodel',
 					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofagui', 'libsofasimulation', 'libsofatree']
 			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofaautomatescheduler', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraint', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 						'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
