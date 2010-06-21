@@ -1787,6 +1787,16 @@ SConsBuildFramework options:
 
 
 	###### Helpers ######
+
+	def getAllFiles( self, projectEnv ):
+		"""Returns files taking into account by sbf to build the given project. include, share, src, *.options and rc files are returned."""
+		return projectEnv['sbf_include'] +projectEnv['sbf_share'] + projectEnv['sbf_src'] +  projectEnv['sbf_files'] + projectEnv['sbf_rc']
+
+	def getAllFiles( self, projectName ):
+		"""Returns files taking into account by sbf to build the given project. include, share, src, *.options and rc files are returned."""
+		projectEnv = self.getEnv( projectName )
+		return projectEnv['sbf_include'] +projectEnv['sbf_share'] + projectEnv['sbf_src'] +  projectEnv['sbf_files'] + projectEnv['sbf_rc']
+
 	### share directory
 	def getShareDirectory( self, projectEnv = None ):
 		if projectEnv:
