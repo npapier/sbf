@@ -236,10 +236,10 @@ class SvnOperation:
 		self.statistics.printReport()
 
 
-class SvnGetRevision( SvnOperation ):
-	"""SvnGetRevision()(url_or_path)
+class SvnGetInfo( SvnOperation ):
+	"""SvnGetInfo()(url_or_path)
 		@param url_or_path
-		@return None if not under vcs, otherwise returns the revision number"""
+		@return None if not under vcs, otherwise returns the desired info"""
 
 	def doSvnOperation( self, *args ):
 		# argument
@@ -250,23 +250,73 @@ class SvnGetRevision( SvnOperation ):
 			entry_list = self.client.info2( url_or_path, depth = pysvn.depth.empty )
 			if len(entry_list)==1:
 				infoDict = entry_list[0][1]
-				return infoDict['rev'].number
+				return infoDict
 			else:
 				print ('entry_list=', entry_list)
 				raise AssertionError('len(entry_list)!=1')
 		except pysvn.ClientError as e:
+			#print e[0]
+			#print e[1]
 			#e[0] whole message
 			#e[1] = list((msg str,error code)
 			if len(e[1])==1:
 				errorCode = e[1][0][1]
-				if errorCode in [155007, 200005]:
+				if errorCode in [155007, 170000, 200005]:
 					# 155007 : "'path' is not a working copy"
+					# 170000 : "URL 'url' non-existent in revision REVNUM
 					# 200005 : "'path' is not under version control"
 					return
 				else:
 					raise e
 			else:
 				raise AssertionError('len(pysvn.ClientError)!=1')
+
+class SvnGetRevision( SvnGetInfo ):
+	"""SvnGetRevision()(url_or_path)
+		@param url_or_path
+		@return None if not under vcs, otherwise returns the revision number"""
+
+	def doSvnOperation( self, *args ):
+		retVal = SvnGetInfo.doSvnOperation( self, *args )
+		if retVal:
+			return retVal['rev'].number
+
+
+class SvnGetUUID( SvnGetInfo ):
+	"""SvnGetUUID()(url_or_path)
+		@param url_or_path
+		@return None if not under vcs, otherwise returns the repository UUID"""
+
+	def doSvnOperation( self, *args ):
+		retVal = SvnGetInfo.doSvnOperation( self, *args )
+		if retVal:
+			return retVal['repos_UUID']
+
+
+class SvnGetLocalAndRemoteRevision( SvnGetInfo ):
+	"""SvnGetLocalAndRemoteRevision()( workingCopyPath )
+		@param workingCopyPath	path to the current working copy
+		@return None if not under vcs, otherwise returns (localRevisionNumber, remoteRevisionNumber)"""
+
+	def doSvnOperation( self, *args ):
+		workingInfo = SvnGetInfo.doSvnOperation( self, *args )
+		if workingInfo:
+			remoteInfo = SvnGetInfo.doSvnOperation( self, workingInfo['URL'] )
+			if remoteInfo:
+				return (workingInfo['rev'].number, remoteInfo['rev'].number)
+
+
+class SvnUpdateAvailable( SvnGetLocalAndRemoteRevision ):
+	"""SvnUpdateAvailable()( workingCopyPath )
+		@param workingCopyPath	path to the current working copy
+		@return None if not under vcs, otherwise returns True if there is an update available, Falise if not"""
+
+	def doSvnOperation( self, *args ):
+		retVal = SvnGetLocalAndRemoteRevision.doSvnOperation( self, *args )
+		if retVal:
+			workingRev = retVal[0];
+			remoteRev = retVal[1]
+			return workingRev < remoteRev
 
 
 def svnIsUnversioned( path ):
@@ -331,16 +381,55 @@ class SvnAddDirs( SvnOperation ):
 		return True
 
 
+class SvnCheckout( SvnOperation ):
+	"""SvnCheckout()( url, path ) Check out a working copy from a repository url into path
+		@return revision number of the working copy"""
+
+	def doSvnOperation( self, *args ):
+		# argument
+		url = args[0]
+		path = args[1]
+
+		# do
+		#return self.client.checkout( url = url, path = path ) => returned revision contains always 0 !!!
+		self.client.checkout( url = url, path = path )
+		return SvnGetRevision()( path )
+# @todo @revision
+
+
+class SvnRelocate( SvnOperation ):
+	"""SvnRelocate()(pathToWorkingCopy, toUrl, fromUrl) Relocates the working copy to toUrl.
+		@pre pathToWorkingCopy	must be a working copy of an svn repository"""
+
+	def doSvnOperation( self, *args ):
+		# argument
+		pathToWorkingCopy = args[0]
+		toUrl = args[1]
+		fromUrl = args[2]
+
+		# do
+		self.client.relocate( fromUrl, toUrl, pathToWorkingCopy )
+
+
 class SvnUpdate( SvnOperation ):
 	"""SvnUpdate()(path) Updates path
-		@pre path must be a working copy of an svn repository"""
+		@pre path must be a working copy of an svn repository
+		@return revision number of the working copy"""		
 
 	def doSvnOperation( self, *args ):
 		# argument
 		path = args[0]
 
 		# do
-		return self.client.update( path )
+		revisionList = self.client.update( path )
+		if len(revisionList)==1:
+			revision = revisionList[0]
+			if revision.kind == pysvn.opt_revision_kind.number:
+				return revision.number
+			else:
+				raise AssertionError('revision.kind != pysvn.opt_revision_kind.number')
+		else:
+			raise AssertionError('len(revisionList)!=1')
 
 
 class SvnStatus( SvnOperation ):
@@ -440,18 +529,26 @@ class Subversion ( IVersionControlSystem ) :
 		else:
 			return svnUrl + '/' + projectName + '/trunk'
 
-# @todo updateAvailable() => uses case SConsBuildFramework project
-	#
-	def __printRevision( self, myProject, revisionList ):
-		if len(revisionList)==1:
-			revision = revisionList[0]
-			if revision.kind == pysvn.opt_revision_kind.number:
-				print ("{0} at revision {1}".format(myProject, revision.number))
-			else:
-				raise AssertionError('revision.kind != pysvn.opt_revision_kind.number')
-		else:
-			raise AssertionError('len(revision)!=1')
 
+	#
+	def __printPySvnRevision( self, myProject, revision ):
+		if revision.kind == pysvn.opt_revision_kind.number:
+			print ("{0} at revision {1}".format(myProject, revision.number))
+		else:
+			raise AssertionError('revision.kind != pysvn.opt_revision_kind.number')
+
+	def __printRevision( self, myProject, revisionList ):
+		if isinstance(revisionList, list):
+			if len(revisionList)==1:
+				self.__printPySvnRevision( myProject, revisionList[0] )
+			else:
+				raise AssertionError('len(revision)!=1')
+		else:
+			self.__printPySvnRevision( myProject, revisionList )
+
+
+	def __printRevision( self, myProject, revisionNumber ):
+		print ("{0} at revision {1}".format(myProject, revisionNumber))
 
 	# @todo remove
 	def __printSvnInfo( self, myProjectPathName, myProject ):
@@ -567,27 +664,23 @@ class Subversion ( IVersionControlSystem ) :
 
 
 	def checkout( self, myProjectPathName, myProject ):
-		# Checks validity of 'svnUrls' option
-		# @todo Checks if urls are valid
-		if len(self.sbf.mySvnUrls) == 0 :
-			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
+		"""@pre self.sbf != None => mySvnUrls"""
 
 		# Try a checkout
-		client = self.__createPysvnClient__()
-		#client.callback_notify.resetStatistics()
-		svnUrls = self.__getURLFromSBFOptions( myProject )
-
-		for svnUrl in svnUrls :
+		for svnUrl in self.__getURLFromSBFOptions( myProject ):
 			# @todo improves robustness for svn urls
 			svnUrl = self.__completeUrl( svnUrl, myProject )
-			print "sbfInfo: Try to check out a working copy from", svnUrl, ":"
-			try :
-				revision = client.checkout( url = svnUrl, path = myProjectPathName )
-				#client.callback_notify.getStatistics().printReport()
-				print "sbfInfo:", myProject, "found at", svnUrl
-				return self.__printSvnInfo( myProjectPathName, myProject )
-			except pysvn.ClientError, e :
-				print e.args[0], '\n'
+			if SvnGetRevision()( svnUrl ):
+				print ( "{project} found at {url}".format( project=myProject, url=svnUrl ) )
+				svnCheckout = SvnCheckout( rootPath=myProjectPathName, statisticsObservers=[self.stats] )
+				revisionNumber = svnCheckout( svnUrl, myProjectPathName ) 
+
+				# Print revision and statistics
+				self.__printRevision( myProject, revisionNumber )
+				svnCheckout.printStatisticsReport()
+				return True
+			else:
+				print ( "{project} not found at {url}".format( project=myProject, url=svnUrl ) )
 
 		return False
 
@@ -647,6 +740,41 @@ class Subversion ( IVersionControlSystem ) :
 			return False
 
 
+	def relocate( self, myProjectPathName, myProject ):
+		# Tests if project is under vcs
+		if svnIsUnversioned( myProjectPathName ):
+			# @todo print message if verbose
+			return
+
+		# Retrieves UUID and info of working copy
+		workingUUID = SvnGetUUID()( myProjectPathName )
+		workingInfo = SvnGetInfo()( myProjectPathName )
+
+		# Tests if repository url of working copy is still valid
+		for svnUrl in self.__getURLFromSBFOptions( myProject ):
+			# @todo improves robustness for svn urls
+			svnUrl = self.__completeUrl( svnUrl, myProject )
+			if SvnGetRevision()( svnUrl ):
+				print ( "{project} working copy from {url}".format( project=myProject, url=workingInfo['URL'] ) )
+				# Retrieves UUID and info of remote repository
+				remoteUUID = SvnGetUUID()( svnUrl )
+				remoteInfo = SvnGetInfo()( svnUrl )
+
+				# Tests if a relocate is needed ?
+				if (workingInfo['URL'] != remoteInfo['URL']) and\
+				   (workingUUID == remoteUUID):
+				   # urls: must do a relocate when urls are !=
+				   # UUID: same UUID, so relocate operation is safe
+					SvnRelocate()( myProjectPathName, remoteInfo['URL'], workingInfo['URL'] )
+					print ( '{project} relocates to {svnUrl}'.format( project=myProject, svnUrl=remoteInfo['URL'] ) )
+				return True
+			# @todo in verbose mode
+			#else:
+			#	print ( "sbfInfo: {project} not found at {url}".format( project=myProject, url=svnUrl ) )
+
+		return True
+
+
 	# @todo switch update <-> status
 	def update( self, myProjectPathName, myProject ):
 		# Tests if project is under vcs
@@ -656,10 +784,10 @@ class Subversion ( IVersionControlSystem ) :
 
 		# Do the update
 		svnUpdate = SvnUpdate( rootPath=myProjectPathName, statisticsObservers=[self.stats] )
-		revision = svnUpdate( myProjectPathName )
+		revisionNumber = svnUpdate( myProjectPathName )
 
 		# Print revision and statistics
-		self.__printRevision( myProject, revision )
+		self.__printRevision( myProject, revisionNumber )
 		svnUpdate.printStatisticsReport()
 
 		# Run editor of conflict(s)

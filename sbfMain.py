@@ -343,11 +343,7 @@ env['sbf_projectPath'		]	= os.path.dirname(env['sbf_launchDir'])
 env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 env['sbf_launchProject'		]	= env['sbf_project']
 
-# Updates SConsBuildFramework
-if 'svnupdate' in BUILD_TARGETS:
-	print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
-	env.sbf.myVcs.update( env.sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK) )
-	print
+
 
 # Builds sbf library
 buildStage = 'sbfpak' not in BUILD_TARGETS
@@ -361,10 +357,11 @@ if buildStage:
 	env.sbf.buildProject( env['sbf_projectPathName'] )
 
 
-### special targets: svnAdd svnCheckout svnCleanup svnStatus svnUpdate ###
+### special targets: svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate ###
 Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+Alias( 'svnrelocate',	Command('dummySvnRelocate.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
@@ -534,5 +531,19 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 ### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
 from src.sbfNSIS import configureZipAndNSISTargets
 configureZipAndNSISTargets( env )
+
+# Tests if SConsBuildFramework is up-to-date
+# @todo Updates SConsBuildFramework
+if 'svnupdate' in BUILD_TARGETS:
+	from src.sbfSubversion import SvnUpdateAvailable
+	print stringFormatter( env, "Tests if project {project} in {projectPath} is up-to-date".format( project=os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), projectPath=os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
+	updateAvailable = SvnUpdateAvailable()( env.sbf.mySCONS_BUILD_FRAMEWORK )
+	if updateAvailable:
+		print ('AN UPDATE IS AVAILABLE FOR SCONSBUILDFRAMEWORK')
+	else:
+		print ('SConsBuildFramework is up-to-date')
+	print
+	#print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
+	#env.sbf.myVcs.update( env.sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK) )
 
 #print (datetime.datetime.now() - sbfMainBeginTime).microseconds/1000

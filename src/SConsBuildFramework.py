@@ -519,6 +519,8 @@ svn related targets
  'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
  'scons svnCheckout' to check out a working copy from a repository.
  'scons svnClean' to clean up recursively the working copy.
+ 'scons svnRelocate' to update your working copy to point to the same repository directory, only at a different URL.
+	Typically because an administrator has moved the repository to another server, or to another URL on the same server or to change the access method (http <=> https or svn <=> svn+ssh)
  'scons svnStatus' to print the status of working copy files and directories.
  'scons svnUpdate' to update your working copy.
 
@@ -1135,20 +1137,20 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_EXPORTS ' )
 
 
-	def doVcsCheckoutOrStatus( self, lenv ):
-		# @todo OPTME: just compute tryVcs* once and not for each project
-		# User wants a vcs status ?
-		tryVcsStatus = 'svnstatus' in self.myBuildTargets # or (self.myProject+'_svnStatus' in self.myBuildTargets)
+	###################################################################################
+	def doVcsCheckoutOrOther( self, lenv ):
+		"""Do a vcs checkout, status or relocate
+			@todo OPTME: just compute tryVcs* once and not for each project"""
 
-		# User wants a vcs checkout ?
-		tryVcsCheckout = 'svncheckout' in self.myBuildTargets #or (self.myProject+'_svnCheckout' in self.myBuildTargets)
+		# User wants a vcs checkout, status or relocate ?
+		tryVcsCheckout = 'svncheckout' in self.myBuildTargets
+		tryVcsStatus = 'svnstatus' in self.myBuildTargets
+		tryVcsRelocate = 'svnrelocate' in self.myBuildTargets
 
 		#
-		if (tryVcsCheckout or tryVcsStatus) == False:
-			lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = False
+		lenv['sbf_tryVcsOperation'] = (tryVcsCheckout or tryVcsStatus or tryVcsRelocate)
+		if not lenv['sbf_tryVcsOperation']:
 			return
-		else:
-			lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = True
 
 		# What must be done for this project ?
 		#existanceOfProjectPathName	tryVcsCheckout		action
@@ -1196,14 +1198,17 @@ SConsBuildFramework options:
 						#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
 				elif tryVcsStatus and lenv['vcsUse'] == 'yes' : # @todo moves lenv['vcsUse'] == 'yes' test in vcsOperation ?
 					self.vcsStatus( lenv )
+				elif tryVcsRelocate and lenv['vcsUse'] == 'yes':
+					self.vcsRelocate( lenv )
 			#else nothing to do
+
 
 
 	def doVcsUpdate( self, lenv ):
 		# User wants a vcs update ?
-		tryVcsUpdate = 'svnupdate' in self.myBuildTargets # or (self.myProject+'_svnUpdate' in self.myBuildTargets)
+		tryVcsUpdate = 'svnupdate' in self.myBuildTargets
 
-		lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] = lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] or tryVcsUpdate
+		lenv['sbf_tryVcsOperation'] = lenv['sbf_tryVcsOperation'] or tryVcsUpdate
 
 		if tryVcsUpdate :
 			if lenv['vcsUse'] == 'yes' :
@@ -1236,11 +1241,12 @@ SConsBuildFramework options:
 			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
 
 
-	def vcsOperation( self, lenv, vcsOperation, opDescription ) :
+
+	###################################################################################
+	def vcsOperation( self, lenv, vcsOperation, opDescription ):
 
 		# Checks if vcs operation of this project has already failed
 		if self.myProject not in self.myFailedVcsProjects :
-			#print
 			print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
 
 			successful = vcsOperation( self.myProjectPathName, self.myProject )
@@ -1280,6 +1286,9 @@ SConsBuildFramework options:
 	def vcsClean( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.clean, 'clean' )
 
+	def vcsRelocate( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.relocate, 'relocate' )
+
 	def vcsStatus( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
 
@@ -1296,7 +1305,6 @@ SConsBuildFramework options:
 			return
 		else:
 			return self.vcsOperation( lenv, self.myVcs.update, opDescription )
-
 
 
 	###### Build a project ######
@@ -1325,8 +1333,8 @@ SConsBuildFramework options:
 		lenv = self.myCurrentLocalEnv
 
 
-		# VCS checkout or status
-		self.doVcsCheckoutOrStatus( lenv )
+		# VCS checkout or status or relocate
+		self.doVcsCheckoutOrOther( lenv )
 
 
 		# Tests existance of project path name
@@ -1413,7 +1421,7 @@ SConsBuildFramework options:
 		self.initializeProjectFromEnv( lenv )
 		self.initializeProject( projectPathName, lenv )
 
-		if lenv['sbf_tryVcsCheckoutOrStatusOrUpdate'] or configureOnly:
+		if lenv['sbf_tryVcsOperation'] or configureOnly:
 			return
 		else:
 			# Adds the new environment
