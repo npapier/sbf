@@ -17,10 +17,10 @@ from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAct
 from SCons.Script import *
 
 
-# @todo clean and mrproper (at least remove project_0-0_win32_cl9-0Exp_portable_DATE like directories).
 # @todo debug zipsrc if a used file is no more under vcs.
 # @todo uninstallRedist
 # @todo Improves redist macros (adding message and with/without confirmation)
+# @todo improves output
 
 
 def nsisGeneration( target, source, env ):
@@ -92,6 +92,7 @@ def nsisGeneration( target, source, env ):
 !define SBFPROJECTNAME		"%s"
 !define SBFPROJECTVERSION	"%s"
 !define SBFPROJECTCONFIG	"%s"
+!define SBFDATE				"%s"
 
 ; PRODUCTNAME
 %s
@@ -109,7 +110,7 @@ SetCompressor lzma
 Name "${PRODUCTNAME}"
 
 ; The file to write
-OutFile "${SBFPROJECTNAME}_${SBFPROJECTVERSION}${SBFPROJECTCONFIG}_setup.exe"
+OutFile "${SBFPROJECTNAME}_${SBFPROJECTVERSION}${SBFPROJECTCONFIG}_${SBFDATE}_setup.exe"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES\${PRODUCTNAME}
@@ -226,7 +227,7 @@ Section "Uninstall"
   RMDir "$SMPROGRAMS\${PRODUCTNAME}"
 
 SectionEnd
-""" % (env['sbf_project'], env['version'], env.sbf.my_PostfixLinkedToMyConfig, PRODUCTNAME, PRODUCTEXE, SHORTCUT, UNINSTALL_SHORTCUT)
+""" % (env['sbf_project'], env['version'], env.sbf.my_PostfixLinkedToMyConfig, env.sbf.myDate, PRODUCTNAME, PRODUCTEXE, SHORTCUT, UNINSTALL_SHORTCUT)
 		file.write( str_sbfNSISTemplate )
 
 
@@ -347,10 +348,15 @@ def printZipPrinterForNSISUninstallFiles( target, source, env ) :
 	sourceName = str(source[0])
 	return ("Generates %s (nsis uninstall files) from %s" % (os.path.basename(targetName), sourceName) )
 
-def printZipPrinterForNSISGeneration( target, source, env ) :
+def printNsisGeneration( target, source, env ) :
 	targetName = str(target[0])
 	sourceName = str(source[0])
 	return ("Generates %s (nsis main script)" % os.path.basename(targetName) )
+
+def printRedistGeneration( target, source, env ) :
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return ("Generates %s (redist files)" % os.path.basename(targetName) )
 
 ### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
 # @todo zip*_[build,install,clean,mrproper]
@@ -377,24 +383,26 @@ def printZipSrc( target, source, localenv ) :
 
 def configureZipAndNSISTargets( env ):
 	zipAndNSISTargets = set( ['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis'] )
-	if len(zipAndNSISTargets & env.sbf.myBuildTargets) > 0:
+	cleanAndMrproperTargets = set( ['zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'] )
+	allTargets = zipAndNSISTargets | cleanAndMrproperTargets
+
+	if	len(cleanAndMrproperTargets & env.sbf.myBuildTargets) > 0:
+		env.SetOption('clean', 1)
+
+	if len(allTargets & env.sbf.myBuildTargets) > 0:
 		# Checks project exclusion to warn user
 		if env['exclude'] and len(env['projectExclude'])>0:
-			answer = askQuestion(	"WARNING: The following projects are excluded from the build : {0}\nWould you stop the process".format(env['projectExclude']),
+			answer = askQuestion(	"WARNING: The following projects are excluded from the build : {0}\nWould you continue the process".format(env['projectExclude']),
 									['yes', 'no'] )
-			if answer == 'y':
+			if answer == 'n':
 				raise SCons.Errors.UserError( "Build interrupted by user." )
 			#else continue the build
-
-		# FIXME: lazzy scons env construction => TODO: generalize (but must be optional)
-		#
+		
+		# lazzy scons env construction => @todo generalize (but must be optional)
 		sbf = env.sbf
 		rootProjectEnv = sbf.getRootProjectEnv()
 
-		# Creates builders for zip and nsis
-		# @todo Do the same without Builder ?
 		# @todo Moves in sbfSevenZip.py and co
-
 # @todo checks win32 registry (idem for nsis)
 		env['SEVENZIP']			= '7z'
 		env['SEVENZIPCOM']		= '\"{0}\"'.format( WhereIs('7z') )
@@ -403,30 +411,6 @@ def configureZipAndNSISTargets( env ):
 		env['SEVENZIPFLAGS']	= "-bd"
 		env['SEVENZIPSUFFIX']	= ".7z"
 		env['BUILDERS']['SevenZipAdd'] = Builder( action = Action( "$SEVENZIPCOM $SEVENZIPADDFLAGS $SEVENZIPFLAGS $TARGET $SOURCE" ) )#, env['SEVENZIPCOMSTR'] ) )
-
-		zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles),
-											source_factory=SCons.Node.FS.default_fs.Entry,
-											target_factory=SCons.Node.FS.default_fs.Entry,
-											multi=0 )
-		env['BUILDERS']['zipPrinterForNSISInstallFiles'] = zipPrinterBuilder
-
-		zipPrinterBuilder = env.Builder(	action=Action(zipPrinterForNSISUninstallFiles, printZipPrinterForNSISUninstallFiles ),
-											source_factory=SCons.Node.FS.default_fs.Entry,
-											target_factory=SCons.Node.FS.default_fs.Entry,
-											multi=0 )
-		env['BUILDERS']['zipPrinterForNSISUninstallFiles'] = zipPrinterBuilder
-
-		zipPrinterBuilder = rootProjectEnv.Builder(	action=Action(nsisGeneration, printZipPrinterForNSISGeneration ),
-											source_factory=SCons.Node.FS.default_fs.Entry,
-											target_factory=SCons.Node.FS.default_fs.Entry,
-											multi=0 )
-		rootProjectEnv['BUILDERS']['nsisGeneration'] = zipPrinterBuilder
-
-		zipPrinterBuilder = env.Builder(	action=Action(redistGeneration, printZipPrinterForNSISInstallFiles), # @todo printZipPrinterForNSISInstallFiles
-											source_factory=SCons.Node.FS.default_fs.Entry,
-											target_factory=SCons.Node.FS.default_fs.Entry,
-											multi=0 )
-		rootProjectEnv['BUILDERS']['redistGeneration'] = zipPrinterBuilder
 
 		# compute zipPath (where files are copying before creating the zip file)
 		# zipPathBase = /mnt/data/sbf/build/pak/vgsdk_0-4
@@ -469,6 +453,10 @@ def configureZipAndNSISTargets( env ):
 		devZipFiles			= []
 		srcZipFiles			= []
 
+		# Removes directories containing zip* files.
+		# @todo deferred delete
+		Execute([ Delete(runtimeZipPath), Delete(depsZipPath), Delete(portableZipPath), Delete(devZipPath), Delete(srcZipPath) ])
+
 		# Creates 'var' directory
 		varDirectory = join(runtimeZipPath, 'var')
 		runtimeZipFiles += Command('zipRuntime_mkdirVar.out', 'dummy.in', [Delete(varDirectory), Mkdir(varDirectory)] )
@@ -478,6 +466,9 @@ def configureZipAndNSISTargets( env ):
 		#
 		licenseInstallExtPaths	= [ join(element, 'license') for element in sbf.myInstallExtPaths ]
 
+		#
+		# Processes projects built with sbf
+		#
 		for projectName in sbf.myParsedProjects:
 			lenv			= sbf.getEnv(projectName)
 			projectPathName	= lenv['sbf_projectPathName']
@@ -614,8 +605,12 @@ def configureZipAndNSISTargets( env ):
 				# Retrieves redistributables of incoming dependency
 				for redistributable in use.getRedist( useVersion ):
 					if not isinstance(redistributable, tuple) and isExtractionSupported(redistributable):
-						extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), portableZipPath )
-						extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), depsZipPath )
+						if not env.GetOption('clean'):
+							# @todo deferred extraction
+							print ( 'Extracts {redist} into {destination}'.format(redist=redistributable, destination=portableZipPath) )
+							extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), portableZipPath )
+							print ( 'Extracts {redist} into {destination}'.format(redist=redistributable, destination=depsZipPath) )
+							extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), depsZipPath )
 
 		runtimeZip = runtimeZipPath + env['SEVENZIPSUFFIX']
 		Alias( 'zipRuntime_generate7z', env.SevenZipAdd( runtimeZip, Dir(runtimeZipPath) ) )
@@ -675,26 +670,34 @@ def configureZipAndNSISTargets( env ):
 		nsisRedistFiles		= [ join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_redist.nsi' ), join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_redist.nsi' ) ]
 		nsisInstallFiles	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi' )
 		nsisUninstallFile	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi' )
-		Alias( 'nsis', rootProjectEnv.redistGeneration( nsisRedistFiles, portableZipPath ) )
+
+		Alias( 'nsis', rootProjectEnv.Command( nsisRedistFiles, portableZipPath, rootProjectEnv.Action( redistGeneration, printRedistGeneration ) ) )
 		#AlwaysBuild( nsisRedistFiles )
-		Alias( 'nsis', env.zipPrinterForNSISInstallFiles( nsisInstallFiles, portableZipPath ) )
+		Alias( 'nsis', env.Command( nsisInstallFiles, portableZipPath, env.Action( zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles ) ) )
 		#AlwaysBuild( nsisInstallFiles )
-		Alias( 'nsis', env.zipPrinterForNSISUninstallFiles(	nsisUninstallFile, portableZipPath ) )
+		Alias( 'nsis', env.Command( nsisUninstallFile, portableZipPath, env.Action( zipPrinterForNSISUninstallFiles, printZipPrinterForNSISUninstallFiles ) ) )
 		#AlwaysBuild( nsisUninstallFile )
 
 		# Main nsis file
-		Alias( 'nsis', rootProjectEnv.nsisGeneration( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile] ) )
+		Alias( 'nsis', rootProjectEnv.Command( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile], rootProjectEnv.Action( nsisGeneration, printNsisGeneration ) ) )
 		AlwaysBuild( portableZipPath + '.nsi' )
 
 # @todo Nsis builder
 		nsisRootPath = "C:\\Program Files\\NSIS"
 		#nsisRootPath = "D:\\Program Files (x86)\\NSIS"
 		#nsisRootPath = locateProgram( 'nsis' )
-		nsisSetupFile = '{0}_{1}_setup.exe'.format(env.sbf.myProject, env.sbf.myVersion)
+		nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=env.sbf.myProject, version=env.sbf.myVersion, config=env.sbf.my_PostfixLinkedToMyConfig, date=env.sbf.myDate)
+
 		nsisBuildAction = env.Command(	join(zipPakPath, nsisSetupFile), portableZipPath + '.nsi',
 										"\"{0}\" $SOURCES".format( join(nsisRootPath, 'makensis.exe' ) ) )
 		AlwaysBuild( nsisBuildAction )
 		Alias( 'nsis', nsisBuildAction )
+
+		# clean and mrproper targets
+		Alias( ['zip_clean', 'zip_mrproper'], 'zip' )
+		Clean( ['zip_clean', 'zip_mrproper'], zipPakPath )
+		Alias( ['nsis_clean', 'nsis_mrproper'], 'nsis' )
+		Clean( ['nsis_clean', 'nsis_mrproper'], zipPakPath )
 
 		if env['publishOn'] :
 			# @todo print message

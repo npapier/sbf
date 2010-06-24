@@ -554,6 +554,8 @@ packaging related targets
  'scons zipSrc'
  'scons zip'
  'scons nsis'
+ 'scons zip_clean' and 'scons zip_mrproper'
+ 'scons nsis_clean' and 'scons nsis_mrproper'
 
 
 Command-line options:
