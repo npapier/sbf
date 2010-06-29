@@ -877,6 +877,10 @@ SConsBuildFramework options:
 			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
 							allowed_values=('none', 'gtest'), ignorecase=1 ),
 
+			BoolVariable(	'console',
+							'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
+							True ),
+
 			(	'runParams',
 				"The list of parameters given to executable by targets 'run' and 'onlyRun'. To specify multiple parameters at command-line uses a comma-separated list of parameters, which will get translated into a space-separated list for passing to the launching command.",
 				[],
@@ -1041,27 +1045,30 @@ SConsBuildFramework options:
 
 	# @todo incremental in release, but not for portable app and nsis
 	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
-		# Subsystem and incremental flags
-		self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
-
+		# Incremental flags
 		if self.myConfig == 'release' :
-			# subsystem sets to console to output debugging informations.
-			if self.mySubsystemNotDefined :
-				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
-
 			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
 			lenv.Append( LINKFLAGS = '/INCREMENTAL:NO' )
 		else:
-			# subsystem sets to console to output debugging informations.
-			if self.mySubsystemNotDefined :
-				lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
-
 			# By default, the linker runs in incremental mode.
 			lenv.Append( LINKFLAGS = [ '/DEBUG', '/INCREMENTAL' ] )
 
+		#
 		if self.myType == 'exec':
+			# Subsystem
+			self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
+
+			if self.mySubsystemNotDefined:
+				if lenv['console']:
+					# subsystem sets to console to output debugging informations.
+					lenv.Append( LINKFLAGS = ['/SUBSYSTEM:CONSOLE'] )
+				else:
+					# subsystem sets to windows.
+					lenv.Append( LINKFLAGS = ['/SUBSYSTEM:WINDOWS', '/entry:mainCRTStartup'] )
+
 			# /GA : Results in more efficient code for an .exe file for accessing thread-local storage (TLS) variables.
 			lenv.Append( CXXFLAGS = '/GA' )
+
 		elif self.myType == 'shared':
 			lenv.Append( CXXFLAGS = '/D_USRDLL' )
 
