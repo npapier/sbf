@@ -11,4 +11,5 @@ type				= 'shared'	# exec, static, shared, none
 #libs				= []
 #stdlibs			= []
 #test				= 'none' # gtest
+#console			= True
 #runParams			= []
