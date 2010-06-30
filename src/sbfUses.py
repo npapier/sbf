@@ -7,7 +7,11 @@ import os
 import re
 import sys
 import string
-import SCons.Errors
+
+try:
+	import SCons.Errors
+except ImportError as e:
+	pass
 
 from sbfUtils import getPathFromEnv, convertToList
 
@@ -894,7 +898,7 @@ class Use_sofa( IUse, sofaConfig ):
 	def getLIBPATH( self, version ):
 		libPath = []
 
-		if self.platform == 'win32' :
+		if self.platform == 'win32':
 			if self.config == 'release' :
 				if self.cc == 'cl':
 					path = os.path.join( self.getBasePath(), 'lib/win32/ReleaseVC{0:d}'.format(int(self.ccVersionNumber)) )

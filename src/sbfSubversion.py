@@ -15,13 +15,19 @@ except ImportError as e:
 from os.path import basename, dirname, isfile, isdir, join, normpath, relpath
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel # @todo replaces by relpath
-from SCons.Script import *
+
+try:
+	from SCons.Script import *
+except ImportError as e:
+	#print ('sbfWarning: unable to import SCons.Script')
+	pass
+
+
 
 # RUN @todo removes all self.sbf
 # @todo svnUpdate/checkout@revisionNumber
 # @todo svnTag, svnBranch => svn copy
 # @todo svnSwitch => svn switch
-# @todo svnRelocate => svn switch --relocate
 # svn info => SvnGetUUID and co
 # svnLogIncoming
 # @todo a global atexit (see SCons ?)
@@ -72,6 +78,9 @@ class Statistics:
 
 
 ##### Low-level pysvn ######
+
+def printRevision( myProject, revisionNumber ):
+	print ("{0} at revision {1}".format(myProject, revisionNumber))
 
 #@todo uses sbfUI and debug 'accept temporarily'
 def svnCallback_ssl_server_trust_prompt( trust_dict ):
@@ -382,19 +391,22 @@ class SvnAddDirs( SvnOperation ):
 
 
 class SvnCheckout( SvnOperation ):
-	"""SvnCheckout()( url, path ) Check out a working copy from a repository url into path
+	"""SvnCheckout()( url, path, [revisionNumber] ) Check out a working copy from a repository url into path to head or revisionNumber if provided
 		@return revision number of the working copy"""
 
 	def doSvnOperation( self, *args ):
-		# argument
+		# arguments
 		url = args[0]
 		path = args[1]
+		if len(args)==3:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.number, args[2] )
+		else:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.head )
 
 		# do
 		#return self.client.checkout( url = url, path = path ) => returned revision contains always 0 !!!
-		self.client.checkout( url = url, path = path )
+		self.client.checkout( url = url, path = path, revision = revision )
 		return SvnGetRevision()( path )
-# @todo @revision
 
 
 class SvnRelocate( SvnOperation ):
@@ -412,16 +424,20 @@ class SvnRelocate( SvnOperation ):
 
 
 class SvnUpdate( SvnOperation ):
-	"""SvnUpdate()(path) Updates path
+	"""SvnUpdate()(path, [revisionNumber]) Updates path to head or revisionNumber if provided
 		@pre path must be a working copy of an svn repository
 		@return revision number of the working copy"""		
 
 	def doSvnOperation( self, *args ):
-		# argument
+		# argument(s)
 		path = args[0]
+		if len(args)==2:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.number, args[1] )
+		else:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.head )
 
 		# do
-		revisionList = self.client.update( path )
+		revisionList = self.client.update( path, revision=revision )
 		if len(revisionList)==1:
 			revision = revisionList[0]
 			if revision.kind == pysvn.opt_revision_kind.number:
@@ -547,9 +563,9 @@ class Subversion ( IVersionControlSystem ) :
 			self.__printPySvnRevision( myProject, revisionList )
 
 
-	def __printRevision( self, myProject, revisionNumber ):
-		print ("{0} at revision {1}".format(myProject, revisionNumber))
-
+	def __printRevision( self, myProject, revisionNumber ):# @todo remove me
+		printRevision( myProject, revisionNumber )
+		
 	# @todo remove
 	def __printSvnInfo( self, myProjectPathName, myProject ):
 		revision = self.getRevision( myProjectPathName )
