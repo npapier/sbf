@@ -897,21 +897,27 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getLIBPATH( self, version ):
 		libPath = []
+		pakLibPath = []
 
 		if self.platform == 'win32':
 			if self.config == 'release' :
 				if self.cc == 'cl':
 					path = os.path.join( self.getBasePath(), 'lib/win32/ReleaseVC{0:d}'.format(int(self.ccVersionNumber)) )
 				libPath.append( path )
+				pakLibPath.append( path )
 			else:
 				if self.cc == 'cl':
 					path = os.path.join( self.getBasePath(), 'lib/win32/DebugVC{0:d}'.format(int(self.ccVersionNumber)) )
 				libPath.append( path )
+				pakLibPath.append( path )
+			#
 			commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
-			pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
 			libPath.append( commonPath )
+			#
+			pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
 			libPath.append( pluginsPath )
-			return libPath, libPath
+			pakLibPath.append( pluginsPath )
+			return libPath, pakLibPath
 
 		elif self.platform == 'posix' :
 			path = os.path.join( self.getBasePath(), 'lib/linux')
