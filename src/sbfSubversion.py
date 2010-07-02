@@ -227,9 +227,12 @@ class SvnOperation:
 		# Creates my own instance of Statistics and attaches to client
 		self.statistics = Statistics()
 
+		#
+		self.rootPath = rootPath
+
 	def __call__( self, *args ):
 		try:
-			self.client.callback_notify.attach( self.statistics )		
+			self.client.callback_notify.attach( self.statistics )
 			retVal = self.doSvnOperation( *args )
 			self.client.callback_notify.detach( self.statistics )
 			return retVal
@@ -384,7 +387,7 @@ class SvnAddDirs( SvnOperation ):
 			currentPath = join( currentPath, newPathElement )
 			if svnIsUnversioned( currentPath ):
 				# not under svn, so must be added
-				if not SvnAddFileOrDir()( currentPath ):
+				if not SvnAddFileOrDir(rootPath=self.rootPath)( currentPath ):
 					return False
 			#else nothing to do
 		return True
@@ -651,29 +654,29 @@ class Subversion ( IVersionControlSystem ) :
 		"""@pre self.sbf != None"""
 
 		# Tests if project is under vcs
-		if svnIsUnversioned(myProjectPathName):
+		if svnIsUnversioned( myProjectPathName ):
 			print ("Add the root directory of the project '{0}' under svn and relaunch this command.".format(myProject))
 			return False
 
 		# Retrieves all files for the project
 		for file in self.sbf.getAllFiles(myProject):
 			#
-			pathfilename = join(myProjectPathName, file)
-			path = dirname(pathfilename)
+			pathfilename = join( myProjectPathName, file )
+			path = dirname( pathfilename )
 
 			#
 			if svnIsUnversioned( pathfilename ):
 				if svnIsUnversioned( path ):
 					# Must add path under svn
-					if SvnAddDirs()( path, myProjectPathName ):
+					if SvnAddDirs(rootPath=myProjectPathName)( path, myProjectPathName ):
 						# Must add file under svn now
-						retVal = SvnAddFileOrDir()( pathfilename )
+						retVal = SvnAddFileOrDir(rootPath=myProjectPathName)( pathfilename )
 						if not retVal: print('I\t{0}'.format( relpath(pathfilename, myProjectPathName) ))
 					else:
 						print('I\t{0}'.format( relpath(pathfilename, myProjectPathName) ))
 				else:
 					# Must add file under svn
-					retVal = SvnAddFileOrDir()( pathfilename )
+					retVal = SvnAddFileOrDir(rootPath=myProjectPathName)( pathfilename )
 					if not retVal: print('I\t{0}'.format( relpath(pathfilename, myProjectPathName) ))
 			# else nothing to do
 		return True
