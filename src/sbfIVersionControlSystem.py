@@ -3,8 +3,6 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-import SCons.Script
-
 class IVersionControlSystem :
 	"""Interface to version control system"""
 
@@ -12,23 +10,22 @@ class IVersionControlSystem :
 		pass
 
 	def add( self, myProjectPathName, myProject ):
-		raise SCons.Errors.UserError("'add' operation is not available in the version control system.")
+		raise AssertionError("'add' operation is not available in the version control system.")
 
 	def checkout( self, myProjectPathName, myProject ):
-		raise SCons.Errors.UserError("'checkout' operation is not available in the version control system.")
+		raise AssertionError("'checkout' operation is not available in the version control system.")
 
 	def export( self ):
-		raise SCons.Errors.UserError("'export' operation is not available in the version control system.")
+		raise AssertionError("'export' operation is not available in the version control system.")
 
 	def clean( self, myProjectPathName, myProject ):
-		raise SCons.Errors.UserError("'clean' operation is not available in the version control system.")
+		raise AssertionError("'clean' operation is not available in the version control system.")
 
 	def status( self, myProjectPathName, myProject ):
-		raise SCons.Errors.UserError("'status' operation is not available in the version control system.")
+		raise AssertionError("'status' operation is not available in the version control system.")
 
 	def update( self, myProjectPathName, myProject ):
-		raise SCons.Errors.UserError("'update' operation is not available in the version control system.")
+		raise AssertionError("'update' operation is not available in the version control system.")
 
 	def getUrl( self, path ):
-		raise SCons.Errors.UserError("'getUrl' method is not available in the version control system.")	
-
+		raise AssertionError("'getUrl' method is not available in the version control system.")	
