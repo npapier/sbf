@@ -60,7 +60,7 @@ descriptor = {
 
  'rootDir'		: 'opencollada736',
  
- #'license'		: ['LICENSE_1_0.txt'],
+ 'license'		: [('COLLADAMax/LICENSE')],
  
  'include'		: [	('COLLADAFramework/include/', 'opencollada/COLLADAFramework/'),
 					('COLLADABaseUtils/include/', 'opencollada/COLLADABaseUtils/'),
