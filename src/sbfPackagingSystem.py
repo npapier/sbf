@@ -219,15 +219,15 @@ class PackagingSystem:
 		backupCWD = os.getcwd()
 		os.chdir( join(self.__mkPakGetDirectory() ) )
 
+		# URLS (download and extract)
+		extractionDirectory = join('build', pakDescriptor['name'] + pakDescriptor['version'] )
+		removeDirectoryTree( extractionDirectory )
+		
 		# SVNURL (export svn)
 		if 'svnUrl' in pakDescriptor:
 			print ( '* Retrieves {0} from {1}'.format( pakDescriptor['name'], pakDescriptor['svnUrl'] ) )
 			self.__vcs.export( pakDescriptor['svnUrl'], join(extractionDirectory, pakDescriptor['name']), pakDescriptor['name'] )
 			print
-			
-		# URLS (download and extract)
-		extractionDirectory = join('build', pakDescriptor['name'] + pakDescriptor['version'] )
-		removeDirectoryTree( extractionDirectory )
 
 		import urllib
 		import urlparse
