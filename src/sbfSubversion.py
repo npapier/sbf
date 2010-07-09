@@ -239,7 +239,7 @@ class SvnOperation:
 		except pysvn.ClientError as e:
 			print ('{0}\n'.format(e.args[0]))
 			#print e.args[1]
-			raise SCons.Errors.StopError('An error occurs during an svn operation.')
+			raise IOError('An error occurs during an svn operation.')
 
 	def doSvnOperation( self, *args ):
 		raise AssertionError( '{0}::doSvnOperation() not implemented.'.format(self) )
