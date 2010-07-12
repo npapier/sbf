@@ -720,6 +720,9 @@ class Use_sdl( IUse ):
 	def getName( self ):
 		return "sdl"
 
+	def getVersions( self ):
+		return ['1-2-14']
+
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'posix' :
 			return [ ('_GNU_SOURCE',1), '_REENTRANT' ]
@@ -735,15 +738,52 @@ class Use_sdl( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
-			libs = [ 'SDL', 'SDLmain', 'SDL_mixer' ]
-			pakLibs = [ 'SDL', 'SDL_mixer' ]
+			libs = [ 'SDL', 'SDLmain' ]
+			pakLibs = [ 'SDL' ]
 			return libs, pakLibs
 		elif self.platform == 'posix' :
-			# @todo SDL_mixer
 			return ['SDL', 'SDL']
 
 	def getLIBPATH( self, version ):
-		return [ '/usr/lib' ], [ '/usr/lib' ]
+		if self.platform == 'win32':
+			return [], []
+		elif self.platform == 'posix':
+			return [ '/usr/lib' ], [ '/usr/lib' ]
+
+
+class Use_sdlMixer( IUse ):
+	def getName( self ):
+		return "sdlmixer"
+
+	def getVersions( self ):
+		return ['1-2-11']
+		
+	def getCPPDEFINES( self, version ):
+		if self.platform == 'posix' :
+			return [ ('_GNU_SOURCE',1), '_REENTRANT' ]
+		else:
+			return []
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'posix' :
+			return ['/usr/include/SDL']
+		else:
+			return []
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			libsBoth = [ 'SDL_mixer' ]
+			return libsBoth, libsBoth
+		elif self.platform == 'posix':
+			libsBoth = [ 'SDL_mixer' ]
+			return libsBoth, libsBoth	
+
+	def getLIBPATH( self, version ):
+		if self.platform == 'win32':
+			return [], []
+		elif self.platform == 'posix':
+			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 
 class Use_glu( IUse ):
@@ -832,7 +872,7 @@ class Use_opencollada( IUse ):
 				return libs, []
 		else:
 			libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'COLLADAStreamWriter', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML', 'libBuffer', 'libftoa']
-			return libs, []			
+			return libs, []
 
 
 # @todo getSvnRevision()
@@ -1043,7 +1083,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(), Use_gtkmm(),
-					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):
