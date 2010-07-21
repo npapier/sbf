@@ -44,6 +44,24 @@ def getInstallPath( key, subkey = '', text = '' ):
 
 
 #@todo moves to sbfConfig.py ?
+class pythonConfig:
+	__basePath = None
+
+	@classmethod
+	def __initialize( cls ):
+		# Retrieves SOFA_PATH
+		if sys.platform == 'win32':
+			cls.__basePath = getInstallPath( 'SOFTWARE\\Python\\PythonCore\\2.6\\InstallPath', '', 'Python' )
+		if cls.__basePath is None:
+			raise SCons.Errors.UserError("Unable to retrive Python install Path.")
+
+	@classmethod
+	def getBasePath( cls ):
+		if cls.__basePath is None:
+			cls.__initialize()
+		return cls.__basePath
+
+
 class sofaConfig:
 	__basePath = None
 
@@ -242,7 +260,7 @@ class IUse :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBS)." % (useNameVersion, self.platform) )
 
 		# LIBPATH
-		libpath = self.getLIBPATH( useVersion )
+ 		libpath = self.getLIBPATH( useVersion )
 		if (libpath != None) and (len(libpath) == 2) :
 			if len(libpath[0]) > 0 :
 				env.AppendUnique( LIBPATH = libpath[0] )
@@ -875,6 +893,31 @@ class Use_opencollada( IUse ):
 			return libs, []
 
 
+
+# @todo package python into a localExt
+class Use_python( IUse, pythonConfig ):
+
+	def getName( self ):
+		return 'python'
+
+	def getCPPPATH( self, version ):
+		cppPath = [	os.path.join(self.getBasePath(), 'include') ]
+
+		return cppPath
+
+	def getVersions( self ):
+		return [ '2-6' ]
+
+	def getLIBS( self, version ):
+		return [], []
+
+	def getLIBPATH( self, version ):
+		path = [ os.path.join( self.getBasePath(), 'libs' ) ]
+		return path, []
+
+	def getLicenses( self, version ):
+		return []
+
 # @todo getSvnRevision()
 # @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
@@ -1083,7 +1126,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(), Use_gtkmm(),
-					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):
