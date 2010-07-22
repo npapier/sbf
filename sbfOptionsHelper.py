@@ -12,5 +12,5 @@ from SCons.Script.SConscript import SConsEnvironment
 platform	= SConsEnvironment.sbf.myPlatform
 
 #SConsEnvironment.sbf.myCurrentLocalEnv.Append( LINKFLAGS = ['/SUBSYSTEM:WINDOWS'] )
-
 #sbf			= SConsEnvironment.sbf
+

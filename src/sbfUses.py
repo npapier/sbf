@@ -49,11 +49,11 @@ class pythonConfig:
 
 	@classmethod
 	def __initialize( cls ):
-		# Retrieves SOFA_PATH
+		# Retrieves python location
 		if sys.platform == 'win32':
 			cls.__basePath = getInstallPath( 'SOFTWARE\\Python\\PythonCore\\2.6\\InstallPath', '', 'Python' )
 		if cls.__basePath is None:
-			raise SCons.Errors.UserError("Unable to retrive Python install Path.")
+			raise SCons.Errors.UserError("Unable to retrieve Python installation path.")
 
 	@classmethod
 	def getBasePath( cls ):
@@ -260,7 +260,7 @@ class IUse :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBS)." % (useNameVersion, self.platform) )
 
 		# LIBPATH
- 		libpath = self.getLIBPATH( useVersion )
+		libpath = self.getLIBPATH( useVersion )
 		if (libpath != None) and (len(libpath) == 2) :
 			if len(libpath[0]) > 0 :
 				env.AppendUnique( LIBPATH = libpath[0] )
@@ -630,6 +630,23 @@ class Use_ffmpeg( IUse ):
 		#libs = [ 'avcodec-52', 'avformat-52', 'avutil-49' ]
 		if self.platform == 'win32':
 			return libs, libs
+
+
+class Use_gstFFmpeg( IUse ):
+	def getName( self ):
+		return 'gstffmpeg'
+
+	def getVersions( self ):
+		return [ '0-10-9' ]
+
+
+	def getLIBS( self, version ):
+		libs = [	'avcodec-lgpl', 'avdevice-lgpl', 'avfilter-lgpl',
+					'avformat-lgpl', 'avutil-lgpl', 'swscale-lgpl'	]
+		pakLibs = [	'avcodec-lgpl-52', 'avdevice-lgpl-52', 'avfilter-lgpl-1',
+					'avformat-lgpl-52', 'avutil-lgpl-50', 'swscale-lgpl-0' ]
+		if self.platform == 'win32':
+			return libs, pakLibs
 
 
 class Use_hid( IUse ):
@@ -1125,8 +1142,8 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(), Use_gtkmm(),
-					Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(),
+					Use_gtkmm(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):
