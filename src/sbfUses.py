@@ -852,16 +852,16 @@ class Use_gtest( IUse ):
 		return "gtest"
 
 	def getCPPDEFINES( self, version ):
-		return ['SBF_GTEST']
+		return ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
 			if self.config == 'release':
-				libs = ['gtest']
-				return libs, []
+				libs = ['gtest-md']
+				return libs, libs
 			else:
-				libs = ['gtestd']
-				return libs, []
+				libs = ['gtest-mdd']
+				return libs, libs
 		else:
 			libs = ['gtest']
 			return libs, []
