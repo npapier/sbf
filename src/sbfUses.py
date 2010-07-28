@@ -834,6 +834,15 @@ class Use_glu( IUse ):
 			return libs, libs
 
 
+
+class Use_glm( IUse ):
+	def getName(self ):
+		return "glm"
+
+	def getVersions( self ):
+		return [ '0-8-4-1' ]
+
+
 class Use_glut( IUse ):
 	def getName(self ):
 		return "glut"
@@ -850,6 +859,9 @@ class Use_glut( IUse ):
 class Use_gtest( IUse ):
 	def getName(self ):
 		return "gtest"
+
+	def getVersions( self ):
+		return [ '445' ]
 
 	def getCPPDEFINES( self, version ):
 		return ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
@@ -1142,8 +1154,9 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glut(), Use_gtest(), Use_opencollada(),
-					Use_gtkmm(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL()	]
+		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(), Use_gtest(),
+					Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(),
+					Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
 	def initialize( self, sbf ):

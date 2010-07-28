@@ -1481,7 +1481,7 @@ SConsBuildFramework options:
 
 		# Configures lenv[*] with lenv['test']
 		if lenv['test'] != 'none':
-			uses( self, lenv, [lenv['test']] )
+			uses( self, lenv, usesConverter(lenv['test']) )
 			# @todo moves usesAlreadyConfigured into uses() function
 			usesAlreadyConfigured.add( lenv['test'] )
 
