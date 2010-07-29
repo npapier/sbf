@@ -393,7 +393,7 @@ def configureZipAndNSISTargets( env ):
 		# Checks project exclusion to warn user
 		if env['exclude'] and len(env['projectExclude'])>0:
 			answer = askQuestion(	"WARNING: The following projects are excluded from the build : {0}\nWould you continue the process".format(env['projectExclude']),
-									['yes', 'no'] )
+									['yes', 'no'], env['userQuery'] )
 			if answer == 'n':
 				raise SCons.Errors.UserError( "Build interrupted by user." )
 			#else continue the build

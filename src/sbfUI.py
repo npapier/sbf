@@ -3,9 +3,10 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-def askQuestion( question, choicesList ):
+def askQuestion( question, choicesList, userQuery = True ):
 	"""The given question is written to standard output followed by a textual description of the available choices.
-	The first choise in choicesList would be the default choice. The answer is returned as a string."""
+	The first choise in choicesList would be the default choice. The answer is returned as a string.
+	If userQuery parameter is False, then question is not asked and the default choice is returned"""
 
 	choicesText = ''
 	selectors = []
@@ -20,6 +21,10 @@ def askQuestion( question, choicesList ):
 			choicesText += ', ' + choiceText
 
 	defaultSelector = selectors[0]
+
+	# Don't ask question
+	if not userQuery:
+		return defaultSelector.lower()
 
 	# Asks question
 	while( True ):

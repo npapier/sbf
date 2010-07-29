@@ -1,6 +1,7 @@
 # sbf settings
 #nodeps				= false
 #exclude			= true
+#userQuery			= true
 #numJobs			= 1
 #outputLineLength	= 79
 #printCmdLine		= 'less'

@@ -782,6 +782,8 @@ SConsBuildFramework options:
 			BoolVariable(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
 							'true' ),
 
+			BoolVariable( 'userQuery', "Sets to false to assume default answer on all queries. Disables most of the normal user queries during sbf execution.", 'true' ),
+
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
 			EnumVariable(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
