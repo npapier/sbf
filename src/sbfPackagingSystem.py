@@ -18,6 +18,7 @@ from sbfArchives import extractArchive
 from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile
 from sbfUses import UseRepository
 
+# @todo PackagingSystem.verbose = False
 
 def pprintList( list ) :
 	listLength = len(list)
@@ -33,8 +34,10 @@ def pprintList( list ) :
 
 
 def reporthook_urlretrieve( blockCount, blockSize, totalSize ):
-	size = blockCount * blockSize
-	print ( '%i kB' % (size / 1024) )
+	size = blockCount * blockSize / 1024
+	# Prints report on download advancement (each 128 kb)
+	if ( size % 128 == 0):
+		print ( '{0} kB \r'.format(size) ),
 	#if totalSize > 0:
 	#	print ( '%i kB, %i/%i' % ( size/1024, size, totalSize ) )
 	#else:
@@ -186,7 +189,7 @@ class PackagingSystem:
 	def mkdbListPackage( self, pattern = '' ):
 		"""Returns the list of package description in mkdb.
 		For example boost.py"""
-		db = glob.glob( join( self.__mkdbGetDirectory(), "%s*.py" % pattern ) )
+		db = glob.glob( join( self.__mkdbGetDirectory(), '{0}*'.format(pattern) ) )
 		return [ os.path.basename(elt) for elt in db ]
 
 
@@ -240,7 +243,7 @@ class PackagingSystem:
 				print ( '* Retrieves %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
 
 				urllib.urlretrieve(url, filename= join('cache', filename), reporthook=reporthook_urlretrieve)
-				print ( 'Done.' )
+				print ( 'Done.' + ' '*16 )
 			else:
 				print ('* %s already downloaded.' % filename)
 			print
@@ -381,7 +384,8 @@ class PackagingSystem:
 		for pakPath in self.__pakPaths:
 			if enablePrint:
 				print ("\nAvailable packages in %s :" % pakPath)
-			elements = glob.glob( join(pakPath, "*%s*.zip" % pattern) )
+			elements = glob.glob( join(pakPath, "%s*.zip" % pattern) )
+#			elements = glob.glob( join(pakPath, "*%s*.zip" % pattern) )
 			sortedElements = sorted( elements )
 			for element in sortedElements :
 				filename = os.path.basename(element)
