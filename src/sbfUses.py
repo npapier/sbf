@@ -644,7 +644,8 @@ class Use_gstFFmpeg( IUse ):
 		libs = [	'avcodec-lgpl', 'avdevice-lgpl', 'avfilter-lgpl',
 					'avformat-lgpl', 'avutil-lgpl', 'swscale-lgpl'	]
 		pakLibs = [	'avcodec-lgpl-52', 'avdevice-lgpl-52', 'avfilter-lgpl-1',
-					'avformat-lgpl-52', 'avutil-lgpl-50', 'swscale-lgpl-0' ]
+					'avformat-lgpl-52', 'avutil-lgpl-50', 'swscale-lgpl-0',
+					'libbz2', 'z' ]
 		if self.platform == 'win32':
 			return libs, pakLibs
 
