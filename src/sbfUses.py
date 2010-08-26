@@ -892,7 +892,7 @@ class Use_opencollada( IUse ):
 		return "opencollada"
 
 	def getVersions( self ):
-		return ['736']		
+		return ['768', '736']
 		
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
@@ -954,6 +954,30 @@ class Use_python( IUse, pythonConfig ):
 
 	def getLicenses( self, version ):
 		return []
+
+
+class Use_physfs( IUse ):
+	def getName(self ):
+		return "physfs"
+
+	def getVersions( self ):
+		return [ '2-0-1' ]
+
+	def getCPPDEFINES( self, version ):
+		return []
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = ['physfs']
+				return libs, libs
+			else:
+				libs = ['physfs-d']
+				return libs, libs
+		else:
+			libs = ['physfs']
+			return libs, []
+
 
 # @todo getSvnRevision()
 # @todo SOFA_PATH documentation
@@ -1163,7 +1187,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(), Use_gtest(),
-					Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_python(), Use_sofa(),
+					Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(), Use_sofa(),
 					Use_wxWidgets(), Use_wxWidgetsGL()	]
 
 	@classmethod
