@@ -280,7 +280,7 @@ class Use_boost( IUse ):
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			return [ 'BOOST_ALL_DYN_LINK' ]
+			return [ 'BOOST_ALL_DYN_LINK', '_SCL_SECURE_NO_WARNINGS' ]
 		else:
 			return []
 
