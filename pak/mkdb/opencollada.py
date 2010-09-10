@@ -35,14 +35,14 @@ To create the zip file:
 	* update "projetFolderName" variable in opencollada.py file.
 '''
 
+cmdVcprojPatcher = """python ../../../../mkdb/details/opencolladaPatcher.py"""
 if CCVersionNumber == 9: 
 	vcexpress = r"C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe"
 	sbfPath = os.getenv("SCONS_BUILD_FRAMEWORK")
-	projetFolderName = 'opencollada736'
-	sln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName, projetFolderName, 'OpenCOLLADA.sln' )
-	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(vcexpress, sln)
-	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(vcexpress, sln)	
-	
+	projetFolderName = 'opencollada'
+	sln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName + '768', projetFolderName, 'OpenCOLLADA.sln' )
+	cmdDebug = "\"{0}\" {1} /build Debug_Max2010 /out outDebug.txt".format(vcexpress, sln)
+	cmdRelease = "\"{0}\" {1} /build Release_Max2010 /out outRelease.txt".format(vcexpress, sln)	
 else:
 	print >>sys.stderr, "Wrong MSVC version. Version 9.0Exp Required."
 	exit(1)
@@ -50,15 +50,18 @@ else:
 
 
 descriptor = {
- 'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada736.zip" ],
 
- 'rootBuildDir'	: 'opencollada736',
- 'builds'		: [	cmdDebug, cmdRelease ],
+ 'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk',
+
+ 'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada.zip" ], # MSVC solution + patch files.
+
+ 'rootBuildDir'	: 'opencollada',
+ 'builds'		: [	cmdVcprojPatcher, cmdDebug, cmdRelease ],
 
  'name'			: 'opencollada',
- 'version'		: '736',
+ 'version'		: '768',
 
- 'rootDir'		: 'opencollada736',
+ 'rootDir'		: 'opencollada',
  
  'license'		: [('COLLADAMax/LICENSE')],
  
@@ -73,21 +76,29 @@ descriptor = {
 					('common/libBuffer/include', 'opencollada/libBuffer/'),
 					('common/libftoa/include', 'opencollada/libftoa/')],
 
- 'lib'			: [	'COLLADAFramework/lib/win/win32/*.lib',
-					'COLLADABaseUtils/lib/win/win32/*.lib',
-					'COLLADASaxFrameworkLoader/lib/win/win32/LibXML/*.lib',
-					'COLLADAStreamWriter/lib/win/Win32/*.lib',
-					'GeneratedSaxParser/lib/win/win32/LibXML/*.lib',
-					'Externals/MathMLSolver/lib/win/win32/*.lib',
-					'Externals/LibXML/bin/win/win32/*.lib',
-					'Externals/pcre/lib/win/win32/*.lib',
-					('common/libBuffer/lib/win/Win32/Debug lib/libBuffer.lib', 'libBuffer-d.lib'),
-					'common/libBuffer/lib/win/Win32/Release lib/*.lib',
-					('common/libftoa/lib/win/Win32/Debug lib/libftoa.lib', 'libftoa-d.lib'),
-					'common/libftoa/lib/win/Win32/Release lib/*.lib',
-					('G3DWarehouseBrowser/lib/win/Win32/Debug/G3DWarehouseBrowser.lib', 'G3DWarehouseBrowser-d.lib'),
-					'G3DWarehouseBrowser/lib/win/Win32/Release/*.lib'],
+ 'lib'			: [	'COLLADAFramework/lib/win/Win32/Release/*.lib',
+					('COLLADAFramework/lib/win/Win32/Debug/COLLADAFramework.lib', 'COLLADAFramework-d.lib'),
+					'COLLADABaseUtils/lib/win/Win32/Release/*.lib',
+					('COLLADABaseUtils/lib/win/Win32/Debug/COLLADABaseUtils.lib', 'COLLADABaseUtils-d.lib'),
+					'COLLADASaxFrameworkLoader/lib/win/Win32/Release_LibXML/*.lib',
+					('COLLADASaxFrameworkLoader/lib/win/Win32/Debug_LibXML_NoValidation/COLLADASaxFrameworkLoader.lib', 'COLLADASaxFrameworkLoader-d.lib'),
+					'COLLADAStreamWriter/lib/win/Win32/Release/*.lib',
+					('COLLADAStreamWriter/lib/win/Win32/Debug/COLLADAStreamWriter.lib', 'COLLADAStreamWriter-d.lib'),
+					'GeneratedSaxParser/lib/win/Win32/Release_LibXML/*.lib',
+					('GeneratedSaxParser/lib/win/Win32/Debug_LibXML/GeneratedSaxParser.lib', 'GeneratedSaxParser-d.lib'),
+					'Externals/MathMLSolver/lib/win/Win32/Release/*.lib',
+					('Externals/MathMLSolver/lib/win/Win32/Debug/MathMLSolver.lib', 'MathMLSolver-d.lib'),
+					'Externals/LibXML/lib/win/Win32/Release/*.lib',
+					('Externals/LibXML/lib/win/Win32/Debug/LibXML.lib', 'LibXML-d.lib'),
+					'Externals/pcre/lib/win/Win32/Release/*.lib',
+					('Externals/pcre/lib/win/Win32/Debug/pcre.lib', 'pcre-d.lib'),
+					'common/libBuffer/lib/win/Win32/Release_lib/*.lib',
+					('common/libBuffer/lib/win/Win32/Debug_lib/libBuffer.lib', 'libBuffer-d.lib'),
+					'common/libftoa/lib/win/Win32/Release_lib/*.lib',
+					('common/libftoa/lib/win/Win32/Debug_lib/libftoa.lib', 'libftoa-d.lib'),
+					'G3DWarehouseBrowser/lib/win/Win32/Release/*.lib',
+					('G3DWarehouseBrowser/lib/win/Win32/Debug/G3DWarehouseBrowser.lib', 'G3DWarehouseBrowser-d.lib')],
 					
-'bin'			: [ ('COLLADAValidator/bin/win/Win32/Debug LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML-d.exe'),
-					('COLLADAValidator/bin/win/Win32/Release LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML.exe')]
+#'bin'			: [ ('COLLADAValidator/bin/win/Win32/Debug LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML-d.exe'),
+#					('COLLADAValidator/bin/win/Win32/Release LibXML/COLLADAValidator_LibXML.exe', 'COLLADAValidator_LibXML.exe')]
 }
