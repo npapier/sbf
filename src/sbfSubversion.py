@@ -535,7 +535,7 @@ class Subversion ( IVersionControlSystem ) :
 		if projectName in svnUrlsDict :
 			return [ svnUrlsDict[projectName] ]
 		else:
-			return svnUrlsDict['']
+			return svnUrlsDict.get('', [])
 
 	# Returns the url without modification if svnUrl ends with the '/trunk', otherwise returns the svnUrl with '/projectName/trunk' appended at the end.
 	# In all case, removes unneeded '/' at the end of the given svnUrl
