@@ -1748,7 +1748,8 @@ SConsBuildFramework options:
 		lenv['sbf_src']							= filesFromSrc
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
-		lenv['sbf_files']						= glob.glob( self.myProjectPathName + os.sep + '*.options' )
+		lenv['sbf_files']						= glob.glob( join(self.myProjectPathName, '*.options') )
+		lenv['sbf_files'].append( join(self.myProjectPathName, 'sconstruct') )
 		#lenv['sbf_info']
 		#lenv['sbf_rc']
 		# @todo configures sbf_... for msvc/eclipse ?
