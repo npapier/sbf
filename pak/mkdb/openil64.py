@@ -5,7 +5,7 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-# ok for clx.y
+# ok for cl8.y
 
 # http://openil.sourceforge.net/
 descriptor = {
