@@ -11,6 +11,7 @@ from src.sbfArchives import extractArchive, isExtractionSupported
 from src.sbfFiles	import *
 #from src.sbfTools	import locateProgram
 from src.sbfUses	import UseRepository
+from src.sbfUtils	import capitalize
 from src.sbfUI		import askQuestion
 from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAction
 
@@ -18,7 +19,6 @@ from SCons.Script import *
 
 
 # @todo debug zipsrc if a used file is no more under vcs.
-# @todo uninstallRedist
 # @todo Improves redist macros (adding message and with/without confirmation)
 # @todo improves output
 
@@ -37,7 +37,9 @@ def nsisGeneration( target, source, env ):
 			lenv = env.sbf.myParsedProjects[projectName]
 			if lenv['type'] == 'exec' :
 				print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
-				products.append( lenv['sbf_project'] + lenv.sbf.my_PostfixLinkedToMyConfig )
+				if len(products) == 0:
+					rootProject = lenv['sbf_project']
+				products.append( capitalize(lenv['sbf_project']) + lenv.sbf.my_PostfixLinkedToMyConfig )
 				executables.append( os.path.basename(lenv['sbf_bin'][0]) )
 
 		# Generates PRODUCTNAME
@@ -66,6 +68,15 @@ def nsisGeneration( target, source, env ):
 
 		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
 
+		# Generates ICON
+		if rootProject:
+			lenv = env.sbf.myParsedProjects[rootProject]
+			iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
+			if os.path.exists( iconFile ):
+				ICON = 'Icon "{0}"'.format( iconFile )
+			else:
+				ICON = "; no icon"
+
 		str_sbfNSISTemplate = """\
 ; sbfNSISTemplate.nsi
 ;
@@ -76,7 +87,7 @@ def nsisGeneration( target, source, env ):
 ; - run as admin and installation occurs for all users
 ; - components chooser
 ; - has uninstall support
-; - install/launch/uninstall Redistributable
+; - install/launch/uninstall Visual C++ redistributable and sbfPak redistributable.
 ; - and (optionally) installs start menu shortcuts (run all exe and uninstall).
 
 ; @todo write access on several directories
@@ -89,15 +100,16 @@ def nsisGeneration( target, source, env ):
 
 ;--------------------------------
 
-!define SBFPROJECTNAME		"%s"
-!define SBFPROJECTVERSION	"%s"
-!define SBFPROJECTCONFIG	"%s"
-!define SBFDATE				"%s"
+!define SBFPROJECTNAME				"{projectName}"
+!define SBFPROJECTNAMECAPITALIZED	"{projectNameCapitalized}"
+!define SBFPROJECTVERSION			"{projectVersion}"
+!define SBFPROJECTCONFIG			"{projectConfig}"
+!define SBFDATE						"{date}"
 
 ; PRODUCTNAME
-%s
+{productName}
 ; PRODUCTEXE
-%s
+{productExe}
 ;--------------------------------
 
 
@@ -107,17 +119,20 @@ def nsisGeneration( target, source, env ):
 SetCompressor lzma
 
 ; The name of the installer
-Name "${PRODUCTNAME}"
+Name "${{PRODUCTNAME}}"
+
+; icon of the installer
+{icon}
 
 ; The file to write
-OutFile "${SBFPROJECTNAME}_${SBFPROJECTVERSION}${SBFPROJECTCONFIG}_${SBFDATE}_setup.exe"
+OutFile "${{SBFPROJECTNAMECAPITALIZED}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\${PRODUCTNAME}
+InstallDir $PROGRAMFILES\${{PRODUCTNAME}}
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\${PRODUCTNAME}" "Install_Dir"
+InstallDirRegKey HKLM "Software\${{PRODUCTNAME}}" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
@@ -136,7 +151,7 @@ UninstPage instfiles
 ;--------------------------------
 
 ; The stuff to install
-Section "${PRODUCTNAME} core (required)"
+Section "${{PRODUCTNAME}} core (required)"
 
   SectionIn RO
 
@@ -146,7 +161,7 @@ Section "${PRODUCTNAME} core (required)"
   SetOutPath $INSTDIR
 
   ; Put files there
-!include "${SBFPROJECTNAME}_install_files.nsi"
+	!include "${{SBFPROJECTNAME}}_install_files.nsi"
 
   ; Create 'var' directory
   CreateDirectory "$INSTDIR\\var"
@@ -165,16 +180,16 @@ Section "${PRODUCTNAME} core (required)"
 ;AccessControl::EnableFileInheritance "$INSTDIR\\var"
 
   ; Redistributable
-  !include "${SBFPROJECTNAME}_install_redist.nsi"
+  !include "${{SBFPROJECTNAME}}_install_redist.nsi"
 
   ; Write the installation path into the registry
-  WriteRegStr HKLM "SOFTWARE\${PRODUCTNAME}" "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "SOFTWARE\${{PRODUCTNAME}}" "Install_Dir" "$INSTDIR"
 
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "DisplayName" "${PRODUCTNAME}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayName" "${{PRODUCTNAME}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
 
 SectionEnd
@@ -184,12 +199,13 @@ SectionEnd
 ; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
 
-  CreateDirectory "$SMPROGRAMS\${PRODUCTNAME}"
+  CreateDirectory "$SMPROGRAMS\${{PRODUCTNAME}}"
 
   SetOutPath $INSTDIR\\bin
 
-%s
-  CreateShortCut "$SMPROGRAMS\${PRODUCTNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+{startMenuShortcuts}
+
+  CreateShortCut "$SMPROGRAMS\${{PRODUCTNAME}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
 
   SetOutPath $INSTDIR
 
@@ -204,15 +220,15 @@ Section "Uninstall"
   SetShellVarContext all
 
   ; Remove files
-!include "${SBFPROJECTNAME}_uninstall_files.nsi"
+  !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
   RmDir "$INSTDIR\\var"
 
   ; Remove redistributable
-!include "${SBFPROJECTNAME}_uninstall_redist.nsi"
+  !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
   ; Remove registry keys
-  DeleteRegKey HKLM "SOFTWARE\${PRODUCTNAME}"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
+  DeleteRegKey HKLM "SOFTWARE\${{PRODUCTNAME}}"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}"
 
   ; Remove uninstaller
   Delete $INSTDIR\uninstall.exe
@@ -221,15 +237,24 @@ Section "Uninstall"
   RmDir $INSTDIR
 
   ; Remove shortcuts, if any
-%s
-  Delete "$SMPROGRAMS\${PRODUCTNAME}\*.*"
+{removeStartMenuShortcuts}
+  Delete "$SMPROGRAMS\${{PRODUCTNAME}}\*.*"
   ; Remove directories used
-  RMDir "$SMPROGRAMS\${PRODUCTNAME}"
+  RMDir "$SMPROGRAMS\${{PRODUCTNAME}}"
 
 SectionEnd
-""" % (env['sbf_project'], env['version'], env.sbf.my_PostfixLinkedToMyConfig, env.sbf.myDate, PRODUCTNAME, PRODUCTEXE, SHORTCUT, UNINSTALL_SHORTCUT)
-		file.write( str_sbfNSISTemplate )
+""".format(	projectName=env['sbf_project'],
+			projectNameCapitalized=capitalize(env['sbf_project']),
+			projectVersion=env['version'],
+			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
+			date=env.sbf.myDate,
+			productName=PRODUCTNAME,
+			productExe=PRODUCTEXE,
+			icon=ICON,
+			startMenuShortcuts=SHORTCUT,
+			removeStartMenuShortcuts=UNINSTALL_SHORTCUT)
 
+		file.write( str_sbfNSISTemplate )
 
 
 def redistGeneration( target, source, env ):
@@ -244,9 +269,11 @@ def redistGeneration( target, source, env ):
 	# compiler : CL90EXP or CL90 for example
 	CLXYEXP = sbf.myCCVersion.replace( '-', '', 1 ).upper()
 
+	# dependencies
 	uses = sorted(list( sbf.getAllUses(env) ))
 	redistFiles = []
 
+# @remark no more used, because redistributables are already unzip in zipPortable
 #	for useNameVersion in uses:
 #		useName, useVersion = UseRepository.extract( useNameVersion )
 #		use = UseRepository.getUse( useName )
@@ -260,6 +287,7 @@ def redistGeneration( target, source, env ):
 #				else:
 #					redistFiles.append(redistributable)
 
+
 	# Open output file ${SBFPROJECTNAME}_redist.nsi
 	with open( targetNameRedist, 'w' ) as file:
 		file.write(
@@ -269,29 +297,30 @@ def redistGeneration( target, source, env ):
 
 		# Redistributable for cl compiler
 		file.write( "; Redistributable for cl compiler\n" )
-		file.write( """!insertmacro InstallAndLaunchRedistributable "${{{0}}}"\n\n\n""".format(CLXYEXP) )
+		if sbf.myCCVersion >= 9.0:
+			file.write( """!insertmacro InstallAndLaunchRedistributableQ "${{{file}}}" "{options}"\n\n\n""".format(file=CLXYEXP, options="/q") )
+		else:
+			file.write( """!insertmacro InstallAndLaunchRedistributableQ "${{{file}}}" ""\n\n\n""".format(file=CLXYEXP) )
 
-		# Redistributable for 'uses'
-		if len(redistFiles)>0:
-			file.write( "; Redistributable for 'uses'\n" )
-			for redistFile in redistFiles:
-				redistFileExtension = splitext(redistFile)[1]
-				if redistFileExtension == '.zip':
-					file.write( """!insertmacro InstallAndUnzipRedistributable "{0}" "$INSTDIR"\n""".format(redistFile.replace('/', '\\') ) )
-				elif redistFileExtension == '.exe' :
-					file.write( """!insertmacro InstallAndLaunchRedistributable "{0}"\n""".format(redistFile.replace('/', '\\') ) )
-				else:
-					raise SCons.Errors.StopError, "Unsupported type of redistributable {0}".format(redistFile)
+# @remark no more used, because redistributables are already unzip in zipPortable
+#		# Redistributable for 'uses'
+#		if len(redistFiles)>0:
+#			file.write( "; Redistributable for 'uses'\n" )
+#			for redistFile in redistFiles:
+#				redistFileExtension = splitext(redistFile)[1]
+#				if redistFileExtension == '.zip':
+#					file.write( """!insertmacro InstallAndUnzipRedistributable "{0}" "$INSTDIR"\n""".format(redistFile.replace('/', '\\') ) )
+#				elif redistFileExtension == '.exe' :
+#					file.write( """!insertmacro InstallAndLaunchRedistributable "{0}"\n""".format(redistFile.replace('/', '\\') ) )
+#				else:
+#					raise SCons.Errors.StopError, "Unsupported type of redistributable {0}".format(redistFile)
+
 
 	# Open output file ${SBFPROJECTNAME}_uninstall_redist.nsi
 	with open( targetNameUninstallRedist, 'w' ) as file:
-		pass
-		# @todo
-
-#!include "${SBFPROJECTNAME}_uninstall_redist.nsi"
-#!insertmacro RmRedistributableTscc
-#!insertmacro RmRedistributableVCPP2005SP1
-#  RmDir $INSTDIR\Redistributable
+		# Redistributable for cl compiler
+		file.write( "; Redistributable for cl compiler\n" )
+		file.write( """!insertmacro RmRedistributable "${{{file}}}"\n\n\n""".format(file=CLXYEXP) )
 
 
 
@@ -568,16 +597,19 @@ def configureZipAndNSISTargets( env ):
 				# Retrieves license file(s) of incoming dependency from IUse class
 				warningAboutLicense = True
 				licenses = use.getLicenses( useVersion )
-				if licenses and len(licenses)>0:
-					for filename in licenses:
-						pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
-						if pathFilename:
-#							print ("Found license %s" % pathFilename)
-							warningAboutLicense = False
-							depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
-							portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
-						else:
-							raise SCons.Errors.UserError( "File %s not found." % filename )
+				if licenses is not None:
+					if len(licenses)>0:
+						for filename in licenses:
+							pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
+							if pathFilename:
+								#print ("Found license %s" % pathFilename)
+								warningAboutLicense = False
+								depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
+								portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
+							else:
+								raise SCons.Errors.UserError( "File %s not found." % filename )
+					else:
+						warningAboutLicense = False
 				# else: warningAboutLicense = True
 
 
@@ -684,7 +716,6 @@ def configureZipAndNSISTargets( env ):
 
 # @todo Nsis builder
 		nsisRootPath = "C:\\Program Files\\NSIS"
-		#nsisRootPath = "D:\\Program Files (x86)\\NSIS"
 		#nsisRootPath = locateProgram( 'nsis' )
 		nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=env.sbf.myProject, version=env.sbf.myVersion, config=env.sbf.my_PostfixLinkedToMyConfig, date=env.sbf.myDate)
 

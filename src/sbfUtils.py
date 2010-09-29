@@ -5,8 +5,13 @@
 
 import os
 
-from sbfFiles	import *
+from sbfFiles import *
 
+
+
+def capitalize( str ):
+	"""Return a copy of the string with only its first character capitalized. Other characters are left unchanged (unlike python capitalize)"""
+	return str[0].upper() + str[1:]
 
 
 ###### Return the value of the environment variable varname if it exists, or None ######
