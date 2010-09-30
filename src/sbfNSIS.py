@@ -90,6 +90,8 @@ def nsisGeneration( target, source, env ):
 ; - install/launch/uninstall Visual C++ redistributable and sbfPak redistributable.
 ; - and (optionally) installs start menu shortcuts (run all exe and uninstall).
 
+; - prevent running multiple instances of the installer
+
 ; @todo write access on several directories
 ; @todo section with redistributable
 
@@ -98,7 +100,10 @@ def nsisGeneration( target, source, env ):
 ; @todo repair/modify
 ; @todo LogSet on
 
+
 ;--------------------------------
+
+SetCompressor lzma
 
 !define SBFPROJECTNAME				"{projectName}"
 !define SBFPROJECTNAMECAPITALIZED	"{projectNameCapitalized}"
@@ -106,17 +111,26 @@ def nsisGeneration( target, source, env ):
 !define SBFPROJECTCONFIG			"{projectConfig}"
 !define SBFDATE						"{date}"
 
+; SETUPFILE
+!define SETUPFILE "${{SBFPROJECTNAMECAPITALIZED}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
+
 ; PRODUCTNAME
 {productName}
+
 ; PRODUCTEXE
 {productExe}
-;--------------------------------
-
-
 
 ;--------------------------------
 
-SetCompressor lzma
+Function .onInit
+ System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
+ Pop $R0
+ StrCmp $R0 0 +3
+ MessageBox MB_OK|MB_ICONSTOP "The installer is already running."
+ Abort
+FunctionEnd
+
+;--------------------------------
 
 ; The name of the installer
 Name "${{PRODUCTNAME}}"
@@ -125,7 +139,7 @@ Name "${{PRODUCTNAME}}"
 {icon}
 
 ; The file to write
-OutFile "${{SBFPROJECTNAMECAPITALIZED}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
+OutFile "${{SETUPFILE}}"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES\${{PRODUCTNAME}}
