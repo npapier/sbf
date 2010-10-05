@@ -48,7 +48,7 @@ def nsisGeneration( target, source, env ):
 			PRODUCTNAME += "!define PRODUCTNAME%s	\"%s\"\n" % (i, product)
 		PRODUCTNAME += "!define PRODUCTNAME	${PRODUCTNAME0}\n"
 
-		# Generates PRODUCTEXE, SHORTCUT and UNINSTALL_SHORTCUT
+		# Generates PRODUCTEXE, SHORTCUT, DESKTOPSHORTCUT, QUICKLAUNCHSHORTCUT, UNINSTALL_SHORTCUT, UNINSTALL_DESKTOPSHORTCUT and UNINSTALL_QUICKLAUNCHSHORTCUT
 		PRODUCTEXE	= ''
 		if len(executables) > 1 :
 			SHORTCUT = '  CreateDirectory \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
@@ -60,11 +60,14 @@ def nsisGeneration( target, source, env ):
 
 		for (i, executable) in enumerate(executables) :
 			PRODUCTEXE	+=	"!define PRODUCTEXE{0}	\"{1}\"\n".format( i, executable)
-# @todo uses string.format()
 			if i > 0:
 				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
 			else:
-				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
+				SHORTCUT						+=	'  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				DESKTOPSHORTCUT					=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				QUICKLAUNCHSHORTCUT				=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
+				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
 
 		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
 
@@ -88,15 +91,16 @@ def nsisGeneration( target, source, env ):
 ; - components chooser
 ; - has uninstall support
 ; - install/launch/uninstall Visual C++ redistributable and sbfPak redistributable.
-; - and (optionally) installs start menu shortcuts (run all exe and uninstall).
-
+; - installs start menu shortcuts (run all exe and uninstall).
+; - (optionally) installs desktop menu shortcut for the main executable.
+; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
 ; - prevent running multiple instances of the installer
 
 ; @todo write access on several directories
 ; @todo section with redistributable
 
 ; @todo mui
-; @todo quicklaunch and desktop
+; @todo quicklaunch
 ; @todo repair/modify
 ; @todo LogSet on
 
@@ -166,7 +170,6 @@ UninstPage instfiles
 
 ; The stuff to install
 Section "${{PRODUCTNAME}} core (required)"
-
   SectionIn RO
 
   SetShellVarContext all
@@ -210,23 +213,28 @@ SectionEnd
 
 
 
-; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
+  SectionIn RO
+
+  SetShellVarContext all
 
   CreateDirectory "$SMPROGRAMS\${{PRODUCTNAME}}"
-
-  SetOutPath $INSTDIR\\bin
-
 {startMenuShortcuts}
-
   CreateShortCut "$SMPROGRAMS\${{PRODUCTNAME}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+SectionEnd
 
-  SetOutPath $INSTDIR
+
+; Optional section (can be disabled by the user)
+Section "Shortcut on desktop"
+
+  SetShellVarContext all
+ 
+{desktopShortcuts}
 
 SectionEnd
 
-;--------------------------------
 
+;--------------------------------
 ; Uninstaller
 
 Section "Uninstall"
@@ -255,7 +263,9 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${{PRODUCTNAME}}\*.*"
   ; Remove directories used
   RMDir "$SMPROGRAMS\${{PRODUCTNAME}}"
-
+ 
+{removeDesktopShortcuts}
+ 
 SectionEnd
 """.format(	projectName=env['sbf_project'],
 			projectNameCapitalized=capitalize(env['sbf_project']),
@@ -266,7 +276,12 @@ SectionEnd
 			productExe=PRODUCTEXE,
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
-			removeStartMenuShortcuts=UNINSTALL_SHORTCUT)
+			desktopShortcuts=DESKTOPSHORTCUT,
+#			quicklaunchShortcuts=QUICKLAUNCHSHORTCUT,
+			removeStartMenuShortcuts=UNINSTALL_SHORTCUT,
+			removeDesktopShortcuts=UNINSTALL_DESKTOPSHORTCUT,
+#			removeQuicklaunchShortcuts=UNINSTALL_QUICKLAUNCHSHORTCUT
+			)
 
 		file.write( str_sbfNSISTemplate )
 
