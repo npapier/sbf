@@ -1146,7 +1146,10 @@ SConsBuildFramework options:
 						 ] )
 
 		# Completes myCxxFlags with some defines
-		if self.myType == 'shared':
+		if self.myType == 'static':
+			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_STATIC ' )
+		elif self.myType == 'shared':
+			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_SHARED ' )
 			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_EXPORTS ' )
 
 
