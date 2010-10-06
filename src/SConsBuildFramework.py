@@ -138,6 +138,7 @@ class SConsBuildFramework :
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
 	myIsExpressEdition				= False			# True if Visual Express Edition, False otherwise
 	myCCVersion						= ''			# cl8-0
+	myMSVSIDE						= ''			# D:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE
 	my_Platform_myCCVersion			= ''
 
 
@@ -472,6 +473,7 @@ class SConsBuildFramework :
 			if self.myIsExpressEdition :
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
+			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
 		elif self.myEnv['CC'] == 'gcc' :
 			# Sets compiler
 			self.myCC = 'gcc'

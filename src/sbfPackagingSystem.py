@@ -24,7 +24,7 @@ def pprintList( list ) :
 	listLength = len(list)
 	currentString = '[ '
 
-	for i, element in enumerate(list) :
+	for i, element in enumerate(list):
 		if len(currentString) + len(element) + 3 >= 120 :
 			print currentString
 			currentString = ''
@@ -155,7 +155,10 @@ class PackagingSystem:
 		self.__myConfig					= sbf.myConfig
 		self.__myPlatform				= sbf.myPlatform
 		self.__myCC						= sbf.myCC
+		self.__myCCVersion				= sbf.myCCVersion
 		self.__myCCVersionNumber		= sbf.myCCVersionNumber
+		self.__myMSVSIDE				= sbf.myMSVSIDE
+
 		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
 		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
 		self.__shLibSuffix				= sbf.myEnv['SHLIBSUFFIX']
@@ -185,6 +188,12 @@ class PackagingSystem:
 	def __mkPakGetDirectory( self ):
 		return join( self.__SCONS_BUILD_FRAMEWORK, 'pak', 'var' )
 
+	def __mkPakGetBuildDirectory( self ):
+		return join( self.__mkPakGetDirectory(), 'build' )
+
+	def __mkPakGetExtractionDirectory( self, pakDescriptor ):
+		return join( self.__mkPakGetBuildDirectory(), pakDescriptor['name'] + pakDescriptor['version'] )
+
 	# @todo removes to user POV the .py extension
 	def mkdbListPackage( self, pattern = '' ):
 		"""Returns the list of package description in mkdb.
@@ -199,8 +208,14 @@ class PackagingSystem:
 		localsFileDict	= {	'config'			: self.__myConfig,
 							'platform'			: self.__myPlatform,
 							'CC'				: self.__myCC,
+							'CCVersion'			: self.__myCCVersion,
 							'CCVersionNumber'	: self.__myCCVersionNumber,
-							'UseRepository'		: UseRepository }
+							'MSVSIDE'			: self.__myMSVSIDE,
+
+							'UseRepository'		: UseRepository,
+
+							'buildDirectory'	: self.__mkPakGetBuildDirectory()
+							}
 		execfile( join(self.__mkdbGetDirectory(), pakName), globalsFileDict, localsFileDict )
 		return localsFileDict['descriptor']
 
@@ -223,7 +238,7 @@ class PackagingSystem:
 		os.chdir( join(self.__mkPakGetDirectory() ) )
 
 		# URLS (download and extract)
-		extractionDirectory = join('build', pakDescriptor['name'] + pakDescriptor['version'] )
+		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
 		removeDirectoryTree( extractionDirectory )
 		
 		# SVNURL (export svn)
