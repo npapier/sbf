@@ -271,6 +271,22 @@ class IUse :
 
 ### Several IUse implementation ###
 
+
+
+
+class Use_blowfish( IUse ):
+	def getName( self ):
+		return 'blowfish'
+
+	def getVersions( self ):
+		return ['1-0']
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			return ['Blowfish'], []
+
+
+
 class Use_boost( IUse ):
 	def getName( self ):
 		return 'boost'
@@ -1186,9 +1202,9 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(), Use_gtest(),
-					Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(), Use_sofa(),
-					Use_wxWidgets(), Use_wxWidgetsGL()	]
+		return [	Use_blowfish(), Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(),
+					Use_gtest(), Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
+					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
