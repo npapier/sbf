@@ -556,6 +556,20 @@ class Use_boost( IUse ):
 
 
 
+class Use_bullet( IUse ):
+
+	def getName( self ):
+		return 'bullet'
+
+	def getVersions( self ):
+		return ['2-76']
+
+	def getLIBS( self, version ):
+		libs = ['BulletCollision', 'BulletDynamics', 'BulletMultiThreaded', 'BulletSoftBody', 'LinearMath']
+		return libs, []
+
+
+
 #		lenv.AppendUnique( LIBS = ['cairo', 'fontconfig', 'freetype', 'png', 'z' ] )
 class Use_cairo( IUse ):
 
@@ -1202,7 +1216,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_blowfish(), Use_boost(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(),
+		return [	Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(),
 					Use_gtest(), Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
