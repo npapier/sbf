@@ -1610,7 +1610,13 @@ SConsBuildFramework options:
 			installInIncludeTarget	+=	filesFromInclude
 		elif	self.myType == 'shared' :
 			projectTarget			=	lenv.SharedLibrary( objProject, objFiles )
-			installInLibTarget		+=	projectTarget
+			#if self.myPlatform == 'win32':
+			# filter *.exp file
+			filteredProjectTarget = []
+			for elt in projectTarget:
+				if os.path.splitext(elt.name)[1] != '.exp':
+					filteredProjectTarget.append(elt)
+			installInLibTarget		+=	filteredProjectTarget
 			installInIncludeTarget	+=	filesFromInclude
 		elif self.myType == 'none' :
 			projectTarget			=	''
@@ -1768,13 +1774,7 @@ SConsBuildFramework options:
 			absPathFilename	= elt.abspath
 			filename		= os.path.split(absPathFilename)[1]
 			filenameExt		= os.path.splitext(filename)[1]
-
-			if filenameExt == '.exp':
-				# exclude *.exp
-				# print "skip:", filenameExt
-				continue
-
-			if filenameExt == '.lib' : # in ['.pdb', '.lib'] :
+			if filenameExt in ['.pdb', '.lib'] :
 				lenv['sbf_lib_object_for_developer'].append( absPathFilename )
 			else :
 				lenv['sbf_lib_object'].append( absPathFilename )
