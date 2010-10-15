@@ -237,9 +237,11 @@ class SvnOperation:
 			self.client.callback_notify.detach( self.statistics )
 			return retVal
 		except pysvn.ClientError as e:
+			print ('An error occurs during an svn operation:')
 			print ('{0}\n'.format(e.args[0]))
 			#print e.args[1]
-			raise IOError('An error occurs during an svn operation.')
+			Exit(1)
+
 
 	def doSvnOperation( self, *args ):
 		raise AssertionError( '{0}::doSvnOperation() not implemented.'.format(self) )
