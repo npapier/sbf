@@ -577,7 +577,7 @@ class Use_cairo( IUse ):
 		return 'cairo'
 
 	def getVersions( self ):
-		return ['1-8-6', '1-7-6', '1-2-6']
+		return ['1-10-0', '1-8-6', '1-7-6', '1-2-6']
 
 
 	def getCPPFLAGS( self, version ):
@@ -589,7 +589,7 @@ class Use_cairo( IUse ):
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
 			# Sets CPPPATH
-			gtkCppPath = [ 'include/cairo', 'include' ]
+			gtkCppPath = [ 'include/cairo' ]
 			cppPath = []
 			for path in gtkCppPath :
 				cppPath.append( os.path.join(gtkConfig.getBasePath(), path) )
@@ -601,9 +601,9 @@ class Use_cairo( IUse ):
 			return cppPath
 
 	def getLIBS( self, version ):
-		if (self.platform == 'win32') and (version in ['1-8-6', '1-7-6', '1-2-6']) :
+		if self.platform == 'win32':
 			libs = [ 'cairo' ]
-			pakLibs = [ 'libcairo-2' ]
+			pakLibs = [ 'libcairo-2', 'libpangocairo-1.0-0' ]
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = [ 'cairo' ]
@@ -1216,8 +1216,8 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(), Use_glut(),
-					Use_gtest(), Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
+		return [	Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
@@ -1375,38 +1375,49 @@ def use_cairomm( self, lenv, elt ) :
 # pkg-config gtkmm-2.4 --cflags --libs
 # @todo		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
 
-
-
-
-
 # @todo fedora != ubuntu/debian
 # @todo 64 vs 32
 #
+
+
 class Use_gtkmm( IUse ):
 
 	def getName( self ):
 		return 'gtkmm'
 
 	def getVersions( self ):
-		# @todo Don't forget to check SconsBuildFramework.py:buildProject() : usesSet = usesSet.difference(...
-# @todo is this remarks always valid ?
-		return [ '2-16-0', '2-14-3', '2-14-1' ]
+		return [ '2-16-0', '2-22-0', '2-14-3', '2-14-1' ]
+		#return [ '2-22-0', '2-16-0', '2-14-3', '2-14-1' ]
 
+
+	def getCPPDEFINES( self, version ):
+		# @todo uses version api (see SConsBuildFramework.py)
+		versionNumber = int( version.replace('-', '') )
+		return [ (self.getName().upper()+'_VERSION', versionNumber) ]
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
 			gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
 								'lib/giomm-2.4/include', 'include/giomm-2.4',
-								'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
 								'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
+								'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
 								'lib/libglademm-2.4/include', 'include/libglademm-2.4',
 								'lib/libxml++-2.6/include', 'include/libxml++-2.6',
 								'lib/sigc++-2.0/include', 'include/sigc++-2.0',
-								'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0' ]
+								'lib/pangomm-1.4/include', 'include/pangomm-1.4',
+								'include/atkmm-1.6',
+								'include/cairomm-1.0' ]
 
-			gtkCppPath = [		'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
-								'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
-								'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
+			gtkCppPath = [		'include/libglade-2.0',
+								'lib/gtk-2.0/include', 'include/gtk-2.0',
+								'include/pango-1.0',
+								'include/atk-1.0',
+								'lib/glib-2.0/include', 'include/glib-2.0',
+								'include/gdk-pixbuf-2.0',
+								'include/libxml2',
+								'include/freetype2',
+								'include/cairo',
+								'include' ]
 
 			path =	[ os.path.join(gtkConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
 			path +=	[ os.path.join(gtkConfig.getBasePath(), item)	for item in gtkCppPath ]
@@ -1426,17 +1437,29 @@ class Use_gtkmm( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win32':
 			libs = [ 'glade-2.0', 'gtk-win32-2.0', 'gdk-win32-2.0', 'gdk_pixbuf-2.0',
 					'pangowin32-1.0', 'pangocairo-1.0', 'pangoft2-1.0', 'pango-1.0',
 					'atk-1.0', 'cairo',
 					'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
 					'intl' ]
-			libs += [ 'libxml2', 'iconv' ]
+			if version == '2-22-0':
+				libs += [ 'libxml2' ]
+			elif version in [ '2-16-0', '2-14-3', '2-14-1' ]:
+				libs += [ 'libxml2', 'iconv' ]
+			else:
+				return
 
-			if version in ['2-16-0', '2-14-3']:
+			if version in ['2-22-0', '2-16-0', '2-14-3']:
 				if self.config == 'release' :
-					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					# RELEASE
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs += [	'glademm-vc100-2_4', 'gdkmm-vc100-2_4', 'pangomm-vc100-1_4',
+									'atkmm-vc100-1_6', 'cairomm-vc100-1_0',
+									'glibmm-vc100-2_4', 'giomm-vc100-2_4',
+									'xml++-vc100-2_6', 'sigc-vc100-2_0',
+									'gtkmm-vc100-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs += [	'glademm-vc90-2_4', 'gdkmm-vc90-2_4', 'pangomm-vc90-1_4',
 									'atkmm-vc90-1_6', 'cairomm-vc90-1_0',
 									'glibmm-vc90-2_4', 'giomm-vc90-2_4',
@@ -1449,7 +1472,14 @@ class Use_gtkmm( IUse ):
 									'xml++-vc80-2_6', 'sigc-vc80-2_0',
 									'gtkmm-vc80-2_4' ]
 				else:
-					if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					# DEBUG
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs += [	'glademm-vc100-d-2_4', 'gdkmm-vc100-d-2_4', 'pangomm-vc100-d-1_4',
+									'atkmm-vc100-d-1_6', 'cairomm-vc100-d-1_0',
+									'glibmm-vc100-d-2_4', 'giomm-vc100-d-2_4',
+									'xml++-vc100-d-2_6', 'sigc-vc100-d-2_0',
+									'gtkmm-vc100-d-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs += [	'glademm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'pangomm-vc90-d-1_4',
 									'atkmm-vc90-d-1_6', 'cairomm-vc90-d-1_0',
 									'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4',
@@ -1493,17 +1523,16 @@ class Use_gtkmm( IUse ):
 		if self.platform == 'win32' :
 			path = os.path.join( gtkConfig.getBasePath(), 'lib' )
 			libPath.append( path )
-
-			path = os.path.join( gtkConfig.getGtkmmBasePath(), 'bin' )
-			libPath.append( path )
 		#else self.platform == 'posix':
 		#	libPath += '/usr/lib64'
 
 		return libPath, pakLibPath
 
+
 	def getCPPFLAGS( self, version ):
+		# compiler options
 		if self.platform == 'win32':
-			if version == '2-16-0':
+			if version in ['2-22-0', '2-16-0']:
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 					return ['/vd2', '/wd4250']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
@@ -1512,12 +1541,28 @@ class Use_gtkmm( IUse ):
 				return ['/vd2', '/wd4250']
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
-		else:
-			return []
 
 	def getRedist( self, version ):
 		if self.platform == 'win32':
-			if version == '2-16-0':
+			if version == '2-22-0':
+				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+					if self.config == 'release':
+						return ['gtkmmRedist2-22-0-1_win32_cl10-0Exp.zip']
+					else:
+						return ['gtkmmRedist2-22-0-1_win32_cl10-0Exp_D.zip']
+				elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					if self.config == 'release':
+						return ['gtkmmRedist2-22-0-1_win32_cl9-0Exp.zip']
+					else:
+						return ['gtkmmRedist2-22-0-1_win32_cl9-0Exp_D.zip']
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					if self.config == 'release':
+						return ['gtkmmRedist2-22-0-1_win32_cl8-0Exp.zip']
+					else:
+						return ['gtkmmRedist2-22-0-1_win32_cl8-0Exp_D.zip']
+				else:
+					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+			elif version == '2-16-0':
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 					if self.config == 'release':
 						return ['gtkmmRedist2-16-0-4_win32_cl9-0Exp.zip']
