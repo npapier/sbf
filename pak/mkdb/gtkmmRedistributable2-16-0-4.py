@@ -5,7 +5,7 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-# ok for cl8-0, 9-0 and 10-0
+# ok for cl8-0 and 9-0
 
 # See HOWTO Redistributing gtkmm on Microsoft Windows at http://live.gnome.org/gtkmm/MSWindows
 
@@ -17,8 +17,8 @@ gtk_base = [	'bin/libglade-2.0-0', 'bin/libgtk-win32-2.0-0', 'bin/libgdk-win32-2
 				'bin/libgobject-2.0-0', 'bin/libgmodule-2.0-0', 'bin/libglib-2.0-0', 'bin/libgio-2.0-0', 'bin/libgthread-2.0-0',
 				'bin/intl' ]
 
-# xml + fontconfig + expat
-xml_base = [ 'bin/libxml2-2', 'bin/libfontconfig-1', 'bin/libexpat-1' ]
+# xml
+xml_base = [ 'bin/libxml2', 'bin/iconv' ]
 
 # gtkmm
 gtkmm_base = [	'bin/glademm-vc80-2_4', 'bin/gdkmm-vc80-2_4', 'bin/pangomm-vc80-1_4',
@@ -28,16 +28,12 @@ gtkmm_base = [	'bin/glademm-vc80-2_4', 'bin/gdkmm-vc80-2_4', 'bin/pangomm-vc80-1
 				'bin/gtkmm-vc80-2_4' ]
 
 # external deps
-externals_base = [ 'bin/libpng14-14', 'bin/zlib1', 'bin/freetype6' ]
+externals_base = [ 'bin/libpng12-0', 'bin/libtiff3', 'bin/jpeg62', 'bin/zlib1' ]
 
 # Computes replacement string used to adapt package to cl version and configuration
 clDict = {	8	: 'vc80-',
-			9	: 'vc90-',
-			10	: 'vc100-' }
-
-if CCVersionNumber not in clDict:
-	print ("Unsupported MSVC version. Version 8, 9 or 10 required.")
-	exit(1)
+			9	: 'vc90-' }
+			# 10	: 'vc100-' }
 
 replaceString = clDict[CCVersionNumber]
 
@@ -50,18 +46,18 @@ xml_dll = [ elt + '.dll' for elt in xml_base ]
 gtkmm_dll = [ elt.replace('vc80-', replaceString, 1) + '.dll' for elt in gtkmm_base ]
 externals_dll = [ elt + '.dll' for elt in externals_base ]
 
-# cl8-0exp, cl9-0exp and cl10-0exp
+# cl8-0exp and cl9-0exp
 descriptor = {
- 'urls'			: ['http://orange/files/Dev/localExt/src/gtkmm-win32-devel-2.22.0-1.zip'],
+ 'urls'			: ['http://orange/files/Dev/localExt/src/gtkmm-win32-devel-2.16.0-4.zip'],
 
  'name'			: 'gtkmmRedist',
- 'version'		: '2-22-0-1',
+ 'version'		: '2-16-0-4',
 
- 'rootDir'		: 'gtkmm',
+ 'rootDir'		: 'gtkmm-win32-devel-2.16.0-4/gtkmm/',
  'license'		: ['lgpl.txt'],
 
  'bin'			: gtk_exe + gtk_dll + xml_dll + gtkmm_dll + externals_dll,
 
- 'custom'		: [	'etc/pango/pango.modules', 'etc/gtk-2.0/gtk.immodules', 'etc/gtk-2.0/gtkrc',
+ 'custom'		: [	'etc/pango/pango.modules', 'etc/gtk-2.0/gdk-pixbuf.loaders', 'etc/gtk-2.0/gtk.immodules', 'etc/gtk-2.0/gtkrc',
  					'lib/gtk-2.0/2.10.0/', 'share/themes/MS-Windows/gtk-2.0/gtkrc', 'share/locale/' ]
 }
