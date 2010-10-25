@@ -309,7 +309,7 @@ def vcprojAction( target, source, env ):
 						if isinstance( define, str ) :
 							defines += define.replace('\"', '&quot;') + ';'
 						else :
-							defines += define[0] + "=" + define[1].replace('\"', '&quot;') + ';'
+							defines += define[0] + "=" + str(define[1]).replace('\"', '&quot;') + ';'
 					newLine = res.expand( r"\1%s\3\n" % defines )
 					targetFile.write( newLine )
 					continue
