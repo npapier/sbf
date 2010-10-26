@@ -582,7 +582,7 @@ class Use_cairo( IUse ):
 
 	def getCPPFLAGS( self, version ):
 		if self.platform == 'win32' :
-			return [ '/vd2', '/wd4250' ]
+			return [ '/wd4250' ]
 		else:
 			return []
 
@@ -1217,7 +1217,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
@@ -1370,15 +1370,11 @@ def use_cairomm( self, lenv, elt ) :
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 # @todo support pakLibs
 #
-		#	lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
-#pkg-config gtkglext-1.0 --cflags --libs
+# pkg-config gtkglext-1.0 --cflags --libs
 # pkg-config gtkmm-2.4 --cflags --libs
-# @todo		#	lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
-
+# pkg-config gthread-2.0 --cflags --libs
 # @todo fedora != ubuntu/debian
 # @todo 64 vs 32
-#
-
 
 class Use_gtkmm( IUse ):
 
@@ -1444,7 +1440,7 @@ class Use_gtkmm( IUse ):
 					'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
 					'intl' ]
 			if version == '2-22-0':
-				libs += [ 'libxml2' ]
+				libs += [ 'libxml2', 'fontconfig' ]
 			elif version in [ '2-16-0', '2-14-3', '2-14-1' ]:
 				libs += [ 'libxml2', 'iconv' ]
 			else:
@@ -1534,11 +1530,11 @@ class Use_gtkmm( IUse ):
 		if self.platform == 'win32':
 			if version in ['2-22-0', '2-16-0']:
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					return ['/vd2', '/wd4250']
+					return ['/wd4250']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					return ['/vd2', '/wd4250', '/wd4312']
+					return ['/wd4250', '/wd4312']
 			else:
-				return ['/vd2', '/wd4250']
+				return ['/wd4250']
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
@@ -1577,81 +1573,21 @@ class Use_gtkmm( IUse ):
 					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
 
+class Use_gtkmmext( IUse ):
 
-# TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
-def use_gtkmm( self, lenv, elt ) :
-	if self.myPlatform == 'posix' :
-		lenv.ParseConfig('pkg-config gthread-2.0 --cflags --libs')
-		lenv.ParseConfig('pkg-config gtkmm-2.4 --cflags --libs')
-		lenv.ParseConfig('pkg-config gtkglext-1.0 --cflags --libs')
-		return
+	def getName( self ):
+		return 'gtkmmext'
 
-	# Retrieves GTK_BASEPATH and GTKMM_BASEPATH
-	gtkBasePath		= getPathFromEnv('GTK_BASEPATH')
-	gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
-	if	(gtkBasePath is None) or (gtkmmBasePath is None ) :
-		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
+	def getVersions( self ):
+		return [ '1-0' ]
 
-	# Sets CPPPATH
-	gtkmmCppPath = ['lib/glibmm-2.4/include', 'include/glibmm-2.4',
-					'lib/giomm-2.4/include', 'include/giomm-2.4',
-					'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
-					'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
-					'lib/libglademm-2.4/include', 'include/libglademm-2.4',
-					'lib/libxml++-2.6/include', 'include/libxml++-2.6',
-					'lib/sigc++-2.0/include', 'include/sigc++-2.0',
-					'include/pangomm-1.4', 'include/atkmm-1.6', 'include/cairomm-1.0']
-
-
-	if lenv.GetOption('weak_localext') :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkmmBasePath, cppPath)] )
-	else :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
-
-
-
-	gtkCppPath = [	'lib/gtkglext-1.0/include', 'include/gtkglext-1.0', 'include/libglade-2.0', 'lib/gtk-2.0/include',
-					'include/gtk-2.0', 'include/pango-1.0', 'include/atk-1.0', 'lib/glib-2.0/include',
-					'include/glib-2.0', 'include/libxml2', 'include/cairo', 'include' ]
-
-	if lenv.GetOption('weak_localext') :
-		for cppPath in gtkCppPath :
-			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkBasePath, cppPath)] )
-	else :
-		for cppPath in gtkCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(gtkBasePath, cppPath) )
-
-
-	# Sets LIBS, LIBPATH and CPPFLAGS
-	if self.myPlatform == 'win32' :
-#			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'glade-2.0', 'gdkmm-2.4', 'atkmm-1.6',
-#										'pangomm-1.4', 'glibmm-2.4', 'cairomm-1.0', 'sigc-2.0',
-#										'gtk-win32-2.0', 'xml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
-#										'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-#										'gmodule-2.0', 'glib-2.0', 'intl', 'iconv' ] )
-
-		if self.myConfig == 'release' :
-			lenv.AppendUnique( LIBS = [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-										'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ] )
+	def getCPPFLAGS( self, version ):
+		# compiler options
+		if self.platform == 'win32':
+			if self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+				return ['/vd2']
 		else:
-			lenv.AppendUnique( LIBS = [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
-										'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ] )
-
-		lenv.AppendUnique( LIBS = [	'glade-2.0',
-									'gtk-win32-2.0', 'libxml2', 'gdk-win32-2.0', 'atk-1.0', 'gdk_pixbuf-2.0',
-									'pangowin32-1.0', 'pangocairo-1.0', 'pango-1.0', 'cairo', 'gobject-2.0',
-									'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0', 'intl', 'iconv' ] )
-
-#		lenv.AppendUnique( LIBS = [ 'gtkglext-win32-1.0', 'gdkglext-win32-1.0' ] )
-
-		lenv.AppendUnique( LIBPATH = [	os.path.join(gtkBasePath, 'lib'),
-										os.path.join(gtkmmBasePath, 'lib') ] )
-
-		lenv.AppendUnique( CPPFLAGS = [ '/vd2', '/wd4250' ] )
-	else :
-		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+			return []
 
 
 
