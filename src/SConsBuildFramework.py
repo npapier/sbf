@@ -16,7 +16,7 @@ from sbfRC import resourceFileGeneration
 from sbfAllVcs import *
 
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
-from sbfUses import Use_cairo, Use_gtkmm, Use_itk
+from sbfUses import Use_cairo, Use_gtkmm, Use_gtkmmext, Use_itk
 from sbfUtils import *
 from sbfVersion import printSBFVersion
 
@@ -225,7 +225,7 @@ class SConsBuildFramework :
 		# a project inherits 'uses' from its dependencies.
 		# But not for all (cairo, gtkmm and itk), so the uses set that must be excluded must be built
 		self.myExcludeFromInheritedUsesSet = set()
-		for use in [Use_cairo(), Use_gtkmm(), Use_itk()]:
+		for use in [Use_cairo(), Use_gtkmm(), Use_gtkmmext(), Use_itk()]:
 			name = use.getName()
 			for version in use.getVersions():
 				self.myExcludeFromInheritedUsesSet.add( name + version )
@@ -632,7 +632,7 @@ SConsBuildFramework options:
 			if not os.path.exists(self.myInstallDirectory):
 				print ( 'Creates directory : {0}'.format(self.myInstallDirectory) )
 				os.mkdir( self.myInstallDirectory )
-		else :
+		else:
 			print 'sbfError: empty installPaths'
 			Exit( 1 )
 
