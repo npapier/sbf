@@ -1569,9 +1569,10 @@ SConsBuildFramework options:
 			filesFromShareToBuild	= []
 			filters = [ (os.path.dirname(getNormalizedPathname(filter)), os.path.basename(filter)) for filter in filters ]
 			for file in filesFromShareToFilter:
+				fileSplitted = os.path.split(file)
 				for (directoryFilter, fileFilter) in filters:
-					if	directoryFilter == os.path.dirname(file) and \
-						fnmatch.fnmatch(file, fileFilter):
+					if	fileSplitted[0]== directoryFilter and \
+						fnmatch.fnmatch(fileSplitted[1], fileFilter):
 						filesFromShareToBuild.append( file )
 						break
 				else:
