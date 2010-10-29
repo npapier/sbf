@@ -11,5 +11,6 @@ type				= 'shared'	# exec, static, shared, none
 #libs				= []
 #stdlibs			= []
 #test				= 'none' # gtest
+#shareBuild			= ([filters], ('command ${SOURCE} ${TARGET}', '${SOURCE}.encrypt', 'Encrypt ${SOURCE}.file') )
 #console			= True
 #runParams			= []

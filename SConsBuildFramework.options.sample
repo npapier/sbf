@@ -22,3 +22,4 @@
 #cacheOn			= False
 #config				= 'release' # debug or release : the default compilation mode.
 #warningLevel		= 'normal'
+#userDict			= {}

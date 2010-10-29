@@ -4,6 +4,7 @@
 # Author Nicolas Papier
 
 import datetime
+import fnmatch
 import glob
 import sbfIVersionControlSystem
 import os
@@ -25,6 +26,12 @@ from SCons.Options import *
 from SCons.Script import *
 
 
+def createBlowfishShareBuildCommand( key ):
+	"""create Blowfish share build command
+	@todo version and platform"""
+	shareBuildCommand = (	'blowfish_0-0_win32_cl9-0Exp.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
+							'${SOURCE}.encrypted', 'Encrypt ${SOURCE}.file' )
+	return shareBuildCommand
 
 def sbfPrintCmdLine( cmd, target, src, env ):
 #	print ("beginning=%s" % cmd[:20])
@@ -838,10 +845,11 @@ SConsBuildFramework options:
 							map={}, ignorecase=1 ),
 			EnumVariable(	'warningLevel', 'Sets the level of warnings.', 'normal',
 							allowed_values=('normal', 'high'),
-							map={}, ignorecase=1 )
-								)
-#		unknown = myOptions.UnknownVariables()
-#		print "Unknown variables:", unknown.keys()
+							map={}, ignorecase=1 ),
+
+			(	'userDict', "a python dictionnary containing any user data and that could be made available in any project configuration file (i.e. default.options).\nExample:\n	from SCons.Script.SConscript import SConsEnvironment\n	print SConsEnvironment.sbf.myEnv['userDict'].",
+				{} )
+		)
 		return myOptions
 
 
@@ -880,6 +888,8 @@ SConsBuildFramework options:
 			('stdlibs', 'The list of standard libraries used during the link stage.', []),
 			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
 							allowed_values=('none', 'gtest'), ignorecase=1 ),
+
+			('shareBuild', "Defines the build stage for files from 'share' directory. The following schema must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
 
 			BoolVariable(	'console',
 							'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
@@ -1522,9 +1532,9 @@ SConsBuildFramework options:
 
 		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
 		### TODO: .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?
-		filesFromSrc		= []
-		filesFromInclude	= []
-		filesFromShare		= []
+		filesFromSrc			= []
+		filesFromInclude		= []
+		#filesFromShare			= []
 
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
 
@@ -1534,7 +1544,52 @@ SConsBuildFramework options:
 		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|inl|h)$" )
 		#searchFiles1( 'include', ['.svn'], ['.hpp','.hxx','.h'], filesFromInclude )
 
-		searchFiles( 'share',	filesFromShare,		['.svn'], r"^[^_]+.*$" )
+		filesFromShareToFilter = []
+		searchFiles( 'share', filesFromShareToFilter, ['.svn'], r"^[^_]+.*$" )
+
+		## shareBuild (share build stage)
+
+		# Computes filters and command
+		filters = lenv['shareBuild'][0]
+		command = lenv['shareBuild'][1]
+		if len(filters) > 0 :
+			if isinstance(command, str):
+				if command in lenv['userDict']:
+					command = lenv['userDict'][command]
+				else:
+					print "Skip share build stage, because userDict[{0}] is not defined.".format( command )
+					filters = []
+					command = ('','','')
+			else:
+				command = lenv['shareBuild'][1]
+
+		# Apply filters to filesFromShareToFilter => constructs filesFromShare and filesFromShareToBuild
+		if len(filters) > 0:
+			filesFromShare			= []
+			filesFromShareToBuild	= []
+			for file in filesFromShareToFilter:
+				for filter in filters:
+					if fnmatch.fnmatch(file, filter):
+						filesFromShareToBuild.append( file )
+						break
+				else:
+					filesFromShare.append( file )
+		else:
+			filesFromShare			= filesFromShareToFilter
+			filesFromShareToBuild	= []
+
+		# Adds share build stage in 'build' target
+		filesFromShareBuilt = []	# list of files to install in 'share'
+		for file in filesFromShareToBuild:
+			inputFile = os.path.join(self.myProjectPathName, file)
+# @todo check ${SOURCE}
+			outputFile = command[1].replace('${SOURCE}', file, 1)
+			outputFile = outputFile.replace('share', os.path.join(self.myProjectBuildPath, self.myProject, 'share'), 1 )
+			if len(command)==3:
+				Alias( 'build', lenv.Command(outputFile, inputFile, Action(command[0], command[2]) ) )
+			else:
+				Alias( 'build', lenv.Command(outputFile, inputFile, command[0]) )
+			filesFromShareBuilt.append( outputFile )
 
 		objFiles = []
 		if		self.myType in ['exec', 'static'] :
@@ -1599,7 +1654,6 @@ SConsBuildFramework options:
 		installInBinTarget		= []
 		installInIncludeTarget	= []
 		installInLibTarget		= []
-		installInShareTarget	= filesFromShare
 
 		if		self.myType == 'exec' :
 			projectTarget			=	lenv.Program( objProject, objFiles )
@@ -1674,9 +1728,14 @@ SConsBuildFramework options:
 			installTarget.append( MSVSProjectBuildTarget )
 
 		# @todo Copy empty directory => rsync ?
-		for file in installInShareTarget :
+		# install in 'share'
+		for file in filesFromShare:
 			installTarget += lenv.InstallAs(	file.replace('share', self.getShareInstallDirectory(), 1),
 												os.path.join(self.myProjectPathName, file) )
+		for fileAbs in filesFromShareBuilt:
+			fileRel = fileAbs[ fileAbs.index('share') : ]
+			targetFile = fileRel.replace('share', self.getShareInstallDirectory(), 1 )
+			installTarget += lenv.InstallAs( targetFile, fileAbs )
 
 		#
 		Alias( self.myProject + '_install_print', lenv.Command('dummy_install_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printInstall ) ) )
@@ -1689,43 +1748,9 @@ SConsBuildFramework options:
 		### myProject
 		aliasProject = Alias( self.myProject, aliasProjectInstall )
 
-#===============================================================================
-#		### myProject_vcprojog
-#		### TODO: Adds vcproj files to clean/mrproper
-#		### TODO: Adds target vcsln
-#		if len(MSVSProjectBuildTarget) > 0 :
-#			env.Alias(	self.myProject + '_vcprojog_print',
-#						lenv.Command(	'dummy_vcprojog_print' + self.myProject + 'out1', 'dummy.in',
-#										Action( nopAction, printVisualStudioProjectBuild ) ) )
-#
-#			vcprojFile		= os.path.join( self.myProjectPathName, self.myProject + 'og' ) + env['MSVSPROJECTSUFFIX']
-#			optionsFiles	= glob.glob( self.myProjectPathName + os.sep + '*.options' )
-#
-#			if self.myConfig == 'release' :
-#				MSVSProjectVariant = ['Release']
-#			else :
-#				MSVSProjectVariant = ['Debug']
-#
-#			vcprojTarget = env.MSVSProject(
-#								target		= vcprojFile,
-#								srcs		= filesFromSrc,
-#								incs		= filesFromInclude,
-#								resources	= filesFromShare,
-#								misc		= optionsFiles,
-#								buildtarget = MSVSProjectBuildTarget[0],
-#								variant		= MSVSProjectVariant,
-#								auto_build_solution = 0 )
-#
-#			aliasVCProjTarget = env.Alias( self.myProject + '_vcprojog', self.myProject + '_vcprojog_print' )
-#			env.Alias( self.myProject + '_vcprojog', vcprojTarget )
-#			###### target vcprojog ######
-#			env.Alias( 'vcprojog', aliasVCProjTarget )
-#		# else no build target, so do nothing
-#===============================================================================
-
 		### myProject_clean
 
-		### FIXME																					printClean does'nt work ??? modified behavior when clean=1 ?
+		### FIXME printClean does'nt work ??? modified behavior when clean=1 ?
 		#env.Alias( self.myProject + '_clean_print', lenv.Command('dummy_clean_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
 		#env.Alias( self.myProject + '_clean_print', lenv.Command('dummy_clean_print' + self.myProject + 'out2', 'dummy.in', Action( nopAction, printClean ) ) )
 		#env.AlwaysBuild( self.myProject + '_clean_print' )
@@ -1872,7 +1897,7 @@ SConsBuildFramework options:
 		if versionMatch:
 			return versionMatch.groups()
 		else:
-			raise SCons.Errors.UserError("Given version:{0}.\nThe project version must follow the schemas major-minor-[postfix] or major-minor-maintenance[-postfix].".format(versionStr) )
+			raise SCons.Errors.UserError("Given version:{0}.\nThe project version must follow the schema major-minor-[postfix] or major-minor-maintenance[-postfix].".format(versionStr) )
 
 
 	###
