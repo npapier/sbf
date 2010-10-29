@@ -564,6 +564,12 @@ def configureZipAndNSISTargets( env ):
 				runtimeZipFiles += InstallAs(	file.replace('share', runtimeDestPath, 1), sourceFile )
 				portableZipFiles+= InstallAs(	file.replace('share', portableDestPath, 1), sourceFile )
 
+			# Processes the built share directory
+			for fileAbs in lenv.get('sbf_shareBuilt', []):
+				fileRel = fileAbs[ fileAbs.index('share') : ]
+				runtimeZipFiles += InstallAs(	fileRel.replace('share', runtimeDestPath, 1), fileAbs )
+				portableZipFiles+= InstallAs(	fileRel.replace('share', portableDestPath, 1), fileAbs )
+
 			# Processes the info files.
 			for file in lenv.get('sbf_info', []):
 				runtimeZipFiles += Install( runtimeDestPath, file )
