@@ -1557,7 +1557,7 @@ SConsBuildFramework options:
 				if command in lenv['userDict']:
 					command = lenv['userDict'][command]
 				else:
-					print "Skip share build stage, because userDict[{0}] is not defined.".format( command )
+					if lenv.GetOption('verbosity'):		print "Skip share build stage, because userDict[{0}] is not defined.".format( command )
 					filters = []
 					command = ('','','')
 			else:
@@ -1567,9 +1567,11 @@ SConsBuildFramework options:
 		if len(filters) > 0:
 			filesFromShare			= []
 			filesFromShareToBuild	= []
+			filters = [ (os.path.dirname(getNormalizedPathname(filter)), os.path.basename(filter)) for filter in filters ]
 			for file in filesFromShareToFilter:
-				for filter in filters:
-					if fnmatch.fnmatch(file, filter):
+				for (directoryFilter, fileFilter) in filters:
+					if	directoryFilter == os.path.dirname(file) and \
+						fnmatch.fnmatch(file, fileFilter):
 						filesFromShareToBuild.append( file )
 						break
 				else:
