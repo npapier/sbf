@@ -30,7 +30,7 @@ def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command
 	@todo version and platform"""
 	shareBuildCommand = (	'blowfish_0-0_win32_cl9-0Exp.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
-							'${SOURCE}.encrypted', 'Encrypt ${SOURCE}.file' )
+							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
 
 def sbfPrintCmdLine( cmd, target, src, env ):
@@ -1783,7 +1783,11 @@ SConsBuildFramework options:
 		### Configures lenv
 		lenv['sbf_bin']							= []
 		lenv['sbf_include']						= filesFromInclude
+
+# @todo unify lenv['sbf_share'] and lenv['sbf_shareBuilt'] in lenv['sbf_share']
 		lenv['sbf_share']						= filesFromShare
+		lenv['sbf_shareBuilt']					= filesFromShareBuilt
+
 		lenv['sbf_src']							= filesFromSrc
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
