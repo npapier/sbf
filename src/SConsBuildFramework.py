@@ -1571,7 +1571,7 @@ SConsBuildFramework options:
 			for file in filesFromShareToFilter:
 				fileSplitted = os.path.split(file)
 				for (directoryFilter, fileFilter) in filters:
-					if	fileSplitted[0]== directoryFilter and \
+					if	fnmatch.fnmatch(fileSplitted[0], directoryFilter) and \
 						fnmatch.fnmatch(fileSplitted[1], fileFilter):
 						filesFromShareToBuild.append( file )
 						break
