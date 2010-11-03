@@ -35,12 +35,14 @@ To create the zip file:
 	* update "projetFolderName" variable in opencollada.py file.
 '''
 
+descriptorName = 'opencollada'
+descriptorVersion = '768'
+
 cmdVcprojPatcher = """python ../../../../mkdb/details/opencolladaPatcher.py"""
 if CCVersionNumber == 9: 
 	vcexpress = r"C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe"
 	sbfPath = os.getenv("SCONS_BUILD_FRAMEWORK")
-	projetFolderName = 'opencollada'
-	sln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName + '768', projetFolderName, 'OpenCOLLADA.sln' )
+	sln = os.path.join( sbfPath, 'pak', 'var', 'build', descriptorName + descriptorVersion, descriptorName, 'OpenCOLLADA.sln' )
 	cmdDebug = "\"{0}\" {1} /build Debug_Max2010 /out outDebug.txt".format(vcexpress, sln)
 	cmdRelease = "\"{0}\" {1} /build Release_Max2010 /out outRelease.txt".format(vcexpress, sln)	
 else:
@@ -55,16 +57,14 @@ descriptor = {
 
  'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada.zip" ], # MSVC solution + patch files.
 
- 'rootBuildDir'	: 'opencollada',
+ 'rootBuildDir'	: descriptorName,
  'builds'		: [	cmdVcprojPatcher, cmdDebug, cmdRelease ],
 
- 'name'			: 'opencollada',
- 'version'		: '768',
+ 'name'			: descriptorName,
+ 'version'		: descriptorVersion,
 
- 'rootDir'		: 'opencollada',
- 
+ 'rootDir'		: descriptorName,
  'license'		: [('COLLADAMax/LICENSE')],
- 
  'include'		: [	('COLLADAFramework/include/', 'opencollada/COLLADAFramework/'),
 					('COLLADABaseUtils/include/', 'opencollada/COLLADABaseUtils/'),
 					('COLLADASaxFrameworkLoader/include/', 'opencollada/COLLADASaxFrameworkLoader/'),
@@ -75,7 +75,6 @@ descriptor = {
 					('Externals/pcre/include/', 'opencollada/pcre/'),
 					('common/libBuffer/include', 'opencollada/libBuffer/'),
 					('common/libftoa/include', 'opencollada/libftoa/')],
-
  'lib'			: [	'COLLADAFramework/lib/win/Win32/Release/*.lib',
 					('COLLADAFramework/lib/win/Win32/Debug/COLLADAFramework.lib', 'COLLADAFramework-d.lib'),
 					'COLLADABaseUtils/lib/win/Win32/Release/*.lib',
