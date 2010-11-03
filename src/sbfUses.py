@@ -271,6 +271,15 @@ class IUse :
 
 ### Several IUse implementation ###
 
+class Use_adl( IUse ):
+	def getName( self ):
+		return 'adl'
+
+	def getVersions( self ):
+		return [ '3-0' ]
+
+	def getLIBS( self, version ):
+		return [], []
 
 
 
@@ -327,6 +336,14 @@ class Use_boost( IUse ):
 									'boost_python-vc90-mt-1_44', 'boost_random-vc90-mt-1_44', 'boost_regex-vc90-mt-1_44', 'boost_serialization-vc90-mt-1_44',
 									'boost_signals-vc90-mt-1_44', 'boost_system-vc90-mt-1_44', 'boost_thread-vc90-mt-1_44',
 									'boost_unit_test_framework-vc90-mt-1_44', 'boost_wave-vc90-mt-1_44', 'boost_wserialization-vc90-mt-1_44' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [	'boost_date_time-vc80-mt-1_44', 'boost_filesystem-vc80-mt-1_44', 'boost_graph-vc80-mt-1_44',
+									'boost_iostreams-vc80-mt-1_44', 'boost_math_c99-vc80-mt-1_44', 'boost_math_c99f-vc80-mt-1_44',
+									'boost_math_c99l-vc80-mt-1_44', 'boost_math_tr1-vc80-mt-1_44', 'boost_math_tr1f-vc80-mt-1_44',
+									'boost_math_tr1l-vc80-mt-1_44', 'boost_prg_exec_monitor-vc80-mt-1_44', 'boost_program_options-vc80-mt-1_44',
+									'boost_python-vc80-mt-1_44', 'boost_random-vc80-mt-1_44', 'boost_regex-vc80-mt-1_44', 'boost_serialization-vc80-mt-1_44',
+									'boost_signals-vc80-mt-1_44', 'boost_system-vc80-mt-1_44', 'boost_thread-vc80-mt-1_44',
+									'boost_unit_test_framework-vc80-mt-1_44', 'boost_wave-vc80-mt-1_44', 'boost_wserialization-vc80-mt-1_44' ]
 					else:
 						return
 				else:
@@ -346,9 +363,17 @@ class Use_boost( IUse ):
 									'boost_python-vc90-mt-gd-1_44',  'boost_random-vc90-mt-gd-1_44', 'boost_regex-vc90-mt-gd-1_44', 'boost_serialization-vc90-mt-gd-1_44',
 									'boost_signals-vc90-mt-gd-1_44', 'boost_system-vc90-mt-gd-1_44', 'boost_thread-vc90-mt-gd-1_44',
 									'boost_unit_test_framework-vc90-mt-gd-1_44', 'boost_wave-vc90-mt-gd-1_44', 'boost_wserialization-vc90-mt-gd-1_44' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						pakLibs = [	'boost_date_time-vc80-mt-gd-1_44', 'boost_filesystem-vc80-mt-gd-1_44', 'boost_graph-vc80-mt-gd-1_44',
+									'boost_iostreams-vc80-mt-gd-1_44', 'boost_math_c99-vc80-mt-gd-1_44', 'boost_math_c99f-vc80-mt-gd-1_44',
+									'boost_math_c99l-vc80-mt-gd-1_44', 'boost_math_tr1-vc80-mt-gd-1_44', 'boost_math_tr1f-vc80-mt-gd-1_44',
+									'boost_math_tr1l-vc80-mt-gd-1_44', 'boost_prg_exec_monitor-vc80-mt-gd-1_44', 'boost_program_options-vc80-mt-gd-1_44',
+									'boost_python-vc80-mt-gd-1_44',  'boost_random-vc80-mt-gd-1_44', 'boost_regex-vc80-mt-gd-1_44', 'boost_serialization-vc80-mt-gd-1_44',
+									'boost_signals-vc80-mt-gd-1_44', 'boost_system-vc80-mt-gd-1_44', 'boost_thread-vc80-mt-gd-1_44',
+									'boost_unit_test_framework-vc80-mt-gd-1_44', 'boost_wave-vc80-mt-gd-1_44', 'boost_wserialization-vc80-mt-gd-1_44' ]
 					else:
 						return
-				return [], pakLibs		
+				return [], pakLibs
 			elif version == '1-43-0':
 				# autolinking, so nothing to do.
 				if self.config == 'release' :
@@ -1216,7 +1241,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
 					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
