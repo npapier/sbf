@@ -1407,8 +1407,7 @@ class Use_gtkmm( IUse ):
 		return 'gtkmm'
 
 	def getVersions( self ):
-		return [ '2-16-0', '2-22-0', '2-14-3', '2-14-1' ]
-		#return [ '2-22-0', '2-16-0', '2-14-3', '2-14-1' ]
+		return [ '2-22-0', '2-16-0', '2-14-3', '2-14-1' ]
 
 
 	def getCPPDEFINES( self, version ):
