@@ -124,27 +124,6 @@ class gtkConfig:
 		return cls.__gtkmmBasePath
 
 
-#===============================================================================
-# OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
-#					'cairo1-2-6', 'cairomm1-2-4', 'colladadom2-0', 'glu', 'glut', 'itk3-4-0', 'ode',
-#					'physx2-8-1', 'sdl']
-#					# cg|cgFX|imageMagick6|imageMagick++6
-#===============================================================================
-#OptionUses_allowedValues = [	### @todo allow special values like '', 'none', 'all'
-#					 ]
-					# cg|cgFX|imageMagick6|imageMagick++6
-
-#===============================================================================
-# OptionUses_alias = {
-#		'cairo'			: 'cairo1-2-6',
-#		'cairomm'		: 'cairomm1-2-4',
-#		'colladadom'	: 'colladadom2-0',
-#		'itk'			: 'itk3-4-0',
-#		'physx'			: 'physx2-8-1',
-#		'wx'			: 'wx2-8-8',
-#		'wxgl'			: 'wxgl2-8-8' }
-#===============================================================================
-
 ###
 # @todo licences
 class IUse :
@@ -1232,9 +1211,8 @@ class UseRepository :
 
 	__repository	= {}
 
-	__allowedValues = [	'cairomm1-2-4', 'ode', 'physx2-8-1' ]
+	__allowedValues = [	'physx2-8-1' ]
 	__alias			= {
-			'cairomm'		: 'cairomm1-2-4',
 			'physx'			: 'physx2-8-1'	}
 
 	__initialized	= False
@@ -1357,40 +1335,6 @@ def usesConverter( val ) :
 	return result
 
 ###### use_package (see option named 'uses') ######
-def use_cairomm( self, lenv, elt ) :
-	# Configures cairo
-# ??? use_cairo( self, lenv, elt ) ???
-
-	# Retrieves GTKMM_BASEPATH
-	gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
-	if gtkmmBasePath is None :
-		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
-
-	# Sets CPPPATH
-	gtkmmCppPath = ['include/cairomm-1.0']
-
-	if lenv.GetOption('weak_localext') :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(gtkmmBasePath, cppPath)] )
-	else :
-		for cppPath in gtkmmCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(gtkmmBasePath, cppPath) )
-
-	# Sets LIBS and LIBPATH
-	if self.myPlatform == 'win32' :
-		if self.myConfig == 'release' :
-			lenv.AppendUnique( LIBS = [	'cairomm-1.0' ] )
-		else:
-			lenv.AppendUnique( LIBS = [	'cairomm-1.0d' ] )
-#			lenv.AppendUnique( LIBS = [	'cairomm-vc80-1_0' ] )
-#		else:
-#			lenv.AppendUnique( LIBS = [	'cairomm-vc80-d-1_0' ] )
-
-		lenv.AppendUnique( LIBPATH = [ os.path.join(gtkmmBasePath, 'lib') ] )
-	else :
-		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
-
-
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 # @todo support pakLibs
@@ -1697,16 +1641,8 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 			if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
 				lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
-		### configure cairomm ###
-		if elt == 'cairomm1-2-4' :
-			use_cairomm( self, lenv, elt )
-
-		### configure ODE ###
-		elif elt == 'ode' :
-			lenv['LIBS'] += ['ode']
-
 		### configure PhysX ###
-		elif elt == 'physx2-8-1' :
+		if elt == 'physx2-8-1' :
 			use_physx( self, lenv, elt )
 
 #===============================================================================
