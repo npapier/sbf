@@ -206,6 +206,7 @@ class SConsBuildFramework :
 	myFailedVcsProjects				= set()
 	myParsedProjects				= {}
 	myParsedProjectsSet				= set()
+	myParsedProjectsList			= []
 	# @todo checks usage of myBuiltProjects instead of myParsedProjects
 	myBuiltProjects					= {}
 
@@ -1370,6 +1371,7 @@ SConsBuildFramework options:
 				# Adds the new environment
 				self.myParsedProjects[self.myProject] = lenv
 				self.myParsedProjectsSet.add( self.myProject.lower() )
+				self.myParsedProjectsList.append( self.myProject )
 			else:
 				raise SCons.Errors.UserError("Unable to find 'default.options' file for project %s in directory %s." % (self.myProject, self.myProjectPath) )
 		else:
@@ -1412,7 +1414,7 @@ SConsBuildFramework options:
 			normalizedDependency			= getNormalizedPathname( projectPathName + os.sep + dependency )
 			incomingProjectName				= os.path.basename(normalizedDependency)
 			lowerCaseIncomingProjectName	= incomingProjectName.lower()
-			if	lowerCaseIncomingProjectName not in self.myParsedProjectsSet:
+			if lowerCaseIncomingProjectName not in self.myParsedProjectsSet:
 				# dependency not already encountered
 				#print ('buildProject %s' % normalizedDependency)
 				if incomingProjectName not in self.myFailedVcsProjects:

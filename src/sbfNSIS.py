@@ -3,8 +3,6 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-from __future__ import with_statement
-
 from os.path import join, splitext
 
 from src.sbfArchives import extractArchive, isExtractionSupported
@@ -33,10 +31,11 @@ def nsisGeneration( target, source, env ):
 		# Retrieves informations (all executables, ...)
 		products	= []
 		executables	= []
-		for projectName in env.sbf.myParsedProjects :
+		rootProject	= ''
+		for projectName in env.sbf.myParsedProjectsList :
 			lenv = env.sbf.myParsedProjects[projectName]
 			if lenv['type'] == 'exec' :
-				print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
+				#print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
 				if len(products) == 0:
 					rootProject = lenv['sbf_project']
 				products.append( capitalize(lenv['sbf_project']) + lenv.sbf.my_PostfixLinkedToMyConfig )
@@ -49,22 +48,28 @@ def nsisGeneration( target, source, env ):
 		PRODUCTNAME += "!define PRODUCTNAME	${PRODUCTNAME0}\n"
 
 		# Generates PRODUCTEXE, SHORTCUT, DESKTOPSHORTCUT, QUICKLAUNCHSHORTCUT, UNINSTALL_SHORTCUT, UNINSTALL_DESKTOPSHORTCUT and UNINSTALL_QUICKLAUNCHSHORTCUT
-		PRODUCTEXE	= ''
+		PRODUCTEXE						= ''
+		SHORTCUT						= ''
+		DESKTOPSHORTCUT					= ''
+		QUICKLAUNCHSHORTCUT				= ''
+		UNINSTALL_SHORTCUT				= ''
+		UNINSTALL_DESKTOPSHORTCUT		= ''
+		UNINSTALL_QUICKLAUNCHSHORTCUT	= ''
 		if len(executables) > 1 :
 			SHORTCUT = '  CreateDirectory \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
 			UNINSTALL_SHORTCUT	=	'  Delete "$SMPROGRAMS\\${PRODUCTNAME}\\tools\\*.*\"\n'
 			UNINSTALL_SHORTCUT	+=	'  RMDir "$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
-		else:
-			SHORTCUT			= ''
-			UNINSTALL_SHORTCUT	= ''
 
 		for (i, executable) in enumerate(executables) :
 			PRODUCTEXE	+=	"!define PRODUCTEXE{0}	\"{1}\"\n".format( i, executable)
 			if i > 0:
+				SHORTCUT	+=	'  SetOutPath \"$INSTDIR\\bin\"\n'
 				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
 			else:
+				SHORTCUT						=	'  SetOutPath \"$INSTDIR\\bin\"\n'
 				SHORTCUT						+=	'  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
-				DESKTOPSHORTCUT					=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				DESKTOPSHORTCUT					=	'  SetOutPath \"$INSTDIR\\bin\"\n'
+				DESKTOPSHORTCUT					+=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
 				QUICKLAUNCHSHORTCUT				=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
 				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
 				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
@@ -72,13 +77,13 @@ def nsisGeneration( target, source, env ):
 		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
 
 		# Generates ICON
+		ICON = "; no icon"
 		if rootProject:
 			lenv = env.sbf.myParsedProjects[rootProject]
 			iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
 			if os.path.exists( iconFile ):
 				ICON = 'Icon "{0}"'.format( iconFile )
-			else:
-				ICON = "; no icon"
+			#else: ICON = "; no icon"
 
 		str_sbfNSISTemplate = """\
 ; sbfNSISTemplate.nsi

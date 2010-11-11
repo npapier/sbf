@@ -17,4 +17,3 @@ SConsEnvironment.sbf.myCurrentLocalEnv.Append( LINKFLAGS = ['/SUBSYSTEM:WINDOWS'
 sbf = SConsEnvironment.sbf
 
 userDict = SConsEnvironment.sbf.myEnv['userDict']
-
