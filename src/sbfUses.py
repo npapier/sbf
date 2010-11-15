@@ -1022,7 +1022,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return 'sofa'
 
 	def getCPPDEFINES( self, version ):
-		return ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE']
+		return ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
 
 	def getCPPFLAGS( self, version ):
 		if self.platform == 'win32' :
@@ -1047,7 +1047,7 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 
-			libsBoth = ['BeamAdapter', 'sofacomponentfem', 'sofacomponentfemfetype', 'sofacomponentfemforcefield', 'sofacomponentfemmaterial', 'sofacomponentfemstraintensor', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
+			libsBoth = ['BeamAdapter', 'sofacomponentfem', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
 						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
