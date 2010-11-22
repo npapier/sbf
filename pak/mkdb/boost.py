@@ -25,22 +25,22 @@ else:
 descriptor = {
  'urls'			: [	#"http://sourceforge.net/projects/boost/files/boost-jam/3.1.17/boost-jam-3.1.17-1-ntx86.zip/download",
 
- 					"http://sourceforge.net/projects/boost/files/boost/1.44.0/boost_1_44_0.tar.bz2/download"
+ 					"http://sourceforge.net/projects/boost/files/boost/1.45.0/boost_1_45_0.tar.bz2/download"
  					#"http://sourceforge.net/projects/boost/files/boost/1.43.0/boost_1_43_0.tar.bz2/download"
  					#"http://sourceforge.net/projects/boost/files/boost/1.42.0/boost_1_42_0.tar.bz2/download"
  					#"http://sourceforge.net/projects/boost/files/boost/1.41.0/boost_1_41_0.tar.bz2/download"
  					#"http://sourceforge.net/projects/boost/files/boost/1.40.0/boost_1_40_0.tar.bz2/download"
  					],
 
- 'rootBuildDir'	: 'boost_1_44_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
+ 'rootBuildDir'	: 'boost_1_45_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
  'builds'		: build,
 
  'name'			: 'boost',
- 'version'		: '1-44-0', #'1-43-0', #'1-42-0', # '1-41-0', #'1-40-0',
+ 'version'		: '1-45-0', #'1-43-0', #'1-42-0', # '1-41-0', #'1-40-0',
 
- 'rootDir'		: 'boost_1_44_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
+ 'rootDir'		: 'boost_1_45_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
  'license'		: ['LICENSE_1_0.txt'],
- 'include'		: [('boost', 'boost1-44-0/boost/')],
+ 'include'		: [('boost', 'boost1-45-0/boost/')],
  #'include'		: [('boost', 'boost1-43-0/boost/')],
  #'include'		: [('boost', 'boost1-42-0/boost/')],
  #'include'		: [('boost', 'boost1-41-0/boost/')],
@@ -49,5 +49,5 @@ descriptor = {
 }
 
 # @todo pprint()
-# info boost1-44-0_win32_cl9-0Exp.zip mt-gd-1_44
-# info boost1-44-0_win32_cl9-0Exp.zip mt-1_44
+# info boost1-45-0_win32_cl9-0Exp.zip mt-gd-1_45
+# info boost1-45-0_win32_cl9-0Exp.zip mt-1_45
