@@ -178,7 +178,7 @@ class IUse :
 
 	# for packager
 	def getLicenses( self, version ):
-		return []
+		return
 
 	def getRedist( self, version ):
 		"""Returns the redistributable to include in nsis setup program. A redistributable must be a zip file or an executable available in SCONS_BUILD_FRAMEWORK/rc/nsis/ directory"""
@@ -787,6 +787,8 @@ class Use_opengl( IUse ):
 			libs = ['GL']
 			return libs, []
 
+	def getLicenses( self, version ):
+		return []
 
 
 class Use_itk( IUse ):
@@ -932,6 +934,8 @@ class Use_glu( IUse ):
 			libs = ['GLU']
 			return libs, libs
 
+	def getLicenses( self, version ):
+		return []
 
 
 class Use_glm( IUse ):
