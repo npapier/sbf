@@ -3,8 +3,6 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-global isSubversionAvailable
-
 try:
 	from sbfSubversion import Subversion
 	isSubversionAvailable = True

@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,6 +9,7 @@ import glob
 import sbfIVersionControlSystem
 import os
 import re
+import string
 import time
 
 from sbfFiles import *
@@ -16,14 +17,27 @@ from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
 
+from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
+from sbfUI import askQuestion
+from sbfUses import getPathsForSofa
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUses import Use_cairo, Use_gtkmm, Use_gtkmmext, Use_itk
 from sbfUtils import *
 from sbfVersion import printSBFVersion
 
-from SCons.Environment import *
-from SCons.Options import *
-from SCons.Script import *
+# To be able to use SConsBuildFramework.py without SCons
+try:
+	from SCons.Environment import *
+	from SCons.Options import *
+	from SCons.Script import *
+except ImportError as e:
+	print ('sbfWarning: unable to import SCons.[Environment,Options,Script]')
+
+# To be able to use sbfUses.py without SCons
+try:
+	from SCons.Tool.MSCommon.vc import cached_get_installed_vcs
+except ImportError as e:
+	pass
 
 
 def createBlowfishShareBuildCommand( key ):
@@ -106,7 +120,6 @@ class SConsBuildFramework :
 	# sbf environment
 	mySCONS_BUILD_FRAMEWORK			= ''
 	mySbfLibraryRoot				= ''
-	myVcs							= None
 	myExcludeFromInheritedUsesSet	= set()
 
 	# SCons environment
@@ -140,6 +153,7 @@ class SConsBuildFramework :
 	myTime							= ''
 	myDateTime						= ''
 	myDateTimeForUI					= ''
+	myVcs							= None
 	myPlatform						= ''
 	myCC							= ''			# cl, gcc
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
@@ -152,7 +166,7 @@ class SConsBuildFramework :
 	# Global attributes from .SConsBuildFramework.options or computed from it
 	myNumJobs						= 1
 	myCompanyName					= ''
-	mySvnUrls						= []
+	mySvnUrls						= {}
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
 	myInstallPaths					= []
@@ -224,12 +238,6 @@ class SConsBuildFramework :
 		# Sets the root directory of sbf library
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
 
-		# Sets the vcs subsystem (at this time only svn is supported).
-		if isSubversionAvailable:
-			self.myVcs = Subversion( self )
-		else:
-			self.myVcs = sbfIVersionControlSystem.IVersionControlSystem()
-
 		# a project inherits 'uses' from its dependencies.
 		# But not for all (cairo, gtkmm and itk), so the uses set that must be excluded must be built
 		self.myExcludeFromInheritedUsesSet = set()
@@ -243,50 +251,44 @@ class SConsBuildFramework :
 
 		if os.path.isfile(homeSConsBuildFrameworkOptions) :
 			# Reads from your home directory.
-			self.mySBFOptions = self.readSConsBuildFrameworkOptions( homeSConsBuildFrameworkOptions )
+			currentSConsBuildFrameworkOptions = homeSConsBuildFrameworkOptions
 		else :
 			# Reads from $SCONS_BUILD_FRAMEWORK directory.
-			self.mySBFOptions = self.readSConsBuildFrameworkOptions( os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' ) )
+			currentSConsBuildFrameworkOptions = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' )
+		self.mySBFOptions = self.readSConsBuildFrameworkOptions( currentSConsBuildFrameworkOptions )
 
 		# Constructs SCons environment.
-		tmpEnv = Environment( options = self.mySBFOptions )
+		tmpEnv = Environment( options = self.mySBFOptions, tools=[] )
 
-		if tmpEnv['PLATFORM'] == 'win32' :
-			# Tests existance of cl
-			if len(tmpEnv['MSVS']['VERSIONS']) == 0 :
-				print 'sbfError: no version of cl is available.'
-				Exit( 1 )
+		if tmpEnv['PLATFORM'] == 'win32':
+			myTools = ['msvc', 'mslib', 'mslink', 'mssdk']
+			myTargetArch = 'x86'
+			if tmpEnv['clVersion'] != 'highest':
+				myMsvcVersion = tmpEnv['clVersion']
+				# Tests existance of the desired version of cl
+				if myMsvcVersion not in cached_get_installed_vcs():
+					print ('sbfError: clVersion sets to {0}'.format(myMsvcVersion))
+					print ('The installed versions of cl are {0}'.format(sorted(cached_get_installed_vcs())))
+					Exit(1)
+			else:
+				myMsvcVersion = None
 
-			# Tests existance of the desired version of cl
-			if tmpEnv['clVersion'] not in tmpEnv['MSVS']['VERSIONS'] and tmpEnv['clVersion'] != 'highest' :
-				print 'sbfError: clVersion sets to', tmpEnv['clVersion'],
-				if len(tmpEnv['MSVS']['VERSIONS']) == 1 :
-					print ', available version is ', tmpEnv['MSVS']['VERSIONS']
-				else :
-					print ', available versions are ', tmpEnv['MSVS']['VERSIONS']
-				Exit( 1 )
+			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = myTargetArch, MSVC_VERSION = myMsvcVersion )
 
-			# There is no more case of errors.
-			if tmpEnv['clVersion'] == 'highest' :
-				self.myEnv = tmpEnv
-			else :
-				self.myEnv = Environment( options = self.mySBFOptions, MSVS_VERSION = tmpEnv['clVersion'] )
-				# TODO Environment is construct two times. This is done just to be able to read 'clVersion' option. OPTME see below :
-				# env["MSVS"] = {"VERSION": "8.0"}
-				# env["MSVS_VERSION"] = "8.0"
-				# Tool("msvc")(env)
 
 			pathFromEnv = os.environ['PATH'] ### @todo uses getInstallPath() on win32 to FIXME not very recommended
 			if pathFromEnv != None:
 				self.myEnv['ENV']['PATH'] += pathFromEnv
-			#print "self.myEnv['MSVS']", self.myEnv['MSVS']
-			#print 'self.myEnv[MSVS_VERSION]', self.myEnv['MSVS_VERSION']
 		else:
-			self.myEnv = tmpEnv
+			self.myEnv = Environment( options = self.mySBFOptions )
+
+		# export SCONS_MSCOMMON_DEBUG=ms.log
+		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
+		# print self.myEnv.Dump()
 
 		# Configures command line max length
-		if self.myEnv['PLATFORM'] == 'win32' :
-#			self.myEnv['MSVC_BATCH'] = True													# ?????????
+		if self.myEnv['PLATFORM'] == 'win32':
+			#self.myEnv['MSVC_BATCH'] = True # @todo wait improvement in SCons (better control of scheduler => -j8 and /MP8 => 8*8 processes !!! ).
 			# @todo adds windows version helpers in sbf
 			winVerTuple	= sys.getwindowsversion()
 			winVerNumber= self.computeVersionNumber( [winVerTuple[0], winVerTuple[1]] )
@@ -355,7 +357,7 @@ class SConsBuildFramework :
 					action	= "store_true",
 					#dest	= "fast",
 					default	= False,
-					help	= "todo documentation"
+					help	= "Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that SCons will not rebuild correctly the project in several rare cases." # this comment is duplicated in Help()
 					)
 
 		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
@@ -364,8 +366,6 @@ class SConsBuildFramework :
 					dest	= "verbosity",
 					default	= False,
 					help	= "Shows details about the results of running sbf. This can be especially useful when the results might not be obvious." )
-
-#		print self.myEnv.Dump()
 
 		# @todo FIXME : It is disabled, because it doesn't work properly
 		# Log into a file the last scons outputs (stdout and stderr) for a project
@@ -387,12 +387,18 @@ class SConsBuildFramework :
 
 		self.myDateTimeForUI = time.strftime( '%d-%b-%Y %H:%M:%S', currentTime )
 
+		# Sets the vcs subsystem (at this time only svn is supported).
+		if isSubversionAvailable:
+			self.myVcs = Subversion( self )
+		else:
+			self.myVcs = sbfIVersionControlSystem.IVersionControlSystem()
+
 		# Prints sbf version, date and time at sbf startup
 		if self.myEnv.GetOption('verbosity') :
 			printSBFVersion()
 			print 'started', self.myDateTimeForUI
 
-		# Retrieves all targets
+		# Retrieves all targets (normalized in lower case)
 		self.myBuildTargets = []
 		for buildTarget in BUILD_TARGETS:
 			buildTarget = str(buildTarget).lower()
@@ -402,21 +408,12 @@ class SConsBuildFramework :
 		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
 		self.myBuildTargets = set(self.myBuildTargets)
 
-		# Takes care of alias definition needed for command line options.
-		mustAddAlias = True
-		for target in self.myBuildTargets :
-			if target not in self.myCmdLineOptions :
-				mustAddAlias = False
-				break
-
 		Alias( 'all' )
 		Default( 'all' )
-		Alias( self.myCmdLineOptionsList )
-		if mustAddAlias :
-			Alias( self.myCmdLineOptionsList, 'all' )
+		Alias( self.myCmdLineOptionsList, 'all' )
 
+		# 'clean' and 'mrproper'
 		#self.myGHasCleanOption = env.GetOption('clean')
-
 		# Sets clean=1 option if needed.
 		if (	'clean' in self.myBuildTargets or
 				'mrproper' in self.myBuildTargets	) :
@@ -461,7 +458,7 @@ class SConsBuildFramework :
 
 
 		# myPlatform, myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
-		# myPlatform = win32 | cygwin  | posix | darwin				TODO: TOTHINK: posix != linux and bsd ?, env['PLATFORM'] != sys.platform
+		# myPlatform = win32 | cygwin  | posix | darwin				@todo TOTHINK: posix != linux and bsd ?, env['PLATFORM'] != sys.platform
 		self.myPlatform	= self.myEnv['PLATFORM']
 
 		# myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
@@ -474,7 +471,7 @@ class SConsBuildFramework :
 			# Step 2 : Extracts major and minor version
 			splittedCCVersion		=	ccVersion.split( '.', 1 )
 			# Step 3 : Computes version number
-			self.myCCVersionNumber = self.computeVersionNumber( splittedCCVersion )
+			self.myCCVersionNumber	= self.computeVersionNumber( splittedCCVersion )
 			# Constructs myCCVersion ( clMajor-Minor[Exp] )
 			self.myIsExpressEdition = self.myEnv['MSVS_VERSION'].find('Exp') != -1
 			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
@@ -482,6 +479,8 @@ class SConsBuildFramework :
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
 			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
+			if self.myEnv.GetOption('verbosity'):
+				print 'VC version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
 		elif self.myEnv['CC'] == 'gcc' :
 			# Sets compiler
 			self.myCC = 'gcc'
@@ -501,11 +500,31 @@ class SConsBuildFramework :
 
 		self.my_Platform_myCCVersion = '_' + self.myPlatform + '_' + self.myCCVersion
 
-		#
-		if self.myEnv.GetOption('fast') :
-			self.myEnv.Decider('MD5-timestamp')
-		else :
-			self.myEnv.Decider('MD5')
+		# Option 'fast'
+		if self.myEnv.GetOption('fast'):
+			#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
+			#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
+
+			# The drawback of MD5-timestamp is that SCons will not detect if a file's content 
+			# has changed but its timestamp is the same, as might happen in an automated script
+			# that runs a build, updates a file, and runs the build again, all within a single 
+			# second.
+			self.myEnv.Decider('MD5-timestamp')									# 29.8, 17.9
+
+			# implicit-cache instructs SCons to not rebuild "correctly" in the following cases:
+			# - SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH,).
+			#	This can lead to SCons not rebuilding a file if a change to $CPPPATH would normally cause a different,
+			#	same-named file from a different directory to be used.
+			# - SCons will not detect if a same-named file has been added to a directory that is earlier in the search 
+			#	path than the directory in which the file was found last time.
+			# =>	So obviously the only way to defeat implicit-cache is to change CPPPATH such that the set of files 
+			#		included changes without touching ANY files in the entire include tree (from mailing list).
+			self.myEnv.SetOption('implicit_cache', 1)							# 11.57, 11.4
+# @todo --implicit-deps-changed ?
+# @todo target incr with --implicit-deps-unchanged => incremental build
+			self.myEnv.SetOption('max_drift', 1)								# 11.57, 11.3
+		else:
+			self.myEnv.Decider('MD5')											# 34, 19.3
 
 		#
 		self.initializeGlobalsFromEnv( self.myEnv )
@@ -518,12 +537,27 @@ class SConsBuildFramework :
 			UseRepository.initialize( self )
 			UseRepository.add( UseRepository.getAll() )
 
+		# Updates PATH
+		toAppend = getPathsForTools()
+		#toPrepend = getPathsForSofa(False) + getPathsForRuntime(self)
+
+		print
+		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity'))
+		#prependToPATH( self.myEnv, toPrepend )
+		if self.myEnv.GetOption('verbosity'):
+			print
+
 		# Generates help
 		Help("""
 Type:
 SBF related targets
- 'scons sbfCheck' to check sbf and related tools installation.
+ 'scons sbfCheck' to check availability and version of sbf components and tools.
  'scons sbfPak' to launch sbf packaging system.
+ 'scons sbfConfigure' to add several paths to environment variable $PATH (windows platform only).
+ 'scons sbfUnconfigure' to remove paths installed by 'sbfConfigure' except sbf runtime paths.
+						It removes all non existing path in $PATH too.
+ 'scons sbfConfigureTools' to add several paths to environment variable $PATH (windows platform only).
+ 'scons sbfUnconfigureTools' to remove paths installed by 'sbfConfigureTools'.
 
 svn related targets
  'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
@@ -533,6 +567,12 @@ svn related targets
 	Typically because an administrator has moved the repository to another server, or to another URL on the same server or to change the access method (http <=> https or svn <=> svn+ssh)
  'scons svnStatus' to print the status of working copy files and directories.
  'scons svnUpdate' to update your working copy.
+
+ 'scons svnMkTag' to create a tag. See 'svnDefaultBranch' option.
+ 'scons svnRmTag' to remove a tag. See 'svnDefaultBranch' option.
+ 'scons svnMkBranch' to create a branch. See 'svnDefaultBranch' option.
+ 'scons svnRmBranch' to remove a branch. See 'svnDefaultBranch' option.
+
 
 configuration related target
  'scons info' to print informations about the current project, its dependencies and external packages needed.
@@ -584,7 +624,8 @@ exclude    a shortcut for exclude=false. See 'exclude' option for additionnal in
 --no-weak-localext	See --weak-localext
 
 --verbose		Shows details about the results of running sbf. This can be especially useful when the results might not be obvious.
---fast			TODO
+--fast			Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that
+				SCons will not rebuild correctly the project in several rare cases.
 
 
 
@@ -699,13 +740,6 @@ SConsBuildFramework options:
 
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
 
-		# ???
-		#goFast = False
-		#if goFast == True :
-			#self.myEnv.SetOption('max_drift', 1)
-			#self.myEnv.SetOption('implicit_cache', 1)
-			#print os.getenv('NUMBER_OF_PROCESSORS')
-
 
 
 	###### Initialize project from lenv ######
@@ -804,13 +838,14 @@ SConsBuildFramework options:
 
 			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPaths[0]/sbfPak'.", [] ),
 
-			('svnUrls', 'The list of subversion repositories used, from first to last, until a successful checkout occurs.', []),
-			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included. The project from which sbf was initially invoked is never excluded.', []),
+			('svnUrls', 'A dictionnary... @todo doc ... The list of subversion repositories used, from first to last, until a successful checkout occurs.', {}),
+			('svnDefaultBranch', 'svnMkTag, svnRmTag, svnMkBranch and svnRmBranch asks user the name of the tag/branch to use. This option sets the default choice suggested to user.', '1.0'),
+			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included. The project from which sbf was initially invoked is never excluded. The unix filename pattern matching is used by the list.', []),
 			('weakLocalExtExclude', 'The list of packages (see \'uses\' project option for a complete list of available packages) excludes by the --weak-localext option.'
 			' --weak-localext could be used to disables SCons scanners for localExt directories.'
 			' All packages not explicitly excluded will be included.', []),
-			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included.', []),
-			('svnUpdateExclude', 'The list of projects excludes from subversion update operations. All projects not explicitly excluded will be included.', []),
+			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included. The unix filename pattern matching is used by the list.', []),
+			('svnUpdateExclude', 'The list of projects excludes from subversion update operations. All projects not explicitly excluded will be included. The unix filename pattern matching is used by the list.', []),
 
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
@@ -890,7 +925,7 @@ SConsBuildFramework options:
 			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
 							allowed_values=('none', 'gtest'), ignorecase=1 ),
 
-			('shareBuild', "Defines the build stage for files from 'share' directory. The following schema must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
+			('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
 
 			BoolVariable(	'console',
 							'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
@@ -929,7 +964,7 @@ SConsBuildFramework options:
 		# The Microsoft linker requires that the environment variable TMP is set.
 		if not os.getenv('TMP'):
 			lenv['ENV']['TMP'] = self.myBuildPath
-			print ('TMP sets to {0}'.format(self.myBuildPath))
+			if self.myEnv.GetOption('verbosity') : print ('TMP sets to {0}'.format(self.myBuildPath))
 
 		# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
 		if self.myCCVersionNumber >= 8.000000 :
@@ -944,9 +979,15 @@ SConsBuildFramework options:
 			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Include'
 			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Lib'
 
+			#visualInclude	= 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\include'
+			#visualLib		= 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\lib'
+			#msSDKInclude	= 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\Include'
+			#msSDKLib		= 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\Lib'
+
 			if self.myIsExpressEdition:
 				# at least for rc.exe
 				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
+				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
 					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
@@ -959,22 +1000,23 @@ SConsBuildFramework options:
 
 
 		elif self.myCCVersionNumber >= 9.000000:
+			pass
 			# Configures Microsoft Visual C++ 2008
 			# @todo FIXME should be done by SCons...
-			visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\INCLUDE'
-			visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\LIB'
-			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
-			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\lib'
+			#visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\INCLUDE'
+			#visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\LIB'
+			#msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
+			#msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\lib'
 
-#			visualInclude	= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\include'
-#			visualLib		= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\lib'
-#			msSDKInclude	= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Include'
-#			msSDKLib		= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Lib'
+			visualInclude	= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\include'
+			visualLib		= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\lib'
+			msSDKInclude	= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Include'
+			msSDKLib		= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Lib'
 
 			if self.myIsExpressEdition:
 				# at least for rc.exe
-				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
-#				lenv.AppendENVPath( 'PATH', 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+				lenv.AppendENVPath( 'PATH', 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
 					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
@@ -987,20 +1029,21 @@ SConsBuildFramework options:
 
 
 		elif self.myCCVersionNumber >= 8.000000:
+			pass
 			# Configures Microsoft Platform SDK for Windows Server 2003 R2
 			# @todo FIXME should be done by SCons...
-			psdkInclude	= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'
-			psdkLib		= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib'
+			#psdkInclude	= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'
+			#psdkLib		= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib'
 
-			if self.myIsExpressEdition:
-				if lenv.GetOption('weak_localext'):
-					lenv.Append( CCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
-				else:
-					lenv.Append( CPPPATH = psdkInclude )
+			#if self.myIsExpressEdition:
+			#	if lenv.GetOption('weak_localext'):
+			#		lenv.Append( CCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
+			#	else:
+			#		lenv.Append( CPPPATH = psdkInclude )
 
-				lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
+			#	lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
 
-				lenv.Append( LIBPATH = psdkLib )
+			#	lenv.Append( LIBPATH = psdkLib )
 
 
 		#
@@ -1010,6 +1053,7 @@ SConsBuildFramework options:
 		elif self.myCCVersionNumber >= 9.000000 :
 			lenv.Append( LINKFLAGS = '/MANIFEST' )
 			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+			#lenv.Append( CXXFLAGS = ['/MP'] )
 		elif self.myCCVersionNumber >= 8.000000 :
 			# /GX is deprecated in Visual C++ 2005
 			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] ) # @todo FIXME : '/GS-' for SOFA !!!
@@ -1024,13 +1068,16 @@ SConsBuildFramework options:
 
 		# Defines
 		lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
+		# bullet uses _CRT_SECURE_NO_WARNINGS,_CRT_SECURE_NO_DEPRECATE,_SCL_SECURE_NO_WARNINGS
+		#lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
 
-#			print lenv['CXXFLAGS'], lenv['CCFLAGS']
+		#lenv.Append( CXXFLAGS = ['/D_BIND_TO_CURRENT_VCLIBS_VERSION=1'] )
 		#lenv.Append( CXXFLAGS = ['/MP{0}'.format(self.myNumJobs)] )
 
-		if self.myConfig == 'release' :							### TODO: use /Zd in release mode to be able to debug a little.
+		if self.myConfig == 'release' :							### @todo use /Zd in release mode to be able to debug a little.
 			lenv.Append( CXXFLAGS = ['/DNDEBUG'] )
 			lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
+			#lenv.Append( CXXFLAGS = ['/GL'] )
 		else:
 			lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
 			# /Od : Disable (Debug)
@@ -1051,7 +1098,7 @@ SConsBuildFramework options:
 			# /Gm : Enable Minimal Rebuild.
 
 		# Warnings
-		if self.myWarningLevel == 'normal' :		### TODO: it is dependent of the myConfig. Must be changed ? yes, do it...
+		if self.myWarningLevel == 'normal' :		### @todo it is dependent of the myConfig. Must be changed ? yes, do it...
 			lenv.Append( CXXFLAGS = '/W3' )
 		else:
 			# /Wall : Enables all warnings
@@ -1064,6 +1111,7 @@ SConsBuildFramework options:
 		if self.myConfig == 'release' :
 			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
 			lenv.Append( LINKFLAGS = '/INCREMENTAL:NO' )
+#			lenv.Append( LINKFLAGS = '/LTCG' )
 		else:
 			# By default, the linker runs in incremental mode.
 			lenv.Append( LINKFLAGS = [ '/DEBUG', '/INCREMENTAL' ] )
@@ -1130,7 +1178,7 @@ SConsBuildFramework options:
 		if sys.platform == 'darwin':
 			lenv.Append( CXXFLAGS = '-D__MACOSX__' )
 			#self.myCxxFlags += ' -D__MACOSX__'
-		elif ( string.find( sys.platform, 'linux' ) != -1 ):
+		elif ( sys.platform.find( 'linux' ) != -1 ):
 			lenv.Append( CXXFLAGS = '-D__linux' )
 			#self.myCxxFlags += ' -D__linux'
 
@@ -1166,16 +1214,20 @@ SConsBuildFramework options:
 
 	###################################################################################
 	def doVcsCheckoutOrOther( self, lenv ):
-		"""Do a vcs checkout, status or relocate
+		"""Do a vcs checkout, status, relocate, mkTag or rmTag
 			@todo OPTME: just compute tryVcs* once and not for each project"""
 
 		# User wants a vcs checkout, status or relocate ?
 		tryVcsCheckout = 'svncheckout' in self.myBuildTargets
 		tryVcsStatus = 'svnstatus' in self.myBuildTargets
 		tryVcsRelocate = 'svnrelocate' in self.myBuildTargets
+		tryVcsMkTag = 'svnmktag' in self.myBuildTargets
+		tryVcsRmTag = 'svnrmtag' in self.myBuildTargets
+		tryVcsMkBranch = 'svnmkbranch' in self.myBuildTargets
+		tryVcsRmBranch = 'svnrmbranch' in self.myBuildTargets
 
 		#
-		lenv['sbf_tryVcsOperation'] = (tryVcsCheckout or tryVcsStatus or tryVcsRelocate)
+		lenv['sbf_tryVcsOperation'] = (tryVcsCheckout or tryVcsStatus or tryVcsRelocate or tryVcsMkTag or tryVcsRmTag or tryVcsMkBranch or tryVcsRmBranch)
 		if not lenv['sbf_tryVcsOperation']:
 			return
 
@@ -1227,6 +1279,16 @@ SConsBuildFramework options:
 					self.vcsStatus( lenv )
 				elif tryVcsRelocate and lenv['vcsUse'] == 'yes':
 					self.vcsRelocate( lenv )
+				# vcsMk
+				elif tryVcsMkTag and lenv['vcsUse'] == 'yes':
+					self.vcsMkTagOrBranch( 'tag', lenv['myBranch'] )
+				elif tryVcsMkBranch and lenv['vcsUse'] == 'yes':
+					self.vcsMkTagOrBranch( 'branch', lenv['myBranch'] )
+				# vcsRm
+				elif tryVcsRmTag and lenv['vcsUse'] == 'yes':
+					self.vcsRmTagOrBranch( 'tag', lenv['myBranch'] )
+				elif tryVcsRmBranch and lenv['vcsUse'] == 'yes':
+					self.vcsRmTagOrBranch( 'branch', lenv['myBranch'] )
 			#else nothing to do
 
 
@@ -1300,7 +1362,7 @@ SConsBuildFramework options:
 			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
 
 		# Checks if this project must skip vcs operation
-		if self.myProject in self.mySvnCheckoutExclude :
+		if self.matchProjectInList( self.myProjectPathName, self.mySvnCheckoutExclude ):
 			if lenv.GetOption('verbosity') :
 				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
 				print "sbfInfo: Exclude from vcs %s." % opDescription
@@ -1319,11 +1381,87 @@ SConsBuildFramework options:
 	def vcsStatus( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
 
+
+	def vcsMkTagOrBranch( self, tagOrBranch, tagOrBranchName ):
+		"""	@param tagOrBranch		'tag' or 'branch'
+			@param tagOrBranchName	lenv['myBranch']"""
+		# parameters
+		if tagOrBranch not in ['tag', 'branch']:
+			raise SCons.Errors.UserError("Internal sbf error.")
+		if tagOrBranch == 'tag':
+			dirname = 'tags'
+		else:
+			dirname = 'branches'
+		basename = tagOrBranchName
+
+		#
+		print stringFormatter( self.myEnv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
+
+		# Checks if already created ?
+		branches = self.myVcs.listBranch( self.myProjectPathName, dirname )
+		if '/{0}'.format(basename) in set(branches):
+			# nothing to create
+			print ('{0} {1} already in repository of project {2}\n'.format( tagOrBranch, basename, self.myProject))
+			return
+
+		#
+		answer = askQuestion(	"Do you want to create {0} {1} for {2}".format(tagOrBranch, basename, self.myProject),
+								['no', 'yes'] )
+		if answer == 'n':
+			return
+
+		# Do the job
+		logMessage = 'Created {0} {1} for {2}'.format(tagOrBranch, basename, self.myProject)
+		retVal = self.myVcs.copy( self.myProjectPathName,
+				'/{0}/{1}'.format(dirname, basename),
+				logMessage )
+		print
+		return retVal
+
+
+	def vcsRmTagOrBranch( self, tagOrBranch, tagOrBranchName ):
+		"""	@param tagOrBranch		'tag' or 'branch'
+			@param tagOrBranchName	lenv['myBranch']"""
+		# parameters
+		if tagOrBranch not in ['tag', 'branch']:
+			raise SCons.Errors.UserError("Internal sbf error.")
+		if tagOrBranch == 'tag':
+			dirname = 'tags'
+		else:
+			dirname = 'branches'
+		basename = tagOrBranchName
+
+		#
+		print stringFormatter( self.myEnv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
+
+		# Checks if already removed ?
+		branches = self.myVcs.listBranch( self.myProjectPathName, dirname )
+		if '/{0}'.format(basename) not in set(branches):
+			# nothing to remove
+			print ('No {0} {1} in repository of project {2}\n'.format( tagOrBranch, basename, self.myProject))
+			return
+
+		# The given branch exists and must be removed
+		answer = askQuestion(	"Do you want to delete {0} {1} for {2}".format(tagOrBranch, basename, self.myProject),
+								['no', 'yes'] )
+		if answer == 'n':
+			return
+
+		# Do the job
+		logMessage = 'Deleted {0} {1} for {2}'.format(tagOrBranch, basename, self.myProject)
+		retVal = self.myVcs.remove( self.myProjectPathName,
+				'/{0}/{1}'.format(dirname, basename),
+				logMessage )
+		print
+		return retVal
+
+
+
 	def vcsUpdate( self, lenv ):
 		opDescription = 'update'
 
 		# Checks if this project must skip vcs operation
-		if self.myProject in self.mySvnUpdateExclude :
+		if self.matchProjectInList( self.myProjectPathName, self.mySvnUpdateExclude ):
 			if lenv.GetOption('verbosity') :
 				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
 				print "sbfInfo: Exclude from vcs %s." % opDescription
@@ -1345,13 +1483,13 @@ SConsBuildFramework options:
 		self.myProjectPath		= os.path.dirname(	projectPathName	)
 		self.myProject			= os.path.basename(	projectPathName	)
 
-
+# @todo OPTME Creates self.mtExcludeProjects and uses
 		# Tests if the incoming project must be ignored
 		if self.myEnv['exclude'] and \
-		   (self.myProject in self.myEnv['projectExclude']) and \
+		   (self.matchProjectInList(self.myProjectPathName, self.myEnv['projectExclude'])) and \
 		   (self.myProject != os.path.basename(GetLaunchDir())) :
 			if self.myEnv.GetOption('verbosity') :
-				print "Ignore project %s in %s" % (self.myProject, self.myProjectPath)
+				print ( "Ignore project {0} in {1}".format(self.myProject, self.myProjectPath) )
 			return
 
 
@@ -1360,9 +1498,8 @@ SConsBuildFramework options:
 		lenv = self.myCurrentLocalEnv
 
 
-		# VCS checkout or status or relocate
+		# VCS checkout or status or relocate or mkTag/Branch or rmTag/Branch
 		self.doVcsCheckoutOrOther( lenv )
-
 
 		# Tests existance of project path name
 		if os.path.isdir(self.myProjectPathName):
@@ -1698,10 +1835,10 @@ SConsBuildFramework options:
 				lenv.Precious( lenv['PDB'] )
 
 			# PDB Installation
-			if self.myType == 'exec':
-				installInBinTarget.append( File(lenv['PDB']) )
-			elif self.myType == 'shared':
-				installInLibTarget.append( File(lenv['PDB']) )
+			#if self.myType == 'exec':
+			#	installInBinTarget.append( File(lenv['PDB']) )
+			#elif self.myType == 'shared':
+			#	installInLibTarget.append( File(lenv['PDB']) )
 
 
 		######	setup targets : myProject_build myProject_install myProject myProject_clean myProject_mrproper ######
@@ -1765,7 +1902,6 @@ SConsBuildFramework options:
 
 		### myProject_mrproper
 		# TODO: printMrproper see myProject_clean target.
-
 		aliasProjectMrproper = Alias( self.myProject + '_mrproper', aliasProjectInstall )
 		Clean( self.myProject + '_mrproper', os.path.join(self.myProjectBuildPath, self.myProject) )
 		Clean( self.myProject + '_mrproper', os.path.join(self.myInstallDirectory, 'include', self.myProject) )
@@ -1868,6 +2004,14 @@ SConsBuildFramework options:
 			return os.path.join( self.myInstallDirectory, self.getShareDirectory(projectEnv) )
 		else:
 			return os.path.join( self.myInstallDirectory, self.getShareDirectory() )
+
+	### Helper for exclusion
+	def matchProjectInList( self, project, fnMatchList ):
+		for pattern in fnMatchList:
+			#print project, pattern, fnmatch.fnmatch( project, pattern )
+			if fnmatch.fnmatch( project, pattern ):
+				return True
+		return False
 
 	### Management of version number
 	# @todo moves to sbfVersion.py

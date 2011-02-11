@@ -26,7 +26,7 @@ else:
 	exit(1)
 
 descriptor = {
- 'urls'			: [	"http://orange/files/Dev/localExt/src/physfs-2-0-1.zip" ],
+ 'urls'			: [	'http://orange/files/Dev/localExt/src/physfs-2-0-1.zip' ],
 
  'rootBuildDir'	: 'physfs2-0-1',
  'builds'		: [	cmdDebug, cmdRelease ],

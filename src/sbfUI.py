@@ -33,8 +33,33 @@ def askQuestion( question, choicesList, queryUser = True ):
 		if len(answer)==0:
 			answer = defaultSelector
 
-		answer = answer.lower()
-
 		if answer in selectors:
 			break
-	return answer
+
+	return answer.lower()
+
+
+def ask( question, defaultValue, queryUser = True ):
+	"""The given question is written to standard output followed by the default value (must be defined).
+	The answer is returned as a string.
+	If queryUser parameter is False, then question is not asked and the default choice is returned."""
+
+	# Checks precondition
+	if len(defaultValue)==0:
+		raise AssertionError('Empty default value is not allowed.')
+
+	# Don't ask question
+	if not queryUser:
+		return defaultValue.lower()
+
+	# Asks question
+	while( True ):
+		answer = raw_input( '{0} (default={1}) ? '.format(question, defaultValue) )
+
+		if len(answer)==0:
+			answer = defaultValue
+
+		if len(answer)!=0:
+			break
+
+	return answer.lower()

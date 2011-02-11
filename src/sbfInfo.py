@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -23,7 +23,7 @@ def doTargetInfoFile( target, source, env ):
 	sbf = env.sbf
 	pakSystem = PackagingSystem(sbf)
 	targetName = str(target[0])
-	
+
 	# Opens output file
 	with open( targetName, 'w' ) as file :
 		# Prints startup message
@@ -64,7 +64,7 @@ def doTargetInfoFile( target, source, env ):
 
 		# Prints informations about projects
 		lenColProject = env['outputLineLength'] * 45 / 100
-		lenColType = env['outputLineLength'] * 5 / 100
+		lenColType = max( env['outputLineLength'] * 5 / 100, 6 )
 		lenColUses = env['outputLineLength'] * 50 / 100
 		file.write( '{0}{1}{2}\n'.format( 'Project path '.ljust(lenColProject), 'Type'.ljust(lenColType), 'uses/stdlibs'.ljust(lenColUses) ) )
 		file.write( '{0}{1}{2}\n'.format( '-------------'.ljust(lenColProject), '----'.ljust(lenColType), '------------'.ljust(lenColUses) ) )
@@ -81,8 +81,13 @@ def doTargetInfoFile( target, source, env ):
 			if len(projectRelPath)==0:
 				projectRelPath = projectEnv['sbf_project']
 
-			# Adds vcs revision to project path (path@revision)
-			projectRelPath += '@' + str(sbf.myVcs.getRevision(projectPathName))
+			# Adds vcs branch and revision informations to project path (path/branch@revision)
+			if projectEnv['vcsUse'] == 'yes':
+				url = sbf.myVcs.getSplitUrl( projectPathName )
+				projectRelPath += '{0}@{1}'.format( url[2], url[3])
+			else:
+				projectRelPath += '@{0}'.format( str(sbf.myVcs.getRevision(projectPathName)) )
+			projectRelPath = projectRelPath.replace('\\', '/')
 
 			libs = ''
 			for useNameVersion in projectEnv['uses']:

@@ -1,47 +1,25 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 import os
 import re
-import sys
 import string
+import sys
 
+# To be able to use sbfUses.py without SCons
 try:
 	import SCons.Errors
 except ImportError as e:
 	pass
 
+from sbfTools import *
 from sbfUtils import getPathFromEnv, convertToList
 
 
 
 # @todo use for glm (to be able to auto-install it).
-
-
-
-# @todo better place (should be shared with bootstrap.py)
-def getRegistry( key, subkey = '' ):
-	# @todo import at this place is not recommended
-	import win32api
-	import win32con
-	try:
-		regKey = win32api.RegOpenKey( win32con.HKEY_LOCAL_MACHINE, key )
-		value, dataType = win32api.RegQueryValueEx( regKey, subkey )
-		regKey.Close()
-		return value
-	except:
-		return ''
-
-def getInstallPath( key, subkey = '', text = '' ):
-	value = getRegistry( key, subkey )
-	if len(value) > 0:
-		print ( '%s is installed in directory : %s' % (text, value) )
-	else:
-		print ( '%s is not installed' % text )
-	return os.path.normpath(value)
-
 
 #@todo moves to sbfConfig.py ?
 class pythonConfig:
@@ -50,9 +28,10 @@ class pythonConfig:
 	@classmethod
 	def __initialize( cls ):
 		# Retrieves python location
-		if sys.platform == 'win32':
-			cls.__basePath = getInstallPath( 'SOFTWARE\\Python\\PythonCore\\2.6\\InstallPath', '', 'Python' )
-		if cls.__basePath is None:
+		cls.__basePath = locateProgram('python')
+
+		# Post-conditions
+		if cls.__basePath is None or len(cls.__basePath)==0:
 			raise SCons.Errors.UserError("Unable to retrieve Python installation path.")
 
 	@classmethod
@@ -70,7 +49,8 @@ class sofaConfig:
 		# Retrieves SOFA_PATH
 		cls.__basePath = getPathFromEnv('SOFA_PATH')
 
-		if cls.__basePath is None:
+		# Post-conditions
+		if cls.__basePath is None or len(cls.__basePath)==0:
 			raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
 
 	@classmethod
@@ -80,48 +60,53 @@ class sofaConfig:
 		return cls.__basePath
 
 
-class gtkConfig:
-	__gtkBasePath		= None
+class gtkmmConfig:
 	__gtkmmBasePath		= None
+
+	@classmethod
+	def __getVersion( cls ):
+		"""Returns version string like '2.22' or '' if not found"""
+		version = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\gtkmm\2.4\Version', enableLogging=False)
+		if len(version)==0:
+			version = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\Wow6432Node\gtkmm\2.4\Path', enableLogging=False)
+		return version
 
 	@classmethod
 	def __initialize( cls ):
 		if sys.platform == 'win32':
 			# Retrieves gtkmm path and version from windows registry
-			gtkmmRegistryPath = 'SOFTWARE\\gtkmm\\2.4'
-			gtkmmBasePath = getInstallPath( gtkmmRegistryPath, 'Path', 'gtkmm' )
+			gtkmmBasePath = locateProgram('gtkmm')
 			if len(gtkmmBasePath) > 0:
-				version = getRegistry( gtkmmRegistryPath, 'Version' )
-				print ( 'Assumes gtk and gtkmm installed in the same directory.\nFound gtkmm version: %s\n' % version )
-				cls.__gtkBasePath = gtkmmBasePath
 				cls.__gtkmmBasePath = gtkmmBasePath
+				# Prints message in verbose mode
+				if '--verbose' in sys.argv:
+					# Retrieves version
+					version = cls.__getVersion()
+					if len(version)==0:
+						version = '-'
+					# Prints informations about gtkmm
+					print ( 'gtkmm is installed in directory : {0}'.format(gtkmmBasePath) )
+					print ( 'Assumes gtk and gtkmm installed in the same directory.\nFound gtkmm version: {0}\n'.format(version) )
 
-		if cls.__gtkBasePath is None:
-			# Retrieves GTK_BASEPATH
-			cls.__gtkBasePath	= getPathFromEnv('GTK_BASEPATH')
-
+		# If gtkmm has not been found, uses GTKMM_BASEPATH environment variable
 		if cls.__gtkmmBasePath is None:
 			# Retrieves GTKMM_BASEPATH
 			cls.__gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
 
 		# Post-conditions
-		if cls.__gtkBasePath is None:
-			raise SCons.Errors.UserError("Unable to configure gtk.")
-
-		if cls.__gtkmmBasePath is None:
+		if cls.__gtkmmBasePath is None or len(cls.__gtkmmBasePath)==0:
 			raise SCons.Errors.UserError("Unable to configure gtkmm.")
 
 	@classmethod
 	def getBasePath( cls ):
-		if cls.__gtkBasePath is None:
-			cls.__initialize()
-		return cls.__gtkBasePath
-
-	@classmethod
-	def getGtkmmBasePath( cls ):
 		if cls.__gtkmmBasePath is None:
 			cls.__initialize()
 		return cls.__gtkmmBasePath
+
+	@classmethod
+	def getGtkmmBasePath( cls ):
+		return cls.getBasePath()
+
 
 
 ###
@@ -623,7 +608,7 @@ class Use_bullet( IUse ):
 		return 'bullet'
 
 	def getVersions( self ):
-		return ['2-76']
+		return ['2-77', '2-76']
 
 	def getLIBS( self, version ):
 		libs = ['BulletCollision', 'BulletDynamics', 'BulletMultiThreaded', 'BulletSoftBody', 'LinearMath']
@@ -653,7 +638,7 @@ class Use_cairo( IUse ):
 			gtkCppPath = [ 'include/cairo' ]
 			cppPath = []
 			for path in gtkCppPath :
-				cppPath.append( os.path.join(gtkConfig.getBasePath(), path) )
+				cppPath.append( os.path.join(gtkmmConfig.getBasePath(), path) )
 			return cppPath
 		elif self.platform == 'posix' :
 			# Sets CPPPATH
@@ -672,7 +657,7 @@ class Use_cairo( IUse ):
 
 	def getLIBPATH( self, version ):
 		if self.platform == 'win32' :
-			return [ os.path.join(gtkConfig.getBasePath(), 'lib') ], [ os.path.join(gtkConfig.getBasePath(), 'bin') ]
+			return [ os.path.join(gtkmmConfig.getBasePath(), 'lib') ], [ os.path.join(gtkmmConfig.getBasePath(), 'bin') ]
 		elif self.platform == 'posix' :
 			return [], []
 
@@ -1150,8 +1135,8 @@ class Use_sofa( IUse, sofaConfig ):
 				libPath.append( path )
 				pakLibPath.append( path )
 			#
-			commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
-			libPath.append( commonPath )
+			#commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
+			#libPath.append( commonPath )
 			#
 			pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
 			libPath.append( pluginsPath )
@@ -1167,6 +1152,27 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getLicenses( self, version ):
 		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
+
+
+def getPathsForSofa( debugAndRelease = False ):
+	sofaUse = UseRepository.getUse('sofa')
+	if sofaUse is None:
+		return []
+
+	if debugAndRelease:
+		configBak = sofaUse.config
+
+		sofaUse.config = 'debug'
+		paths = set(sofaUse.getLIBPATH( '' )[0])
+
+		sofaUse.config = 'release'
+		paths |= set(sofaUse.getLIBPATH( '' )[0])
+
+		sofaUse.config = configBak
+	else:
+		paths = set(sofaUse.getLIBPATH( '' )[0])
+
+	return list(paths)
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
@@ -1444,8 +1450,8 @@ class Use_gtkmm( IUse ):
 								'include/cairo',
 								'include' ]
 
-			path =	[ os.path.join(gtkConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
-			path +=	[ os.path.join(gtkConfig.getBasePath(), item)	for item in gtkCppPath ]
+			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
+			path +=	[ os.path.join(gtkmmConfig.getBasePath(), item)	for item in gtkCppPath ]
 
 			return path
 		elif self.platform == 'posix':
@@ -1546,7 +1552,7 @@ class Use_gtkmm( IUse ):
 		pakLibPath	= []
 
 		if self.platform == 'win32' :
-			path = os.path.join( gtkConfig.getBasePath(), 'lib' )
+			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
 			libPath.append( path )
 		#else self.platform == 'posix':
 		#	libPath += '/usr/lib64'
@@ -1572,19 +1578,19 @@ class Use_gtkmm( IUse ):
 			if version == '2-22-0':
 				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
 					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-1_win32_cl10-0Exp.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl10-0Exp.zip']
 					else:
-						return ['gtkmmRedist2-22-0-1_win32_cl10-0Exp_D.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl10-0Exp_D.zip']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-1_win32_cl9-0Exp.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl9-0Exp.zip']
 					else:
-						return ['gtkmmRedist2-22-0-1_win32_cl9-0Exp_D.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl9-0Exp_D.zip']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
 					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-1_win32_cl8-0Exp.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl8-0Exp.zip']
 					else:
-						return ['gtkmmRedist2-22-0-1_win32_cl8-0Exp_D.zip']
+						return ['gtkmmRedist2-22-0-2_win32_cl8-0Exp_D.zip']
 				else:
 					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 			elif version == '2-16-0':

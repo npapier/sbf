@@ -21,5 +21,6 @@ descriptor = {
  'rootDir'		: 'glut-3.7',
  'license'		: ['NOTICE'],
 
- 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glut32.dll'), 'lib/') ]
+ 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glut32.dll'), 'lib/'),
+					(os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'Common', 'glut32.lib'), 'lib/') ]
 }

@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -7,7 +7,7 @@ from os.path import join, splitext
 
 from src.sbfArchives import extractArchive, isExtractionSupported
 from src.sbfFiles	import *
-#from src.sbfTools	import locateProgram
+from src.sbfTools	import locateProgram
 from src.sbfUses	import UseRepository
 from src.sbfUtils	import capitalize
 from src.sbfUI		import askQuestion
@@ -466,9 +466,8 @@ def configureZipAndNSISTargets( env ):
 		rootProjectEnv = sbf.getRootProjectEnv()
 
 		# @todo Moves in sbfSevenZip.py and co
-# @todo checks win32 registry (idem for nsis)
-		env['SEVENZIP']			= '7z'
-		env['SEVENZIPCOM']		= '\"{0}\"'.format( WhereIs('7z') )
+		sevenzipLocation = locateProgram('7z')
+		env['SEVENZIPCOM']		= '\"{0}\"'.format( join(sevenzipLocation, '7z' ) )
 		env['SEVENZIPCOMSTR']	= "Zipping ${TARGET.file}"
 		env['SEVENZIPADDFLAGS']	= "a -r"
 		env['SEVENZIPFLAGS']	= "-bd"
@@ -755,8 +754,7 @@ def configureZipAndNSISTargets( env ):
 		AlwaysBuild( portableZipPath + '.nsi' )
 
 # @todo Nsis builder
-		nsisRootPath = "C:\\Program Files\\NSIS"
-		#nsisRootPath = locateProgram( 'nsis' )
+		nsisRootPath = locateProgram( 'nsis' )
 		nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=env.sbf.myProject, version=env.sbf.myVersion, config=env.sbf.my_PostfixLinkedToMyConfig, date=env.sbf.myDate)
 
 		nsisBuildAction = env.Command(	join(zipPakPath, nsisSetupFile), portableZipPath + '.nsi',

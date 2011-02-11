@@ -25,11 +25,11 @@ def extractArchive( filename, extractionDirectory = None ):
 		# Closes package
 		zipFile.close()
 	elif filename.rfind('.tar.bz2') != -1 or filename.rfind('.tar.gz') != -1:
-		# Opens package	
+		# Opens package
 		tar = tarfile.open( filename )
-		# Extracts		
+		# Extracts
 		tar.extractall( extractionDirectory )
-		# Closes package		
+		# Closes package
 		tar.close()
 	else:
 		# @todo Support 7z

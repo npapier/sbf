@@ -41,12 +41,36 @@ class Paths:
 			return num
 
 	# Appends the specified path to the beginning in the path list
-	def prepend( self, path ):
-		self.__paths.insert(0, path)
+	# if count(path)==0 and if (count(path)!=0 and removeExisting==True)
+	def prepend( self, path, removeExisting = False ):
+		if self.count( path ) == 0:
+			self.__paths.insert(0, path)
+		else:
+			if removeExisting:
+				self.remove( path )
+				self.__paths.insert(0, path)
+			#else keep 'path' in its current place
+
+	# See prepend()
+	def prependList( self, paths, removeExisting = False ):
+		for path in paths:
+			self.prepend( path, removeExisting )
 
 	# Appends the specified path to the end in the path list
-	def append( self, path ):
-		self.__paths.append( path )
+	# if count(path)==0 and if (count(path)!=0 and removeExisting==True)
+	def append( self, path, removeExisting = False ):
+		if self.count( path ) == 0:
+			self.__paths.append( path )
+		else:
+			if removeExisting:
+				self.remove( path )
+				self.__paths.append( path )
+			#else keep 'path' in its current place
+
+	# See append()
+	def appendList( self, paths, removeExisting = False ):
+		for path in paths:
+			self.append( path, removeExisting )
 
 	# Removes all occurences of the specified path in the path list
 	def remove( self, path ):
@@ -61,12 +85,27 @@ class Paths:
 		for index in indexToDelete:
 			del self.__paths[index]
 
+	# See remove()
+	def removeList( self, paths ):
+		for path in paths:
+			self.remove( path )
+
 	# Searches the first non existing paths
 	def findFirstNonExisting( self ):
 		for path in self.__paths:
 			path_normalized = getNormalizedPathname(path)
 			if not os.path.exists( path_normalized ):
 				return path
+
+	# Removes all non existing paths
+	def removeAllNonExisting( self ):
+		while( True ):
+			nonExistingPath = self.findFirstNonExisting()
+			if nonExistingPath == None:
+				break
+			else:
+				print( 'Removes non existing path {0}'.format(nonExistingPath) )
+				self.remove( nonExistingPath )
 
 	# Accessors
 	def getOriginalString( self ):
@@ -87,4 +126,3 @@ class Paths:
 		return self.__paths[:]
 
 	# @todo checks checkDuplicate(self), checkInvalid()
-

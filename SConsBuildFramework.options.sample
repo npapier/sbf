@@ -7,11 +7,12 @@
 #printCmdLine		= 'less'
 #companyName		= ''
 #pakPaths			= []
-#svnUrls			= []
-#projectExclude		= []
+#svnUrls			= {}
+#svnDefaultBranch	= '1.0'
+#projectExclude		= [ '*/vgsdk*' ]
 #weakLocalExtExclude= []
-#svnCheckoutExclude	= []
-#svnUpdateExclude	= []
+#svnCheckoutExclude	= [ '*/vgsdk*' ]
+#svnUpdateExclude	= [ '*/vgsdk*' ]
 #clVersion			= 'highest'
 #installPaths		= []
 #publishPath		= ''

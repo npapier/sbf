@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -105,27 +105,38 @@
 
 
 ###### imports ######
-from __future__ import with_statement
 
 #import datetime
 #sbfMainBeginTime = datetime.datetime.now()
 
 import distutils.archive_util
-#import glob
 import os
 import string
 import sys
 
+# To be able to catch wrong SCons version or missing SCons
+try:
+	from SCons.Tool.MSCommon.vc import cached_get_installed_vcs
+except ImportError as e:
+	print ('sbfError: SCons not installed or wrong version.')
+	Exit(1)
+
 from SCons.Script.SConscript import SConsEnvironment
-import SCons.Errors
+from SCons import SCons # for SCons.__version__
+
 
 from src.sbfCygwin	import *
+from src.sbfEnvironment import Environment
 from src.sbfFiles	import *
-from src.sbfUses	import uses
+from src.sbfPaths	import Paths
+from src.sbfTools	import locateProgram, getPathsForTools, getPathsForRuntime
+if sys.platform == 'win32':
+	from src.sbfTools import winGetInstallPath
+from src.sbfUI		import ask
+from src.sbfUses	import uses, getPathsForSofa
 from src.sbfUtils	import *
 from src.sbfVersion import printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-
 
 
 ###### Archiver action ######
@@ -143,105 +154,106 @@ def printZipArchiver( target, source, env ) :
 
 
 ###### Action function for sbfCheck target #######
-import subprocess
-
-def execute( command ):
-	# Executes command
-	pipe = subprocess.Popen( command, shell=True, bufsize = 0, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
-	pipe.wait()
-
-	# Retrieves stdout or stderr
-	lines = pipe.stdout.readlines()
-	if len(lines) == 0 :
-		lines = pipe.stderr.readlines()
-		if len(lines) == 0:
-			return "No output"
-
-	for line in lines:
-		line = line.strip()
-		if len(line) > 0:
-			return line
-
-
-
-def checkTool( env, toolName, toolCmd ):
-	whereis = env.WhereIs( toolName )
-	if whereis :
+def checkTool( env, toolName, toolCmdArgs ):
+	whereis = locateProgram( toolName )
+	if len(whereis)>0:
 		print ( '%s found at %s' % (toolName, whereis) )
 		print ( '%s version : ' % toolName ),
 		sys.stdout.flush()
-		print execute( toolCmd )
+		print execute( toolCmdArgs, whereis )
 		#env.Execute( '@' + toolCmd )
 	else:
 		print ( '%s not found' % toolName )
 	print
 
+
+
 def sbfCheck( env ):
 	print stringFormatter( env, 'Availability and version of tools' )
 
-	checkTool( env, 'python', 'python --version' )
+	checkTool( env, 'python', ['python', '--version'] )
 
-	print 'Version of python used by scons :', sys.version
-	print
-
-	whereis_scons = env.WhereIs( 'scons' )
-	if whereis_scons :
-		print 'scons found at', whereis_scons
+	sconsLocation = locateProgram( 'scons' )
+	if sconsLocation :
+		print 'scons found at', sconsLocation
 		print 'scons version :', SCons.__version__
 		sys.stdout.flush()
-		#print execute( 'scons --version' )
 	else:
 		print 'scons not found'
 	print
 
-	#@todo pysvn should be optionnal
-	import pysvn
-	print 'pysvn version: %d.%d.%d-%d' % (pysvn.version[0], pysvn.version[1], pysvn.version[2], pysvn.version[3])
-	if len(pysvn.svn_version[3]) == 0 :
-		print 'svn version (for pysvn): %d.%d.%d' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2])
-	else :
-		print 'svn version (for pysvn): %d.%d.%d-%s' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
-	print
+	print 'Version of python used by scons : {0}\n'.format( sys.version )
 
-	checkTool( env, 'svn', 'svn --version --quiet' )
+	# PYWIN32
+	try:
+		import distutils.sysconfig
+		sitePackages = distutils.sysconfig.get_python_lib(plat_specific=1)
+		with open(os.path.join(sitePackages, "pywin32.version.txt")) as file:
+			buildNumber = file.read().strip()
+			print ('PyWin32 version : {0}\n'.format( buildNumber ))
+	except:
+		print ('PyWin32 not installed\n')
 
-	env.Execute( checkCC, nopAction )
+	# PYSVN
+	try:
+		import pysvn
+		print 'pysvn version: %d.%d.%d-%d' % (pysvn.version[0], pysvn.version[1], pysvn.version[2], pysvn.version[3])
+		if len(pysvn.svn_version[3]) == 0 :
+			print 'svn version (for pysvn): %d.%d.%d' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2])
+		else :
+			print 'svn version (for pysvn): %d.%d.%d-%s' % (pysvn.svn_version[0], pysvn.svn_version[1], pysvn.svn_version[2], pysvn.svn_version[3])
+		print
+	except ImportError as e:
+		print ('pysvn not installed\n')
 
-	checkTool( env, 'doxygen', 'doxygen --version' )
+	# @todo pyreadline
 
-	whereis_rsync = env.WhereIs( 'rsync' )				# @todo whereis for others tools
-	if whereis_rsync :
-		print 'rsync found at', whereis_rsync
-		print 'rsync version :',
+	# @todo cygwin version
+
+	# SVN
+	checkTool( env, 'svn', ['svn', '--version', '--quiet'] )
+
+	# CC
+	checkCC( env = env )
+
+	# doxygen
+	checkTool( env, 'doxygen', ['doxygen', '--version'] )
+
+	# graphviz
+	checkTool( env, 'graphviz', ['dot', '-V'] )
+
+	# rsync
+	checkTool( env, 'rsync', ['rsync', '--version'] )
+
+	# ssh
+	checkTool( env, 'ssh', ['ssh', '-v'] )
+
+	# TortoiseMerge
+	tortoiseMergeLocation = locateProgram( 'TortoiseMerge' )
+	if tortoiseMergeLocation :
+		print ('TortoiseMerge.exe found at {0}'.format( tortoiseMergeLocation ))
 		sys.stdout.flush()
-		print execute( 'rsync --version' )
 	else:
-		print 'rsync not found'
+		print ('TortoiseMerge.exe not found')
 	print
 
-	whereis_ssh = env.WhereIs( 'ssh' )
-	if whereis_ssh :
-		print 'ssh found at', whereis_ssh
-		print 'ssh version   :',
-		sys.stdout.flush()
-		print execute( 'ssh -v' )
+	# 7z
+	checkTool( env, '7z', ['7z'] )
+
+	# NSIS
+	nsisLocation = locateProgram('nsis')
+	if len(nsisLocation)>0:
+		major = winGetInstallPath(subkey=r'SOFTWARE\NSIS\VersionMajor')
+		minor = winGetInstallPath(subkey=r'SOFTWARE\NSIS\VersionMinor')
+		print ('nsis version : {0}.{1}\n'.format( major, minor ))
 	else:
-		print 'ssh not found'
-	print
+		print ('nsis not installed\n')
 
-	whereis_TortoiseMerge = env.WhereIs( 'TortoiseMerge' )
-	if whereis_TortoiseMerge :
-		print 'TortoiseMerge.exe found at', whereis_TortoiseMerge
-		sys.stdout.flush()
-	else:
-		print 'TortoiseMerge.exe not found'
-	print
+	# @todo gtkmm see sbfUses.py
+	# print informations in a pretty table program | version | location
+	# @todo others tools (ex : swig, ...)
 
-	checkTool( env, '7z', '7z' )
-
-	#@todo nsis
-	#@todo others tools (ex : swig, ...)
-
+	#
 	printSBFVersion()
 
 	sbf_root = os.getenv('SCONS_BUILD_FRAMEWORK')
@@ -273,10 +285,82 @@ def checkCC(target = None, source = None, env = None) :
 
 	if env['CC'] == 'cl' :
 		#ccVersionAction		= Action( 'cl /help' )
-		print 'cl version :', env['MSVS']['VERSION']
-		print 'The available versions of cl installed are', sorted(env['MSVS']['VERSIONS'])
+		print 'cl version :', env['MSVC_VERSION']
+		print 'The installed versions of cl are', sorted(cached_get_installed_vcs())
 
-	checkTool( env, 'gcc', 'gcc -dumpversion' )
+	checkTool( env, 'gcc', ['gcc', '-dumpversion'] )
+
+
+###### Implementation of sbfConfigure and sbfUnconfigure targets #######
+
+def _sbfConfigure( pathsToPrepend, pathsToAppend ):
+	if sys.platform == 'win32':
+		environment = Environment()
+		paths = Paths( environment.get('PATH') )
+		paths.prependList( pathsToPrepend, True )
+		paths.appendList( pathsToAppend, True )
+		print
+		environment.set('PATH', paths.getString())
+	else:
+		print ('Target sbfConfigure* not yet implemented on {0} platform.'.format(env['PLATFORM']))
+
+
+def _sbfUnconfigure( pathsToRemove ):
+	if sys.platform == 'win32':
+		environment = Environment()
+		paths = Paths( environment.get('PATH') )
+		paths.removeList( pathsToRemove )
+# @todo asks user
+		paths.removeAllNonExisting()
+		print
+		environment.set('PATH', paths.getString())
+	else:
+		print ('Target sbfUnconfigure* not yet implemented on {0} platform.'.format(env['PLATFORM']))
+
+
+def _getSBFRuntimePaths( sbf ):
+	prependList = []
+	appendList  = []
+
+	# Prepends $SCONS_BUILD_FRAMEWORK in PATH for 'scons' file containing scons.bat $*
+	prependList.append( sbf.mySCONS_BUILD_FRAMEWORK )
+
+	# Adds C:\PythonXY (where C:\PythonXY is the path to your python's installation directory) to your PATH environment variable.
+	# This is important to be able to run the Python executable from any directory in the command line.
+	pythonLocation = locateProgram('python')
+	appendList.append( pythonLocation )
+
+	# Adds c:\PythonXY\Scripts (for scons.bat)
+	appendList.append( join(pythonLocation, 'Scripts') )
+
+	#
+	return (prependList, appendList)
+
+
+def sbfConfigure( sbf ):
+	toPrepend = getPathsForSofa(True) + getPathsForRuntime(sbf)
+
+	sbfRuntimePaths = _getSBFRuntimePaths( sbf )
+
+	_sbfConfigure( toPrepend + sbfRuntimePaths[0], sbfRuntimePaths[1] )
+
+
+def sbfUnconfigure( sbf ):
+	toRemove = getPathsForSofa(True) + getPathsForRuntime(sbf)
+
+	# Don't remove sbfRuntimePaths = _getSBFRuntimePaths()
+
+	_sbfUnconfigure( toRemove )
+
+
+def sbfConfigureTools( sbf ):
+	toAppend = getPathsForTools()
+	_sbfConfigure( [], toAppend )
+
+
+def sbfUnconfigureTools( sbf ):
+	toRemove = getPathsForTools()
+	_sbfUnconfigure( toRemove )
 
 
 
@@ -293,25 +377,31 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 #Export('env') not needed.
 
 EnsurePythonVersion(2, 6)
-EnsureSConsVersion(1, 2, 0)
+EnsureSConsVersion(2, 0, 1)
 
-SConsEnvironment.sbf = SConsBuildFramework()
-env = SConsEnvironment.sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
+sbf = SConsBuildFramework()
+SConsEnvironment.sbf = sbf
+env = sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
+buildTargetsSet = sbf.myBuildTargets
+
 # Prints current 'config' option
-print "\nConfiguration: %s\n" % env['config']
+print "Configuration: %s\n" % env['config']
 
 # Dumping construction environment (for debugging).
 #print env.Dump()
 
 # rsync builder
-env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'] )
-env['POSIX_TARGET'] = PosixTarget( env['PLATFORM'] )
+# @todo lazy construction
+cygpathLocation = locateProgram( 'cygpath' )
+env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'], cygpathLocation )
+env['POSIX_TARGET'] = PosixTarget( env['PLATFORM'], cygpathLocation )
 
-whereis_ssh = env.WhereIs( 'ssh' )
-if whereis_ssh :
+sshLocation = locateProgram( 'ssh' )
+if len(sshLocation)>0:
 	if env['PLATFORM'] == 'win32' :
-		whereis_ssh = callCygpath2Unix(whereis_ssh).lower()
-	env['RSYNCRSH'] = '--rsh=%s' % whereis_ssh
+		sshLocation = callCygpath2Unix(sshLocation, cygpathLocation).lower()
+	env['RSYNCRSH'] = '--rsh={0}/ssh'.format(sshLocation)
+	#print '--rsh={0}/ssh'.format(sshLocation)
 else:
 	env['RSYNCRSH'] = ''
 
@@ -325,15 +415,35 @@ def createRsyncAction( env, target, source, alias = None ):
 	return rsyncAction
 env.AddMethod( createRsyncAction )
 
-# target 'sbfCheck'
-if 'sbfcheck' in BUILD_TARGETS:
-	sbfCheck( env )
-	Exit(0)
+# target 'sbfCheck', 'sbfConfigure', 'sbfUnconfigure', 'sbfConfigureTools' and 'sbfUnconfigureTools'
+sbfTargets = set( ['sbfcheck', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
+hasSbfTargets = len( buildTargetsSet & sbfTargets ) > 0
+
+if hasSbfTargets:
+	if 'sbfcheck' in buildTargetsSet:
+		sbfCheck( env )
+		Exit(0)
+
+	if 'sbfconfigure' in buildTargetsSet:
+		sbfConfigure( sbf )
+		Exit(0)
+
+	if 'sbfunconfigure' in buildTargetsSet:
+		sbfUnconfigure( sbf )
+		Exit(0)
+
+	if 'sbfconfiguretools' in buildTargetsSet:
+		sbfConfigureTools( sbf )
+		Exit(0)
+
+	if 'sbfunconfiguretools' in buildTargetsSet:
+		sbfUnconfigureTools( sbf )
+		Exit(0)
 
 # target 'sbfPak'
-if 'sbfpak' in BUILD_TARGETS:
+if 'sbfpak' in buildTargetsSet:
 	import src.sbfPackagingSystem
-	src.sbfPackagingSystem.runSbfPakCmd(SConsEnvironment.sbf)
+	src.sbfPackagingSystem.runSbfPakCmd(sbf)
 	Exit(0)
 
 # build project from launch directory (and all dependencies recursively)
@@ -345,25 +455,55 @@ env['sbf_launchProject'		]	= env['sbf_project']
 
 
 
-# Builds sbf library
-buildStage = 'sbfpak' not in BUILD_TARGETS
-
-if buildStage:
-	if env['nodeps'] == False and env['sbf_project'] != 'sbf':
-		# Builds sbf project
-		env.sbf.buildProject( env.sbf.mySbfLibraryRoot )
-
-	# Builds the root project (i.e. launchDir).
-	env.sbf.buildProject( env['sbf_projectPathName'] )
-
-
-### special targets: svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate ###
+### special targets about svn ###
+# svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate
 Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnrelocate',	Command('dummySvnRelocate.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+
+# svnMkTag, svnRmTag, svnMkBranch and svnRmBranch
+branchOrTagTargets = set( ['svnmktag', 'svnrmtag', 'svnmkbranch', 'svnrmbranch'] )
+hasBranchOrTagTarget = len(buildTargetsSet & branchOrTagTargets) > 0
+if hasBranchOrTagTarget:
+	# branch or tag targets ?
+	if len( set(['svnmktag', 'svnrmtag']) & buildTargetsSet ) > 0:
+		branch = 'tags'
+	else:
+		branch = 'branches'
+
+	# Lists available tag/branch in repository for the launching project
+	entries = sbf.myVcs.listBranch( env['sbf_projectPathName'], branch )
+	if len(entries) > 0:
+		print ('List of {0} in repository of project {1}:'.format(branch, env['sbf_project']))
+		for entry in entries:
+			print entry.lstrip('/')
+	else:
+		print ('No {0} in repository of project {1}'.format(branch, env['sbf_project']))
+
+	answer = ask( '\nGives the name of {0}'.format(branch.rstrip('s')), env['svnDefaultBranch'] )
+	env['myBranch'] = answer
+
+	Alias( 'svnmktag',		Command('dummySvnMkTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnrmtag',		Command('dummySvnRmTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnmkbranch',	Command('dummySvnMkBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnrmbranch',	Command('dummySvnRmBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+
+
+
+# Builds sbf library
+buildStage = 'sbfpak' not in buildTargetsSet
+
+if buildStage:
+	if env['nodeps'] == False and env['sbf_project'] != 'sbf':
+		# Builds sbf project
+		sbf.buildProject( sbf.mySbfLibraryRoot )
+
+	# Builds the root project (i.e. launchDir).
+	sbf.buildProject( env['sbf_projectPathName'] )
+
 
 
 ### special targets: onlyRun and run ###
@@ -407,9 +547,9 @@ def doxyfileAction( target, source, env ) :
 	inputList	= ''
 	examplePath	= ''
 	imagePath	= ''
-	for projectName in env.sbf.myParsedProjects :
+	for projectName in sbf.myParsedProjects :
 
-		localenv = env.sbf.myParsedProjects[projectName]
+		localenv = sbf.myParsedProjects[projectName]
 		projectPathName	= localenv['sbf_projectPathName']
 
 		newPathEntry	= os.path.join(projectPathName, 'include') + ' '
@@ -443,8 +583,8 @@ def doxyfileAction( target, source, env ) :
 	file = open( targetName, 'a' )
 
 	file.write( '\n### Added by SConsBuildFramework\n' )
-	file.write( 'PROJECT_NAME		= "%s"\n'					% env.sbf.myProject )
-	file.write( 'PROJECT_NUMBER		= "%s generated at %s"\n'	% (env.sbf.myVersion, env.sbf.myDateTime) )
+	file.write( 'PROJECT_NAME		= "%s"\n'					% sbf.myProject )
+	file.write( 'PROJECT_NUMBER		= "%s generated at %s"\n'	% (sbf.myVersion, sbf.myDateTime) )
 	file.write( 'OUTPUT_DIRECTORY	= "%s"\n'					% (targetName + '_build') )
 	file.write( 'INPUT				= %s\n'						% inputList )
 	#FIXME: FILE_PATTERNS, EXCLUDE, EXCLUDE_PATTERNS
@@ -479,23 +619,23 @@ def syncAction( target, source, env ) :
 
 
 # @todo improves output message
-if (	('dox_build' in env.sbf.myBuildTargets) or
-		('dox_install' in env.sbf.myBuildTargets) or
-		('dox' in env.sbf.myBuildTargets) or
-		('dox_clean' in env.sbf.myBuildTargets) or
-		('dox_mrproper' in env.sbf.myBuildTargets)	):
+if (	('dox_build' in sbf.myBuildTargets) or
+		('dox_install' in sbf.myBuildTargets) or
+		('dox' in sbf.myBuildTargets) or
+		('dox_clean' in sbf.myBuildTargets) or
+		('dox_mrproper' in sbf.myBuildTargets)	):
 
-	if (	('dox_clean' in env.sbf.myBuildTargets) or
-			('dox_mrproper' in env.sbf.myBuildTargets)	):
+	if (	('dox_clean' in sbf.myBuildTargets) or
+			('dox_mrproper' in sbf.myBuildTargets)	):
 		env.SetOption('clean', 1)
 
 	#@todo use other doxyfile(s). see doxInputDoxyfile
-	doxInputDoxyfile		= os.path.join(env.sbf.mySCONS_BUILD_FRAMEWORK, 'doxyfile')
-	doxOutputPath			= os.path.join(env.sbf.myBuildPath, 'doxygen', env.sbf.myProject, env.sbf.myVersion )
+	doxInputDoxyfile		= os.path.join(sbf.mySCONS_BUILD_FRAMEWORK, 'doxyfile')
+	doxOutputPath			= os.path.join(sbf.myBuildPath, 'doxygen', sbf.myProject, sbf.myVersion )
 	doxOutputCustomDoxyfile	= os.path.join(doxOutputPath, 'doxyfile.sbf')
 
 	doxBuildPath			= os.path.join(doxOutputPath, 'doxyfile.sbf_build')
-	doxInstallPath			= os.path.join(env.sbf.myInstallDirectory, 'doc', env.sbf.myProject, env.sbf.myVersion)
+	doxInstallPath			= os.path.join(sbf.myInstallDirectory, 'doc', sbf.myProject, sbf.myVersion)
 
 	# target dox_build
 	commandGenerateDoxyfile = env.Command( doxOutputCustomDoxyfile, doxInputDoxyfile, Action(doxyfileAction, printDoxygenBuild) )
@@ -512,7 +652,7 @@ if (	('dox_build' in env.sbf.myBuildTargets) or
 
 	if env['publishOn'] :
 		# @todo print message
-		rsyncAction = env.createRsyncAction( 'doc_%s_%s' % (env.sbf.myProject, env.sbf.myVersion), Dir(os.path.join(doxBuildPath, 'html')) )
+		rsyncAction = env.createRsyncAction( 'doc_%s_%s' % (sbf.myProject, sbf.myVersion), Dir(os.path.join(doxBuildPath, 'html')) )
 
 		env.Alias( 'dox_install', rsyncAction )
 		env.Depends( rsyncAction, 'dox_build' )
@@ -534,16 +674,16 @@ configureZipAndNSISTargets( env )
 
 # Tests if SConsBuildFramework is up-to-date
 # @todo Updates SConsBuildFramework
-if 'svnupdate' in BUILD_TARGETS:
+if 'svnupdate' in buildTargetsSet:
 	from src.sbfSubversion import SvnUpdateAvailable
-	print stringFormatter( env, "Tests if project {project} in {projectPath} is up-to-date".format( project=os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), projectPath=os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
-	updateAvailable = SvnUpdateAvailable()( env.sbf.mySCONS_BUILD_FRAMEWORK )
+	print stringFormatter( env, "Tests if project {project} in {projectPath} is up-to-date".format( project=os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK), projectPath=os.path.dirname(sbf.mySCONS_BUILD_FRAMEWORK)) )
+	updateAvailable = SvnUpdateAvailable()( sbf.mySCONS_BUILD_FRAMEWORK )
 	if updateAvailable:
 		print ('AN UPDATE IS AVAILABLE FOR SCONSBUILDFRAMEWORK')
 	else:
 		print ('SConsBuildFramework is up-to-date')
 	print
-	#print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(env.sbf.mySCONS_BUILD_FRAMEWORK)) )
-	#env.sbf.myVcs.update( env.sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(env.sbf.mySCONS_BUILD_FRAMEWORK) )
+	#print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(sbf.mySCONS_BUILD_FRAMEWORK)) )
+	#sbf.myVcs.update( sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK) )
 
 #print (datetime.datetime.now() - sbfMainBeginTime).microseconds/1000

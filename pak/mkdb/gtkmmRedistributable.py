@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -52,10 +52,10 @@ externals_dll = [ elt + '.dll' for elt in externals_base ]
 
 # cl8-0exp, cl9-0exp and cl10-0exp
 descriptor = {
- 'urls'			: ['http://orange/files/Dev/localExt/src/gtkmm-win32-devel-2.22.0-1.zip'],
+ 'urls'			: ['http://orange/files/Dev/localExt/src/gtkmm-win32-devel-2.22.0-2.zip'],
 
  'name'			: 'gtkmmRedist',
- 'version'		: '2-22-0-1',
+ 'version'		: '2-22-0-2',
 
  'rootDir'		: 'gtkmm',
  'license'		: ['lgpl.txt'],

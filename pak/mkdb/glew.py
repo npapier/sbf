@@ -21,5 +21,6 @@ descriptor = {
  'rootDir'		: 'glew',
  'license'		: ['LICENSE.txt'],
 
- 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glew32.dll'), 'lib/') ]
+ 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glew32.dll'), 'lib/'),
+					(os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'Common', 'glew32.lib'), 'lib/') ]
 }
