@@ -1081,6 +1081,8 @@ class Use_sofa( IUse, sofaConfig ):
 					os.path.join(self.getBasePath(), 'modules'),
 					os.path.join(self.getBasePath(), 'framework'),
 					os.path.join(self.getBasePath(), 'include'),
+					os.path.join(self.getBasePath(), 'extlibs/taucs_mt/src'),
+					os.path.join(self.getBasePath(), 'extlibs/tinyxml'),
 					os.path.join(self.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
 		if self.platform == 'posix':
