@@ -55,11 +55,6 @@
 	ExecWait '"msiexec" ${parameters} "$INSTDIR\Redistributable\${file}"'
 !macroend
 
-; Launch msiexec on file with given parameters
-!macro MSILaunchRedistributableParams file parameters
-	!insertmacro MSILaunchRedistributable "${file}" "${parameters}"
-!macroend
-
 ; Launch uninstallation using msiexec on file with given parameters
 !macro MSIUninstallRedistributable file parameters
 	MessageBox MB_YESNO "Uninstall ${file} ?" /SD IDYES IDNO +2
