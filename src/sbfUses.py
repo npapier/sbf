@@ -1095,12 +1095,12 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 
-			libsBoth = ['BeamAdapter', 'PersistentContact', 'sofacomponentfem', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
+			libsBoth = ['PersistentContact', 'sofacomponentfem', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
 						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
 						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
-						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner' ]
+						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact' ]
 			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
 
 			if self.config == 'release' :
@@ -1289,7 +1289,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_qt(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
