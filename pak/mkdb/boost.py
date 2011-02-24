@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 # cl8-0Exp, cl9-0Exp, and cl10-0Exp
 # gcc
+
+# configuration
+versionMajor = 1
+versionMinor = 46
 
 if platform == 'win32':
 	msg = 'WARNING: building this package must be done from a Visual Studio Command Prompt'
@@ -24,27 +28,18 @@ else:
 
 descriptor = {
  'urls'			: [	#"http://sourceforge.net/projects/boost/files/boost-jam/3.1.17/boost-jam-3.1.17-1-ntx86.zip/download",
-
- 					"http://sourceforge.net/projects/boost/files/boost/1.45.0/boost_1_45_0.tar.bz2/download"
- 					#"http://sourceforge.net/projects/boost/files/boost/1.43.0/boost_1_43_0.tar.bz2/download"
- 					#"http://sourceforge.net/projects/boost/files/boost/1.42.0/boost_1_42_0.tar.bz2/download"
- 					#"http://sourceforge.net/projects/boost/files/boost/1.41.0/boost_1_41_0.tar.bz2/download"
- 					#"http://sourceforge.net/projects/boost/files/boost/1.40.0/boost_1_40_0.tar.bz2/download"
+ 					'http://sourceforge.net/projects/boost/files/boost/{major}.{minor}.0/boost_{major}_{minor}_0.tar.bz2/download'.format( major=versionMajor, minor=versionMinor )
  					],
 
- 'rootBuildDir'	: 'boost_1_45_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
+ 'rootBuildDir'	: 'boost_{major}_{minor}_0'.format( major=versionMajor, minor=versionMinor ),
  'builds'		: build,
 
  'name'			: 'boost',
- 'version'		: '1-45-0', #'1-43-0', #'1-42-0', # '1-41-0', #'1-40-0',
+ 'version'		: '{major}-{minor}-0'.format( major=versionMajor, minor=versionMinor ),
 
- 'rootDir'		: 'boost_1_45_0', #'boost_1_43_0', #'boost_1_42_0', #'boost_1_41_0', #'boost_1_40_0',
+ 'rootDir'		: 'boost_{major}_{minor}_0'.format( major=versionMajor, minor=versionMinor ),
  'license'		: ['LICENSE_1_0.txt'],
- 'include'		: [('boost', 'boost1-45-0/boost/')],
- #'include'		: [('boost', 'boost1-43-0/boost/')],
- #'include'		: [('boost', 'boost1-42-0/boost/')],
- #'include'		: [('boost', 'boost1-41-0/boost/')],
- #'include'		: [('boost', 'boost1-40-0/boost/')],
+ 'include'		: [('boost', 'boost{major}-{minor}-0/boost/'.format( major=versionMajor, minor=versionMinor ))],
  'lib'			: lib
 }
 
