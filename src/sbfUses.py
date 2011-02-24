@@ -265,11 +265,14 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-45-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
+		return [ '1-45-0', '1-46-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			return [ 'BOOST_ALL_DYN_LINK', '_SCL_SECURE_NO_WARNINGS' ]
+			if version == '1-46-0':
+				return [ 'BOOST_ALL_DYN_LINK', ('BOOST_FILESYSTEM_VERSION', '2') ]
+			else:
+				return [ 'BOOST_ALL_DYN_LINK' ]
 		else:
 			return []
 
@@ -280,8 +283,40 @@ class Use_boost( IUse ):
 			return []
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
-			if version == '1-45-0': # "same" libs as '1-44-0'
+		if self.platform == 'win32':
+
+			# vc version
+			if self.cc == 'cl' and self.ccVersionNumber >= 10.0000:
+				vc = 'vc100'
+			elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000:
+				vc = 'vc90'
+			elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+				vc = 'vc80'
+			else:
+				return
+
+			# configuration
+			if self.config == 'release':
+				conf = 'mt'
+			else:
+				conf = 'mt-gd'
+
+			# boost shared libraries
+			genPakLibs = [	'boost_date_time-{vc}-{conf}-{ver}', 'boost_filesystem-{vc}-{conf}-{ver}', 'boost_graph-{vc}-{conf}-{ver}',
+							'boost_iostreams-{vc}-{conf}-{ver}', 'boost_math_c99-{vc}-{conf}-{ver}', 'boost_math_c99f-{vc}-{conf}-{ver}',
+							'boost_math_c99l-{vc}-{conf}-{ver}', 'boost_math_tr1-{vc}-{conf}-{ver}', 'boost_math_tr1f-{vc}-{conf}-{ver}',
+							'boost_math_tr1l-{vc}-{conf}-{ver}', 'boost_prg_exec_monitor-{vc}-{conf}-{ver}', 'boost_program_options-{vc}-{conf}-{ver}',
+							'boost_python-{vc}-{conf}-{ver}', 'boost_random-{vc}-{conf}-{ver}', 'boost_regex-{vc}-{conf}-{ver}',
+							'boost_serialization-{vc}-{conf}-{ver}', 'boost_signals-{vc}-{conf}-{ver}', 'boost_system-{vc}-{conf}-{ver}',
+							'boost_thread-{vc}-{conf}-{ver}', 'boost_unit_test_framework-{vc}-{conf}-{ver}', 'boost_wave-{vc}-{conf}-{ver}',
+							'boost_wserialization-{vc}-{conf}-{ver}' ]
+
+			if version == '1-46-0':
+				# autolinking, so nothing to do.
+				ver = '1_46'
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
+				return [], pakLibs
+			elif version == '1-45-0': # "same" libs as '1-44-0'
 				# autolinking, so nothing to do.
 				if self.config == 'release' :
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
