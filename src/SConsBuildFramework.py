@@ -879,6 +879,10 @@ SConsBuildFramework options:
 							'release',
 							allowed_values=('debug', 'release'),
 							map={}, ignorecase=1 ),
+			BoolVariable(	'generateDebugInfoInRelease', 'The purpose of this option is to be able to fix bug(s) occurring only in release build and/or when no debugger is attached. '
+							'Typically, a release build does not contain any debug informations. '
+							'But sets this option to true to add the debugging informations for executable and libraries in release build, false otherwise (the default value).',
+							False ),
 			EnumVariable(	'warningLevel', 'Sets the level of warnings.', 'normal',
 							allowed_values=('normal', 'high'),
 							map={}, ignorecase=1 ),
@@ -1078,6 +1082,8 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = ['/DNDEBUG'] )
 			lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
 			#lenv.Append( CXXFLAGS = ['/GL'] )
+			if lenv['generateDebugInfoInRelease']:
+				lenv['CCPDBFLAGS'] = ['${(PDB and "/Zi /Fd%s" % File(PDB)) or ""}']
 		else:
 			lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
 			# /Od : Disable (Debug)
@@ -1107,11 +1113,13 @@ SConsBuildFramework options:
 
 	# @todo incremental in release, but not for portable app and nsis
 	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
-		# Incremental flags
-		if self.myConfig == 'release' :
+		# Linker flags
+		if self.myConfig == 'release':
 			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
 			lenv.Append( LINKFLAGS = '/INCREMENTAL:NO' )
 #			lenv.Append( LINKFLAGS = '/LTCG' )
+			if lenv['generateDebugInfoInRelease']:
+				lenv.Append( LINKFLAGS = [ '/DEBUG' ] )
 		else:
 			# By default, the linker runs in incremental mode.
 			lenv.Append( LINKFLAGS = [ '/DEBUG', '/INCREMENTAL' ] )
@@ -1825,14 +1833,15 @@ SConsBuildFramework options:
 			lenv.Precious( projectTarget )
 
 		# @todo /PDBSTRIPPED:pdb_file_name
-		# PDB: pdb only generate on win32 and in debug mode.
-		if (self.myPlatform == 'win32') and (self.myConfig == 'debug'):
-			# PDB Generation. Static library don't generate pdb.
-			if	self.myType in ['exec', 'shared']:
-				lenv['PDB'] = objProject + '.pdb'
-				lenv.SideEffect( lenv['PDB'], projectTarget )
-				# it is not deleted before it is rebuilt.
-				lenv.Precious( lenv['PDB'] )
+		# PDB: pdb only generate on win32 and when debug informations are required
+		if self.myPlatform == 'win32':
+			if (self.myConfig == 'debug') or ( (self.myConfig == 'release') and lenv['generateDebugInfoInRelease'] ):
+				# PDB Generation. Static library don't generate pdb.
+				if	self.myType in ['exec', 'shared']:
+					lenv['PDB'] = objProject + '.pdb'
+					lenv.SideEffect( lenv['PDB'], projectTarget )
+					# it is not deleted before it is rebuilt.
+					lenv.Precious( lenv['PDB'] )
 
 			# PDB Installation
 			#if self.myType == 'exec':
