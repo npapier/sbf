@@ -1,5 +1,5 @@
 // SConsBuildFramework - Copyright (C) 2009, 2010, Guillaume Brocker
-// Distributed under the terms of the GNU General Public License (GPL)
+// Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
 
@@ -154,4 +154,3 @@ const bool mkdirs( const std::string path )
 } // namespace path
 
 } // namespace sbf
-

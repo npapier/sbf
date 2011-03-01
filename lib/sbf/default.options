@@ -9,3 +9,8 @@ type				= 'shared'	# exec, static, shared, none
 uses				= [ 'boost' ]
 #libs				= []
 #stdlibs			= []
+
+from SCons.Script.SConscript import SConsEnvironment
+platform = SConsEnvironment.sbf.myPlatform
+if platform == 'win32':
+	stdlibs = ['Dbghelp.lib']

@@ -1,5 +1,5 @@
 // SConsBuildFramework - Copyright (C) 2009, Guillaume Brocker
-// Distributed under the terms of the GNU General Public License (GPL)
+// Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
 
@@ -55,7 +55,7 @@ SBF_API const boost::filesystem::path getTopLevelSafe( const Type & type );
 /**
  * @brief	Retrieves the system path for the given type and module.
  *
- * @param	type		the path type
+ * @param	type	the path type
  * @param	module	a module (the current by default)
  *
  * @return	the absolute system path, empty if none
@@ -71,6 +71,8 @@ SBF_API const boost::filesystem::path get( const Type & type, const Module & mod
  * @return	the absolute system path, empty if an error occured
  */
 SBF_API const boost::filesystem::path getSafe( const Type & type, const Module & module = Module() );
+
+
 
 /**
  * @brief	Creates folders recursively if don't exists.
