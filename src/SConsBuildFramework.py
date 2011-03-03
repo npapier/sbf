@@ -113,8 +113,16 @@ def passthruConverter( val ):
 
 class SConsBuildFramework :
 
+	# targets
+	mySbfTargets					= set( ['sbfcheck', 'sbfpak', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
+	mySvnTargets					= set(['svnadd', 'svncheckout', 'svnclean', 'svnrelocate', 'svnstatus', 'svnupdate'])
+	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnrmtag', 'svnmkbranch', 'svnrmbranch'] )
+	myBuildTargets					= set(['info', 'infoFile', 'all', 'clean', 'mrproper', 'onlyrun', 'run', 'vcproj', 'vcproj_clean', 'vcproj_mrproper'])
+	myDoxTargets					= set(['dox', 'dox_clean', 'dox_mrproper'])
+	myZipTargets					= set(['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
+
 	# Command-line options
-	myCmdLineOptionsList			= ['debug', 'release', 'nodeps', 'deps', 'noexclude', 'exclude']
+	myCmdLineOptionsList			= ['debug', 'release']
 	myCmdLineOptions				= set( myCmdLineOptionsList )
 
 	# sbf environment
@@ -330,6 +338,20 @@ class SConsBuildFramework :
 #			Exit(1)
 
 		# Analyses command line options
+		AddOption(	'--nodeps',
+					action	= 'store_true',
+					dest	= 'nodeps',
+					default	= False,
+					help	= "do not follow project dependencies specified by 'deps' project option." )
+		self.myEnv['nodeps'] = GetOption('nodeps')
+
+		AddOption(	'--noexclude',
+					action	= 'store_true',
+					dest	= 'noexclude',
+					default	= False,
+					help	= "do not exclude project(s) specified by 'projectExclude' sbf option." )
+		self.myEnv['exclude'] = not GetOption('noexclude')
+
 		AddOption(	"--weak-localext",
 					action	= "store_true",
 					dest	= "weak_localext",
@@ -399,18 +421,18 @@ class SConsBuildFramework :
 			print 'started', self.myDateTimeForUI
 
 		# Retrieves all targets (normalized in lower case)
-		self.myBuildTargets = []
-		for buildTarget in BUILD_TARGETS:
-			buildTarget = str(buildTarget).lower()
-			if buildTarget not in self.myBuildTargets:
-				self.myBuildTargets.append( buildTarget )
-
+		self.myBuildTargets = [str(buildTarget).lower() for buildTarget in BUILD_TARGETS]
 		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
 		self.myBuildTargets = set(self.myBuildTargets)
 
-		Alias( 'all' )
+		buildTargetsWithoutCmdLineOptions = self.myBuildTargets - self.myCmdLineOptions
+		if len(buildTargetsWithoutCmdLineOptions)==0:
+			buildTargetsWithoutCmdLineOptions = set(['all'])
+		Alias('all')
 		Default( 'all' )
-		Alias( self.myCmdLineOptionsList, 'all' )
+
+		Alias( list(buildTargetsWithoutCmdLineOptions)[0] )
+		Alias( self.myCmdLineOptionsList, list(buildTargetsWithoutCmdLineOptions)[0] )
 
 		# 'clean' and 'mrproper'
 		#self.myGHasCleanOption = env.GetOption('clean')
@@ -418,8 +440,6 @@ class SConsBuildFramework :
 		if (	'clean' in self.myBuildTargets or
 				'mrproper' in self.myBuildTargets	) :
 			# target clean or mrproper
-			buildTargetsWithoutCmdLineOptions = self.myBuildTargets - self.myCmdLineOptions
-
 			if len(buildTargetsWithoutCmdLineOptions) != 1 :
 				raise SCons.Errors.UserError(	"'clean' and 'mrproper' special targets must be used without any others targets.\nCurrent specified targets: %s"
 												% convertToString(buildTargetsWithoutCmdLineOptions) )
@@ -427,7 +447,7 @@ class SConsBuildFramework :
 				self.myEnv.SetOption('clean', 1)
 
 		# Analyses command line options
-		# and/or
+		# and
 		# Processes special targets used as shortcuts for sbf options
 		# This 'hack' is useful to 'simulate' command-line options. But without '-' or '--'
 
@@ -439,22 +459,6 @@ class SConsBuildFramework :
 			self.myEnv['config'] = 'debug'
 		elif 'release' in self.myBuildTargets :
 			self.myEnv['config'] = 'release'
-
-		# Overrides the 'nodeps' option, when one of the special targets is specified at command line.
-		if ('nodeps' in self.myBuildTargets) and ('deps' in self.myBuildTargets) :
-			raise SCons.Errors.UserError("Targets 'nodeps' and 'deps' have been specified at command-line. Chooses one of both.")
-		if 'nodeps' in self.myBuildTargets :
-			self.myEnv['nodeps'] = True
-		elif 'deps' in self.myBuildTargets :
-			self.myEnv['nodeps'] = False
-
-		# Overrides the 'exclude' option, when one of the special targets is specified at command line.
-		if ('noexclude' in self.myBuildTargets) and ('exclude' in self.myBuildTargets) :
-			raise SCons.Errors.UserError("Targets 'noexclude' and 'exclude' have been specified at command-line. Chooses one of both.")
-		if 'noexclude' in self.myBuildTargets :
-			self.myEnv['exclude'] = False
-		elif 'exclude' in self.myBuildTargets :
-			self.myEnv['exclude'] = True
 
 
 		# myPlatform, myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
@@ -613,12 +617,8 @@ Command-line options:
 debug      a shortcut for config=debug. See 'config' option for additionnal informations.
 release    a shortcut for config=release. See 'config' option for additionnal informations.
 
-nodeps     a shortcut for nodeps=true. See 'nodeps' option for additionnal informations.
-deps       a shortcut for nodeps=false. See 'nodeps' option for additionnal informations.
-
-noexclude  a shortcut for exclude=true. See 'exclude' option for additionnal informations.
-exclude    a shortcut for exclude=false. See 'exclude' option for additionnal informations.
-
+--nodeps      do not follow project dependencies specified by 'deps' project option.
+--noexclude   do not exclude project(s) specified by 'projectExclude' sbf option.
 
 --weak-localext		Disables SCons scanners for localext directories.
 --no-weak-localext	See --weak-localext
@@ -821,11 +821,6 @@ SConsBuildFramework options:
 
 		myOptions = Variables( file )
 		myOptions.AddVariables(
-			BoolVariable(	'nodeps', "Sets to true, i.e. y, yes, t, true, 1, on and all, to do not follow project dependencies. Sets to false, i.e. n, no, f, false, 0, off and none, to follow project dependencies.",
-							'false' ),
-			BoolVariable(	'exclude', "Sets to true, i.e. y, yes, t, true, 1, on and all, to use the 'projectExclude' sbf option. Sets to false, i.e. n, no, f, false, 0, off and none, to ignore the 'projectExclude' sbf option.",
-							'true' ),
-
 			BoolVariable( 'queryUser', "Sets to False to assume default answer on all queries. Disables most of the normal user queries during sbf execution.", True ),
 
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),

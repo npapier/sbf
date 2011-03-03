@@ -369,16 +369,10 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 
 
 ###### Initial environment ######
-#
-
-# create objects
-# HINTS: to propagate the entire external environment to the execution environment for commands : ENV = os.environ
-
-#Export('env') not needed.
-
 EnsurePythonVersion(2, 6)
 EnsureSConsVersion(2, 0, 1)
 
+# create objects
 sbf = SConsBuildFramework()
 SConsEnvironment.sbf = sbf
 env = sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
@@ -415,36 +409,30 @@ def createRsyncAction( env, target, source, alias = None ):
 	return rsyncAction
 env.AddMethod( createRsyncAction )
 
-# target 'sbfCheck', 'sbfConfigure', 'sbfUnconfigure', 'sbfConfigureTools' and 'sbfUnconfigureTools'
-sbfTargets = set( ['sbfcheck', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
-hasSbfTargets = len( buildTargetsSet & sbfTargets ) > 0
 
+# target sbfCheck sbfPak sbfConfigure sbfUnconfigure sbfConfigureTools and sbfUnconfigureTools
+hasSbfTargets = len( buildTargetsSet & sbf.mySbfTargets ) > 0
 if hasSbfTargets:
+	# target sbfcheck
 	if 'sbfcheck' in buildTargetsSet:
 		sbfCheck( env )
-		Exit(0)
-
-	if 'sbfconfigure' in buildTargetsSet:
+	# target 'sbfPak'
+	elif 'sbfpak' in buildTargetsSet:
+		import src.sbfPackagingSystem
+		src.sbfPackagingSystem.runSbfPakCmd(sbf)
+	# all sbf*configure* targets
+	elif 'sbfconfigure' in buildTargetsSet:
 		sbfConfigure( sbf )
-		Exit(0)
-
-	if 'sbfunconfigure' in buildTargetsSet:
+	elif 'sbfunconfigure' in buildTargetsSet:
 		sbfUnconfigure( sbf )
-		Exit(0)
-
-	if 'sbfconfiguretools' in buildTargetsSet:
+	elif 'sbfconfiguretools' in buildTargetsSet:
 		sbfConfigureTools( sbf )
-		Exit(0)
-
-	if 'sbfunconfiguretools' in buildTargetsSet:
+	elif 'sbfunconfiguretools' in buildTargetsSet:
 		sbfUnconfigureTools( sbf )
-		Exit(0)
-
-# target 'sbfPak'
-if 'sbfpak' in buildTargetsSet:
-	import src.sbfPackagingSystem
-	src.sbfPackagingSystem.runSbfPakCmd(sbf)
+	else:
+		raise SCons.Errors.UserError("Internal sbf error.")
 	Exit(0)
+
 
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
@@ -454,19 +442,18 @@ env['sbf_project'			]	= os.path.basename(env['sbf_launchDir'])
 env['sbf_launchProject'		]	= env['sbf_project']
 
 
-
 ### special targets about svn ###
 # svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate
-Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnrelocate',	Command('dummySvnRelocate.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+if len(buildTargetsSet & sbf.mySvnTargets) > 0:
+	Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnrelocate',	Command('dummySvnRelocate.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
 # svnMkTag, svnRmTag, svnMkBranch and svnRmBranch
-branchOrTagTargets = set( ['svnmktag', 'svnrmtag', 'svnmkbranch', 'svnrmbranch'] )
-hasBranchOrTagTarget = len(buildTargetsSet & branchOrTagTargets) > 0
+hasBranchOrTagTarget = len(buildTargetsSet & sbf.mySvnBranchOrTagTargets) > 0
 if hasBranchOrTagTarget:
 	# branch or tag targets ?
 	if len( set(['svnmktag', 'svnrmtag']) & buildTargetsSet ) > 0:
@@ -492,17 +479,13 @@ if hasBranchOrTagTarget:
 	Alias( 'svnrmbranch',	Command('dummySvnRmBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 
 
-
 # Builds sbf library
-buildStage = 'sbfpak' not in buildTargetsSet
+if env['nodeps'] == False and env['sbf_project'] != 'sbf':
+	# Builds sbf project
+	sbf.buildProject( sbf.mySbfLibraryRoot )
 
-if buildStage:
-	if env['nodeps'] == False and env['sbf_project'] != 'sbf':
-		# Builds sbf project
-		sbf.buildProject( sbf.mySbfLibraryRoot )
-
-	# Builds the root project (i.e. launchDir).
-	sbf.buildProject( env['sbf_projectPathName'] )
+# Builds the root project (i.e. launchDir).
+sbf.buildProject( env['sbf_projectPathName'], False )
 
 
 

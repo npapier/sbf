@@ -1,6 +1,4 @@
 # sbf settings
-#nodeps						= False
-#exclude					= True
 #queryUser					= True
 #numJobs					= 1
 #outputLineLength			= 79
