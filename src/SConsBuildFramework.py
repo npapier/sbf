@@ -1832,17 +1832,15 @@ SConsBuildFramework options:
 		if self.myPlatform == 'win32':
 			if (self.myConfig == 'debug') or ( (self.myConfig == 'release') and lenv['generateDebugInfoInRelease'] ):
 				# PDB Generation. Static library don't generate pdb.
-				if	self.myType in ['exec', 'shared']:
+				if self.myType in ['exec', 'shared']:
 					lenv['PDB'] = objProject + '.pdb'
 					lenv.SideEffect( lenv['PDB'], projectTarget )
 					# it is not deleted before it is rebuilt.
 					lenv.Precious( lenv['PDB'] )
-
-			# PDB Installation
-			#if self.myType == 'exec':
-			#	installInBinTarget.append( File(lenv['PDB']) )
-			#elif self.myType == 'shared':
-			#	installInLibTarget.append( File(lenv['PDB']) )
+					if self.myType == 'exec':
+						lenv['sbf_bin_debuginfo'] = lenv['PDB']
+					else:
+						lenv['sbf_lib_debuginfo'] = lenv['PDB']
 
 
 		######	setup targets : myProject_build myProject_install myProject myProject_clean myProject_mrproper ######
@@ -1933,6 +1931,10 @@ SConsBuildFramework options:
 		lenv['sbf_src']							= filesFromSrc
 		lenv['sbf_lib_object']					= []
 		lenv['sbf_lib_object_for_developer']	= []
+
+		#lenv['sbf_bin_debuginfo'] = lenv['PDB']
+		#lenv['sbf_lib_debuginfo'] = lenv['PDB']
+
 		lenv['sbf_files']						= glob.glob( join(self.myProjectPathName, '*.options') )
 		lenv['sbf_files'].append( join(self.myProjectPathName, 'sconstruct') )
 		#lenv['sbf_info']
@@ -1948,7 +1950,7 @@ SConsBuildFramework options:
 			absPathFilename	= elt.abspath
 			filename		= os.path.split(absPathFilename)[1]
 			filenameExt		= os.path.splitext(filename)[1]
-			if filenameExt in ['.pdb', '.lib'] :
+			if filenameExt == '.lib':
 				lenv['sbf_lib_object_for_developer'].append( absPathFilename )
 			else :
 				lenv['sbf_lib_object'].append( absPathFilename )

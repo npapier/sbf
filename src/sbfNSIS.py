@@ -541,15 +541,17 @@ def configureZipAndNSISTargets( env ):
 
 			# Adds executables and libraries
 			if 'sbf_bin' in lenv:
-				runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
-				portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
+				runtimeZipFiles		+= Install( join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
+				portableZipFiles	+= Install( join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
 				devZipFiles			+= Install( join(devZipPath, 'bin'),		lenv['sbf_bin'] )
 			if 'sbf_lib_object' in lenv:
-				runtimeZipFiles		+= Install(	join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
-				portableZipFiles	+= Install(	join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
+				runtimeZipFiles		+= Install( join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
+				portableZipFiles	+= Install( join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
 				devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object'] )
-			if 'sbf_lib_object_for_developer' in lenv:
-				devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object_for_developer'] )
+			if 'sbf_bin_debuginfo' in lenv:
+				devZipFiles			+= Install( join(devZipPath, 'pdb'),		lenv['sbf_bin_debuginfo'] )
+			if 'sbf_lib_debuginfo' in lenv:
+				devZipFiles			+= Install( join(devZipPath, 'pdb'),		lenv['sbf_lib_debuginfo'] )
 
 			# Processes the 'stdlibs' project option
 			for stdlib in lenv.get( 'stdlibs', [] ):
