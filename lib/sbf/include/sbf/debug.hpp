@@ -12,20 +12,22 @@
 namespace sbf
 {
 
-// @todo sbfAssert()
+
+
+enum CoreType
+{
+	CoreNormal,	///< Default value. Typical use case: software is deployed on client workstation and mini-dump is small to be sent be email.
+	CoreFull	///< Use case: debug software on a developer workstation. Mini-dump could be big...
+};
 
 /**
  * @brief Installs a top-level exception handler of each thread of a process.
  *
  * The exception handler generates a mini-dump on windows platform for post-mortem analysis.
+ *
+ * @param coreType		the type of information to be generated in the core file
  */
-SBF_API void installToplevelExceptionHandler();
-
-/**
- * @todo doc
- */
-SBF_API int generateMiniDump( void * input );
-
+SBF_API void installToplevelExceptionHandler( const CoreType coreType = CoreNormal );
 
 } // namespace sbf
 

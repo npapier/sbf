@@ -10,6 +10,7 @@
  #include <dbghelp.h> // MINIDUMP_EXCEPTION_INFORMATION
 #endif
 
+#include <cassert>
 #include <iostream>
 
 
@@ -18,33 +19,9 @@ namespace
 {
 
 #ifdef _WIN32
-LONG WINAPI toplevelExceptionFilter( struct _EXCEPTION_POINTERS *exceptionInfo )
+int generateMiniDump( void * input, MINIDUMP_TYPE miniDumpType )
 {
-	std::cerr << "Top level exception interception: Generate dump...\n" << std::endl;
-	sbf::generateMiniDump(exceptionInfo);
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif
-
-}
-
-
-
-namespace sbf
-{
-
-
-#ifdef _WIN32
-
-void installToplevelExceptionHandler()
-{
-	SetUnhandledExceptionFilter(&toplevelExceptionFilter);
-}
-
-
-int generateMiniDump( void * input )
-{
-	EXCEPTION_POINTERS* pExceptionPointers = (EXCEPTION_POINTERS*) input;
+	EXCEPTION_POINTERS* pExceptionPointers = (EXCEPTION_POINTERS*)input;
 
 	// Creates mini-dump file
 	HANDLE hDumpFile = CreateFile(	"core.dmp"/*szFileName*/,
@@ -61,9 +38,7 @@ int generateMiniDump( void * input )
 	BOOL bMiniDumpSuccessful;
 	bMiniDumpSuccessful = MiniDumpWriteDump(	GetCurrentProcess(), GetCurrentProcessId(),
 												hDumpFile,
-												//MiniDumpNormal,
-												MiniDumpWithDataSegs,
-												//MiniDumpWithFullMemory,
+												miniDumpType,
 												&exceptionParam,
 												NULL, NULL);
 
@@ -74,13 +49,65 @@ int generateMiniDump( void * input )
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
+LONG WINAPI toplevelExceptionFilterCoreNormal( struct _EXCEPTION_POINTERS *exceptionInfo )
+{
+	std::cerr << "Top level exception interception: Generate dump..." << std::endl;
+
+	MINIDUMP_TYPE minidumpType = (MINIDUMP_TYPE)(MiniDumpNormal);
+	generateMiniDump(exceptionInfo, minidumpType);
+
+	std::cerr << "Done" << std::endl;
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+LONG WINAPI toplevelExceptionFilterCoreFull( struct _EXCEPTION_POINTERS *exceptionInfo )
+{
+	std::cerr << "Top level exception interception: Generate dump..." << std::endl;
+
+	MINIDUMP_TYPE minidumpType = (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithPrivateReadWriteMemory);
+	generateMiniDump(exceptionInfo, minidumpType);
+
+	std::cerr << "Done" << std::endl;
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
 #else
-int generateMiniDump( void * input )
+int generateMiniDump( void * input, MINIDUMP_TYPE miniDumpType )
 {
 	assert( false && "Not yet implemented" );
 }
-
 #endif
 
-} // namespace sbf
+}
 
+
+
+namespace sbf
+{
+
+
+void installToplevelExceptionHandler( const CoreType coreType )
+{
+#ifdef _WIN32
+	switch ( coreType )
+	{
+		case CoreFull:
+			SetUnhandledExceptionFilter(&toplevelExceptionFilterCoreFull);
+			break;
+
+		case CoreNormal:
+			SetUnhandledExceptionFilter(&toplevelExceptionFilterCoreNormal);
+			break;
+
+		default:
+			SetUnhandledExceptionFilter(&toplevelExceptionFilterCoreNormal);
+			assert( false && "Unexpected CoreType value" );
+	}
+#else
+	#warning "installToplevelExceptionHandler: Not yet implemented on non win32 platform"
+#endif
+}
+
+
+
+} // namespace sbf
