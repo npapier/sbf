@@ -119,7 +119,7 @@ class SConsBuildFramework :
 	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnrmtag', 'svnmkbranch', 'svnrmbranch'] )
 	myBuildTargets					= set(['info', 'infoFile', 'all', 'clean', 'mrproper', 'onlyrun', 'run', 'vcproj', 'vcproj_clean', 'vcproj_mrproper'])
 	myDoxTargets					= set(['dox', 'dox_clean', 'dox_mrproper'])
-	myZipTargets					= set(['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
+	myZipTargets					= set(['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
@@ -603,6 +603,7 @@ doxygen related targets
 packaging related targets
  'scons zipRuntime'
  'scons zipDeps'
+ 'scons portable' to create a portable package of your project and all its dependencies
  'scons zipPortable'
  'scons zipDev'
  'scons zipSrc'

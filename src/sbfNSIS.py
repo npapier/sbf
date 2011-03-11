@@ -421,7 +421,7 @@ def printRedistGeneration( target, source, env ) :
 	sourceName = str(source[0])
 	return ("Generates %s (redist files)" % os.path.basename(targetName) )
 
-### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
+### special zip related targets : zipRuntime, zipDeps, portable, zipPortable, zipDev, zipSrc and zip ###
 # @todo zip*_[build,install,clean,mrproper]
 # @todo zip doxygen
 
@@ -445,7 +445,7 @@ def printZipSrc( target, source, localenv ) :
 
 
 def configureZipAndNSISTargets( env ):
-	zipAndNSISTargets = set( ['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis'] )
+	zipAndNSISTargets = set( ['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis'] )
 	cleanAndMrproperTargets = set( ['zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'] )
 	allTargets = zipAndNSISTargets | cleanAndMrproperTargets
 
@@ -495,12 +495,14 @@ def configureZipAndNSISTargets( env ):
 
 		Alias( 'zipRuntime_print',	env.Command('zipRuntime_print.out1',	'dummy.in',	Action( nopAction, printZipRuntime ) ) )
 		Alias( 'zipDeps_print',		env.Command('zipDeps_print.out1',		'dummy.in',	Action( nopAction, printZipDeps ) ) )
+		Alias( 'portable_print',	env.Command('portable_print.out1',		'dummy.in',Action( nopAction, printZipPortable ) ) )
 		Alias( 'zipPortable_print',	env.Command('zipPortable_print.out1',	'dummy.in',Action( nopAction, printZipPortable ) ) )
 		Alias( 'zipDev_print',		env.Command('zipDev_print.out1',		'dummy.in',	Action( nopAction, printZipDev ) ) )
 		Alias( 'zipSrc_print',		env.Command('zipSrc_print.out1',		'dummy.in',	Action( nopAction, printZipSrc ) ) )
 
 		Alias( 'zipruntime',	['infofile', 'build', 'zip_print', 'zipRuntime_print'] )
 		Alias( 'zipdeps',		['build', 'zip_print', 'zipDeps_print'] )
+		Alias( 'portable',		['infofile', 'build', 'zip_print', 'zipPortable_print'] )
 		Alias( 'zipportable',	['infofile', 'build', 'zip_print', 'zipPortable_print'] )
 		Alias( 'zipdev',		['build', 'zip_print', 'zipDev_print'] )
 		Alias( 'zipsrc',		['build', 'zip_print', 'zipSrc_print'] )
@@ -693,6 +695,8 @@ def configureZipAndNSISTargets( env ):
 		Alias( 'zipDeps_generate7z', env.SevenZipAdd( depsZip, Dir(depsZipPath) ) )
 		Alias( 'zipdeps',		[depsZipFiles, 'zipDeps_generate7z'] )
 
+		Alias( 'portable', portableZipFiles )
+
 		portableZip = portableZipPath + env['SEVENZIPSUFFIX']
 		Alias( 'zipPortable_generate7z', env.SevenZipAdd( portableZip, Dir(portableZipPath) ) )
 		Alias( 'zipportable',	[portableZipFiles, 'zipPortable_generate7z'] )
@@ -712,6 +716,7 @@ def configureZipAndNSISTargets( env ):
 	# @todo print message
 			env.createRsyncAction( os.path.basename(runtimeZip), File(runtimeZip), 'zipruntime' )
 			env.createRsyncAction( os.path.basename(depsZip), File(depsZip), 'zipdeps' )
+			env.createRsyncAction( '', Dir(portableZipPath), 'portable' )
 			env.createRsyncAction( os.path.basename(portableZip), File(portableZip), 'zipportable' )
 			env.createRsyncAction( os.path.basename(devZip), File(devZip), 'zipdev' )
 
