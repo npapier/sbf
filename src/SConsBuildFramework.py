@@ -688,6 +688,9 @@ SConsBuildFramework options:
 
 		# Updates myPublishPath
 		self.myPublishPath = lenv['publishPath']
+		if lenv['publishOn'] and len(self.myPublishPath)==0:
+			print ("sbfError: sbf option named 'publishPath' is empty.")
+			Exit( 1 )
 
 		# Updates myBuildPath, mySConsignFilePath, myCachePath, myCacheOn, myConfig and myWarningLevel
 		self.myBuildPath = getNormalizedPathname( lenv['buildPath'] )
