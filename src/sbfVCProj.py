@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -308,8 +308,13 @@ def vcprojAction( target, source, env ):
 					for define in env['CPPDEFINES'] :
 						if isinstance( define, str ) :
 							defines += define.replace('\"', '&quot;') + ';'
-						else :
-							defines += define[0] + "=" + str(define[1]).replace('\"', '&quot;') + ';'
+						else:
+							if len(define)==1:
+								defines += define[0].replace('\"', '&quot;') + ';'
+							elif len(define)==2:
+								defines += define[0] + "=" + str(define[1]).replace('\"', '&quot;') + ';'
+							else:
+								raise SCons.Errors.StopError, "Unexpected define ({0}) found in CPPDEFINES\n".format(define)
 					newLine = res.expand( r"\1%s\3\n" % defines )
 					targetFile.write( newLine )
 					continue
