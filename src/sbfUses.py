@@ -265,11 +265,11 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-45-0', '1-46-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
+		return [ '1-46-1', '1-45-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			if version == '1-46-0':
+			if version == '1-46-1':
 				return [ 'BOOST_ALL_DYN_LINK', ('BOOST_FILESYSTEM_VERSION', '2') ]
 			else:
 				return [ 'BOOST_ALL_DYN_LINK' ]
@@ -311,9 +311,9 @@ class Use_boost( IUse ):
 							'boost_thread-{vc}-{conf}-{ver}', 'boost_unit_test_framework-{vc}-{conf}-{ver}', 'boost_wave-{vc}-{conf}-{ver}',
 							'boost_wserialization-{vc}-{conf}-{ver}' ]
 
-			if version == '1-46-0':
+			if version == '1-46-1':
 				# autolinking, so nothing to do.
-				ver = '1_46'
+				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
 				return [], pakLibs
 			elif version == '1-45-0': # "same" libs as '1-44-0'
