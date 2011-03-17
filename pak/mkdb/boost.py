@@ -11,6 +11,7 @@
 # configuration
 versionMajor = 1
 versionMinor = 46
+versionMaintenance = 1
 
 if platform == 'win32':
 	msg = 'WARNING: building this package must be done from a Visual Studio Command Prompt'
@@ -28,18 +29,18 @@ else:
 
 descriptor = {
  'urls'			: [	#"http://sourceforge.net/projects/boost/files/boost-jam/3.1.17/boost-jam-3.1.17-1-ntx86.zip/download",
- 					'http://sourceforge.net/projects/boost/files/boost/{major}.{minor}.0/boost_{major}_{minor}_0.tar.bz2/download'.format( major=versionMajor, minor=versionMinor )
+ 					'http://sourceforge.net/projects/boost/files/boost/{major}.{minor}.{maintenance}/boost_{major}_{minor}_{maintenance}.tar.bz2/download'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance )
  					],
 
- 'rootBuildDir'	: 'boost_{major}_{minor}_0'.format( major=versionMajor, minor=versionMinor ),
+ 'rootBuildDir'	: 'boost_{major}_{minor}_{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
  'builds'		: build,
 
  'name'			: 'boost',
- 'version'		: '{major}-{minor}-0'.format( major=versionMajor, minor=versionMinor ),
+ 'version'		: '{major}-{minor}-{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
 
- 'rootDir'		: 'boost_{major}_{minor}_0'.format( major=versionMajor, minor=versionMinor ),
+ 'rootDir'		: 'boost_{major}_{minor}_{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
  'license'		: ['LICENSE_1_0.txt'],
- 'include'		: [('boost', 'boost{major}-{minor}-0/boost/'.format( major=versionMajor, minor=versionMinor ))],
+ 'include'		: [('boost', 'boost{major}-{minor}-{maintenance}/boost/'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ))],
  'lib'			: lib
 }
 
