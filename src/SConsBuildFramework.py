@@ -375,12 +375,21 @@ class SConsBuildFramework :
 		#if self.myEnv.GetOption("optimize") == 0 :
 		#	self.myEnv.SetOption("weak_localext", 0 )
 
-		AddOption(	"--fast",
-					action	= "store_true",
-					#dest	= "fast",
+		AddOption(	'--fast',
+					action	= 'store_true',
 					default	= False,
 					help	= "Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that SCons will not rebuild correctly the project in several rare cases." # this comment is duplicated in Help()
 					)
+		if self.myEnv.GetOption('fast'):
+			self.myEnv['decider'] = 'fast'
+
+		AddOption(	"--accurate",
+					action	= "store_true",
+					default	= False,
+					help	= "See 'decider' SConsBuildFramework option."
+					)
+		if self.myEnv.GetOption('accurate'):
+			self.myEnv['decider'] = 'accurate'
 
 		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
 		AddOption(	"--verbose",
@@ -505,7 +514,7 @@ class SConsBuildFramework :
 		self.my_Platform_myCCVersion = '_' + self.myPlatform + '_' + self.myCCVersion
 
 		# Option 'fast'
-		if self.myEnv.GetOption('fast'):
+		if self.myEnv['decider'] == 'fast':
 			#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
 			#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
 
@@ -627,7 +636,8 @@ release    a shortcut for config=release. See 'config' option for additionnal in
 --verbose		Shows details about the results of running sbf. This can be especially useful when the results might not be obvious.
 --fast			Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that
 				SCons will not rebuild correctly the project in several rare cases.
-
+				See 'decider' SConsBuildFramework option.
+--accurate		see --fast
 
 
 SConsBuildFramework options:
@@ -828,6 +838,10 @@ SConsBuildFramework options:
 			BoolVariable( 'queryUser', "Sets to False to assume default answer on all queries. Disables most of the normal user queries during sbf execution.", True ),
 
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
+			EnumVariable(	'decider',
+							"Specifies the method used to decide if a target is up-to-date or must be rebuilt. Chooses among 'fast' or 'accurate'",
+							'accurate',
+							allowed_values = ( 'fast', 'accurate' ) ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
 			EnumVariable(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
 							'less',

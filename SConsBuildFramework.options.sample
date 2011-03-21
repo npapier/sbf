@@ -1,6 +1,7 @@
 # sbf settings
 #queryUser					= True
 #numJobs					= 1
+#decider					= 'accurate'
 #outputLineLength			= 79
 #printCmdLine				= 'less'
 #companyName				= ''
