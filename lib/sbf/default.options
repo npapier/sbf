@@ -1,14 +1,8 @@
 # project settings
 description			= 'SConsBuildFramework companion library'
-vcsUse				= 'no' # no
-#defines			= []
-type				= 'shared'	# exec, static, shared, none
-#version			= '0-0'
-#postfix			= ''
-#deps				= []
+vcsUse				= 'no'
+type				= 'shared'
 uses				= [ 'boost' ]
-#libs				= []
-#stdlibs			= []
 
 from SCons.Script.SConscript import SConsEnvironment
 platform = SConsEnvironment.sbf.myPlatform
