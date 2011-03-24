@@ -53,7 +53,7 @@ const std::string Module::getInfoFromFile() const
 
 	if( boost::filesystem::exists( infoPath ) )
 	{
-		std::ifstream	in( infoPath.file_string().c_str() );
+		std::ifstream	in( infoPath.string().c_str() );
 
 		while( in )
 		{

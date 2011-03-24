@@ -269,10 +269,7 @@ class Use_boost( IUse ):
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			if version == '1-46-1':
-				return [ 'BOOST_ALL_DYN_LINK', ('BOOST_FILESYSTEM_VERSION', '2') ]
-			else:
-				return [ 'BOOST_ALL_DYN_LINK' ]
+			return [ 'BOOST_ALL_DYN_LINK' ]
 		else:
 			return []
 
