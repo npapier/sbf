@@ -338,14 +338,14 @@ class SConsBuildFramework :
 #			Exit(1)
 
 		# Analyses command line options
-		AddOption(	'--nodeps',
+		AddOption(	'--nd', '--nodeps',
 					action	= 'store_true',
 					dest	= 'nodeps',
 					default	= False,
 					help	= "do not follow project dependencies specified by 'deps' project option." )
 		self.myEnv['nodeps'] = GetOption('nodeps')
 
-		AddOption(	'--noexclude',
+		AddOption(	'--nx', '--noexclude',
 					action	= 'store_true',
 					dest	= 'noexclude',
 					default	= False,
