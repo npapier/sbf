@@ -1320,7 +1320,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
 					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
 					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
@@ -1436,6 +1436,90 @@ def usesConverter( val ) :
 	return result
 
 ###### use_package (see option named 'uses') ######
+
+class Use_glibmm( IUse ):
+
+	def getName( self ):
+		return 'glibmm'
+
+	def getVersions( self ):
+		return [ '2-26-0' ]
+
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32' :
+			gtkmmCppPath = [ 'lib/glibmm-2.4/include', 'include/glibmm-2.4' ]
+
+			gtkCppPath = [ 'lib/glib-2.0/include', 'include/glib-2.0' ]
+
+			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
+			path +=	[ os.path.join(gtkmmConfig.getBasePath(), item)	for item in gtkCppPath ]
+
+			return path
+		elif self.platform == 'posix':
+			gtkmmCppPath	= [	'/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include' ]
+
+			return gtkmmCppPath
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			libs = [ 'glib-2.0' ]
+
+			if version in ['2-26-0']:
+				if self.config == 'release' :
+					# RELEASE
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs += [	'glibmm-vc100-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs += [	'glibmm-vc90-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs += [	'glibmm-vc80-2_4' ]
+				else:
+					# DEBUG
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs += [	'glibmm-vc100-d-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs += [	'glibmm-vc90-d-2_4' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs += [	'glibmm-vc80-d-2_4' ]
+			else:
+				return
+
+			return libs, []
+
+		elif self.platform == 'posix':
+			gtkmm		= [	'glibmm-2.4', 'glib-2.0' ]
+			return gtkmm, []
+
+
+	def getLIBPATH( self, version ):
+		libPath		= []
+		pakLibPath	= []
+
+		if self.platform == 'win32' :
+			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
+			libPath.append( path )
+		#else self.platform == 'posix':
+		#	libPath += '/usr/lib64'
+
+		return libPath, pakLibPath
+
+
+	def getCPPFLAGS( self, version ):
+		# compiler options
+		if self.platform == 'win32':
+			if version in ['2-26-0']:
+				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					return ['/wd4250']
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					return ['/wd4250', '/wd4312']
+			else:
+				return ['/wd4250']
+		elif self.platform == 'posix':
+			return ['-Wl,--export-dynamic']
+
+
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
 # @todo support pakLibs
