@@ -808,6 +808,23 @@ class Use_opengl( IUse ):
 		return []
 
 
+class Use_poppler( IUse ):
+
+	def getName( self ):
+		return 'poppler'
+
+	def getVersions( self ):
+		return ['0-16-5']
+
+	def getLIBS( self, version ):
+		if self.config == 'release' :
+			libs = ['poppler', 'poppler-cpp']
+			return libs, libs
+		else:
+			libs = ['popplerd', 'poppler-cppd']
+			return libs, libs
+
+
 class Use_itk( IUse ):
 
 	def getName( self ):
@@ -1321,8 +1338,8 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_python(),
-					Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(),
+					Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):

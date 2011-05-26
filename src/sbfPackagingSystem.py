@@ -255,7 +255,7 @@ class PackagingSystem:
 			filename = rsearchFilename( urlparse.urlparse(url).path )
 
 			if not exists( join('cache', filename) ):
-				print ( '* Retrieves %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
+				print ( '* Retrieving %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
 
 				urllib.urlretrieve(url, filename= join('cache', filename), reporthook=reporthook_urlretrieve)
 				print ( 'Done.' + ' '*16 )
@@ -264,9 +264,13 @@ class PackagingSystem:
 			print
 
 			# Extracts
-			print ( '* Extracts %s in %s...' % (filename, extractionDirectory) )
-			extractArchive( join('cache', filename), extractionDirectory )
-			print ( 'Extraction done.\n' )
+			print ( '* Extracting %s in %s...' % (filename, extractionDirectory) )
+			try:
+				extractArchive( join('cache', filename), extractionDirectory )
+				print ( 'Done.\n' )
+			except Exception, e:
+				print ( 'Error encountered: %s\n' % (e) )
+				return				
 
 		# BUILDS
 		import datetime
