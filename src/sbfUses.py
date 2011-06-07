@@ -818,11 +818,9 @@ class Use_poppler( IUse ):
 
 	def getLIBS( self, version ):
 		if self.config == 'release' :
-			libs = ['poppler', 'poppler-cpp']
-			return libs, libs
+			return ['poppler', 'poppler-cpp'], ['poppler-cpp']
 		else:
-			libs = ['popplerd', 'poppler-cppd']
-			return libs, libs
+			return ['popplerd', 'poppler-cppd'], ['poppler-cppd']
 
 
 class Use_itk( IUse ):
