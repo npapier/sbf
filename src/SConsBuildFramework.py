@@ -840,7 +840,7 @@ SConsBuildFramework options:
 			('numJobs', 'Allow N jobs at once. N must be an integer equal at least to one.', 1 ),
 			EnumVariable(	'decider',
 							"Specifies the method used to decide if a target is up-to-date or must be rebuilt. Chooses among 'fast' or 'accurate'",
-							'accurate',
+							'fast',
 							allowed_values = ( 'fast', 'accurate' ) ),
 			('outputLineLength', 'Sets the maximum length of one single line printed by sbf.', 79 ),
 			EnumVariable(	'printCmdLine', "Sets to 'full' to print all command lines launched by sbf, and sets to 'less' to hide command lines and see only a brief description of each command.",
