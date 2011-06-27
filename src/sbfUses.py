@@ -818,9 +818,9 @@ class Use_poppler( IUse ):
 
 	def getLIBS( self, version ):
 		if self.config == 'release' :
-			return ['poppler', 'poppler-cpp'], ['poppler-cpp']
+			return ['poppler', 'poppler-cpp'], ['poppler-cpp', 'libiconv2', 'freetype6', 'jpeg62']
 		else:
-			return ['popplerd', 'poppler-cppd'], ['poppler-cppd']
+			return ['popplerd', 'poppler-cppd'], ['poppler-cppd', 'libiconv2', 'freetype6', 'jpeg62']
 
 
 class Use_itk( IUse ):
