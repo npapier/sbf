@@ -1147,7 +1147,7 @@ class Use_sofa( IUse, sofaConfig ):
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
 						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
-						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact' ]
+						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'SuturePlugin' ]
 			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
 
 			if self.config == 'release' :
