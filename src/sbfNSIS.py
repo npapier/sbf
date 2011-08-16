@@ -118,6 +118,7 @@ SetCompressor lzma
 !define SBFPROJECTNAMECAPITALIZED	"{projectNameCapitalized}"
 !define SBFPROJECTVERSION			"{projectVersion}"
 !define SBFPROJECTCONFIG			"{projectConfig}"
+!define SBFPROJECTVENDOR			"{projectVendor}"
 !define SBFDATE						"{date}"
 
 ; SETUPFILE
@@ -151,7 +152,10 @@ Name "${{PRODUCTNAME}}"
 OutFile "${{SETUPFILE}}"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\${{PRODUCTNAME}}
+; @todo InstallDir should be configurable
+; InstallDir $PROGRAMFILES\${{PRODUCTNAME}}
+; InstallDir $PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}
+InstallDir $PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}\${{SBFPROJECTVERSION}}
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
@@ -276,6 +280,7 @@ SectionEnd
 			projectNameCapitalized=capitalize(env['sbf_project']),
 			projectVersion=env['version'],
 			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
+			projectVendor=env.sbf.myCompanyName,
 			date=env.sbf.myDate,
 			productName=PRODUCTNAME,
 			productExe=PRODUCTEXE,
