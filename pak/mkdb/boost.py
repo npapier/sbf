@@ -10,8 +10,8 @@
 
 # configuration
 versionMajor = 1
-versionMinor = 46
-versionMaintenance = 1
+versionMinor = 47
+versionMaintenance = 0
 
 if platform == 'win32':
 	msg = 'WARNING: building this package must be done from a Visual Studio Command Prompt'
