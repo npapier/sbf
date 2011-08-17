@@ -153,9 +153,9 @@ OutFile "${{SETUPFILE}}"
 
 ; The default installation directory
 ; @todo InstallDir should be configurable
-; InstallDir $PROGRAMFILES\${{PRODUCTNAME}}
-; InstallDir $PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}
-InstallDir $PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}\${{SBFPROJECTVERSION}}
+; InstallDir "$PROGRAMFILES\${{PRODUCTNAME}}"
+; InstallDir "$PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
+InstallDir "$PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}\${{SBFPROJECTVERSION}}"
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
