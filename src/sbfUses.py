@@ -265,7 +265,8 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-46-1', '1-45-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
+#		return [ '1-47-0', '1-46-1', '1-45-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
+		return [ '1-46-1', '1-47-0', '1-45-0', '1-44-0', '1-43-0', '1-42-0', '1-41-0', '1-40-0' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -307,8 +308,14 @@ class Use_boost( IUse ):
 							'boost_serialization-{vc}-{conf}-{ver}', 'boost_signals-{vc}-{conf}-{ver}', 'boost_system-{vc}-{conf}-{ver}',
 							'boost_thread-{vc}-{conf}-{ver}', 'boost_unit_test_framework-{vc}-{conf}-{ver}', 'boost_wave-{vc}-{conf}-{ver}',
 							'boost_wserialization-{vc}-{conf}-{ver}' ]
+			genPakLibs2 = [	'boost_chrono-{vc}-{conf}-{ver}' ]
 
-			if version == '1-46-1':
+			if version == '1-47-0':
+				# autolinking, so nothing to do.
+				ver = '1_47_0'
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 ]
+				return [], pakLibs
+			elif version == '1-46-1':
 				# autolinking, so nothing to do.
 				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
