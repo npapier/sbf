@@ -56,18 +56,18 @@ def nsisGeneration( target, source, env ):
 		UNINSTALL_DESKTOPSHORTCUT		= ''
 		UNINSTALL_QUICKLAUNCHSHORTCUT	= ''
 		if len(executables) > 1 :
-			SHORTCUT = '  CreateDirectory \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
-			UNINSTALL_SHORTCUT	=	'  Delete "$SMPROGRAMS\\${PRODUCTNAME}\\tools\\*.*\"\n'
-			UNINSTALL_SHORTCUT	+=	'  RMDir "$SMPROGRAMS\\${PRODUCTNAME}\\tools\"\n'
+			SHORTCUT = '  CreateDirectory \"${STARTMENUROOT}\\tools\"\n'
+			UNINSTALL_SHORTCUT	=	'  Delete \"${STARTMENUROOT}\\tools\\*.*\"\n'
+			UNINSTALL_SHORTCUT	+=	'  RMDir \"${STARTMENUROOT}\\tools\"\n'
 
 		for (i, executable) in enumerate(executables) :
 			PRODUCTEXE	+=	"!define PRODUCTEXE{0}	\"{1}\"\n".format( i, executable)
 			if i > 0:
 				SHORTCUT	+=	'  SetOutPath \"$INSTDIR\\bin\"\n'
-				SHORTCUT	+=	"  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
+				SHORTCUT	+=	"  CreateShortCut \"${STARTMENUROOT}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
 			else:
 				SHORTCUT						=	'  SetOutPath \"$INSTDIR\\bin\"\n'
-				SHORTCUT						+=	'  CreateShortCut \"$SMPROGRAMS\\${PRODUCTNAME}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				SHORTCUT						+=	'  CreateShortCut \"${STARTMENUROOT}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
 				DESKTOPSHORTCUT					=	'  SetOutPath \"$INSTDIR\\bin\"\n'
 				DESKTOPSHORTCUT					+=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
 				QUICKLAUNCHSHORTCUT				=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
@@ -112,6 +112,8 @@ def nsisGeneration( target, source, env ):
 
 ;--------------------------------
 
+!include "FileFunc.nsh"
+
 SetCompressor lzma
 
 !define SBFPROJECTNAME				"{projectName}"
@@ -123,6 +125,10 @@ SetCompressor lzma
 
 ; SETUPFILE
 !define SETUPFILE "${{SBFPROJECTNAMECAPITALIZED}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
+
+;
+!define REGKEYROOT		"Software\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
+!define STARTMENUROOT	"$SMPROGRAMS\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
 
 ; PRODUCTNAME
 {productName}
@@ -159,7 +165,7 @@ InstallDir "$PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}\${{SBFPROJECTVE
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\${{PRODUCTNAME}}" "Install_Dir"
+InstallDirRegKey HKLM "${{REGKEYROOT}}" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
@@ -186,11 +192,15 @@ Section "${{PRODUCTNAME}} core (required)"
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
 
-  ; Put files there
-	!include "${{SBFPROJECTNAME}}_install_files.nsi"
+  ; Backups 'var' directory if already present
+  ${{GetTime}} "" "L" $0 $1 $2 $6 $3 $4 $5
+  CopyFiles /SILENT "$INSTDIR\\var" "$INSTDIR\\var_backup_$0-$1-$2_$3-$4-$5"
+  RmDir /r "$INSTDIR\\var"
 
-  ; Create 'var' directory
-  CreateDirectory "$INSTDIR\\var"
+  ; Put files there
+  !include "${{SBFPROJECTNAME}}_install_files.nsi"
+ 
+  ; 'var' directory is created by SBFPROJECTNAME_install_files.nsi
 
   ; Changes ACL
   ; From MSDN
@@ -209,11 +219,14 @@ Section "${{PRODUCTNAME}} core (required)"
   !include "${{SBFPROJECTNAME}}_install_redist.nsi"
 
   ; Write the installation path into the registry
-  WriteRegStr HKLM "SOFTWARE\${{PRODUCTNAME}}" "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "${{REGKEYROOT}}" "Install_Dir" "$INSTDIR"
 
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayName" "${{PRODUCTNAME}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayIcon" '"$INSTDIR\\bin\\${{PRODUCTEXE}}"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayName" "${{SBFPROJECTVENDOR}} ${{PRODUCTNAME}} ${{SBFPROJECTVERSION}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayVersion" "${{SBFPROJECTVERSION}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "Publisher" "${{SBFPROJECTVENDOR}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "UninstallString" '"$INSTDIR\\uninstall.exe"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
@@ -226,10 +239,9 @@ Section "Start Menu Shortcuts"
   SectionIn RO
 
   SetShellVarContext all
-
-  CreateDirectory "$SMPROGRAMS\${{PRODUCTNAME}}"
+  CreateDirectory "${{STARTMENUROOT}}"
 {startMenuShortcuts}
-  CreateShortCut "$SMPROGRAMS\${{PRODUCTNAME}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+  CreateShortCut "${{STARTMENUROOT}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
 SectionEnd
 
 
@@ -252,13 +264,13 @@ Section "Uninstall"
 
   ; Remove files
   !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
-  RmDir "$INSTDIR\\var"
 
   ; Remove redistributable
   !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
   ; Remove registry keys
-  DeleteRegKey HKLM "SOFTWARE\${{PRODUCTNAME}}"
+  DeleteRegKey HKLM "${{REGKEYROOT}}"
+  DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}"
 
   ; Remove uninstaller
@@ -269,9 +281,10 @@ Section "Uninstall"
 
   ; Remove shortcuts, if any
 {removeStartMenuShortcuts}
-  Delete "$SMPROGRAMS\${{PRODUCTNAME}}\*.*"
+  Delete "${{STARTMENUROOT}}\*.*"
   ; Remove directories used
-  RMDir "$SMPROGRAMS\${{PRODUCTNAME}}"
+  RMDir "${{STARTMENUROOT}}"
+  RMDir "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
  
 {removeDesktopShortcuts}
  
