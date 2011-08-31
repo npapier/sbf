@@ -1,4 +1,4 @@
-// SConsBuildFramework - Copyright (C) 2009, 2010, Guillaume Brocker
+// SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Guillaume Brocker
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
@@ -9,6 +9,9 @@
 #include <boost/filesystem/convenience.hpp>
 #include <boost/filesystem/operations.hpp>
 
+#ifdef WIN32
+#include <windows.h>
+#endif // WIN32
 
 
 namespace sbf
@@ -34,18 +37,36 @@ const std::string toString( const Type & type )
 
 
 
+const boost::filesystem::path getRootPath()
+{
+#ifdef WIN32
+	
+	char	filename[1024];
+
+	GetModuleFileName( 0, filename, sizeof(filename) );
+	return boost::filesystem::path(filename).parent_path();
+
+#else
+
+	return boost::filesystem::initial_path();
+
+#endif
+}
+
+
+
 const boost::filesystem::path getTopLevel( const Type & type )
 {
-	const boost::filesystem::path	initialPath = boost::filesystem::initial_path();
-	boost::filesystem::path			basePath;
+	static const boost::filesystem::path	rootPath = getRootPath();
+	boost::filesystem::path					basePath;
 	
-	basePath = initialPath / toString(type);
+	basePath = rootPath / toString(type);
 	if( boost::filesystem::is_directory(basePath) )
 	{
 		return basePath;
 	}
 
-	basePath = initialPath / boost::filesystem::path("..") / toString(type);
+	basePath = rootPath / boost::filesystem::path("..") / toString(type);
 	if( boost::filesystem::is_directory(basePath) )
 	{
 		return basePath;
