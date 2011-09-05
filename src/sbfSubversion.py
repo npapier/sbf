@@ -750,7 +750,7 @@ class Subversion( IVersionControlSystem ):
 			return self.mySvnUrls.get('', [])
 
 	def __splitSvnUrl( self, svnUrl, projectName = '{PROJECT}' ):
-		return splitSvnUrl( svnUrl, projectName = '{PROJECT}' )
+		return splitSvnUrl( svnUrl, projectName )
 
 
 	#
