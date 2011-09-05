@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -7,6 +7,7 @@ import atexit
 import fnmatch
 import sys
 
+# pysvn must be installed
 try:
 	import pysvn
 except ImportError as e:
@@ -83,6 +84,28 @@ class Statistics:
 
 
 ##### Low-level pysvn ######
+
+def splitSvnUrl( svnUrl, projectName = '{PROJECT}' ):
+	"""Returns (url, revision) from svnUrl. {PROJECT} sub-string in svnUrl would be replaced by given projectName.
+	# Returns :
+	# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk, None) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk
+	# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk, 3050) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk@3050
+	# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/branches/2.0, 3058) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/branches/2.0@3058
+	# - (svn+ssh://npapier@orange/srv/svn/lib/{PROJECT}/trunk, 3000) for svn+ssh://npapier@orange/srv/svn/lib/{PROJECT}/trunk@3000
+	# - (https://vgsdk.googlecode.com/svn/trunk, None) for https://vgsdk.googlecode.com/svn/trunk"""
+
+	# endOfSvnUrl = '/trunk@3000' or '/trunk'
+	endOfSvnUrl = svnUrl[svnUrl.rindex('/'):]
+	hasRevisionNumber = ( endOfSvnUrl.rfind('@') != -1 )
+	if hasRevisionNumber:
+		atLocation = svnUrl.rfind('@')
+		url = svnUrl[:atLocation].format(PROJECT=projectName)
+		revision = svnUrl[atLocation+1:]
+	else:
+		url = svnUrl.format(PROJECT=projectName)
+		revision = None
+	return (url, revision)
+
 
 def printRevision( myProject, revisionNumber ):
 	print ("{0} at revision {1}".format(myProject, revisionNumber))
@@ -236,7 +259,7 @@ class CallbackGetLogMessage:
 # svnIsUnversioned, svnIsVersioned
 # SvnAddFileOrDir, SvnAddDirs
 # SvnMkDir, SvnRemove
-# SvnCheckout, SvnUpdate
+# SvnCheckout, SvnExport, SvnUpdate
 # SvnRelocate
 # SvnCopy
 # (SvnStatus, SvnRemoteStatus @todo)
@@ -534,7 +557,7 @@ class SvnRemove( SvnOperation ):
 		return retVal
 
 
-# SvnCheckout, SvnUpdate
+# SvnCheckout, SvnExport, SvnUpdate
 class SvnCheckout( SvnOperation ):
 	"""SvnCheckout()( url, path, [revisionNumber] )
 		Check out a working copy from a repository url into path to head or revisionNumber if provided
@@ -553,6 +576,25 @@ class SvnCheckout( SvnOperation ):
 		#return self.client.checkout( url = url, path = path ) => returned revision contains always 0 !!!
 		self.client.checkout( url = url, path = path, revision = revision )
 		return SvnGetRevision()( path )
+
+
+class SvnExport( SvnOperation ):
+	"""SvnExport()( url, path, [revisionNumber] )
+		Export a working copy from a repository url into path to head or revisionNumber if provided
+		@return revision number of the exported copy"""
+
+	def doSvnOperation( self, *args ):
+		# arguments
+		url = args[0]
+		path = args[1]
+		if len(args)==3 and args[2]:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.number, args[2] )
+		else:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.head )
+
+		# do
+		rev = self.client.export( src_url_or_path = url, dest_path = path, revision = revision )
+		return rev.number
 
 
 class SvnUpdate( SvnOperation ):
@@ -708,25 +750,7 @@ class Subversion( IVersionControlSystem ):
 			return self.mySvnUrls.get('', [])
 
 	def __splitSvnUrl( self, svnUrl, projectName = '{PROJECT}' ):
-		"""Returns (url, revision) from svnUrl. {PROJECT} sub-string in svnUrl would be replaced by given projectName.
-		# Returns :
-		# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk, None) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk
-		# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk, 3050) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/trunk@3050
-		# - (file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/branches/2.0, 3058) for file:///D:/tmp/dev-branch/srv/svn/bin/{PROJECT}/branches/2.0@3058
-		# - (svn+ssh://npapier@orange/srv/svn/lib/{PROJECT}/trunk, 3000) for svn+ssh://npapier@orange/srv/svn/lib/{PROJECT}/trunk@3000
-		# - (https://vgsdk.googlecode.com/svn/trunk, None) for https://vgsdk.googlecode.com/svn/trunk"""
-
-		# endOfSvnUrl = '/trunk@3000' or '/trunk'
-		endOfSvnUrl = svnUrl[svnUrl.rindex('/'):]
-		hasRevisionNumber = ( endOfSvnUrl.rfind('@') != -1 )
-		if hasRevisionNumber:
-			atLocation = svnUrl.rfind('@')
-			url = svnUrl[:atLocation].format(PROJECT=projectName)
-			revision = svnUrl[atLocation+1:]
-		else:
-			url = svnUrl.format(PROJECT=projectName)
-			revision = None
-		return (url, revision)
+		return splitSvnUrl( svnUrl, projectName = '{PROJECT}' )
 
 
 	#
@@ -839,6 +863,18 @@ class Subversion( IVersionControlSystem ):
 		return False
 
 
+	def _export( self, url, path, revision ):
+		svnExport = SvnExport( rootPath=path, statisticsObservers=[self.stats] )
+		if revision:
+			revisionNumber = svnExport( url, path, revision ) 
+		else:
+			revisionNumber = svnExport( url, path ) 
+
+		# Print revision and statistics
+		printRevision( basename(path), revisionNumber )
+		svnExport.printStatisticsReport()
+
+
 # @todo migrate to new API SvnOperation
 #	def export( self, myProjectPathName, myProject ):
 #		# Checks validity of 'svnUrls' option
@@ -868,18 +904,18 @@ class Subversion( IVersionControlSystem ):
 
 
 # @todo migrate to new API SvnOperation
-	def _export( self, svnUrl, exportPath, projectName ):
-		client = self.__createPysvnClient__()
-		#client.callback_notify.resetStatistics()
-		try:
-			revision = client.export( svnUrl, exportPath )
+#	def _export( self, svnUrl, exportPath, projectName ):
+#		client = self.__createPysvnClient__()
+#		#client.callback_notify.resetStatistics()
+#		try:
+#			revision = client.export( svnUrl, exportPath )
 			#client.callback_notify.getStatistics().printReport()
-			print "sbfInfo:", projectName, "found at", svnUrl
-			return True
-			#return self.__printSvnInfo( exportPath, projectName )
-		except pysvn.ClientError, e :
-			print e.args[0], '\n'
-			return False
+#			print "sbfInfo:", projectName, "found at", svnUrl
+#			return True
+#			#return self.__printSvnInfo( exportPath, projectName )
+#		except pysvn.ClientError, e :
+#			print e.args[0], '\n'
+#			return False
 
 
 # @todo migrate to new API SvnOperation
@@ -1172,7 +1208,7 @@ class Subversion( IVersionControlSystem ):
 		"""	Lists available tag/branch in repository for the given project
 			@param branch	'tags' or 'branches'"""
 		if branch not in ['tags', 'branches']:
-			raise SCons.Errors.UserError("Internal sbf error.")
+			raise AssertionError( "branch parameter must be 'tags' or 'branches'." )
 
 		url = self.getSplitUrl( projectPathName )
 		urlBranch = url[0] + url[1] + '/{0}'.format(branch)
