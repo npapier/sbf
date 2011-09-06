@@ -312,7 +312,7 @@ class Use_boost( IUse ):
 
 			if version == '1-47-0':
 				# autolinking, so nothing to do.
-				ver = '1_47_0'
+				ver = '1_47'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 ]
 				return [], pakLibs
 			elif version == '1-46-1':
@@ -1027,7 +1027,7 @@ class Use_opencollada( IUse ):
 
 	def getVersions( self ):
 		return ['768', '736']
-		
+
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
 			return [ 	'opencollada/COLLADAFramework/',
