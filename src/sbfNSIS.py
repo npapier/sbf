@@ -151,6 +151,16 @@ FunctionEnd
 ; The name of the installer
 Name "${{PRODUCTNAME}}"
 
+; Version information
+VIAddVersionKey "ProductName" "${{PRODUCTNAME}}"
+VIAddVersionKey "CompanyName" "${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "LegalCopyright" "Copyright ${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "FileDescription" "{projectDescription}"
+VIAddVersionKey "FileVersion" "{productVersion}"
+VIAddVersionKey "ProductVersion" "{productVersion}"
+
+VIProductVersion "{productVersion}"
+
 ; icon of the installer
 {icon}
 
@@ -294,9 +304,11 @@ SectionEnd
 			projectVersion=env['version'],
 			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
 			projectVendor=env.sbf.myCompanyName,
+			projectDescription=env['description'],
 			date=env.sbf.myDate,
 			productName=PRODUCTNAME,
 			productExe=PRODUCTEXE,
+			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
 			desktopShortcuts=DESKTOPSHORTCUT,
