@@ -40,7 +40,7 @@ descriptor = {
 
  'rootDir'		: 'boost_{major}_{minor}_{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
  'license'		: ['LICENSE_1_0.txt'],
- 'include'		: [('boost', 'boost{major}-{minor}-{maintenance}/boost/'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ))],
+ 'include'		: [('boost', 'boost/')],
  'lib'			: lib
 }
 
