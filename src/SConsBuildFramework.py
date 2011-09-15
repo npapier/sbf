@@ -128,7 +128,6 @@ class SConsBuildFramework :
 	# sbf environment
 	mySCONS_BUILD_FRAMEWORK			= ''
 	mySbfLibraryRoot				= ''
-	myExcludeFromInheritedUsesSet	= set()
 
 	# SCons environment
 	myEnv							= None
@@ -245,14 +244,6 @@ class SConsBuildFramework :
 
 		# Sets the root directory of sbf library
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
-
-		# a project inherits 'uses' from its dependencies.
-		# But not for all (cairo, gtkmm and itk), so the uses set that must be excluded must be built
-		self.myExcludeFromInheritedUsesSet = set()
-		for use in [Use_cairo(), Use_gtkmm(), Use_gtkmmext(), Use_itk()]:
-			name = use.getName()
-			for version in use.getVersions():
-				self.myExcludeFromInheritedUsesSet.add( name + version )
 
 		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
 		homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
@@ -1661,34 +1652,6 @@ SConsBuildFramework options:
 			uses( self, lenv, usesConverter(lenv['test']) )
 			# @todo moves usesAlreadyConfigured into uses() function
 			usesAlreadyConfigured.add( lenv['test'] )
-
-		# Configures lenv[*] with lenv['uses'] from dependencies
-		# @todo OPTME
-		allDependencies = self.getAllDependencies( lenv )
-	#	print 'project', self.myProject
-	#	print 'uses', lenv['uses']
-	#	print 'dependencies', lenv['deps']
-	#	print "recursiveDependencies:", allDependencies
-
-		if len(allDependencies) > 0:
-			# Computes union of 'uses' option for all dependencies
-			inheritedUsesSet = set()
-			for dependency in allDependencies:
-				dependencyEnv = self.myParsedProjects[ dependency ]
-				inheritedUsesSet = inheritedUsesSet.union( set(dependencyEnv['uses']) )
-				# @todo OPTME cache
-		#	print 'inheritedUsesSet', inheritedUsesSet
-
-			inheritedUsesSet = inheritedUsesSet.difference( self.myExcludeFromInheritedUsesSet )
-		#	print 'inheritedUsesSet filtered', inheritedUsesSet
-		#	print
-
-			usesFromDependencies = inheritedUsesSet.difference( usesAlreadyConfigured )
-		#	print 'inheritedUsesSet', inheritedUsesSet.difference( usesAlreadyConfigured )
-		#	print 'usesFromDependencies', usesFromDependencies
-			uses( self, lenv, list(usesFromDependencies), True ) # True for skipLinkStageConfiguration
-
-
 
 		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
 		### TODO: .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?
