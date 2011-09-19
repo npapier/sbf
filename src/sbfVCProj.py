@@ -387,22 +387,42 @@ def slnAction( target, source, env ):
 
 	# Opens output file
 	with open( targetName, 'w' ) as file :
-		fileStr = VisualStudioDict['slnHeader'] + """%s
+		# fileStr = header + {projects} + Global + {projectsToBuild} + EndGlobal
+		fileStr = VisualStudioDict['slnHeader'] + """{projects}
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+{projectsToBuild}
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
 """
-		# Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgsdkTestGtk", "vgsdkTestGtk.vcproj", "{D09E3669-F458-4EDB-90F9-F8E1BD99428C}"
+
+		# Computes {projects}
+		#Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgsdkViewerGtk", "vgsdkViewerGtk.vcproj", "{EF5E8FF3-3AB5-4E01-A5A5-8BF411480B29}"
+		#EndProject
 		projectStr = """Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "%s", "%s", "%s"
 EndProject
+"""
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Debug|Win32.ActiveCfg = Debug|Win32
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Release|Win32.ActiveCfg = Release|Win32
+		projectToBuildStr1 = """		{uuid}.Debug|Win32.ActiveCfg = Debug|Win32
+		{uuid}.Release|Win32.ActiveCfg = Release|Win32
+"""
+
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Debug|Win32.ActiveCfg = Debug|Win32
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Debug|Win32.Build.0 = Debug|Win32
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Release|Win32.ActiveCfg = Release|Win32
+		#{77B3F741-8F49-4E7A-B57C-03D403A1F272}.Release|Win32.Build.0 = Release|Win32
+		projectToBuildStr0 = """		{uuid}.Debug|Win32.ActiveCfg = Debug|Win32
+		{uuid}.Debug|Win32.Build.0 = Debug|Win32
+		{uuid}.Release|Win32.ActiveCfg = Release|Win32
+		{uuid}.Release|Win32.Build.0 = Release|Win32
 """
 
 		# Adds all dependencies
@@ -412,8 +432,10 @@ EndProject
 
 		allDependencies = env.sbf.getAllDependencies( env )
 
-		ProjectEndProjectSection = ''
-		for dependency in allDependencies + [myProject]:
+		projectsStr = ''
+		projectsToBuildStr = ''
+		firstProject = True
+		for dependency in [myProject] + allDependencies:
 			dependencyEnv = env.sbf.myParsedProjects[ dependency ]
 # @todo vgBase (no GUID) should not by skipped and sbf (not in deps) ?
 			if 'sbf_projectGUID' not in dependencyEnv:
@@ -422,12 +444,17 @@ EndProject
 
 			pathToVcprojFile = getNormalizedPathname( os.path.join( dependencyEnv['sbf_projectPathName'], dependencyEnv['sbf_project'] + '.vcproj' ) )
 
-			ProjectEndProjectSection += projectStr % (
-												dependencyEnv['sbf_project'],
+			projectsStr += projectStr % (		dependencyEnv['sbf_project'],
 												relPathToProjectsRoot + convertPathAbsToRel(projectsRoot, pathToVcprojFile),
 												dependencyEnv['sbf_projectGUID'] )
+			if firstProject:
+				projectsToBuildStr += projectToBuildStr0.format(uuid=dependencyEnv['sbf_projectGUID'])
+				firstProject = False
+			else:
+				projectsToBuildStr += projectToBuildStr1.format(uuid=dependencyEnv['sbf_projectGUID'])
 
-		file.write( fileStr % ProjectEndProjectSection )
+		# Writes the string to file
+		file.write( fileStr.format( projects=projectsStr, projectsToBuild=projectsToBuildStr ) )
 
 
 
@@ -465,14 +492,14 @@ def configureVCProjTarget( env ):
 			VisualStudioDict['vcprojHeader']		= VisualStudioDict['vcprojHeader8']
 
 		# target vcproj_build
-		for projectName in env.sbf.myBuiltProjects:
+		slnGeneratedForRootProject = False
+		for projectName in reversed(env.sbf.myBuiltProjects):
 			lenv			= env.sbf.myBuiltProjects[projectName]
 			projectPathName	= lenv['sbf_projectPathName']
 			project			= lenv['sbf_project']
 
 			output1			= getNormalizedPathname( projectPathName + os.sep + project + '.vcproj' )
 			output2			= output1 + vcprojDebugFilePostFix
-			slnOutput		= getNormalizedPathname( projectPathName + os.sep + project + '.sln' )
 
 			#
 			env.Alias( 'vcproj_build', lenv.Command('vcproj_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioProjectBuild ) ) )
@@ -486,9 +513,13 @@ def configureVCProjTarget( env ):
 			env.AlwaysBuild( [ output1, output2 ] )
 
 			# Creates the solution file (.sln)
-			env.Alias( 'sln_build', lenv.Command('sln_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioSolutionBuild ) ) )
-			env.Alias( 'sln_build', lenv.Command( slnOutput, 'dummy.in', Action( slnAction, printGenerate) ) )
-			env.AlwaysBuild( slnOutput )
+			if	slnGeneratedForRootProject == False or \
+				lenv['type'] == 'exec':
+				slnOutput		= getNormalizedPathname( projectPathName + os.sep + project + '.sln' )
+				env.Alias( 'sln_build', lenv.Command('sln_build_%s.out' % project, 'dummy.in', Action( nopAction, printVisualStudioSolutionBuild ) ) )
+				env.Alias( 'sln_build', lenv.Command( slnOutput, 'dummy.in', Action( slnAction, printGenerate) ) )
+				env.AlwaysBuild( slnOutput )
+				slnGeneratedForRootProject = True
 
 		env.Alias( 'vcproj', ['vcproj_build', 'sln_build'] )
 	# @todo Removes .ncb and .suo
