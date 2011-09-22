@@ -154,7 +154,7 @@ Name "${{PRODUCTNAME}}"
 ; Version information
 VIAddVersionKey "ProductName" "${{PRODUCTNAME}}"
 VIAddVersionKey "CompanyName" "${{SBFPROJECTVENDOR}}"
-VIAddVersionKey "LegalCopyright" "Copyright ${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "LegalCopyright" "(C) ${{SBFPROJECTVENDOR}}"
 VIAddVersionKey "FileDescription" "{projectDescription}"
 VIAddVersionKey "FileVersion" "{productVersion}"
 VIAddVersionKey "ProductVersion" "{productVersion}"
