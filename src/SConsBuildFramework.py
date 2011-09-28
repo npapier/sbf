@@ -12,6 +12,8 @@ import re
 import string
 import time
 
+from collections import OrderedDict
+
 from sbfFiles import *
 from sbfRC import resourceFileGeneration
 
@@ -229,7 +231,7 @@ class SConsBuildFramework :
 	myParsedProjectsSet				= set()
 	myParsedProjectsList			= []
 	# @todo checks usage of myBuiltProjects instead of myParsedProjects
-	myBuiltProjects					= {}
+	myBuiltProjects					= OrderedDict()
 
 
 
