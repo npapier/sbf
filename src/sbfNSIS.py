@@ -32,8 +32,7 @@ def nsisGeneration( target, source, env ):
 		products	= []
 		executables	= []
 		rootProject	= ''
-		for projectName in env.sbf.myParsedProjectsList :
-			lenv = env.sbf.myParsedProjects[projectName]
+		for (projectName, lenv) in env.sbf.myParsedProjects.iteritems():
 			if lenv['type'] == 'exec' :
 				#print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
 				if len(products) == 0:
