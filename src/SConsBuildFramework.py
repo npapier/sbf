@@ -226,10 +226,9 @@ class SConsBuildFramework :
 	mySubsystemNotDefined			= None	# True if LINKFLAGS contains '/SUBSYSTEM:'
 
 	# List of projects that have been already parsed by scons
-	myFailedVcsProjects				= set()
-	myParsedProjects				= {}
-	myParsedProjectsSet				= set()
-	myParsedProjectsList			= []
+	myParsedProjects				= OrderedDict() # { (projectName, env),...} 
+	myParsedProjectsSet				= set()			# set([projectnameinlowercase,...]) a set of parsed projects in lower case
+	myFailedVcsProjects				= set()			# set([projectName, ...])
 	# @todo checks usage of myBuiltProjects instead of myParsedProjects
 	myBuiltProjects					= OrderedDict()
 
@@ -767,13 +766,9 @@ SConsBuildFramework options:
 	def initializeProject( self, projectPathName, lenv ) :
 
 		# Already done in method buildProject(), but must be redone (because of recursiv call to buildProject())
-		self.myProjectPathName	= projectPathName
-		self.myProjectPath		= os.path.dirname( projectPathName )
-		self.myProject			= os.path.basename(projectPathName)
-		# used by code printing messages during the different build stage.
-		lenv['sbf_projectPathName'	] = self.myProjectPathName
-		lenv['sbf_projectPath'		] = self.myProjectPath
-		lenv['sbf_project'			] = self.myProject
+		self.myProjectPathName	= lenv['sbf_projectPathName']
+		self.myProjectPath		= lenv['sbf_projectPath']
+		self.myProject			= lenv['sbf_project']
 
 		# @todo partial move to __init__()
 		if os.path.isabs(self.myBuildPath):
@@ -1510,6 +1505,10 @@ SConsBuildFramework options:
 		# Configures a new environment
 		self.myCurrentLocalEnv = self.myEnv.Clone()
 		lenv = self.myCurrentLocalEnv
+		# used by code printing messages during the different build stage.
+		lenv['sbf_projectPathName'	] = self.myProjectPathName
+		lenv['sbf_projectPath'		] = self.myProjectPath
+		lenv['sbf_project'			] = self.myProject
 
 
 		# VCS checkout or status or relocate or mkTag/Branch or rmTag/Branch
@@ -1522,7 +1521,6 @@ SConsBuildFramework options:
 				# Adds the new environment
 				self.myParsedProjects[self.myProject] = lenv
 				self.myParsedProjectsSet.add( self.myProject.lower() )
-				self.myParsedProjectsList.append( self.myProject )
 			else:
 				raise SCons.Errors.UserError("Unable to find 'default.options' file for project %s in directory %s." % (self.myProject, self.myProjectPath) )
 		else:
@@ -1575,8 +1573,15 @@ SConsBuildFramework options:
 				#else: nothing to do
 			else:
 				# A project with the same name (without taking case into account) has been already parsed.
-				if incomingProjectName not in self.myParsedProjects :
-					# A project with the same name has been already parsed, but with a different case
+				if incomingProjectName in self.myParsedProjects :
+					# A project with the same name has been already parsed (with the same case).
+					# Checks path ?
+					if self.myParsedProjects[incomingProjectName]['sbf_projectPathName'] != normalizedDependency :
+						raise SCons.Errors.UserError("Encountered the following two projects :\n%s and \n%s\nwith the same name (without taking case into account). It's forbidden." % (self.myParsedProjects[incomingProjectName]['sbf_projectPathName'], normalizedDependency) )
+					#else: nothing to do (because same path => project already parsed).
+						#print "sbfDebug: project %s already parsed." % projectPathName
+				else:
+					# Exception: A project with the same name has been already parsed, but with a different case
 					registeredProjectName = None
 					for project in self.myParsedProjects :
 						if project.lower() == incomingProjectName.lower() :
@@ -1584,14 +1589,6 @@ SConsBuildFramework options:
 					else:
 						# Must never happened
 						raise SCons.Errors.UserError("Internal sbf error.")
-				else:
-					# A project with the same name has been already parsed (with the same case).
-					parsedProject = self.myParsedProjects[ incomingProjectName ]
-					# Checks path ?
-					if parsedProject['sbf_projectPathName'] != normalizedDependency :
-						raise SCons.Errors.UserError("Encountered the following two projects :\n%s and \n%s\nwith the same name (without taking case into account). It's forbidden." % (parsedProject['sbf_projectPathName'], normalizedDependency) )
-					#else: nothing to do (because same path => project already parsed).
-						#print "sbfDebug: project %s already parsed." % projectPathName
 
 
 
