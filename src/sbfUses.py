@@ -890,12 +890,12 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 
-			libsBoth = ['sofacomponentfem', 'sofacomponent', 'sofacomponentbase', 'sofacomponentbehaviormodel',
+			libsBoth = ['sofacomponentfem', 'sofacomponent', 'sofacomponentanimationloop', 'sofacomponentbase', 'sofacomponentbehaviormodel',
 						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
 						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
 						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
-						'sofacomponentmastersolver', 'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
-						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'SuturePlugin' ]
+						'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
+						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
 			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
 
 			if self.config == 'release' :
@@ -910,9 +910,9 @@ class Use_sofa( IUse, sofaConfig ):
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
 			pakLibs = []
-			libs += ['libminiFlowVR', 'libnewmat', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraintset', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentprojectiveconstraintset', 'libsofacomponentvisualmodel',
+			libs += ['libminiFlowVR', 'libnewmat', 'libsofacomponentanimationloop', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentconstraintset', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentprojectiveconstraintset', 'libsofacomponentvisualmodel',
 					'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofagui', 'libsofasimulation', 'libsofatree']
-			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofacomponent', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass', 'libsofacomponentmastersolver', 'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
+			pakLibs += ['libminiFlowVR', 'libnewmat', 'libsofacomponent', 'libsofacomponentanimationloop', 'libsofacomponentbase', 'libsofacomponentbehaviormodel', 'libsofacomponentcollision', 'libsofacomponentcontextobject', 'libsofacomponentcontroller', 'libsofacomponentfem', 'libsofacomponentforcefield', 'libsofacomponentinteractionforcefield', 'libsofacomponentlinearsolver', 'libsofacomponentmapping', 'libsofacomponentmass',  'libsofacomponentmisc', 'libsofacomponentodesolver', 'libsofacomponentvisualmodel',
 						'libsofacore', 'libsofadefaulttype', 'libsofahelper', 'libsofasimulation', 'libsofatree']
 			return libs, pakLibs
 
@@ -923,25 +923,25 @@ class Use_sofa( IUse, sofaConfig ):
 		if self.platform == 'win32':
 			if self.config == 'release' :
 				if self.cc == 'cl':
-					path = os.path.join( self.getBasePath(), 'lib/win32/ReleaseVC{0:d}'.format(int(self.ccVersionNumber)) )
+					path = os.path.join( self.getBasePath(), 'lib' )
 				libPath.append( path )
 				pakLibPath.append( path )
 			else:
 				if self.cc == 'cl':
-					path = os.path.join( self.getBasePath(), 'lib/win32/DebugVC{0:d}'.format(int(self.ccVersionNumber)) )
+					path = os.path.join( self.getBasePath(), 'lib' )
 				libPath.append( path )
 				pakLibPath.append( path )
 			#
 			#commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
 			#libPath.append( commonPath )
 			#
-			pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
-			libPath.append( pluginsPath )
-			pakLibPath.append( pluginsPath )
+		#	pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
+		#	libPath.append( pluginsPath )
+		#	pakLibPath.append( pluginsPath )
 			return libPath, pakLibPath
 
 		elif self.platform == 'posix' :
-			path = os.path.join( self.getBasePath(), 'lib/linux')
+			path = os.path.join( self.getBasePath(), 'lib')
 			libPath.append( path )
 			pakLibPath.append( path )
 			return libPath, pakLibPath
