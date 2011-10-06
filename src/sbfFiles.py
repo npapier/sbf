@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -95,8 +95,11 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 			if not os.path.isdir(newDir):
 				print( 'Creates {0}'.format(newDir) )
 				os.makedirs( newDir )
-		print ( 'Install {0}'.format(destination) )
 		shutil.copy( source, destination )
+		if os.path.isfile(destination):
+			print ( 'Install {0}'.format(destination) )
+		else:
+			print ( 'Install {0}'.format( join(destination,basename(source)) ) )
 	# Copies a directory
 	elif os.path.isdir(source):
 		if destination[-1:] != '/':
