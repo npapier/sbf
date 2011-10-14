@@ -40,7 +40,7 @@
 ; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-9-0"
+!define SBFPROJECTVERSION	"0-9-1"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -49,7 +49,7 @@
 
 !define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.7\InstallPath"
 
-!define PYTHON							"python-2.7.1.msi"
+!define PYTHON							"python-2.7.2.msi"
 !define PYWIN32							"pywin32-214.win32-py2.7.exe"
 !define PYWIN32_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.7"
 !define PYSVN							"py27-pysvn-svn1612-1.7.4-1321.exe"
