@@ -40,7 +40,7 @@
 ; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-9-1"
+!define SBFPROJECTVERSION	"0-9-2"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -54,7 +54,7 @@
 !define PYWIN32_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.7"
 !define PYSVN							"py27-pysvn-svn1612-1.7.4-1321.exe"
 !define PYSVN_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.7 PySVN_is1"
-!define SCONS							"scons-2.0.1.win32.exe"
+!define SCONS							"scons-2.1.0.win32.exe"
 !define SCONS_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.7"
 !define PYREADLINE						"pyreadline-1.6.2.win32.exe"
 !define PYREADLINE_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.7"
