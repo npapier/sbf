@@ -40,7 +40,7 @@
 ; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-9-3"
+!define SBFPROJECTVERSION	"0-9-4"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -50,13 +50,13 @@
 !define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.7\InstallPath"
 
 !define PYTHON							"python-2.7.2.msi"
-!define PYWIN32							"pywin32-214.win32-py2.7.exe"
+!define PYWIN32							"pywin32-216.win32-py2.7.exe"
 !define PYWIN32_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.7"
 !define PYSVN							"py27-pysvn-svn1615-1.7.5-1360.exe"
 !define PYSVN_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.7 PySVN_is1"
 !define SCONS							"scons-2.1.0.win32.exe"
 !define SCONS_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.7"
-!define PYREADLINE						"pyreadline-1.6.2.win32.exe"
+!define PYREADLINE						"pyreadline-1.7.1.win32.exe"
 !define PYREADLINE_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pyreadline-py2.7"
 
 !define CYGWIN							"cygwinSetup.exe"
@@ -76,7 +76,7 @@
 ; SConsBuildFramework redistributable
 !define SCONS_BUILD_FRAMEWORK_REDIST	"SConsBuildFrameworkRedistributable.zip"
 
-!define DOXYGEN							"doxygen-1.7.3-setup.exe"
+!define DOXYGEN							"doxygen-1.7.5.1-setup.exe"
 !define DOXYGEN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1"
 !define GRAPHVIZ						"graphviz-2.26.3.msi"
 
