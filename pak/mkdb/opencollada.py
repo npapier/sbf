@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -53,7 +53,7 @@ else:
 
 descriptor = {
 
- 'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk',
+ 'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk@{0}'.format(descriptorVersion),
 
  'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada.zip" ], # MSVC solution + patch files.
 
