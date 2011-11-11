@@ -20,6 +20,44 @@ import re
 # @todo Generates vcproj but with c++ project and not makefile project.
 # @todo Generates eclipse cdt project.
 
+
+def patchWholeProgramOptimizationInVCPROJ( filename ):
+	"""Patches vcproj named filename (WholeProgramOptimization="1" => WholeProgramOptimization="0")."""
+
+	# Reads filename
+	with open( filename ) as file:
+		lines = file.readlines()
+
+	# Patches
+	# WholeProgramOptimization="1" replaced by WholeProgramOptimization="0"
+	wholeProgramOptimizationNumRE = re.compile( r'^(\s+WholeProgramOptimization=")1("\s)$' )
+	# WholeProgramOptimization="true" replaced by WholeProgramOptimization="false"
+	wholeProgramOptimizationBoolRE = re.compile( r'^(\s+WholeProgramOptimization=")true("\s)$' )
+	for (i, line) in enumerate(lines):
+		matchObject = wholeProgramOptimizationNumRE.match(line)
+		if matchObject:
+			matchList = matchObject.groups()
+			print ("PATCH line:{0}".format(line)),
+			newLine = matchList[0] + '0' + matchList[1] + '\n'
+			print ("USING line:%s" % newLine )
+			lines[i] = newLine
+
+		matchObject = wholeProgramOptimizationBoolRE.match(line)
+		if matchObject:
+			matchList = matchObject.groups()
+			print ("PATCH line:{0}".format(line)),
+			newLine = matchList[0] + 'false' + matchList[1] + '\n'
+			print ("USING line:%s" % newLine )
+			lines[i] = newLine
+		#else:
+		#	print ("IGNORE line:", line)
+
+	# Writes filename
+	with open( filename, 'w' ) as file:
+		# Writes modifications
+		file.writelines( lines )
+
+
 #@todo Moves to a more private location
 VisualStudioDict = {	'slnHeader'				: '',
 						'vcprojHeader'			: '',
