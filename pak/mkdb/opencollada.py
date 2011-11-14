@@ -9,22 +9,23 @@
 # cl9-0Exp
 
 import os.path
+import sys
 
 print 	'''
 /!\ WARNING /!\
 To create the zip file:
 	* make an export of openCOLLADA project from the googlecode repository : http://code.google.com/p/opencollada/
 	* copy our "OpenCOLLADA.sln" in root directory or create it : it must contain:
-		* pcre (debug: debug / release: release)				
+		* pcre (debug: debug / release: release)
 		* libBuffer (debug: debug lib / release: release lib)
 		* libftoa (debug: debug lib / release: release lib)
 		* LibXML (debug: debug / release: release)
-		* expat_static (debug: debug / release: release)		
+		* expat_static (debug: debug / release: release)
 		* MathMLSolver (debug: debug / release: release)
-		* GeneratedSaxParser (debug: debug LibXML / release: release LibXML)		
-		* COLLADABaseUtils (debug: debug / release: release)		
+		* GeneratedSaxParser (debug: debug LibXML / release: release LibXML)
+		* COLLADABaseUtils (debug: debug / release: release)
 		* COLLADAFramework (debug: debug / release: release)
-		* COLLADAStreamWriter (debug: debug / release: release)		
+		* COLLADAStreamWriter (debug: debug / release: release)
 		* COLLADASaxFrameworkLoader (debug: debug LibXML / release: release LibXML)
 		* COLLADAValidator (debug: debug LibXML / release: release LibXML)
 		* G3DWarehouseBrowser (debug: debug / release: release)
@@ -32,21 +33,46 @@ To create the zip file:
 	* open it and convert all projects to the VC9 format.
 	* save and quit.
 	* create zip archive of the openCOLLADA folder and put it on orange.
-	* update "projetFolderName" variable in opencollada.py file.
 '''
 
 descriptorName = 'opencollada'
 descriptorVersion = '768'
 
-cmdVcprojPatcher = """python ../../../../mkdb/details/opencolladaPatcher.py"""
+absRootBuildDir = os.path.join( buildDirectory, descriptorName + descriptorVersion + 'a', descriptorName )
+
+# locate sbf and add it to sys.path
+import os
+import sys
+sbf_root = os.getenv('SCONS_BUILD_FRAMEWORK')
+if not sbf_root:
+	raise StandardError("SCONS_BUILD_FRAMEWORK is not defined")
+sbf_root_normalized	= os.path.normpath( os.path.expandvars( sbf_root ) )
+sys.path.append( sbf_root_normalized )
+
+def patcher( directory ):
+	def executePatchWholeProgramOptimizationInVCPROJ( directory ):
+		from src.sbfFiles import searchFiles
+		from src.sbfVCProj import patchWholeProgramOptimizationInVCPROJ
+
+		#
+		vcprojFiles = []
+		searchFiles( directory, vcprojFiles, ['.svn'], allowedFilesRe = r".*[.]vcproj" )
+
+		# Patches each vcproj file found
+		for vcprojFile in vcprojFiles:
+			patchWholeProgramOptimizationInVCPROJ( vcprojFile )
+
+	return lambda : executePatchWholeProgramOptimizationInVCPROJ(directory)
+
+
+
 if CCVersionNumber == 9: 
-	vcexpress = r"C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe"
-	sbfPath = os.getenv("SCONS_BUILD_FRAMEWORK")
-	sln = os.path.join( sbfPath, 'pak', 'var', 'build', descriptorName + descriptorVersion, descriptorName, 'OpenCOLLADA.sln' )
-	cmdDebug = "\"{0}\" {1} /build Debug_Max2010 /out outDebug.txt".format(vcexpress, sln)
-	cmdRelease = "\"{0}\" {1} /build Release_Max2010 /out outRelease.txt".format(vcexpress, sln)	
+	sln = os.path.join( absRootBuildDir, 'OpenCOLLADA.sln' )
+	cmd = "\"{0}\" {1} /build {2}_Max2010 /out out{2}.txt"
+	cmdDebug = cmd.format(MSVSIDE, sln, 'Debug')
+	cmdRelease = cmd.format(MSVSIDE, sln, 'Release')
 else:
-	print >>sys.stderr, "Wrong MSVC version. Version 9.0Exp Required."
+	print >>sys.stderr, "Wrong MSVC version. Version 9.0[Exp] Required."
 	exit(1)
 
 
@@ -55,13 +81,13 @@ descriptor = {
 
  'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk@{0}'.format(descriptorVersion),
 
- 'urls'			: [	"http://orange/files/Dev/localExt/src/opencollada.zip" ], # MSVC solution + patch files.
+ 'urls'			: [ "http://orange/files/Dev/localExt/src/opencollada{0}a_{1}.zip".format(descriptorVersion, CCVersion) ], # MSVC solution + patch files.
 
  'rootBuildDir'	: descriptorName,
- 'builds'		: [	cmdVcprojPatcher, cmdDebug, cmdRelease ],
+ 'builds'		: [ patcher(absRootBuildDir), cmdDebug, cmdRelease ],
 
  'name'			: descriptorName,
- 'version'		: descriptorVersion,
+ 'version'		: descriptorVersion + 'a',
 
  'rootDir'		: descriptorName,
  'license'		: [('COLLADAMax/LICENSE')],
