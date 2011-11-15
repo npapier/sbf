@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
-
-from __future__ import with_statement
 
 import distutils.archive_util
 import fnmatch
 import glob
 import os
+import types
 import zipfile
 
 from os.path import basename, dirname, exists, join, splitext
 from sbfArchives import extractArchive
 from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile
+from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
 
 # @todo PackagingSystem.verbose = False
@@ -194,7 +194,20 @@ class PackagingSystem:
 	def __mkPakGetExtractionDirectory( self, pakDescriptor ):
 		return join( self.__mkPakGetBuildDirectory(), pakDescriptor['name'] + pakDescriptor['version'] )
 
-	# @todo removes to user POV the .py extension
+	def __getEnvironmentDict( self ):
+		envDict	= {	'config'			: self.__myConfig,
+					'platform'			: self.__myPlatform,
+					'CC'				: self.__myCC,
+					'CCVersion'			: self.__myCCVersion,
+					'CCVersionNumber'	: self.__myCCVersionNumber,
+					'MSVSIDE'			: self.__myMSVSIDE,
+
+					'UseRepository'		: UseRepository,
+
+					'buildDirectory'	: self.__mkPakGetBuildDirectory()
+					}
+		return envDict
+
 	def mkdbListPackage( self, pattern = '' ):
 		"""Returns the list of package description in mkdb.
 		For example boost.py"""
@@ -202,21 +215,15 @@ class PackagingSystem:
 		return [ os.path.basename(elt) for elt in db ]
 
 
+
+
+
 	def mkdbGetDescriptor( self, pakName ):
 		"""Retrieves the dictionary named 'descriptor' from the mkdb database for the desired package"""
 		globalsFileDict = {}
-		localsFileDict	= {	'config'			: self.__myConfig,
-							'platform'			: self.__myPlatform,
-							'CC'				: self.__myCC,
-							'CCVersion'			: self.__myCCVersion,
-							'CCVersionNumber'	: self.__myCCVersionNumber,
-							'MSVSIDE'			: self.__myMSVSIDE,
-
-							'UseRepository'		: UseRepository,
-
-							'buildDirectory'	: self.__mkPakGetBuildDirectory()
-							}
+		localsFileDict = self.__getEnvironmentDict()
 		execfile( join(self.__mkdbGetDirectory(), pakName), globalsFileDict, localsFileDict )
+
 		return localsFileDict['descriptor']
 
 
@@ -240,16 +247,24 @@ class PackagingSystem:
 		# URLS (download and extract)
 		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
 		removeDirectoryTree( extractionDirectory )
-		
+
 		# SVNURL (export svn)
 		if 'svnUrl' in pakDescriptor:
-			print ( '* Retrieves {0} from {1}'.format( pakDescriptor['name'], pakDescriptor['svnUrl'] ) )
-			self.__vcs.export( pakDescriptor['svnUrl'], join(extractionDirectory, pakDescriptor['name']), pakDescriptor['name'] )
+			svnUrl = pakDescriptor['svnUrl']
+			project = pakDescriptor['name']
+			(url, rev) = splitSvnUrl( svnUrl, project )
+			if rev:
+				print ( '* Retrieves {0} from {1} at revision {2}'.format( project, url, rev ) )
+				self.__vcs._export( url, join(extractionDirectory, project), rev )
+			else:
+				print ( '* Retrieves {0} from {1}'.format( project, url ) )
+				self.__vcs._export( url, join(extractionDirectory, project) )
 			print
 
 		import urllib
 		import urlparse
 
+		# URLS
 		for url in pakDescriptor.get('urls', []):
 			# Downloads
 			filename = rsearchFilename( urlparse.urlparse(url).path )
@@ -270,7 +285,7 @@ class PackagingSystem:
 				print ( 'Done.\n' )
 			except Exception, e:
 				print ( 'Error encountered: %s\n' % (e) )
-				return				
+				return
 
 		# BUILDS
 		import datetime
@@ -288,20 +303,26 @@ class PackagingSystem:
 
 			# Executes commands
 			print ( '* Building stage...' )
-			# @todo improves output of returned values
+# @todo improves output of returned values
 			startTime = datetime.datetime.now()
 			for (i, build) in enumerate(builds):
 				print ( ' Step {0}: {1}'.format(i+1, build) )
 				print ( ' ----------------------------------------' )
-				try:
-					retcode = subprocess.call( build, shell=True )
-					if retcode < 0:
-						print >>sys.stderr, "Child was terminated by signal", -retcode
-					else:
-						print >>sys.stderr, "Child returned", retcode
-				except OSError, e:
-					print >>sys.stderr, "Execution failed:", e
-					exit(1)
+				if type(build) == types.FunctionType:
+					retVal = build()
+					if retVal:
+						print >>sys.stderr, "Execution {0} failed returning {1}:".format( build, retVal )
+						exit(1)
+				else:
+					try:
+						retcode = subprocess.call( build, shell=True )
+						if retcode < 0:
+							print >>sys.stderr, "Child was terminated by signal", -retcode
+						else:
+							print >>sys.stderr, "Child returned", retcode
+					except OSError, e:
+						print >>sys.stderr, "Execution failed:", e
+						exit(1)
 				print
 			endTime = datetime.datetime.now()
 			timeSpent = endTime-startTime
