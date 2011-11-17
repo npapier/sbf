@@ -10,7 +10,7 @@
 
 # configuration
 versionMajor = 1
-versionMinor = 47
+versionMinor = 48
 versionMaintenance = 0
 
 if platform == 'win32':
