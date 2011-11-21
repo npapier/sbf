@@ -32,21 +32,21 @@ if CCVersionNumber == 8:
 elif CCVersionNumber in [9,10]: 
 	sln = os.path.join( absRootBuildDir, 'msvc{0}'.format(int(CCVersionNumber)), 'ImageLib.sln' )
 	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln)
+	descriptor = {
+	 'urls'			: ['http://downloads.sourceforge.net/openil/DevIL-1.7.8.zip', 'http://orange/files/Dev/localExt/src/openil1-7-8_LibCompiled-vc9.zip', 'http://orange/files/Dev/localExt/src/openil1-7-8_PATCH.zip'],
+
+	 'rootBuildDir'	: projetFolderName,
+	 'builds'		: [ cmdRelease ],
+
+	 'name'			: descriptorName,
+	 'version'		: descriptorVersion,
+
+	 'rootDir'		: projetFolderName,
+	 'license'		: ['COPYING'],
+	 'include'		: [('include/IL/','IL/')],
+	 'lib'			: [ os.path.join(libPath, '*.dll'), os.path.join(libPath, '*.lib') ]
+	}
 else:
 	print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp] or 10.0[Exp] required."
 	exit(1)
 
-descriptor = {
- 'urls'			: ['http://downloads.sourceforge.net/openil/DevIL-1.7.8.zip', 'http://orange/files/Dev/localExt/src/openil1-7-8_LibCompiled-vc9.zip', 'http://orange/files/Dev/localExt/src/openil1-7-8_PATCH.zip'],
-
- 'rootBuildDir'	: projetFolderName,
- 'builds'		: [ cmdRelease ],
-
- 'name'			: descriptorName,
- 'version'		: descriptorVersion,
-
- 'rootDir'		: projetFolderName,
- 'license'		: ['COPYING'],
- 'include'		: [('include/IL/','IL/')],
- 'lib'			: [ os.path.join(libPath, '*.dll'), os.path.join(libPath, '*.lib') ]
-}
