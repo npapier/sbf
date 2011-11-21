@@ -96,7 +96,7 @@ SBF_API void set( boost::shared_ptr< ILogging > logger );
 template< typename LoggingType >
 void set()
 {
-	Global::set< LoggingType >();
+	GlobalLogger::set< LoggingType >();
 }
 
 
