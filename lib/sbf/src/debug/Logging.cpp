@@ -3,7 +3,7 @@
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker and Nicolas Papier
 
-#include "sbf/Logging.hpp"
+#include "sbf/debug/Logging.hpp"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -13,6 +13,8 @@
 namespace sbf
 {
 
+namespace debug
+{
 
 
 void Logging::logFatalError( const char *szFormat, ... ) const
@@ -28,7 +30,6 @@ void Logging::logFatalError( const char *szFormat, ... ) const
 }
 
 
-
 void Logging::logError( const char *szFormat, ... ) const
 {
 	va_list marker;
@@ -40,7 +41,6 @@ void Logging::logError( const char *szFormat, ... ) const
 
 	va_end( marker );
 }
-
 
 
 void Logging::logWarning( const char *szFormat, ... ) const
@@ -56,7 +56,6 @@ void Logging::logWarning( const char *szFormat, ... ) const
 }
 
 
-
 void Logging::logMessage( const char *szFormat, ... ) const
 {
 	va_list marker;
@@ -67,7 +66,6 @@ void Logging::logMessage( const char *szFormat, ... ) const
 
 	va_end( marker );
 }
-
 
 
 void Logging::logVerbose( const char *szFormat, ... ) const
@@ -86,7 +84,6 @@ void Logging::logVerbose( const char *szFormat, ... ) const
 }
 
 
-
 void Logging::logStatus( const char *szFormat, ... ) const
 {
 	va_list marker;
@@ -97,7 +94,6 @@ void Logging::logStatus( const char *szFormat, ... ) const
 
 	va_end( marker );
 }
-
 
 
 void Logging::logSysError( const char *szFormat, ... ) const
@@ -111,8 +107,6 @@ void Logging::logSysError( const char *szFormat, ... ) const
 
 	va_end( marker );
 }
-
-
 
 
 void Logging::logDebug( const char *szFormat, ... ) const
@@ -130,7 +124,6 @@ void Logging::logDebug( const char *szFormat, ... ) const
 }
 
 
-
 void Logging::logDebug( const char *szFormat, va_list args ) const
 {
 #ifdef _DEBUG
@@ -139,7 +132,6 @@ void Logging::logDebug( const char *szFormat, va_list args ) const
 	fprintf( stderr, "\n" );
 #endif
 }
-
 
 
 void Logging::logTrace( const char *szFormat, ... ) const
@@ -159,7 +151,6 @@ void Logging::logTrace( const char *szFormat, ... ) const
 }
 
 
-
 void Logging::flush() const
 {
 	fflush( stdout );
@@ -167,5 +158,6 @@ void Logging::flush() const
 }
 
 
+} // namespace debug
 
 } // namespace sbf

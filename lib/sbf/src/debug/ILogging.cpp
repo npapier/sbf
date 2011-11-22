@@ -3,9 +3,9 @@
 // as published by the Free Software Foundation.
 // Author Nicolas Papier
 
-#include "sbf/ILogging.hpp"
+#include "sbf/debug/ILogging.hpp"
 
-#include "sbf/GlobalLogger.hpp"
+#include "sbf/debug/GlobalLogger.hpp"
 
 #ifdef _WIN32
  #include <windows.h>
@@ -16,6 +16,8 @@
 namespace sbf
 {
 
+namespace debug
+{
 
 ILogging::~ILogging()
 {
@@ -55,6 +57,6 @@ void ILogging::logAssert( const bool expression, const char * message, ... /*con
 #endif
 }
 
-
+} // namespace debug
 
 } // namespace sbf

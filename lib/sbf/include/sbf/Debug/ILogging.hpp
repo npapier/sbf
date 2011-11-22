@@ -14,6 +14,8 @@
 namespace sbf
 {
 
+namespace debug
+{
 /**
  * @brief Defines interface for logging facilities.
  */
@@ -63,7 +65,7 @@ struct SBF_API ILogging
 	//@}
 };
 
-
+} // namespace debug
 
 } // namespace sbf
 

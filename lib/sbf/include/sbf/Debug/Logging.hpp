@@ -6,14 +6,15 @@
 #ifndef _SBF_LOGGING_HPP
 #define _SBF_LOGGING_HPP
 
-#include "sbf/ILogging.hpp"
+#include "sbf/debug/ILogging.hpp"
 
 
 
 namespace sbf
 {
 
-
+namespace debug
+{
 
 /**
  * @brief Implements logging interface based on standard outputs.
@@ -42,7 +43,7 @@ struct SBF_API Logging : public ILogging
 	//@}
 };
 
-
+} // namespace debug
 
 } // namespace sbf
 

@@ -10,13 +10,13 @@
 
 #include "sbf/sbf.hpp"
 
-namespace sbf { struct ILogging; }
-
-
 namespace sbf
 {
 
+namespace debug
+{
 
+struct ILogging;
 
 /**
  * @brief	Holds the global logger which is sbf::Logging by default.
@@ -96,7 +96,7 @@ SBF_API void set( boost::shared_ptr< ILogging > logger );
 template< typename LoggingType >
 void set()
 {
-	GlobalLogger::set< LoggingType >();
+	Global::set< LoggingType >();
 }
 
 
@@ -115,6 +115,8 @@ SBF_API const bool isAssertEnabled();
 SBF_API void setAssertEnabled( const bool enabled = true );
 
 
-} // namespace vgDebug
+} // namespace debug
+
+} // namespace sbf
 
 #endif //#ifndef _SFB_GLOBAL_HPP
