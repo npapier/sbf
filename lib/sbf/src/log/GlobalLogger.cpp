@@ -4,16 +4,16 @@
 // Author Nicolas Papier
 // Author Guillaume Brocker
 
-#include "sbf/debug/GlobalLogger.hpp"
+#include "sbf/log/GlobalLogger.hpp"
 
-#include "sbf/debug/Logging.hpp"
+#include "sbf/log/Logging.hpp"
 
 
 
 namespace sbf
 {
 
-namespace debug
+namespace log
 {
 
 
@@ -50,28 +50,28 @@ bool							GlobalLogger::m_assertEnabled( true );
 
 ILogging& get()
 {
-	return ( sbf::debug::GlobalLogger::get() );
+	return ( sbf::log::GlobalLogger::get() );
 }
 
 
 void set( boost::shared_ptr< ILogging > logger )
 {
-	sbf::debug::GlobalLogger::set( logger );
+	sbf::log::GlobalLogger::set( logger );
 }
 
 
 const bool isAssertEnabled()
 {
-	return sbf::debug::GlobalLogger::isAssertEnabled();
+	return sbf::log::GlobalLogger::isAssertEnabled();
 }
 
 
 void setAssertEnabled( const bool enabled )
 {
-	sbf::debug::GlobalLogger::setAssertEnabled( enabled );
+	sbf::log::GlobalLogger::setAssertEnabled( enabled );
 }
 
 
-} // namespace debug
+} // namespace log
 
 } // namespace sbf

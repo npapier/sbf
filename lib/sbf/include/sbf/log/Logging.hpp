@@ -6,14 +6,14 @@
 #ifndef _SBF_LOGGING_HPP
 #define _SBF_LOGGING_HPP
 
-#include "sbf/debug/ILogging.hpp"
+#include "sbf/log/ILogging.hpp"
 
 
 
 namespace sbf
 {
 
-namespace debug
+namespace log
 {
 
 /**
@@ -43,7 +43,7 @@ struct SBF_API Logging : public ILogging
 	//@}
 };
 
-} // namespace debug
+} // namespace log
 
 } // namespace sbf
 

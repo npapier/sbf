@@ -13,7 +13,7 @@
 namespace sbf
 {
 
-namespace debug
+namespace log
 {
 
 struct ILogging;
@@ -115,7 +115,7 @@ SBF_API const bool isAssertEnabled();
 SBF_API void setAssertEnabled( const bool enabled = true );
 
 
-} // namespace debug
+} // namespace log
 
 } // namespace sbf
 

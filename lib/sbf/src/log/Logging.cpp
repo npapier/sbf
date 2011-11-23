@@ -3,7 +3,7 @@
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker and Nicolas Papier
 
-#include "sbf/debug/Logging.hpp"
+#include "sbf/log/Logging.hpp"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -13,7 +13,7 @@
 namespace sbf
 {
 
-namespace debug
+namespace log
 {
 
 
@@ -158,6 +158,6 @@ void Logging::flush() const
 }
 
 
-} // namespace debug
+} // namespace log
 
 } // namespace sbf
