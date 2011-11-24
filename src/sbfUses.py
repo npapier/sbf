@@ -897,13 +897,26 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 
-			libsBoth = ['sofacomponentfem', 'sofacomponent', 'sofacomponentanimationloop', 'sofacomponentbase', 'sofacomponentbehaviormodel',
-						'sofacomponentcollision', 'sofacomponentconfigurationsetting', 'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
-						'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', 'sofacomponentinteractionforcefield',
-						'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
-						'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
-						'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
+		#	libsBoth = ['sofacomponentfem', 'sofacomponent', 'sofacomponentanimationloop', 'sofacomponentbase', 'sofacomponentbehaviormodel',
+		#				'sofacomponentcollision', 'sofacomponentconfigurationsetting', #'sofacomponentconstraintset', 'sofacomponentcontextobject', 'sofacomponentcontroller',
+		#				'sofacomponentengine', 'sofacomponentfem', 'sofacomponentforcefield', #'sofacomponentinteractionforcefield',
+		#				'sofacomponentloader', 'sofacomponentlinearsolver', 'sofacomponentmapping', 'sofacomponentmass',
+		#				'sofacomponentmisc', 'sofacomponentodesolver', 'sofacomponentprojectiveconstraintset', 'sofacomponentvisualmodel',
+		#				'sofacore', 'sofadefaulttype', 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
+						
+			libsBoth = [  'sofa_advanced_interaction', 'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual'
+						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable'
+						, 'sofa_explicit_ode_solver', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader'
+						, 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping', 'sofa_object_interaction'
+						, 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction'
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'taucs_mt', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
+						
 			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
+			
+			sofaVersion = '1_0'
+			
+			libsBoth = [ lib + '_' + sofaVersion for lib in libsBoth ]
+			staticLibs = [ lib + '_' + sofaVersion for lib in staticLibs ]
 
 			if self.config == 'release' :
 				libs += libsBoth + staticLibs
