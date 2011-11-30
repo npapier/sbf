@@ -40,7 +40,7 @@
 ; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-9-4"
+!define SBFPROJECTVERSION	"0-9-5"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -91,6 +91,7 @@
 
 
 !define VCSETUP_2008					"vcsetup_2008ExpressEdWebInstall.exe"
+!define VCSETUP_2010					"vcsetup_2010ExpressEdWebInstall.exe"
 
 
 ### Functions ###
@@ -229,6 +230,20 @@ Section "Visual C++ 2008 Express Edition (web install)"
 
   ; Redistributable
 !insertmacro InstallAndLaunchRedistributable ${VCSETUP_2008} ""
+
+SectionEnd
+
+
+Section "Visual C++ 2010 Express Edition (web install)"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+  SetDetailsView show
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${VCSETUP_2010} ""
 
 SectionEnd
 
