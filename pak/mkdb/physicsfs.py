@@ -24,9 +24,9 @@ cmakeGenerator = {
 
 if CCVersionNumber in [8, 9, 10, 11]:
 	options = '-D PHYSFS_ARCHIVE_GRP:BOOL=OFF -D PHYSFS_ARCHIVE_HOG:BOOL=OFF -D PHYSFS_ARCHIVE_MVL:BOOL=OFF -D PHYSFS_ARCHIVE_QPAK:BOOL=OFF -D PHYSFS_ARCHIVE_WAD:BOOL=OFF -D PHYSFS_BUILD_STATIC:BOOL=OFF'
+	options += ' -D CMAKE_DEBUG_POSTFIX=-d'
 	cmdConfigure = 'cmake -G "{generator}" {options} CMakeLists.txt'.format( generator=cmakeGenerator[CCVersionNumber], options=options )
-	# @todo generates debug version with a different name
-	#cmdDebug = 'cmake --build . --config debug'
+	cmdDebug = 'cmake --build . --config debug'
 	cmdRelease = 'cmake --build . --config release'
 else:
 	print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
@@ -36,8 +36,7 @@ descriptor = {
  'urls'			: [ 'http://icculus.org/physfs/downloads/physfs-2.0.2.tar.gz' ],
 
  'rootBuildDir'	: descriptorName + '-' + descriptorVersionWithDot,
- #'builds'		: [ cmdConfigure, cmdDebug, cmdRelease ],
- 'builds'		: [ cmdConfigure, cmdRelease ],
+ 'builds'		: [ cmdConfigure, cmdDebug, cmdRelease ],
 
  'name'			: descriptorName,
  'version'		: descriptorVersion,
@@ -48,6 +47,6 @@ descriptor = {
 
  'include'		: [	'*.h' ],
 
- 'lib'			: [	'Release/physfs.lib',
-					'Release/physfs.dll' ]
+ 'lib'			: [	'debug/physfs-d.lib ', 'release/physfs.lib',
+					'debug/physfs-d.dll', 'release/physfs.dll' ]
 }
