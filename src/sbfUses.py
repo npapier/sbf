@@ -901,9 +901,9 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction'
-						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'taucs_mt', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture' ]
 						
-			staticLibs = ['miniFlowVR', 'newmat', 'tinyxml']
+			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
 			
 			sofaVersion = '1_0'
 			
