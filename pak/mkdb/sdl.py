@@ -1,4 +1,6 @@
-# SConsBuildFramework - Copyright (C) 2010, Nicolas Papier.
+#!/usr/bin/env python
+
+# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
