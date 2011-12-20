@@ -897,7 +897,7 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 						
-			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofa_bgl'
+			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
