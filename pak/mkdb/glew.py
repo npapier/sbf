@@ -6,6 +6,7 @@
 # Author Nicolas Papier
 
 # ok for clx.y
+
 import os
 
 sofaUse = UseRepository.getUse('sofa')

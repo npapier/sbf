@@ -1,45 +1,39 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 # Author Maxime Peresson
 
-# cl9-0Exp
+# cl8,9,10,11[Exp]
 
-import os.path
+descriptorName = 'gtest'
+descriptorVersion = '446'
 
+from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCmdBuildRelease
 
-if CCVersionNumber == 9: 
-	vcexpress = r"C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe"
-	sbfPath = os.getenv("SCONS_BUILD_FRAMEWORK")
-	projetFolderName = 'gtest445'
-	sln = os.path.join( sbfPath, 'pak', 'var', 'build', projetFolderName, projetFolderName, 'msvc', 'gtest-md.sln' )
-	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(vcexpress, sln)
-	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(vcexpress, sln)	
-	
+if CCVersionNumber in [8, 9, 10, 11]:
+	options = '-D BUILD_SHARED_LIBS:BOOL=ON -D CMAKE_DEBUG_POSTFIX=-d'
 else:
-	print >>sys.stderr, "Wrong MSVC version. Version 9.0Exp Required."
+	print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
 	exit(1)
 
 descriptor = {
- 'urls'			: [	"http://orange/files/Dev/localExt/src/gtest445.zip" ],
+ 'svnUrl'		: 'http://googletest.googlecode.com/svn/trunk@{0}'.format(descriptorVersion),
 
- 'rootBuildDir'	: 'gtest445',
- 'builds'		: [	cmdDebug, cmdRelease ],
+ 'rootBuildDir'	: descriptorName,
+ 'builds'		: [ getCMakeCmdConfigure(CCVersionNumber, options), getCMakeCmdBuildDebug(), getCMakeCmdBuildRelease() ],
 
- 'name'			: 'gtest',
- 'version'		: '445',
+ 'name'			: descriptorName,
+ 'version'		: descriptorVersion,
 
- 'rootDir'		: 'gtest445',
- 
- 'license'		: [('COPYING')],
- 
+ 'rootDir'		: descriptorName,
+
+ 'license'		: ['COPYING', 'CONTRIBUTORS'],
+
  'include'		: [	'include/' ],
 
-'lib'			: [	'msvc/gtest-md/Release/gtest-md.lib', 
-					'msvc/gtest-md/Release/gtest-md.dll',
-					'msvc/gtest-md/Debug/gtest-mdd.lib',
-					'msvc/gtest-md/Debug/gtest-mdd.dll' ],
+'lib'			: [	'release/gtest.lib', 'release/gtest.pdb', 'release/gtest.dll',
+					'debug/gtest-d.lib', 'debug/gtest-d.pdb', 'debug/gtest-d.dll' ]
 }
