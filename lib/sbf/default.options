@@ -5,7 +5,12 @@ description			= 'SConsBuildFramework companion library'
 vcsUse				= 'no'
 type				= 'shared'
 uses				= [ 'boost' ]
-defines				= [	('SBF_PLATFORM', SConsEnvironment.sbf.myPlatform), ('SBF_CC_VERSION', SConsEnvironment.sbf.myCCVersion) ]
+defines				= [	('SBF_PLATFORM',			SConsEnvironment.sbf.myPlatform),
+						('SBF_CC',					SConsEnvironment.sbf.myCC),
+						('SBF_CC_VERSION_NUMBER',	SConsEnvironment.sbf.myCCVersionNumber),
+						('SBF_CC_VERSION',			SConsEnvironment.sbf.myCCVersion),
+						('SBF_PLATFORM_CC_VERSION',	SConsEnvironment.sbf.my_Platform_myCCVersion),
+						]
 
 platform = SConsEnvironment.sbf.myPlatform
 if platform == 'win32':
