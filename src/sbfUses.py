@@ -256,7 +256,10 @@ class Use_blowfish( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
-			return ['Blowfish'], []
+			if self.config == 'release':
+				return ['Blowfish'], []
+			else:
+				return ['Blowfish_D'], []
 
 
 
@@ -266,7 +269,6 @@ class Use_boost( IUse ):
 
 	def getVersions( self ):
 		return [ '1-48-0', '1-47-0', '1-46-1', '1-45-0' ]
-
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -563,7 +565,9 @@ class Use_opengl( IUse ):
 		return []
 
 
+
 class Use_poppler( IUse ):
+	"""poppler needs freetype2, zlib and libpng from gtkmm 2.22.0-2"""
 
 	def getName( self ):
 		return 'poppler'
@@ -573,9 +577,9 @@ class Use_poppler( IUse ):
 
 	def getLIBS( self, version ):
 		if self.config == 'release' :
-			return ['poppler', 'poppler-cpp'], ['poppler-cpp', 'libiconv2', 'freetype6', 'jpeg62']
+			return ['poppler', 'poppler-cpp'], ['poppler-cpp', 'libiconv2', 'jpeg62']
 		else:
-			return ['popplerd', 'poppler-cppd'], ['poppler-cppd', 'libiconv2', 'freetype6', 'jpeg62']
+			return ['poppler-d', 'poppler-cpp-d'], ['poppler-cpp-d', 'libiconv2', 'jpeg62']
 
 
 class Use_itk( IUse ):
@@ -700,7 +704,7 @@ class Use_sdlMixer( IUse ):
 			return libsBoth, libsBoth
 		elif self.platform == 'posix':
 			libsBoth = [ 'SDL_mixer' ]
-			return libsBoth, libsBoth	
+			return libsBoth, libsBoth
 
 	def getLIBPATH( self, version ):
 		if self.platform == 'win32':
@@ -774,7 +778,7 @@ class Use_opencollada( IUse ):
 		return "opencollada"
 
 	def getVersions( self ):
-		return ['768', '736']
+		return ['864', '768', '736']
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
@@ -843,7 +847,7 @@ class Use_physfs( IUse ):
 		return "physfs"
 
 	def getVersions( self ):
-		return [ '2-0-1' ]
+		return [ '2-0-2', '2-0-1' ]
 
 	def getCPPDEFINES( self, version ):
 		return []
@@ -1096,8 +1100,8 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(),
-					Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(),
+					Use_poppler(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
