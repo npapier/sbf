@@ -48,11 +48,19 @@ SBF_API const std::string getCCVersion();
 
 
 /**
- * @brief Retrieves the postfix added by sbf to executable and library filenames
+ * @brief Retrieves the postfix added by sbf to executable and library filenames.
  *
  * @return the postfix containing platform and compiler version (_win32_cl9-0Exp, _posix_gcc4-2-1)
  */
 SBF_API const std::string getPlatformCCPostfix();
+
+
+/**
+ * @brief Retrieves the postfix added by sbf to distinguish debug and release configuration.
+ *
+ * @return the postfix containing the configuration (on windows: _D in debug configuration or nothing in release configuration).
+ */
+SBF_API const std::string getConfigurationPostfix();
 
 
 } // namespace sbf
@@ -60,4 +68,3 @@ SBF_API const std::string getPlatformCCPostfix();
 
 
 #endif // _SBF_OPERATIONS_HPP_
- 

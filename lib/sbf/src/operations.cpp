@@ -63,4 +63,15 @@ const std::string getPlatformCCPostfix()
 	#endif
 }
 
+
+const std::string getConfigurationPostfix()
+{
+#ifdef _DEBUG
+	return std::string("_D");
+#else
+	return std::string("");
+#endif
+}
+
+
 } // namespace sbf
