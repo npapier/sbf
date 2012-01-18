@@ -1100,8 +1100,8 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(),
-					Use_poppler(), Use_python(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(),
+					Use_python(), Use_sigcpp(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
@@ -1522,6 +1522,81 @@ class Use_gtkmmext( IUse ):
 			return []
 
 
+class Use_sigcpp( IUse ):
+
+	def getName( self ):
+		return 'sigcpp'
+
+	def getVersions( self ):
+		return [ '2-0' ]
+
+
+	def getCPPDEFINES( self, version ):
+		# @todo uses version api (see SConsBuildFramework.py)
+		versionNumber = int( version.replace('-', '') )
+		return [ (self.getName().upper()+'_VERSION', versionNumber) ]
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32' :
+			sigcppPath = [	'lib/sigc++-2.0/include', 'include/sigc++-2.0' ]
+
+			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in sigcppPath ]
+
+			return path
+		elif self.platform == 'posix':
+			sigcppPath	= [	'/usr/include/sigc++-2.0','/usr/lib64/sigc++-2.0/include' ]
+
+			return sigcppPath
+
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if version in ['2-0']:
+				if self.config == 'release' :
+					# RELEASE
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs = [	'sigc-vc100-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs = [	'sigc-vc90-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs = [	'sigc-vc80-2_0' ]
+				else:
+					# DEBUG
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+						libs = [	'sigc-vc100-d-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+						libs = [	'sigc-vc90-d-2_0' ]
+					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+						libs = [	'sigc-vc80-d-2_0' ]
+			elif version == '2-14-1':
+				if self.config == 'release' :
+					libs = [	'sigc-2.0' ]
+				else:
+					libs = [	'sigc-2.0d' ]
+			else:
+				return
+
+			return libs, []
+
+		elif self.platform == 'posix':
+			sigcpp		= [	'sigc-2.0' ]
+			return sigcpp, []
+
+
+	def getLIBPATH( self, version ):
+		libPath		= []
+		pakLibPath	= []
+
+		if self.platform == 'win32' :
+			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
+			libPath.append( path )
+		#else self.platform == 'posix':
+		#	libPath += '/usr/lib64'
+
+		return libPath, pakLibPath
+
+
 
 def use_physx( self, lenv, elt ) :
 	# Retrieves PHYSX_BASEPATH
@@ -1546,6 +1621,7 @@ def use_physx( self, lenv, elt ) :
 		lenv.AppendUnique( LIBPATH = [ os.path.join(physxBasePath, 'SDKs\lib\Win32') ] )
 	else :
 		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+
 
 #===============================================================================
 # #@todo Adds support to both ANSI and Unicode version of wx
