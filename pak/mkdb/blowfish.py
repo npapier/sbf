@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2010, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -15,7 +15,7 @@ projectFolderName = ''
 
 if CCVersionNumber >= 9:
 	sln = join( buildDirectory, descriptorName + descriptorVersion, 'Blowfish.sln' )
-	#cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(MSVSIDE, sln)
+	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(MSVSIDE, sln)
 	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln)
 else:
 	print >>sys.stderr, "Unsupported MSVC version."
@@ -28,10 +28,10 @@ descriptor = {
 	'version'		: descriptorVersion,
 
 	'rootBuildDir'	: projectFolderName,
-	'builds'		: [	cmdRelease ],
+	'builds'		: [ cmdDebug, cmdRelease ],
 
 	'rootDir'		: projectFolderName,
 	'license'		: ['COPYING'],
 	'include'		: ['Blowfish.h'],
-	'lib'			: [ 'Release/Blowfish.lib' ]
+	'lib'			: [ ('Release/Blowfish.lib', 'Blowfish.lib'), ('Debug/Blowfish.lib', 'Blowfish_D.lib') ]
 }
