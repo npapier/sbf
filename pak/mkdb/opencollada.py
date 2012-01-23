@@ -9,6 +9,7 @@
 # cl9-0Exp
 
 import os.path
+import re
 import sys
 
 print 	'''
@@ -36,9 +37,9 @@ To create the zip file:
 '''
 
 descriptorName = 'opencollada'
-descriptorVersion = '768'
+descriptorVersion = '864'
 
-absRootBuildDir = os.path.join( buildDirectory, descriptorName + descriptorVersion + 'a', descriptorName )
+absRootBuildDir = os.path.join( buildDirectory, descriptorName + descriptorVersion, descriptorName )
 
 # locate sbf and add it to sys.path
 import os
@@ -60,6 +61,7 @@ def patcher( directory ):
 
 		# Patches each vcproj file found
 		for vcprojFile in vcprojFiles:
+			print ('Patching {0}'.format(vcprojFile))
 			patchWholeProgramOptimizationInVCPROJ( vcprojFile )
 
 	return lambda : executePatchWholeProgramOptimizationInVCPROJ(directory)
@@ -71,8 +73,13 @@ if CCVersionNumber == 9:
 	cmd = "\"{0}\" {1} /build {2}_Max2010 /out out{2}.txt"
 	cmdDebug = cmd.format(MSVSIDE, sln, 'Debug')
 	cmdRelease = cmd.format(MSVSIDE, sln, 'Release')
+elif CCVersionNumber == 10:
+	sln = os.path.join( absRootBuildDir, 'OpenCOLLADA.sln' )
+	cmd = "\"{0}\" {1} /build {2}_Max2010 /out out{2}.txt"
+	cmdDebug = cmd.format(MSVSIDE, sln, 'Debug')
+	cmdRelease = cmd.format(MSVSIDE, sln, 'Release')
 else:
-	print >>sys.stderr, "Wrong MSVC version. Version 9.0[Exp] Required."
+	print >>sys.stderr, "Wrong MSVC version. Version 9.0[Exp] or 10.0[Exp] required."
 	exit(1)
 
 
@@ -81,13 +88,13 @@ descriptor = {
 
  'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk@{0}'.format(descriptorVersion),
 
- 'urls'			: [ "http://orange/files/Dev/localExt/src/opencollada{0}a_{1}.zip".format(descriptorVersion, CCVersion) ], # MSVC solution + patch files.
+ 'urls'			: [ "http://orange/files/Dev/localExt/src/opencollada{0}_{1}.zip".format(descriptorVersion, CCVersion) ], # MSVC solution [+ patch files].
 
  'rootBuildDir'	: descriptorName,
  'builds'		: [ patcher(absRootBuildDir), cmdDebug, cmdRelease ],
 
  'name'			: descriptorName,
- 'version'		: descriptorVersion + 'a',
+ 'version'		: descriptorVersion,
 
  'rootDir'		: descriptorName,
  'license'		: [('COLLADAMax/LICENSE')],
