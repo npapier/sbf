@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -163,12 +163,12 @@ class SConsBuildFramework :
 	myDateTime						= ''
 	myDateTimeForUI					= ''
 	myVcs							= None
-	myPlatform						= ''
-	myCC							= ''			# cl, gcc
+	myPlatform						= ''			# 'win32' | 'cygwin' | 'posix' | 'darwin'
+	myCC							= ''			# 'cl', 'gcc'
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
 	myIsExpressEdition				= False			# True if Visual Express Edition, False otherwise
-	myCCVersion						= ''			# cl8-0
-	myMSVSIDE						= ''			# D:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE
+	myCCVersion						= ''			# cl8-0Exp
+	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE).
 	my_Platform_myCCVersion			= ''
 
 
@@ -184,7 +184,7 @@ class SConsBuildFramework :
 	mySConsignFilePath				= None
 	myCachePath						= ''
 	myCacheOn						= False
-	myConfig						= ''
+	myConfig						= ''	# 'debug' or 'release'
 	myWarningLevel					= ''
 	# Computed from .SConsBuildFramework.options
 	myInstallExtPaths				= []
@@ -284,7 +284,7 @@ class SConsBuildFramework :
 
 		# export SCONS_MSCOMMON_DEBUG=ms.log
 		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
-		# print self.myEnv.Dump()
+		#print self.myEnv.Dump()
 
 		# Configures command line max length
 		if self.myEnv['PLATFORM'] == 'win32':
@@ -930,6 +930,7 @@ SConsBuildFramework options:
 			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
 							allowed_values=('none', 'gtest'), ignorecase=1 ),
 
+			('shareExclude', "The list of Unix shell-style wildcards to exclude files from 'share' directory", []),
 			('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
 
 			BoolVariable(	'console',
@@ -1654,20 +1655,9 @@ SConsBuildFramework options:
 
 		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
 		### TODO: .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?
-		filesFromSrc			= []
-		filesFromInclude		= []
-		#filesFromShare			= []
-
-		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
-
-		searchFiles( 'src',		filesFromSrc,		['.svn'], basenameWithDotRe + r"(?:cpp|c)$" )
-		#searchFiles1( 'src',		['.svn'], ['.cpp'], filesFromSrc )
-
-		searchFiles( 'include',	filesFromInclude,	['.svn'], basenameWithDotRe + r"(?:hpp|hxx|inl|h)$" )
-		#searchFiles1( 'include', ['.svn'], ['.hpp','.hxx','.h'], filesFromInclude )
-
-		filesFromShareToFilter = []
-		searchFiles( 'share', filesFromShareToFilter, ['.svn'], r"^[^_]+.*$" )
+		filesFromSrc = self.getFiles( 'src', lenv )
+		filesFromInclude = self.getFiles( 'include', lenv )
+		filesFromShareToFilter = self.getFiles( 'share', lenv )
 
 		## shareBuild (share build stage)
 
@@ -1968,6 +1958,38 @@ SConsBuildFramework options:
 
 
 	###### Helpers ######
+
+	def getFiles( self, what, lenv ):
+		"""what		select what to collect. It could be 'src', 'include', 'share'"""
+		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
+
+		files = []
+		if what == 'src':
+			searchFiles( 'src', files, ['.svn'], basenameWithDotRe + r"(?:cpp|c)$" )
+		elif what == 'include':
+			searchFiles( 'include', files, ['.svn'], basenameWithDotRe + r"(?:hpp|hxx|inl|h)$" )
+		elif what == 'share':
+			filesNotFiltered = []
+			searchFiles( 'share', filesNotFiltered, ['.svn'], r"^[^_]+.*$" )
+
+			# filtering
+			shareExcludeFilters = lenv['shareExclude']
+			if len(shareExcludeFilters) > 0:
+				for file in filesNotFiltered:
+					for filter in shareExcludeFilters:
+						if fnmatch.fnmatch(file, filter):
+							if lenv.GetOption('verbosity'):
+								print ('Exclude file {0}'.format( join(lenv['sbf_projectPathName'], file) ) )
+							break
+					else:
+						files.append( file )
+			else:
+				files = filesNotFiltered
+		else:
+			raise SCons.Errors.UserError("Internal sbf error in getFiles().")
+
+		return files
+
 
 	def getAllFiles( self, projectEnv ):
 		"""Returns files taking into account by sbf to build the given project. include, share, src, *.options and rc files are returned."""
