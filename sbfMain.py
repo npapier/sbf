@@ -370,7 +370,7 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 
 ###### Initial environment ######
 EnsurePythonVersion(2, 6)
-EnsureSConsVersion(2, 0, 1)
+EnsureSConsVersion(2, 1, 0)
 
 # create objects
 sbf = SConsBuildFramework()
@@ -488,7 +488,6 @@ if env['nodeps'] == False and env['sbf_project'] != 'sbf':
 sbf.buildProject( env['sbf_projectPathName'], False )
 
 
-
 ### special targets: onlyRun and run ###
 Alias( 'onlyrun' )
 Alias( 'run' )
@@ -508,7 +507,6 @@ configureInfoTarget( env )
 
 
 ### special target : vcproj ###
-
 from src.sbfVCProj import configureVCProjTarget
 configureVCProjTarget( env )
 
