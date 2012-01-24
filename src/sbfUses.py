@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -1528,23 +1528,18 @@ class Use_sigcpp( IUse ):
 		return 'sigcpp'
 
 	def getVersions( self ):
-		return [ '2-0' ]
+		return [ '2-8-2' ]
 
-
-	def getCPPDEFINES( self, version ):
-		# @todo uses version api (see SConsBuildFramework.py)
-		versionNumber = int( version.replace('-', '') )
-		return [ (self.getName().upper()+'_VERSION', versionNumber) ]
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
 			sigcppPath = [	'lib/sigc++-2.0/include', 'include/sigc++-2.0' ]
 
-			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in sigcppPath ]
+			path = [ os.path.join(gtkmmConfig.getGtkmmBasePath(), item) for item in sigcppPath ]
 
 			return path
 		elif self.platform == 'posix':
-			sigcppPath	= [	'/usr/include/sigc++-2.0','/usr/lib64/sigc++-2.0/include' ]
+			sigcppPath = [ '/usr/include/sigc++-2.0','/usr/lib64/sigc++-2.0/include' ]
 
 			return sigcppPath
 
@@ -1552,35 +1547,30 @@ class Use_sigcpp( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
-			if version in ['2-0']:
+			if version in ['2-8-2']:
 				if self.config == 'release' :
 					# RELEASE
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs = [	'sigc-vc100-2_0' ]
+						libs = [ 'sigc-vc100-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs = [	'sigc-vc90-2_0' ]
+						libs = [ 'sigc-vc90-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs = [	'sigc-vc80-2_0' ]
+						libs = [ 'sigc-vc80-2_0' ]
 				else:
 					# DEBUG
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs = [	'sigc-vc100-d-2_0' ]
+						libs = [ 'sigc-vc100-d-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs = [	'sigc-vc90-d-2_0' ]
+						libs = [ 'sigc-vc90-d-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs = [	'sigc-vc80-d-2_0' ]
-			elif version == '2-14-1':
-				if self.config == 'release' :
-					libs = [	'sigc-2.0' ]
-				else:
-					libs = [	'sigc-2.0d' ]
+						libs = [ 'sigc-vc80-d-2_0' ]
 			else:
 				return
 
 			return libs, []
 
 		elif self.platform == 'posix':
-			sigcpp		= [	'sigc-2.0' ]
+			sigcpp = [ 'sigc-2.0' ]
 			return sigcpp, []
 
 
