@@ -778,7 +778,7 @@ class Use_opencollada( IUse ):
 		return "opencollada"
 
 	def getVersions( self ):
-		return ['864', '768', '736']
+		return ['865', '864', '768', '736']
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32':
