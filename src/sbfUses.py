@@ -755,19 +755,27 @@ class Use_gtest( IUse ):
 		return "gtest"
 
 	def getVersions( self ):
-		return [ '445' ]
+		return [ '446', '445' ]
 
 	def getCPPDEFINES( self, version ):
 		return ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
-			if self.config == 'release':
-				libs = ['gtest-md']
-				return libs, libs
-			else:
-				libs = ['gtest-mdd']
-				return libs, libs
+			if version == '446':
+				if self.config == 'release':
+					libs = ['gtest']
+					return libs, libs
+				else:
+					libs = ['gtest-d']
+					return libs, libs
+			elif version == '445':
+				if self.config == 'release':
+					libs = ['gtest-md']
+					return libs, libs
+				else:
+					libs = ['gtest-mdd']
+					return libs, libs
 		else:
 			libs = ['gtest']
 			return libs, []
