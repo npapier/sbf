@@ -3,15 +3,17 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+from sbfTools import locateProgram
 from sbfUtils import subprocessCall
 
-
+from os.path import join
 
 def sevenZipExtract( pathArchive, outputDir, verbose = True ):
 	"""Extracts files from archive pathArchive with their full paths in the current directory, or in an output directory if specified."""
+	path7z = locateProgram( '7z' )
 	if outputDir:
-		cmdLine = '7z x "{pathArchive}" -o"{outputDir}"'.format( pathArchive = pathArchive, outputDir = outputDir )
+		cmdLine = '"{sevenZip}" x "{pathArchive}" -o"{outputDir}"'.format( sevenZip=join(path7z, '7z'), pathArchive = pathArchive, outputDir = outputDir )
 	else:
-		cmdLine = '7z x "{pathArchive}"'.format( pathArchive = pathArchive )
+		cmdLine = '"{sevenZip}" x "{pathArchive}"'.format( sevenZip=join(path7z, '7z'), pathArchive = pathArchive )
 
 	return subprocessCall( cmdLine, verbose )
