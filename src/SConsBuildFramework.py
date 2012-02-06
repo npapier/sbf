@@ -557,6 +557,7 @@ class SConsBuildFramework :
 Type:
 SBF related targets
  'scons sbfCheck' to check availability and version of sbf components and tools.
+ 'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
  'scons sbfPak' to launch sbf packaging system.
  'scons sbfConfigure' to add several paths to environment variable $PATH (windows platform only).
  'scons sbfUnconfigure' to remove paths installed by 'sbfConfigure' except sbf runtime paths.

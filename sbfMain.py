@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -379,7 +379,7 @@ env = sbf.myEnv # TODO remove me (this line is just for compatibility with the o
 buildTargetsSet = sbf.myBuildTargets
 
 # Prints current 'config' option
-print "Configuration: %s\n" % env['config']
+print ( "Configuration: {0}\n".format(env['config']) )
 
 # Dumping construction environment (for debugging).
 #print env.Dump()
@@ -500,6 +500,10 @@ Alias( 'run' )
 ### target sbfConfigure ###
 # @todo
 
+
+### target pakUpdate ###
+from src.sbfPakUpdate import configurePakUpdateTarget
+configurePakUpdateTarget( env )
 
 ### target info ###
 from src.sbfInfo import configureInfoTarget

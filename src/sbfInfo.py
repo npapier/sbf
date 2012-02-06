@@ -11,6 +11,7 @@ from SCons.Script import *
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem
 from src.sbfUses import UseRepository
+from src.sbfVersion import splitUsesName
 from src.SConsBuildFramework import printEmptyLine, stringFormatter
 
 
@@ -50,7 +51,7 @@ def doTargetInfoFile( target, source, env ):
 		file.write('{0}{1}{2}\n'.format( 'Package'.ljust(lenColPackage), 'Version'.ljust(lenColVersion), 'Repository'.ljust(lenColRepo) ))
 		file.write('{0}{1}{2}\n'.format( '-------'.ljust(lenColPackage), '-------'.ljust(lenColVersion), '----------'.ljust(lenColRepo) ))
 		for useNameVersion in uses:
-			useName, useVersion = UseRepository.extract( useNameVersion )
+			useName, useVersion = splitUsesName( useNameVersion )
 			use = UseRepository.getUse( useName )
 			packageFile = '{0}{1}{2}.zip'.format(useName, useVersion, sbf.my_Platform_myCCVersion)
 	# @todo checks if use is supported for my platform, config, cc version...
@@ -91,7 +92,7 @@ def doTargetInfoFile( target, source, env ):
 
 			libs = ''
 			for useNameVersion in projectEnv['uses']:
-				useName, useVersion = UseRepository.extract( useNameVersion )
+				useName, useVersion = splitUsesName( useNameVersion )
 				if useVersion:
 					libs += ' {0}({1})'.format( useName, useVersion )
 				else:

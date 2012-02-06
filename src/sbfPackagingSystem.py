@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,17 +9,23 @@ import distutils.archive_util
 import fnmatch
 import glob
 import os
+import cPickle
+import shutil
+import subprocess
 import types
 import zipfile
 
 from os.path import basename, dirname, exists, join, splitext
 from sbfArchives import extractArchive
-from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile
+from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
+from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
+from sbfUtils import subprocessCall, removePathHead
+from sbfVersion import splitPackageName, joinPackageName
+
 
 # @todo PackagingSystem.verbose = False
-
 def pprintList( list ) :
 	listLength = len(list)
 	currentString = '[ '
@@ -30,6 +36,43 @@ def pprintList( list ) :
 			currentString = ''
 		currentString += "'%s', " % element
 	print currentString[0:-2] + " ]"
+
+
+
+# Copy a file
+def copyFile( source, destination, verbose = False, bufferSize = 1024 * 512 ):
+	def _copyFile( source, destination, verbose ):
+		if verbose:
+			print ('Copying {0}...'.format(source))
+		sourceStat = os.stat( source )
+		fileSizeInKB = sourceStat.st_size/1024
+		kBCopied = 0
+		with open(source, 'rb') as src, open(destination, 'wb') as dst:
+			while True:
+				buffer = src.read(bufferSize)
+				if buffer:
+					dst.write(buffer)
+					kBCopied += len(buffer)/1024
+					# Prints report on advancement (each 512 kb)
+					if (kBCopied % 512 == 0) and verbose:
+							print ( '{0} / {1} kB \r'.format( kBCopied, fileSizeInKB ) ),
+				else:
+					break
+		if verbose:
+			print ('\rDone.' + ' ' * 40)
+
+	if not os.path.exists( destination ):
+		_copyFile( source, destination, verbose )
+	else:
+		destinationStat = os.stat( destination )
+		sourceStat = os.stat( source )
+		# @todo take care of mtime. pb with mtime on remote. sourceStat.st_mtime == destinationStat.st_mtime
+		if	sourceStat.st_size == destinationStat.st_size:
+			if verbose:
+				print ('File {0} already copied'.format(source))
+			return
+		else:
+			_copyFile( source, destination, verbose )
 
 
 
@@ -62,7 +105,6 @@ def rsearchFilename( path ):
 # @todo renames into sbf-get and uses apt-get syntax.
 # @todo search
 # @todo verbose mode (see sbf ?)
-# @todo verbose option
 
 # @todo creates a Statistics class
 # @todo uses pylzma instead of zip
@@ -137,13 +179,13 @@ class PackagingSystem:
 
 
 
-	def __computeDepth( self, path ) :
-		return len( os.path.normpath( path ).split( os.sep ) )
-
-
-
-	def __init__( self, sbf ) :
+	def __init__( self, sbf, verbose = None ):
 		self.__SCONS_BUILD_FRAMEWORK	= sbf.mySCONS_BUILD_FRAMEWORK
+
+		if verbose:
+			self.__verbose = verbose
+		else:
+			self.__verbose				= sbf.myEnv.GetOption('verbosity')
 
 		self.__vcs						= sbf.myVcs
 
@@ -179,6 +221,20 @@ class PackagingSystem:
 				print ("WARNING: Package repository not found in %s" % path)
 		print
 
+		# Creates localExt directory
+		createDirectory( self.getLocalExtSbfPakDBPath() )
+		createDirectory( self.getLocalExtSbfPakDBTmpPath() )
+
+
+	# LocalExt
+	def getLocalExtPath( self ):
+		return self.__localExtPath
+
+	def getLocalExtSbfPakDBPath( self ):
+		return join( self.getLocalExtPath(), 'sbfPakDB' )
+
+	def getLocalExtSbfPakDBTmpPath( self ):
+		return join(self.getLocalExtSbfPakDBPath(), 'tmp' )
 
 
 	# (M)a(K)e(D)ata(B)ase)
@@ -213,8 +269,6 @@ class PackagingSystem:
 		For example boost.py"""
 		db = glob.glob( join( self.__mkdbGetDirectory(), '{0}*'.format(pattern) ) )
 		return [ os.path.basename(elt) for elt in db ]
-
-
 
 
 
@@ -413,7 +467,80 @@ class PackagingSystem:
 		os.chdir( backupCWD )
 
 
-	def list( self, pattern = '', enablePrint = True ):
+	### PAK INFO ###
+	def getLocalPackage( self, pakName, localDir ):
+		"""Search package pakName in different repositories and copy in localDir (if needed).
+		@return the path to the copy of pakName"""
+		pathPakName = self.locatePackage( pakName )
+		if not pathPakName:
+			print ("Unable to find package {0}".format(pakName) )
+			return
+
+		localPakName = join( localDir, pakName )
+		copyFile( pathPakName, localPakName, self.__verbose ) # @todo error proof
+		return localPakName
+
+
+	def printPackageNameAndVersion( self, packageName ):
+		oPakInfo = {}
+		oRelDirectories = []
+		oRelFiles = []
+		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
+		print oPakInfo['name'].ljust(30), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
+
+	def isInstalled( self, packageName ):
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		return exists( join(sbfpakDir, packageName + '.info') )
+
+	def isAvailable( self, pakName ):
+		pathPakName = self.locatePackage(pakName)
+		return pathPakName and (len(pathPakName)>0)
+
+	def listInstalled( self, pattern = '', enablePrint = False ):
+		"""Returns the list of installed packages."""
+
+		files = glob.glob( join(self.getLocalExtSbfPakDBPath(), '*.info') )
+		files = [splitext(basename(file))[0] for file in sorted(files)]
+
+		retVal = []
+		for file in files:
+			if pattern:
+				if file.find(pattern) == 0:
+					if enablePrint: self.printPackageNameAndVersion(file)
+					retVal.append( file )
+				#else nothing to do
+			else:
+				if enablePrint: self.printPackageNameAndVersion(file)
+				retVal.append(file)
+		return retVal
+
+
+	def savePackageInfo( self, pakInfo, relDirectories, relFiles ):
+		"""@pre !isInstalled( pakInfo['name'] )"""
+
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		pathInfoFile = join(sbfpakDir, pakInfo['name'] + '.info')
+
+		with open( pathInfoFile, 'wb' ) as output:
+			cPickle.dump( pakInfo, output )
+			cPickle.dump( relDirectories, output )
+			cPickle.dump( relFiles, output )
+
+	def loadPackageInfo( self, pakName, oPakInfo, oRelDirectories = [], oRelFiles = [] ):
+		"""@pre isInstalled( pakName )"""
+
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		pathInfoFile = join(sbfpakDir, pakName + '.info')
+
+		with open( pathInfoFile, 'rb' ) as input:
+			oPakInfo.update( cPickle.load(input) )
+			oRelDirectories.extend( cPickle.load(input) )
+			oRelFiles.extend( cPickle.load(input) )
+
+
+
+	###
+	def listAvailable( self, pattern = '', enablePrint = True ):
 		filenames = set()
 
 		platformAndCCFilter = self.__my_Platform_myCCVersion
@@ -442,10 +569,6 @@ class PackagingSystem:
 
 
 
-	def completeFilename( self, packageName ):
-		return packageName + self.__my_Platform_myCCVersion + '.zip'
-
-
 	# @todo command-line option ?
 	def locatePackage( self, pakName ):
 		for path in self.__pakPaths :
@@ -454,266 +577,275 @@ class PackagingSystem:
 				return pathPakName
 
 
-	def testZip( self, pathFilename ):
+	# def testZip( self, pathFilename ):
 
-		# Tests file existance
-		if not os.path.lexists( pathFilename ):
-			print ("File %s does not exist." % pathFilename )
-			exit(1)
+		# # Tests file existance
+		# if not os.path.lexists( pathFilename ):
+			# print ("File %s does not exist." % pathFilename )
+			# exit(1)
 
-		# Tests file type
-		if zipfile.is_zipfile( pathFilename ) == False :
-			print ("File %s is not a zip." % pathFilename)
-			exit(1)
+		# # Tests file type
+		# if zipfile.is_zipfile( pathFilename ) == False :
+			# print ("File %s is not a zip." % pathFilename)
+			# exit(1)
 
-		# Opens and tests package
-		zip = zipfile.ZipFile( pathFilename )
-		print ('Tests %s\nPlease wait...' % os.path.basename(pathFilename) )
-		testzipRetVal = zip.testzip()
-		if testzipRetVal != None :
-			print ('bad file:%s' % testzipRetVal)
-			exit(1)
-		else :
-			print ('Done.\n')
-		zip.close()
+		# # Opens and tests package
+		# zip = zipfile.ZipFile( pathFilename )
+		# print ('Tests %s\nPlease wait...' % os.path.basename(pathFilename) )
+		# testzipRetVal = zip.testzip()
+		# if testzipRetVal != None :
+			# print ('bad file:%s' % testzipRetVal)
+			# exit(1)
+		# else :
+			# print ('Done.\n')
+		# zip.close()
 
 
-	def info( self, pathFilename, pattern ):
+	# def info( self, pathFilename, pattern ):
 
-		# Opens package
-		zip = zipfile.ZipFile( pathFilename )
+		# # Opens package
+		# zip = zipfile.ZipFile( pathFilename )
 
-		# Prints info
-		sharedObjectList = []
-		staticObjectList = []
-		for name in zip.namelist() :
-			normalizeName = os.path.normpath( name )
-			if fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__shLibSuffix ):
-				sharedObjectList.append( splitext(os.path.basename(normalizeName))[0] )
-			elif fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__libSuffix ):
-				staticObjectList.append( splitext(os.path.basename(normalizeName))[0] )
+		# # Prints info
+		# sharedObjectList = []
+		# staticObjectList = []
+		# for name in zip.namelist() :
+			# normalizeName = os.path.normpath( name )
+			# if fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__shLibSuffix ):
+				# sharedObjectList.append( splitext(os.path.basename(normalizeName))[0] )
+			# elif fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__libSuffix ):
+				# staticObjectList.append( splitext(os.path.basename(normalizeName))[0] )
 
-		#import pprint
+		# #import pprint
+		# print
+		# print "static objects :"
+		# pprintList( staticObjectList )
+
+		# print
+		# print "shared objects : "
+		# pprintList( sharedObjectList )
+
+		# # Closes package
+		# zip.close()
+
+
+	def install( self, pakName, forced = False ):
+		pakInfo = splitPackageName( pakName )
+		if not pakInfo:
+			print ( 'The package named {0} is not available.'.format(pakName) )
+			return
+
+		if (not forced) and self.isInstalled( pakInfo['name'] ):
+			print ( "Package {0} already installed.".format(pakInfo['name']) )
+			return
+
+		# Retrieves paths to several directories
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		tmpDir = self.getLocalExtSbfPakDBTmpPath()
+		removeDirectoryTree( tmpDir, self.__verbose )
+
+		# Retrieves package pakName
+		pathPakName = self.getLocalPackage( pakName, sbfpakDir )
+		if not pathPakName:
+			return
+
 		print
-		print "static objects :"
-		pprintList( staticObjectList )
-
+		print ( "Installing package {0} using {1}...".format( pakName, pathPakName ) )
 		print
-		print "shared objects : "
-		pprintList( sharedObjectList )
+		print ('Details :')
 
-		# Closes package
-		zip.close()
+		# Extracts pak
+		retVal = sevenZipExtract( pathPakName, tmpDir, self.__verbose )
+		print
 
-
-
-	def install( self, pathFilename ):
-
-		# Opens package
-		zip = zipfile.ZipFile( pathFilename )
+		# Collects all files and directories
+		absFiles = []
+		absDirectories = []
+		searchAllFilesAndDirectories( tmpDir, absFiles, absDirectories, False )
+		# Converts files and directories to be relative to tmp/localExt_platform_cc
+		relFiles = [convertPathAbsToRel(tmpDir, file) for file in absFiles]
+		relDirectories = [convertPathAbsToRel(tmpDir, dir) for dir in absDirectories]
+		relFiles = removePathHead( relFiles )
+		relDirectories = removePathHead( relDirectories )
 
 		# Initializes statistics
 		self.__initializeStatistics()
 
-		#
-		print
-		print ( "Installs package using %s" % pathFilename )
-		print
-		print ('Details :')
-
-		for name in zip.namelist() :
-			normalizeName			= os.path.normpath( name )
-			normalizeNameSplitted	= normalizeName.split( os.sep )
-
-			normalizeNameTruncated	= None
-			if len(normalizeNameSplitted) > 1 :
-				normalizeNameTruncated = normalizeName.replace( normalizeNameSplitted[0] + os.sep, '' )
-			else :
-				continue
-
-			if not name.endswith('/') :
-				# element is a file
-				fileInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-
-				# Creates directory if needed
-				if not os.path.lexists(os.path.dirname(fileInLocalExt)):
-				  print ( 'Creates directory %s' % fileInLocalExt )
-				  os.makedirs( os.path.dirname(fileInLocalExt) )
-				  self.__numNewDirectories += 1
-
-				if os.path.isfile( fileInLocalExt ) :
-				  #print ( '%s already exists, so removes it.' % fileInLocalExt )
-				  os.remove( fileInLocalExt )
-				  self.__numOverrideFiles += 1
-				  print ( 'Override %s' % fileInLocalExt )
-				else :
-				  self.__numNewFiles += 1
-				  print ( 'Installs %s' % fileInLocalExt )
-
-				with open( fileInLocalExt, 'wb' ) as outputFile :
-				  outputFile.write( zip.read(name) )
-				  outputFile.flush()
+		# Creates directories
+		print ('\nCreating directories...')
+		for relDir in relDirectories:
+			dir = join( self.__localExtPath, relDir )
+			# Creates directory if needed
+			if not exists( dir ):
+				print ( 'Creating directory {0}'.format(dir) )
+				os.makedirs( dir )
+				self.__numNewDirectories += 1
 			else:
-				# element is a directory, try to create it
-				directoryInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-				if not os.path.lexists(directoryInLocalExt):
-				  print ( 'Creates directory %s' % directoryInLocalExt )
-				  os.makedirs( directoryInLocalExt )
-				  self.__numNewDirectories += 1
+				print ( 'Directory {0} already created'.format(dir) )
 
-		# Closes package
-		zip.close()
+		# Copies files
+		print ('\nInstalling files...')
+		for absFile in absFiles:
+			relFile = removePathHead( convertPathAbsToRel(tmpDir, absFile) )
+			file = join( self.__localExtPath, relFile )
+			if exists( file ):
+				print ( 'Overriding {0}'.format( file ) )
+				self.__numOverrideFiles += 1
+			else:
+				print ( 'Installing {0}'.format( file ) )
+				self.__numNewFiles += 1
+			shutil.copyfile( absFile, file )
 
 		# Prints statistics
 		self.__printStatistics()
 
+		# Saves pak info
+		self.savePackageInfo( pakInfo, relDirectories, relFiles )
 
-	# @todo try except => tests when a file is open
-	def remove( self, pathFilename ):
+		# Cleans
+		removeDirectoryTree( tmpDir )
 
-		# Opens package
-		zip = zipfile.ZipFile( pathFilename )
+
+	def remove( self, packageName ):
+		"""@pre isInstalled(packageName)"""
+
+		if not self.isInstalled( packageName ):
+			print ( "Package {0} is not installed.".format(packageName) )
+			return
+
+		# Load package info
+		oPakInfo = {}
+		oRelDirectories = []
+		oRelFiles = []
+		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
+		pakName = joinPackageName( oPakInfo )
+
+		# for debugging
+		#print oPakInfo['name'].ljust(30), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
+		#print pakName
+
+		# Retrieves paths to several directories
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+
+		print ( "\nRemoving package {0} version {1}...\nDetails :".format( packageName, oPakInfo['version'] ) )
 
 		# Initializes statistics
 		self.__initializeStatistics()
 
-		#
-		print ( "Removes package installed using %s" % pathFilename )
-		print
-		print ('Details :')
+		# Removes files
+		print ('\nRemoving files...')
+		for relFile in oRelFiles:
+			absFile = join( self.__localExtPath, relFile )
+			if exists(absFile):
+				os.remove( absFile )
+				self.__numDeletedFiles += 1
+				print ( 'Removing {0}'.format(absFile) )
+			else:
+				self.__numNotFoundFiles += 1
+				print ( '{0} already removed.'.format(absFile) )
 
-		directories = []
-		for name in zip.namelist() :
-			normalizeName			= os.path.normpath( name )
-			normalizeNameSplitted	= normalizeName.split( os.sep )
-
-			normalizeNameTruncated	= None
-			if len(normalizeNameSplitted) > 1 :
-				normalizeNameTruncated = normalizeName.replace( normalizeNameSplitted[0] + os.sep, '' )
-			else :
-				continue
-
-			if not name.endswith('/') :
-				# element is a file
-				fileInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-				if os.path.isfile( fileInLocalExt ) :
-				  os.remove( fileInLocalExt )
-				  self.__numDeletedFiles += 1
-				  print ( 'Removes %s' % fileInLocalExt )
-				else :
-				  self.__numNotFoundFiles += 1
-				  print ( '%s already removed.' % fileInLocalExt )
-			else :
-				# element is a directory
-				directoryInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-				directories.append( directoryInLocalExt )
-
-		# Processes directories
-		print
-
-		sortedDirectories = sorted( directories, key = self.__computeDepth, reverse = True )
-
-		for directory in sortedDirectories :
-			if os.path.lexists(directory) :
-				if len( os.listdir( directory ) ) == 0 :
-				  os.rmdir( directory )
-				  self.__numDeletedDirectories += 1
-				  print ( 'Removes %s' % directory )
-				else :
-				  self.__numNotEmptyDirectory += 1
-				  print ( 'Directory %s not empty.' % directory )
-			else :
+		# Removes directories
+		print ('\nRemoving directories...')
+		for relDir in oRelDirectories:
+			absDir = join( self.__localExtPath, relDir )
+			if exists( absDir ):
+				if len( os.listdir(absDir) ) == 0:
+					os.rmdir( absDir )
+					self.__numDeletedDirectories += 1
+					print ( 'Removing {0}'.format(absDir) )
+				else:
+					self.__numNotEmptyDirectory += 1
+					print ( 'Directory {0} not empty.'.format(absDir) )
+			else:
 				self.__numNotFoundDirectories += 1
-				print ( '%s already removed.' % directory )
+				print ( '{0} already removed.'.format(absDir) )
 
-		# Closes package
-		zip.close()
-
-		# Prints statistics
-		self.__printStatistics()
-
-
-
-	def test( self, pathFilename ):
-
-		# Opens package
-		zip = zipfile.ZipFile( pathFilename )
-
-		# Initializes statistics
-		self.__initializeStatistics()
-		differentFile	= 0
-		identicalFile	= 0
-
-		#
-		print
-		print ( "Tests package using %s" % pathFilename )
-		print
-		print ('Details :')
-
-		for name in zip.namelist() :
-			normalizeName			= os.path.normpath( name )
-			normalizeNameSplitted	= normalizeName.split( os.sep )
-
-			normalizeNameTruncated	= None
-			if len(normalizeNameSplitted) > 1 :
-				normalizeNameTruncated = normalizeName.replace( normalizeNameSplitted[0] + os.sep, '' )
-			else :
-				continue
-
-			if not name.endswith('/') :
-				# element is a file
-				fileInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-
-				# Tests directory
-				if not os.path.lexists(os.path.dirname(fileInLocalExt)):
-				  print ( 'Missing directory %s' % os.path.dirname(fileInLocalExt) )
-				  self.__numNotFoundDirectories += 1
-
-				if os.path.isfile( fileInLocalExt ):
-				  # Tests contents of the file
-				  referenceContent = zip.read(name)
-				  installedContent = ''
-				  with open( fileInLocalExt, 'rb' ) as fileToTest :
-				    installedContent = fileToTest.read()
-				  if referenceContent != installedContent :
-				    print ("File %s corrupted." % fileInLocalExt)
-				    differentFile += 1
-				  else :
-				    print ("File %s has been verified." % fileInLocalExt)
-				    identicalFile += 1
-				else :
-				  self.__numNotFoundFiles += 1
-				  print ( 'Missing file %s' % fileInLocalExt )
-			else:
-				# element is a directory, tests it
-				directoryInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
-				if not os.path.lexists(directoryInLocalExt):
-				  print ( 'Missing directory %s' % directoryInLocalExt )
-				  self.__numNotFoundDirectories += 1
-
-		# Closes package
-		zip.close()
+		# Removes package archive and pak info
+		os.remove( join(sbfpakDir, pakName) )
+		os.remove( join(sbfpakDir, packageName + '.info') )
 
 		# Prints statistics
 		self.__printStatistics()
 
-		if differentFile > 1:
-			print (	"%i different files," % differentFile ),
-		else:
-			print (	"%i different file," % differentFile ),
 
-		if identicalFile > 1:
-			print (	"%i identical files." % identicalFile )
-		else:
-			print (	"%i identical file." % identicalFile )
+	# def test( self, pathFilename ):
+
+		# # Opens package
+		# zip = zipfile.ZipFile( pathFilename )
+
+		# # Initializes statistics
+		# self.__initializeStatistics()
+		# differentFile	= 0
+		# identicalFile	= 0
+
+		# #
+		# print
+		# print ( "Tests package using %s" % pathFilename )
+		# print
+		# print ('Details :')
+
+		# for name in zip.namelist() :
+			# normalizeName			= os.path.normpath( name )
+			# normalizeNameSplitted	= normalizeName.split( os.sep )
+
+			# normalizeNameTruncated	= None
+			# if len(normalizeNameSplitted) > 1 :
+				# normalizeNameTruncated = normalizeName.replace( normalizeNameSplitted[0] + os.sep, '' )
+			# else :
+				# continue
+
+			# if not name.endswith('/') :
+				# # element is a file
+				# fileInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
+
+				# # Tests directory
+				# if not os.path.lexists(os.path.dirname(fileInLocalExt)):
+				  # print ( 'Missing directory %s' % os.path.dirname(fileInLocalExt) )
+				  # self.__numNotFoundDirectories += 1
+
+				# if os.path.isfile( fileInLocalExt ):
+				  # # Tests contents of the file
+				  # referenceContent = zip.read(name)
+				  # installedContent = ''
+				  # with open( fileInLocalExt, 'rb' ) as fileToTest :
+				    # installedContent = fileToTest.read()
+				  # if referenceContent != installedContent :
+				    # print ("File %s corrupted." % fileInLocalExt)
+				    # differentFile += 1
+				  # else :
+				    # print ("File %s has been verified." % fileInLocalExt)
+				    # identicalFile += 1
+				# else :
+				  # self.__numNotFoundFiles += 1
+				  # print ( 'Missing file %s' % fileInLocalExt )
+			# else:
+				# # element is a directory, tests it
+				# directoryInLocalExt = join( self.__localExtPath, normalizeNameTruncated )
+				# if not os.path.lexists(directoryInLocalExt):
+				  # print ( 'Missing directory %s' % directoryInLocalExt )
+				  # self.__numNotFoundDirectories += 1
+
+		# # Closes package
+		# zip.close()
+
+		# # Prints statistics
+		# self.__printStatistics()
+
+		# if differentFile > 1:
+			# print (	"%i different files," % differentFile ),
+		# else:
+			# print (	"%i different file," % differentFile ),
+
+		# if identicalFile > 1:
+			# print (	"%i identical files." % identicalFile )
+		# else:
+			# print (	"%i identical file." % identicalFile )
 
 
 
-# class sbfPakCmd to implement interactive mode
-
+### class sbfPakCmd to implement interactive mode ###
 import cmd
 
-# @todo Improves help text
 class sbfPakCmd( cmd.Cmd ):
 
 	__packagingSystem = None
@@ -723,24 +855,11 @@ class sbfPakCmd( cmd.Cmd ):
 		self.__packagingSystem = packagingSystem
 
 	def __mkdbLocatePackage( self, pakName ):
-		pathPakName = self.__packagingSystem.locatePackage( pakName )
 		packages = self.__packagingSystem.mkdbListPackage()
 		if pakName not in packages:
-			print ("Unable to find package %s" % pakName )
+			print ("Unable to find package {0}".format(pakName) )
 		else:
 			return pakName
-
-	def __locatePakName( self, pakName ):
-		pathPakName = self.__packagingSystem.locatePackage( pakName )
-		if pathPakName == None :
-			print ("Unable to find package %s" % pakName )
-		else:
-			return pathPakName
-
-
-	def completedefault( self, text, line, begidx, endidx ):
-		filenames = self.__packagingSystem.list( text, False )
-		return filenames
 
 # Commands
 	def help_exit( self ):
@@ -755,10 +874,10 @@ class sbfPakCmd( cmd.Cmd ):
 		return True
 
 
-	def help_list( self ):
-		print "Usage: list [sub-package-name]"
+	def help_listAvailable( self ):
+		print ("Usage: list [sub-package-name]\nList the available packages in repositories.")
 
-	def do_list( self, params ):
+	def do_listAvailable( self, params ):
 		parameterList = params.split()
 		if len(parameterList) not in [0, 1]:
 			self.help_list()
@@ -770,14 +889,30 @@ class sbfPakCmd( cmd.Cmd ):
 			pattern = parameterList[0]
 
 		# Calls list method
-		self.__packagingSystem.list( pattern )
+		self.__packagingSystem.listAvailable( pattern )
 
-	def complete_list( self, text, line, begidx, endidx ):
-		return []		# @todo Disables completion for list command. This method should work, but...
+
+	def help_listInstalled( self ):
+		print ("Usage: listInstalled [sub-package-name]\nList the installed packages in the current 'localExt' directory.")
+
+	def do_listInstalled( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [0, 1]:
+			self.help_list()
+			return
+
+		# Initializes pattern
+		if len(parameterList) == 1 :
+			pattern = parameterList[0]
+		else:
+			pattern = ''
+
+		# Calls list method
+		self.__packagingSystem.listInstalled( pattern, True )
 
 
 	def help_install( self ):
-		print "Usage: install pakName"
+		print ("Usage: install pakName\nSearch in repositories the first package named 'pakName' and install it in the current 'localExt' directory.")
 
 	def do_install( self, params ):
 		parameterList = params.split()
@@ -785,16 +920,37 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_install()
 			return
 
-		# Initializes pakName
-		pathPakName = self.__locatePakName( parameterList[0] )
-		if pathPakName != None :
-			# Calls install method
-			self.__packagingSystem.testZip( pathPakName )
-			self.__packagingSystem.install( pathPakName )
+		pakName = parameterList[0]
+
+		# Call install method
+		self.__packagingSystem.install( pakName )
+
+	def complete_install( self, text, line, begidx, endidx ):
+		filenames = self.__packagingSystem.listAvailable( text, False )
+		return filenames
+
+
+	def help_installForced( self ):
+		print ("Usage: installForced pakName\nSearch in repositories the first package named 'pakName' and install/reinstall it in the current 'localExt' directory.")
+
+	def do_installForced( self, params ):
+		parameterList = params.split()
+		if len(parameterList) not in [1]:
+			self.help_install()
+			return
+
+		pakName = parameterList[0]
+
+		# Call install method
+		self.__packagingSystem.install( pakName, True )
+
+	def complete_installForced( self, text, line, begidx, endidx ):
+		filenames = self.__packagingSystem.listAvailable( text, False )
+		return filenames
 
 
 	def help_remove( self ):
-		print "Usage: remove pakName"
+		print ("Usage: remove installedPackageName\nRemove from 'localExt' all files and directories installed by this package.")
 
 	def do_remove( self, params ):
 		parameterList = params.split()
@@ -802,59 +958,57 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_remove()
 			return
 
+		pakName = parameterList[0]
+		# Calls remove method
+		self.__packagingSystem.remove( pakName )
+
+	def complete_remove( self, text, line, begidx, endidx ):
+		packages = self.__packagingSystem.listInstalled( text )
+		return packages
+
+# @todo test
+#	def help_test( self ):
+#		print "Usage: test pakName"
+
+#	def do_test( self, params ):
+#		parameterList = params.split()
+#		if len(parameterList) not in [1]:
+#			self.help_test()
+#			return
+
 		# Initializes pakName
-		pathPakName = self.__locatePakName( parameterList[0] )
-		if pathPakName != None :
-			# Calls remove method
-			self.__packagingSystem.testZip( pathPakName )
-			self.__packagingSystem.remove( pathPakName )
-
-
-	def help_test( self ):
-		print "Usage: test pakName"
-
-	def do_test( self, params ):
-		parameterList = params.split()
-		if len(parameterList) not in [1]:
-			self.help_test()
-			return
-
-		# Initializes pakName
-		pathPakName = self.__locatePakName( parameterList[0] )
-		if pathPakName != None :
+#		pathPakName = self.__locatePakName( parameterList[0] )
+#		if pathPakName != None :
 			# Calls test method
-			self.__packagingSystem.testZip( pathPakName )
-			self.__packagingSystem.test( pathPakName )
+#			self.__packagingSystem.testZip( pathPakName )
+#			self.__packagingSystem.test( pathPakName )
 
 
-	def help_info( self ):
-		print "Usage: info pakName [sub-package-name]"
+# @todo info printed in mkpak
+#	def help_info( self ):
+#		print "Usage: info pakName [sub-package-name]"
 
-	def do_info( self, params ):
-		parameterList = params.split()
-		if len(parameterList) not in [1,2]:
-			self.help_info()
-			return
+#	def do_info( self, params ):
+#		parameterList = params.split()
+#		if len(parameterList) not in [1,2]:
+#			self.help_info()
+#			return
 
-		# Initializes pakName
-		pathPakName = self.__locatePakName( parameterList[0] )
-		if pathPakName != None :
-			# Retrieves pattern
-			pattern = ''
-			if len(parameterList) == 2 :
-				pattern = parameterList[1]
+#		# Initializes pakName
+##		pathPakName = self.__locatePakName( parameterList[0] )
+#		if pathPakName != None :
+#			# Retrieves pattern
+#			pattern = ''
+#			if len(parameterList) == 2 :
+#				pattern = parameterList[1]
 
 			# Calls test method
-			self.__packagingSystem.testZip( pathPakName )
-			self.__packagingSystem.info( pathPakName, pattern )
+#			self.__packagingSystem.testZip( pathPakName )
+#			self.__packagingSystem.info( pathPakName, pattern )
 
 
 	def help_mkpak( self ):
-		print "Usage: mkpak pakName"
-
-	def complete_mkpak( self, text, line, begidx, endidx ):
-		packages = self.__packagingSystem.mkdbListPackage( text )
-		return packages
+		print ("Usage: mkpak pakName\nRetrieves, build and create an sbf package for extern dependency (like boost, qt and so on).")
 
 	def do_mkpak( self, params ):
 		parameterList = params.split()
@@ -867,6 +1021,9 @@ class sbfPakCmd( cmd.Cmd ):
 		if pakName:
 			self.__packagingSystem.mkPak( pakName )
 
+	def complete_mkpak( self, text, line, begidx, endidx ):
+		packages = self.__packagingSystem.mkdbListPackage( text )
+		return packages
 
 
 def runSbfPakCmd( sbf ):

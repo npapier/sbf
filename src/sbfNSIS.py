@@ -11,6 +11,7 @@ from src.sbfTools	import locateProgram
 from src.sbfUses	import UseRepository
 from src.sbfUtils	import capitalize
 from src.sbfUI		import askQuestion
+from src.sbfVersion import splitUsesName
 from src.SConsBuildFramework import stringFormatter, SConsBuildFramework, nopAction
 
 from SCons.Script import *
@@ -338,7 +339,7 @@ def redistGeneration( target, source, env ):
 
 # @remark no more used, because redistributables are already unzip in zipPortable
 #	for useNameVersion in uses:
-#		useName, useVersion = UseRepository.extract( useNameVersion )
+#		useName, useVersion = splitUsesName( useNameVersion )
 #		use = UseRepository.getUse( useName )
 #		if use:
 #			redistributables = use.getRedist( useVersion )
@@ -637,7 +638,7 @@ def configureZipAndNSISTargets( env ):
 		listOfExternalDependencies = sbf.getAllUses( sbf.getRootProjectEnv() )
 		for useNameVersion in listOfExternalDependencies:
 			# Extracts name and version of incoming external dependency
-			useName, useVersion = UseRepository.extract( useNameVersion )
+			useName, useVersion = splitUsesName( useNameVersion )
 	#print ("%s = %s, %s" %(useNameVersion, useName, useVersion))
 
 			# Retrieves use object for incoming dependency
