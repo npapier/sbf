@@ -4,7 +4,6 @@
 # Author Nicolas Papier
 
 import os
-import re
 import string
 import sys
 
@@ -16,10 +15,8 @@ except ImportError as e:
 
 from sbfTools import *
 from sbfUtils import getPathFromEnv, convertToList
+from sbfVersion import splitUsesName
 
-
-
-# @todo use for glm (to be able to auto-install it).
 
 #@todo moves to sbfConfig.py ?
 class pythonConfig:
@@ -162,7 +159,15 @@ class IUse :
 
 
 	# for packager
+	def hasAPackage( self ):
+		"""@return True to indicate that this 'uses' is provided by a sbf package, False if not (installed in the system or by the compiler toolchain)
+		@remark Used by target pakUpdate"""
+		return True
+
 	def getLicenses( self, version ):
+		"""@return None to indicate that license file(s) could be found automatically (by using the naming rule of sbf package).
+		Returns [] to explicitly specify that there is no license file at all (provided by another 'uses', like glibmm/gtkmm).
+		Returns [...] to explicitly specify one or more license file(s)"""
 		return
 
 	def getRedist( self, version ):
@@ -450,6 +455,8 @@ class Use_cairo( IUse ):
 		elif self.platform == 'posix' :
 			return [], []
 
+	def hasAPackage( self ):
+		return False
 
 # @todo cairomm
 
@@ -564,6 +571,9 @@ class Use_opengl( IUse ):
 	def getLicenses( self, version ):
 		return []
 
+
+	def hasAPackage( self ):
+		return False
 
 
 class Use_poppler( IUse ):
@@ -713,6 +723,18 @@ class Use_sdlMixer( IUse ):
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 
+class Use_glew( IUse ):
+	def getName( self ):
+		return "glew"
+
+	def getVersions( self ):
+		return ['1-5-1']
+
+	def getLIBS( self, version ):
+		libs = ['glew32']
+		return libs, libs
+
+
 class Use_glu( IUse ):
 	def getName(self ):
 		return "glu"
@@ -728,6 +750,9 @@ class Use_glu( IUse ):
 	def getLicenses( self, version ):
 		return []
 
+	def hasAPackage( self ):
+		return False
+
 
 class Use_glm( IUse ):
 	def getName(self ):
@@ -740,6 +765,9 @@ class Use_glm( IUse ):
 class Use_glut( IUse ):
 	def getName(self ):
 		return "glut"
+
+	def getVersions( self ):
+		return ['3-7']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
@@ -908,19 +936,19 @@ class Use_sofa( IUse, sofaConfig ):
 		if self.platform == 'win32' :
 			libs = []
 			pakLibs = ['glew32', 'glut32']
-						
+
 			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
 						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture', 'BeamAdapter' ]
-						
+
 			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
-			
-			sofaVersion = '1_0'
-			
-			libsBoth = [ lib + '_' + sofaVersion for lib in libsBoth ]
-			staticLibs = [ lib + '_' + sofaVersion for lib in staticLibs ]
+
+			sofaVersion = '_1_0'
+
+			libsBoth = [ lib + sofaVersion for lib in libsBoth ]
+			staticLibs = [ lib + sofaVersion for lib in staticLibs ]
 
 			if self.config == 'release' :
 				libs += libsBoth + staticLibs
@@ -974,6 +1002,9 @@ class Use_sofa( IUse, sofaConfig ):
 	def getLicenses( self, version ):
 		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
 
+	def hasAPackage( self ):
+		return False
+
 
 def getPathsForSofa( debugAndRelease = False ):
 	sofaUse = UseRepository.getUse('sofa')
@@ -994,6 +1025,19 @@ def getPathsForSofa( debugAndRelease = False ):
 		paths = set(sofaUse.getLIBPATH( '' )[0])
 
 	return list(paths)
+
+
+class Use_usb2brd( IUse ):
+	def getName(self ):
+		return "usb2brd"
+
+	def getVersions( self ):
+		return [ '1-0-15' ]
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			libs = ['usb2brd']
+			return libs, []
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
@@ -1107,9 +1151,9 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glu(), Use_glm(),
-					Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(),
-					Use_python(), Use_sigcpp(), Use_sofa(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glew(), Use_glu(),
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(),
+					Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
@@ -1166,15 +1210,6 @@ class UseRepository :
 	@classmethod
 	def isInitialized( self ):
 		return self.__initialized
-
-	@classmethod
-	# Extracts (name, version) from 'nameVersion', 'name version' or 'name'
-	def extract( self, name ):
-		nameMatch = re.compile( r'^([a-zA-Z]+)[ \t]*([\d-]*)' ).match(name)					# @todo improves pattern to check version format
-		if nameMatch == None :
-			raise SCons.Errors.UserError("uses=['%s']. The following schemas must be used ['name'], ['nameVersion'] or ['name version']." % name)
-		else:
-			return nameMatch.groups()
 
 	@classmethod
 	def getUse( self, name ):
@@ -1306,6 +1341,8 @@ class Use_glibmm( IUse ):
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
+	def hasAPackage( self ):
+		return False
 
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
@@ -1478,6 +1515,10 @@ class Use_gtkmm( IUse ):
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
+
+	def hasAPackage( self ):
+		return False
+
 	def getRedist( self, version ):
 		if self.platform == 'win32':
 			if version == '2-22-0':
@@ -1528,6 +1569,10 @@ class Use_gtkmmext( IUse ):
 				return ['/vd2']
 		else:
 			return []
+
+
+	def hasAPackage( self ):
+		return False
 
 
 class Use_sigcpp( IUse ):
@@ -1594,6 +1639,9 @@ class Use_sigcpp( IUse ):
 
 		return libPath, pakLibPath
 
+
+	def hasAPackage( self ):
+		return False
 
 
 def use_physx( self, lenv, elt ) :
@@ -1694,7 +1742,7 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 #print "incoming use : %s", elt
 			useNameVersion = elt
 
-			useName, useVersion = UseRepository.extract( useNameVersion )
+			useName, useVersion = splitUsesName( useNameVersion )
 			use = UseRepository.getUse( useName )
 
 			if use:
