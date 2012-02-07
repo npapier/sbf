@@ -387,23 +387,36 @@ print ( "Configuration: {0}\n".format(env['config']) )
 # rsync builder
 # @todo lazy construction
 cygpathLocation = locateProgram( 'cygpath' )
-env['POSIX_SOURCE'] = PosixSource( env['PLATFORM'], cygpathLocation )
-env['POSIX_TARGET'] = PosixTarget( env['PLATFORM'], cygpathLocation )
-
 sshLocation = locateProgram( 'ssh' )
 if len(sshLocation)>0:
-	if env['PLATFORM'] == 'win32' :
+	if env['PLATFORM'] == 'win32':
 		sshLocation = callCygpath2Unix(sshLocation, cygpathLocation).lower()
 	env['RSYNCRSH'] = '--rsh={0}/ssh'.format(sshLocation)
 	#print '--rsh={0}/ssh'.format(sshLocation)
 else:
 	env['RSYNCRSH'] = ''
 
-env['RSYNCFLAGS']			= "--delete -av --chmod=u=rwX,go=rX" # --progress
-env['BUILDERS']['Rsync']	= Builder( action = "rsync $RSYNCFLAGS $RSYNCRSH $POSIX_SOURCE $publishPath/${TARGET}" ) # adds @ and printMsg
+env['RSYNCFLAGS']			= "-av --chmod=u=rwX,go=rX" # --progress
+env['RSYNCFLAGS'] += " --delete"
+
 def createRsyncAction( env, target, source, alias = None ):
-	rsyncAction = env.Rsync( Value(target), source )
-	env.AlwaysBuild( rsyncAction )
+	# Example of generated rsync command :
+	# rsync --delete -av --chmod=u=rwX,go=rX --rsh=/usr/bin/ssh /cygdrive/d/tmp/sbf/build/pak/ulisProduct_2-0-beta13_2012-02-01_setup.exe farmer@orange:/srv/files/Dev/buildbot/vista-farm/ulisProduct_2-0-beta13_2012-02-01_setup.exe
+	cygpathLocation = locateProgram('cygpath')
+
+	if env['PLATFORM']=='win32':
+		fullSource = callCygpath2Unix( source, cygpathLocation )
+	else:
+		fullSource = source
+	#print source
+
+	publishPath = env['publishPath']
+	fullTarget = publishPath + '/' + str(target)
+	#print fullTarget
+
+	cmd = 'rsync {rsyncFlags} {rsh} {src} {dst}'.format( rsyncFlags=env['RSYNCFLAGS'], rsh=env['RSYNCRSH'], src=fullSource, dst=fullTarget)
+	#print cmd
+	rsyncAction = env.Command( 'dummyRsync{0}.out'.format(target), source, cmd )
 	if alias:
 		env.Alias( alias, rsyncAction )
 	return rsyncAction
