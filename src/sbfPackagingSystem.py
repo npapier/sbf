@@ -211,7 +211,7 @@ class PackagingSystem:
 			print ("Found localExt in %s\n" % self.__localExtPath)
 		else :
 			print ("localExt not found in %s" % self.__localExtPath)
-			exit(1)
+			createDirectory(self.__localExtPath)
 
 		# Tests existance of pakPaths directory
 		for path in self.__pakPaths :
@@ -225,6 +225,8 @@ class PackagingSystem:
 		createDirectory( self.getLocalExtSbfPakDBPath() )
 		createDirectory( self.getLocalExtSbfPakDBTmpPath() )
 
+	def __del__(self):
+		removeDirectoryTree( self.getLocalExtSbfPakDBTmpPath() )
 
 	# LocalExt
 	def getLocalExtPath( self ):
