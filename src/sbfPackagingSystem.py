@@ -223,10 +223,6 @@ class PackagingSystem:
 
 		# Creates localExt directory
 		createDirectory( self.getLocalExtSbfPakDBPath() )
-		createDirectory( self.getLocalExtSbfPakDBTmpPath() )
-
-	def __del__(self):
-		removeDirectoryTree( self.getLocalExtSbfPakDBTmpPath() )
 
 	# LocalExt
 	def getLocalExtPath( self ):
@@ -645,6 +641,7 @@ class PackagingSystem:
 		sbfpakDir = self.getLocalExtSbfPakDBPath()
 		tmpDir = self.getLocalExtSbfPakDBTmpPath()
 		removeDirectoryTree( tmpDir, self.__verbose )
+		createDirectory( tmpDir )
 
 		# Retrieves package pakName
 		pathPakName = self.getLocalPackage( pakName, sbfpakDir )
