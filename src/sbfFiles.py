@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -42,11 +42,12 @@ def computeDepth( path ):
 ###### Directory related functions ######
 #########################################
 def createDirectory( directory, verbose = True ):
-	"""Creates the directory if not already existing"""
+	"""	Creates the directory if not already existing.
+		@remark Creates all intermediate-level directories recursively if needed."""
 	if not os.path.exists( directory ):
 		if verbose:
 			print ( 'Creates directory {0}'.format(directory) )
-		os.mkdir( directory )
+		os.makedirs( directory )
 
 def removeDirectoryTree( directory, verbose = True ):
 	"""Deletes an entire directory tree (if the directory is existing)"""
