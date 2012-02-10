@@ -356,6 +356,12 @@ class SConsBuildFramework :
 					default	= True,
 					help	= "See --weak-localext option" )
 
+		AddOption(	"--wp", "--weak-publishing",
+					action	= 'store_true',
+					dest	= 'weakPublishing',
+					default	= False,
+					help	= "See --weak-publishing" )
+
 		# AddOption(	"--optimize",
 					# type	= "int",
 					# #action	= "store",
@@ -617,20 +623,30 @@ packaging related targets
 
 Command-line options:
 
-debug      a shortcut for config=debug. See 'config' option for additionnal informations.
-release    a shortcut for config=release. See 'config' option for additionnal informations.
+debug      A shortcut for config=debug. See 'config' option for additionnal informations.
+release    A shortcut for config=release. See 'config' option for additionnal informations.
 
---nodeps      do not follow project dependencies specified by 'deps' project option.
---noexclude   do not exclude project(s) specified by 'projectExclude' sbf option.
+--nodeps or --nd     Do not follow project dependencies specified by 'deps' project option.
+--noexclude or --nx  Do not exclude project(s) specified by 'projectExclude' sbf option.
 
 --weak-localext		Disables SCons scanners for localext directories.
 --no-weak-localext	See --weak-localext
 
---verbose		Shows details about the results of running sbf. This can be especially useful when the results might not be obvious.
---fast			Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that
-				SCons will not rebuild correctly the project in several rare cases.
-				See 'decider' SConsBuildFramework option.
---accurate		see --fast
+--weak-publishing or --wp   rsync is used for publishing. Weak publishing means '--delete' option is
+                            no more given to rsync command.
+                            Intermediate files are no more cleaned for 'nsis' and zip related targets
+                            and redistributables coming from 'uses' are no more installed.
+                            So publishing is faster with this option.
+                            Tips: Do the first publishing of the day without --weak-publishing and the following with it.
+
+--verbose       Shows details about the results of running sbf. This can be especially useful
+                when the results might not be obvious.
+
+--fast          Speed up the SCons 'thinking' about what must be built before it starts the
+                build. The drawback of this option is that SCons will not rebuild correctly
+                the project in several rare cases.
+                See 'decider' SConsBuildFramework option.
+--accurate      see --fast
 
 
 SConsBuildFramework options:

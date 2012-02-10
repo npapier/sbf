@@ -397,7 +397,6 @@ else:
 	env['RSYNCRSH'] = ''
 
 env['RSYNCFLAGS']			= "-av --chmod=u=rwX,go=rX" # --progress
-env['RSYNCFLAGS'] += " --delete"
 
 def createRsyncAction( env, target, source, alias = None ):
 	# Example of generated rsync command :
@@ -414,7 +413,12 @@ def createRsyncAction( env, target, source, alias = None ):
 	fullTarget = publishPath + '/' + str(target)
 	#print fullTarget
 
-	cmd = 'rsync {rsyncFlags} {rsh} {src} {dst}'.format( rsyncFlags=env['RSYNCFLAGS'], rsh=env['RSYNCRSH'], src=fullSource, dst=fullTarget)
+	if GetOption('weakPublishing'):
+		dynamicFlags = ''
+	else:
+		dynamicFlags = '--delete'
+
+	cmd = 'rsync {rsyncFlags} {weakPublishingFlags} {rsh} {src} {dst}'.format( rsyncFlags=env['RSYNCFLAGS'], weakPublishingFlags=dynamicFlags, rsh=env['RSYNCRSH'], src=fullSource, dst=fullTarget)
 	#print cmd
 	rsyncAction = env.Command( 'dummyRsync{0}.out'.format(target), source, cmd )
 	if alias:

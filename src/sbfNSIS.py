@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -549,7 +549,10 @@ def configureZipAndNSISTargets( env ):
 
 		# Removes directories containing zip* files.
 		# @todo deferred delete
-		Execute([ Delete(runtimeZipPath), Delete(depsZipPath), Delete(portableZipPath), Delete(devZipPath), Delete(srcZipPath) ])
+		if not GetOption('weakPublishing'):
+			Execute([ Delete(runtimeZipPath), Delete(depsZipPath), Delete(portableZipPath), Delete(devZipPath), Delete(srcZipPath) ])
+		else:
+			print ('Weak publishing option is enabled. So intermediate files are not cleaned.\nTips: Do the first publishing of the day without --weak-publishing.\n')
 
 		# Creates 'var' directory
 		varDirectory = join(runtimeZipPath, 'var')
@@ -710,7 +713,7 @@ def configureZipAndNSISTargets( env ):
 				# Retrieves redistributables of incoming dependency
 				for redistributable in use.getRedist( useVersion ):
 					if not isinstance(redistributable, tuple) and isExtractionSupported(redistributable):
-						if not env.GetOption('clean'):
+						if (not env.GetOption('clean')) and (not GetOption('weakPublishing')):
 							# @todo deferred extraction
 							print ( 'Extracts {redist} into {destination}'.format(redist=redistributable, destination=portableZipPath) )
 							extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), portableZipPath )
