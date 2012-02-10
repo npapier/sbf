@@ -1,7 +1,7 @@
 # sbf settings
 #queryUser					= True
 #numJobs					= 1
-#decider					= 'accurate'
+#decider					= 'fast'
 #outputLineLength			= 79
 #printCmdLine				= 'less'
 #companyName				= ''
@@ -14,8 +14,14 @@
 #svnUpdateExclude			= [ '*/vgsdk*' ]
 #clVersion					= 'highest'
 #installPaths				= []
+
+# On windows platform
+#publish on a local drive	:	publishPath = '/cygdrive/d/local/rsync/'
+#publish on a network drive	:	publishPath = '/cygdrive/X/' for X:
+#on a network drive			:	publishPath = 'npapier@remoteComputer:/home/npapier/tmp/rsync'
 #publishPath				= ''
 #publishOn					= False
+
 #buildPath					= 'build'
 #SConsignFilePath			= 'buildPath' or '~'
 #cachePath					= ''
@@ -23,4 +29,9 @@
 #config						= 'release' # debug or release : the default compilation mode.
 #generateDebugInfoInRelease = 'False'
 #warningLevel				= 'normal'
+
 #userDict					= {}
+#from src.SConsBuildFramework import createBlowfishShareBuildCommand
+#userDict = { 'blowfish' : createBlowfishShareBuildCommand( 'theKey' ) }
+# or
+#userDict = { 'blowfish' : ('command ${SOURCE} ${TARGET}', '${SOURCE}.encrypt', 'Encrypt $SOURCE.file') }
