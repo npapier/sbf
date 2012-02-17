@@ -7,7 +7,12 @@ import os
 import re
 
 from src.sbfFiles import getNormalizedPathname
-from SCons.Script import *
+
+# To be able to use sbfVersion.py without SCons
+try:
+	from SCons.Script import *
+except ImportError as e:
+	print ('sbfWarning: unable to import SCons.Script')
 
 
 ### Helpers to retrieve/print version of SConsBuildFramework ###
