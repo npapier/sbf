@@ -25,7 +25,7 @@ from sbfUses import getPathsForSofa
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUses import Use_cairo, Use_gtkmm, Use_gtkmmext, Use_itk
 from sbfUtils import *
-from sbfVersion import printSBFVersion
+from sbfVersion import printSBFVersion, extractVersion, splitLibsName
 
 # To be able to use SConsBuildFramework.py without SCons
 try:
@@ -48,6 +48,21 @@ def createBlowfishShareBuildCommand( key ):
 	shareBuildCommand = (	'blowfish_0-0_win32_cl9-0Exp.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
+
+
+def installRO( target, source, env ):
+	src = str(source[0])
+	dst = str(target[0])
+	dir = os.path.dirname( dst )
+	if not os.path.exists(dir):
+		os.makedirs( dir )
+	else:
+		if os.path.exists(dst):
+			os.chmod( dst, 0744 )
+	shutil.copyfile(src, dst) 
+	os.chmod( dst, 0444 )
+	return 0
+
 
 def sbfPrintCmdLine( cmd, target, src, env ):
 #	print ("beginning=%s" % cmd[:20])
@@ -82,9 +97,6 @@ def printBuild( target, source, localenv ) :
 
 def printInstall( target, source, localenv ) :
 	return stringFormatter(localenv, "Install %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
-
-def printClean( target, source, localenv ) :
-	return stringFormatter( localenv, "Clean %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printMrproper( target, source, localenv ) :
 	return stringFormatter( localenv, "Mrproper %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
@@ -141,6 +153,7 @@ class SConsBuildFramework :
 	# sbf_projectPath
 	# sbf_project
 	# sbf_parentProjects
+	# sbf_libsExpanded
 
 	# sbf_version_major
 	# sbf_version_minor
@@ -190,6 +203,7 @@ class SConsBuildFramework :
 	# Computed from .SConsBuildFramework.options
 	myInstallExtPaths				= []
 	myInstallDirectory				= ''
+	myInstallDirectories			= []
 	myIncludesInstallPaths			= []
 	myLibInstallPaths				= []
 	myIncludesInstallExtPaths		= []
@@ -748,7 +762,7 @@ SConsBuildFramework options:
 		### myIncludesInstallExtPaths, myLibInstallExtPaths, myGlobalCppPath and myGlobalLibPath
 		for element in self.myInstallPaths :
 			self.myIncludesInstallPaths	+=	[ os.path.join(element, 'include') ]
-			self.myLibInstallPaths		+=	[ os.path.join(element, 'lib') ]
+			self.myLibInstallPaths		+=	[ os.path.join(element, 'bin') ]
 
 		for element in self.myInstallExtPaths :
 			self.myIncludesInstallExtPaths	+=	[ os.path.join(element, 'include') ]
@@ -795,7 +809,8 @@ SConsBuildFramework options:
 			self.myProjectBuildPath = os.path.join( self.myProjectPathName, self.myBuildPath )
 
 		# processes myVersion
-		extractedVersion = self.extractVersion( self.myVersion )
+		extractedVersion = extractVersion( self.myVersion )
+
 		self.myVersionMajor = int(extractedVersion[0])
 		self.myVersionMinor = int(extractedVersion[1])
 		if extractedVersion[2]:
@@ -960,7 +975,7 @@ SConsBuildFramework options:
 				[],
 				passthruValidator, passthruConverter ),
 
-			EnumVariable(	'packageType', "Specifies the type of this package (i.e. where it will be installed in 'local' or in 'packages' directories.",
+			EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
 							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 )
 
 		)
@@ -1577,13 +1592,13 @@ SConsBuildFramework options:
 			else:
 				lenv['sbf_parentProjects'] = parentProjects
 
-			# Updates using 'packageType' of the current project
-			if lenv['packageType'] in ['standalone', 'embedded']: # do nothing for 'none' project
+			# Updates using 'deploymentType' of the current project
+			if lenv['deploymentType'] in ['standalone', 'embedded']: # do nothing for 'none' project
 				lenv['sbf_parentProjects'].append( lenv )
 				if len(lenv['sbf_parentProjects'])>1:
 					project1 = lenv['sbf_parentProjects'][0]['sbf_project']
 					project2 = lenv['sbf_parentProjects'][1]['sbf_project']
-					raise SCons.Errors.UserError( "Encountered the following two projects '{0}' and '{1}' with packageType different to none. It's forbidden in the same build.".format(project1, project2) )
+					raise SCons.Errors.UserError( "Encountered the following two projects '{0}' and '{1}' with deploymentType different to none. It's forbidden in the same build.".format(project1, project2) )
 				#else nothing to do
 			# else nothing to do
 
@@ -1598,6 +1613,26 @@ SConsBuildFramework options:
 
 		# Constructs dependencies
 		#print "sbfDebug:%s dependencies are %s" % (self.myProject, lenv['deps'])
+
+		# Tests if sbf library must be implicitly built (process lenv['libs'] for that)
+		buildSbfLibrary = False
+		libsExpanded = []
+		for lib in lenv['libs']:
+			libSplitted = splitLibsName( lib )
+
+			buildSbfLibrary = buildSbfLibrary or (libSplitted[0] == 'sbf')
+
+			if len(libSplitted[1])==0:
+				# no version information supplied
+				libsExpanded.append( libSplitted[0] + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig )
+			else:
+				# version information supplied
+				libsExpanded.append( libSplitted[0] + '_' + libSplitted[1] + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig )
+		lenv['sbf_libsExpanded'] = libsExpanded
+
+		# Builds sbf library
+		if buildSbfLibrary and 'sbf' not in self.myParsedProjectsSet:
+			self.buildProject( self.mySbfLibraryRoot, lenv['sbf_parentProjects'], lenv['nodeps'] )
 
 		# Built project dependencies (i.e. 'deps')
 		for dependency in lenv['deps']:
@@ -1653,7 +1688,10 @@ SConsBuildFramework options:
 		### Starts building stage
 		os.chdir( projectPathName )
 
-		#print "sbfDebug: Constructing project %s in %s" % (self.myProject, self.myProjectPathName)
+		if lenv.GetOption('verbosity'):
+			#print ( "Studying project {0} in {1}".format(self.myProject, dirname(self.myProjectPathName)) )
+			print ( "Studying project {0}".format(self.myProject) )
+
 		# Dumping construction environment (for debugging).
 		#print lenv.Dump()
 
@@ -1673,20 +1711,7 @@ SConsBuildFramework options:
 		lenv.Append( LIBS = lenv['stdlibs'] )
 
 		# configures lenv['LIBS'] with lenv['libs']
-		libsExpanded = []
-		for lib in lenv['libs']:
-			libSplited	= string.split(lib, ' ')					# @todo see UseRepository.extract()
-			libExpanded = ''
-			if ( len(libSplited) == 1 ) :
-				libExpanded += lib + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig
-			elif ( len(libSplited) == 2 ) :
-				libExpanded += libSplited[0] + '_' + libSplited[1] + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig
-			else:
-				print 'sbfWarning: skip ', lib, ' because its name contains more than two spaces'
-				continue
-			libsExpanded.append( libExpanded )
-		if len(libsExpanded) > 0:
-			lenv.Append( LIBS = libsExpanded )
+		lenv.Append( LIBS = lenv['sbf_libsExpanded'] )
 
 		# Configures lenv[*] with lenv['uses']
 		uses( self, lenv, lenv['uses'] )
@@ -1876,54 +1901,70 @@ SConsBuildFramework options:
 		Clean( self.myProject + '_build', self.myProjectBuildPathExpanded )
 
 		### myProject_install
+
 		# Computes installation directory
-		moveLibInBinDir = False
-		if len(lenv['sbf_parentProjects']) == 0:
-			installDirectory = self.myInstallDirectory
-		else:
-			assert( len(lenv['sbf_parentProjects']) == 1 )
-
-			parentEnv = lenv['sbf_parentProjects'][0]
-			packageType = parentEnv['packageType']
-
-			moveLibInBinDir = True
-
-			if packageType == 'standalone':
-				installDirectory = self.myInstallDirectory
-			elif packageType == 'embedded':
-				subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
-				installDirectory = join( self.myInstallDirectory, 'packages', subdir )
+		def computeInstallDirectories( lenv ):
+			installDirectories = [self.myInstallDirectory]
+			if len(lenv['sbf_parentProjects']) == 0:
+				# no parent project
+				pass
 			else:
-				assert( False )
+				for parentEnv in lenv['sbf_parentProjects']:
+					deploymentType = parentEnv['deploymentType']
+					if deploymentType == 'standalone':
+						pass
+					elif deploymentType == 'embedded':
+						subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
+						installDirectories.append( join( self.myInstallDirectory, 'packages', subdir ) )
+					else:
+						assert( False )
+			return installDirectories
 
-		if len(installInBinTarget) > 0 :
-			installTarget			= lenv.Install( join(installDirectory, 'bin'), installInBinTarget )
-		else :
-			installTarget			= []
+		self.myInstallDirectories = computeInstallDirectories( lenv )
+
+		# install libraries and binaries in 'bin'
+		installTarget = []
+		if len(installInBinTarget) > 0:
+			for installDir in self.myInstallDirectories:
+				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
+
+		if len(installInLibTarget) > 0:
+			for installDir in self.myInstallDirectories:
+				installTarget += lenv.Install( join(installDir, 'bin'), installInLibTarget )
 
 		# install in 'include'
-		for file in installInIncludeTarget :
-			dst = join(self.myInstallDirectory, file)
-			src = join(self.myProjectPathName, file)
+		if 'mrproper' in self.myBuildTargets:
+			localInclude = join(self.myInstallDirectory, 'include')
+			if os.path.exists( localInclude ):
+				# There is an 'include' directory in installation directory, so i have to remove all files from it (because of read-only chmod).
+				oFiles = []
+				searchAllFiles( localInclude, oFiles )
+				for file in oFiles:
+					if os.path.exists(file):
+						os.chmod( file, 0744 )
+						os.remove( file )
+					#else nothing to do
+			# else nothing to do
+		elif 'clean' in self.myBuildTargets:
+			pass
+		else:
+			# @todo one Command per directory
+			for file in installInIncludeTarget :
+				dst = join(self.myInstallDirectory, file)
+				src = join(self.myProjectPathName, file)
+				# Installing filename.hpp
+				lenv.Precious( dst )
+				installTarget += lenv.Command( dst, src, Action(installRO, 'Installing {0}'.format(file) ) )
 
-			# 'Installing filename.hpp
-			installTarget += lenv.InstallAs( dst, src )
-
-		# install in 'lib'
-		if len(installInLibTarget) > 0:
-			if moveLibInBinDir:
-				installTarget.append( lenv.Install( join(installDirectory, 'bin'), installInLibTarget ) )
-			else:
-				installTarget.append( lenv.Install( join(installDirectory, 'lib'), installInLibTarget ) )
 
 		# install in 'share'
-		shareBaseDir = join(installDirectory, 'share', self.myProject, self.myVersion)
-		for file in filesFromShare:
-			installTarget += lenv.InstallAs( file.replace('share', shareBaseDir, 1), join(self.myProjectPathName, file) )
-
-		for fileAbs in filesFromShareBuilt:
-			fileRel = fileAbs[ fileAbs.index('share') : ]
-			installTarget += lenv.InstallAs( fileRel.replace('share', shareBaseDir, 1), fileAbs )
+		for installDir in self.myInstallDirectories:
+			shareBaseDir = join(installDir, 'share', self.myProject, self.myVersion)
+			for file in filesFromShare:
+				installTarget += lenv.InstallAs( file.replace('share', shareBaseDir, 1), join(self.myProjectPathName, file) )
+			for fileAbs in filesFromShareBuilt:
+				fileRel = fileAbs[ fileAbs.index('share') : ]
+				installTarget += lenv.InstallAs( fileRel.replace('share', shareBaseDir, 1), fileAbs )
 
 		#
 		Alias( self.myProject + '_install_print', lenv.Command('dummy_install_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printInstall ) ) )
@@ -1937,30 +1978,28 @@ SConsBuildFramework options:
 		aliasProject = Alias( self.myProject, aliasProjectInstall )
 
 		### myProject_clean
-
-		### FIXME printClean does'nt work ??? modified behavior when clean=1 ?
-		#env.Alias( self.myProject + '_clean_print', lenv.Command('dummy_clean_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
-		#env.Alias( self.myProject + '_clean_print', lenv.Command('dummy_clean_print' + self.myProject + 'out2', 'dummy.in', Action( nopAction, printClean ) ) )
-		#env.AlwaysBuild( self.myProject + '_clean_print' )
-		#env.Alias( self.myProject + '_clean', self.myProject + '_clean_print' )
-
 		aliasProjectClean = Alias( self.myProject + '_clean', self.myProject + '_build' )
 
 		### myProject_mrproper
-		# TODO: printMrproper see myProject_clean target.
 		aliasProjectMrproper = Alias( self.myProject + '_mrproper', aliasProjectInstall )
-		Clean( self.myProject + '_mrproper', os.path.join(self.myProjectBuildPath, self.myProject) )
-		Clean( self.myProject + '_mrproper', os.path.join(self.myInstallDirectory, 'include', self.myProject) )
+		# temporary build path
+		Clean( self.myProject + '_mrproper', join(self.myProjectBuildPath, self.myProject) )
+		# 'include'
+		for installDir in self.myInstallDirectories:
+			Clean( self.myProject + '_mrproper', join(installDir, 'include', self.myProject) )
 
-		shareProjectInstallDirectory = os.path.join( self.myInstallDirectory, 'share', self.myProject )
-		if os.path.exists( shareProjectInstallDirectory ) :
-			shareProjectInstallEntries = os.listdir( shareProjectInstallDirectory )
-			if	len(shareProjectInstallEntries) == 0 or \
-				(len(shareProjectInstallEntries) == 1 and shareProjectInstallEntries[0] == self.myVersion) :
-				Clean( self.myProject + '_mrproper', shareProjectInstallDirectory )
-			else :
-				Clean( self.myProject + '_mrproper', self.getShareInstallDirectory() )
-		# else : nothing to do, no share/myProject directory
+		# 'share'
+		for installDir in self.myInstallDirectories:
+			shareProjectInstallDirectory = os.path.join( installDir, 'share', self.myProject )
+			if os.path.exists( shareProjectInstallDirectory ):
+				shareProjectInstallEntries = os.listdir( shareProjectInstallDirectory )
+				if	len(shareProjectInstallEntries) == 0 or \
+					(len(shareProjectInstallEntries) == 1 and shareProjectInstallEntries[0] == self.myVersion):
+					Clean( self.myProject + '_mrproper', shareProjectInstallDirectory )
+				else:
+					print self.getShareInstallDirectory()
+					Clean( self.myProject + '_mrproper', join(shareProjectInstallDirectory, self.myVersion) )
+			# else : nothing to do, no share/myProject directory
 
 		# @todo Improves mrproper (local/doc/myProject directory ?)
 

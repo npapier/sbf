@@ -496,13 +496,9 @@ if hasBranchOrTagTarget:
 	Alias( 'svnrmbranch',	Command('dummySvnRmBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 
 
-# Builds sbf library
-if env['nodeps'] == False and env['sbf_project'] != 'sbf':
-	# Builds sbf project
-	sbf.buildProject( sbf.mySbfLibraryRoot, None )
-
 # Builds the root project (i.e. launchDir).
 sbf.buildProject( env['sbf_projectPathName'], None, False )
+Clean( 'mrproper', join(sbf.myInstallDirectory, 'include') )
 
 
 ### special targets: onlyRun and run ###

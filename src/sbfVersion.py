@@ -7,15 +7,15 @@ import os
 import re
 
 from src.sbfFiles import getNormalizedPathname
-
+from SCons.Script import *
 
 
 ### Helpers to retrieve/print version of SConsBuildFramework ###
-def printSBFVersion() :
+def printSBFVersion():
 	print ( 'SConsBuildFramework version : {0}'.format(getSBFVersion()) )
 
 
-def getSBFVersion() :
+def getSBFVersion():
 	# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
 	sbfRoot = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
 
@@ -29,20 +29,45 @@ def getSBFVersion() :
 
 
 
-### Helpers to split 'uses' value ###
-usesNamePattern = '(?P<name>[a-zA-Z]+(?:[\d][a-zA-Z]+|))'
-usesVersionPattern = '(?P<version>[\d-]*)'
+### Helpers to extract version ###
+versionPattern = '(?P<version>(?:(?P<major>[0-9]+)(?:-(?P<minor>[0-9]+))?(?:-(?P<maint>[0-9]+))?(?:-(?P<postfix>[a-zA-Z0-9]+))?)?)'
+versionRE = re.compile( r'^{0}$'.format(versionPattern) )
+
+versionDoc = "The project version must follow the schema no version at all or major-[postfix] or major-minor-[postfix] or major-minor-maintenance[-postfix].\nmajor, minor, maintenance and postfix can contain any decimal digit. In addition, postfix can contain any alphabetical character."
+
+def extractVersion( versionStr ):
+	""" Returns a tuple containing (major, minor, maintenance, postfix) version information from versionStr (major[-minor][-maintenance][-postfix]).
+		See versionDoc"""
+	versionMatch = versionRE.match( versionStr )
+	if versionMatch:
+		return (versionMatch.group('major'), versionMatch.group('minor'), versionMatch.group('maint'), versionMatch.group('postfix'))
+	else:
+		raise SCons.Errors.UserError("Given version:{0}.\n{1}".format(versionStr, versionDoc) )
+
+### Helpers to split 'uses' or 'libs' value ###
+usesNamePattern = '(?P<name>[a-zA-Z]+(?:[\d_][a-zA-Z]+|))'
+usesORlibsSplitter = re.compile( r'^{0}[ \t]*{1}$'.format(usesNamePattern, versionPattern) )
+
+def splitUsesORlibs( value, text ):
+	"""@return (name, version) from 'nameVersion', 'name' or 'name version'.
+	@remark Example: splitUsesORlibs( 'boost1-48-0' ) returns ('boost', '1-48-0')
+	See versionDoc"""
+
+	match = usesORlibsSplitter.match( value )
+	if match:
+		return (match.group('name'), match.group('version'))
+	else:
+		raise SCons.Errors.UserError("{0}=['{1}'].\n The following schemas must be used ['nameVersion'], ['name'] or ['name version'].\n{2}".format(text, value, versionDoc) )
 
 def splitUsesName( singleUsesValue ):
-	"""@return (name, version) from 'nameVersion', 'name' or 'name version'.
-	@remark Example: splitUses( 'boost1-48-0' ) returns ('boost', '1-48-0')"""
+	"""See splitUsesORlibs()"""
 
-	splitter = re.compile( r'^{0}[ \t]*{1}'.format(usesNamePattern, usesVersionPattern) )
-	match = splitter.match( singleUsesValue )
-	if match:
-		return match.groups()
-	else:
-		raise SCons.Errors.UserError("uses=['{0}']. The following schemas must be used ['nameVersion'], ['name'] or ['name version'].".format(name) )
+	return splitUsesORlibs( singleUsesValue, 'uses' )
+
+def splitLibsName( singleLibsValue ):
+	"""See splitUsesORlibs()"""
+
+	return splitUsesORlibs( singleLibsValue, 'libs' )
 
 #print splitUsesName('opengl')
 #print splitUsesName('boost1-48-0')
