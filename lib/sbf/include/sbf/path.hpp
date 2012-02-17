@@ -39,6 +39,11 @@ typedef enum
 SBF_API const std::string toString( const Type & type );
 
 /**
+ * @brief	Retrieves the root path of the directory tree.
+ */
+SBF_API const boost::filesystem::path getRoot();
+
+/**
  * @brief	Retrieves the system path for the given type.
  *
  * @return	the absolute system path, empty if none
@@ -63,6 +68,17 @@ SBF_API const boost::filesystem::path getTopLevelSafe( const Type & type );
 SBF_API const boost::filesystem::path get( const Type & type, const Module & module = Module() );
 
 /**
+ * @brief	Retrieves the system path for the given type and module.
+ *
+ * @param	root	the path to an alternate root directory
+ * @param	type	the path type
+ * @param	module	a module (the current by default)
+ *
+ * @return	the absolute system path, empty if none
+ */
+SBF_API const boost::filesystem::path get( const boost::filesystem::path & root, const Type & type, const Module & module = Module() );
+
+/**
  * @brief	Retrieves the system path for the given type and module, and creates the path if none exists.
  *
  * @param	type	the path type
@@ -71,8 +87,6 @@ SBF_API const boost::filesystem::path get( const Type & type, const Module & mod
  * @return	the absolute system path, empty if an error occured
  */
 SBF_API const boost::filesystem::path getSafe( const Type & type, const Module & module = Module() );
-
-
 
 /**
  * @brief	Creates folders recursively if don't exists.

@@ -37,14 +37,14 @@ const std::string toString( const Type & type )
 
 
 
-const boost::filesystem::path getRootPath()
+const boost::filesystem::path getRoot()
 {
 #ifdef WIN32
 	
 	char	filename[1024];
 
 	GetModuleFileName( 0, filename, sizeof(filename) );
-	return boost::filesystem::path(filename).parent_path();
+	return boost::filesystem::path(filename).parent_path().parent_path();
 
 #else
 
@@ -57,7 +57,7 @@ const boost::filesystem::path getRootPath()
 
 const boost::filesystem::path getTopLevel( const Type & type )
 {
-	static const boost::filesystem::path	rootPath = getRootPath();
+	static const boost::filesystem::path	rootPath = getRoot();
 	boost::filesystem::path					basePath;
 	
 	basePath = rootPath / toString(type);
@@ -107,6 +107,23 @@ const boost::filesystem::path getTopLevelSafe( const Type & type )
 	}
 	
 	return basePath;
+}
+
+
+
+const boost::filesystem::path get( const boost::filesystem::path & root, const Type & type, const Module & module )
+{
+	namespace bfs = boost::filesystem;
+
+
+	if( root.empty() )
+	{
+		return bfs::path();
+	}
+	else
+	{
+		return root / toString(type) / bfs::path(module.getName()) / bfs::path(module.getVersion());
+	}
 }
 
 
