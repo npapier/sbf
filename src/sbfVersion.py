@@ -90,7 +90,7 @@ def splitPackageName( packageName ):
 		'platform'	: 'win32',
 		'cc'		: 'cl10-0Exp',
 		'extension'	: 'zip' }"""
-	splitter = re.compile( r'^{0}{1}_{2}_{3}[.]{4}$'.format( usesNamePattern, usesVersionPattern, packagePlatform, packageCC, packageExtension ) )
+	splitter = re.compile( r'^{0}{1}_{2}_{3}[.]{4}$'.format( usesNamePattern, versionPattern, packagePlatform, packageCC, packageExtension ) )
 	match = splitter.match( packageName )
 	if match:
 		return {	'name'		: match.group('name'),
