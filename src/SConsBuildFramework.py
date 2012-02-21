@@ -758,6 +758,13 @@ SConsBuildFramework options:
 		self.myConfig		= lenv['config']
 		self.myWarningLevel	= lenv['warningLevel']
 
+		if self.myConfig == 'debug':
+			self.myPostfixLinkedToMyConfig = 'D'
+			self.my_PostfixLinkedToMyConfig = '_' + self.myPostfixLinkedToMyConfig
+		else : # release
+			self.myPostfixLinkedToMyConfig = ''
+			self.my_PostfixLinkedToMyConfig = ''
+
 		### use myInstallPaths and myInstallExtPaths to update myIncludesInstallPaths, myLibInstallPaths,
 		### myIncludesInstallExtPaths, myLibInstallExtPaths, myGlobalCppPath and myGlobalLibPath
 		for element in self.myInstallPaths :
@@ -827,13 +834,6 @@ SConsBuildFramework options:
 		lenv['sbf_version_postfix']		= self.myVersionPostfix
 
 		### @todo not good if more than one config must be built
-		if self.myConfig == 'debug':
-			self.myPostfixLinkedToMyConfig = 'D'
-			self.my_PostfixLinkedToMyConfig = '_' + self.myPostfixLinkedToMyConfig
-		else : # release
-			self.myPostfixLinkedToMyConfig = ''
-			self.my_PostfixLinkedToMyConfig = ''
-
 		if len(self.myPostfix) > 0:
 			self.myFullPostfix = self.myPostfix + self.my_PostfixLinkedToMyConfig
 		else :
