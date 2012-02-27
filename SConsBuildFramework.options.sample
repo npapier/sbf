@@ -27,7 +27,7 @@
 #cachePath					= ''
 #cacheOn					= False
 #config						= 'release' # debug or release : the default compilation mode.
-#generateDebugInfoInRelease = 'False'
+#generateDebugInfoInRelease = False
 #warningLevel				= 'normal'
 
 #userDict					= {}
