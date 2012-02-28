@@ -1,10 +1,13 @@
-// SConsBuildFramework - Copyright (C) 2011, Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2011, 2012, Nicolas Papier.
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Nicolas Papier
+// Author Guillaume Brocker
 
 #ifndef _SFB_DEBUG_HPP_
 #define _SFB_DEBUG_HPP_
+
+#include <boost/filesystem.hpp>
 
 #include "sbf/sbf.hpp"
 
@@ -26,8 +29,9 @@ enum CoreType
  * The exception handler generates a mini-dump on windows platform for post-mortem analysis.
  *
  * @param coreType		the type of information to be generated in the core file
+ * @param dumpDirectory	a path to a directory where the dump files will be generated (empty by default)
  */
-SBF_API void installToplevelExceptionHandler( const CoreType coreType = CoreNormal );
+SBF_API void installToplevelExceptionHandler( const CoreType coreType = CoreNormal, const boost::filesystem::path & dumpDirectory = boost::filesystem::path() );
 
 } // namespace sbf
 

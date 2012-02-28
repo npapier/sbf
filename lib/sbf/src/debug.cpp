@@ -1,7 +1,8 @@
-// SConsBuildFramework - Copyright (C) 2011, Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2011, 2012, Nicolas Papier.
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Nicolas Papier
+// Author Guillaume Brocker
 
 #include "sbf/debug.hpp"
 
@@ -19,12 +20,16 @@ namespace
 {
 
 #ifdef _WIN32
+
+static boost::filesystem::path	miniDumpDirectory;	///< Hold the path to the directory that will receive the mini dump file.
+
 int generateMiniDump( void * input, MINIDUMP_TYPE miniDumpType )
 {
-	EXCEPTION_POINTERS* pExceptionPointers = (EXCEPTION_POINTERS*)input;
+	const boost::filesystem::path	filename				= miniDumpDirectory / "core.dmp";
+	EXCEPTION_POINTERS				* pExceptionPointers	= (EXCEPTION_POINTERS*)input;
 
 	// Creates mini-dump file
-	HANDLE hDumpFile = CreateFile(	"core.dmp"/*szFileName*/,
+	HANDLE hDumpFile = CreateFile(	filename.string().c_str()/*szFileName*/,
 									GENERIC_READ|GENERIC_WRITE,
 									FILE_SHARE_WRITE|FILE_SHARE_READ,
 									0, CREATE_ALWAYS, 0, 0);
@@ -86,9 +91,11 @@ namespace sbf
 {
 
 
-void installToplevelExceptionHandler( const CoreType coreType )
+void installToplevelExceptionHandler( const CoreType coreType, const boost::filesystem::path & dumpDirectory )
 {
 #ifdef _WIN32
+	miniDumpDirectory = dumpDirectory;
+	
 	switch ( coreType )
 	{
 		case CoreFull:
