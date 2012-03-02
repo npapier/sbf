@@ -37,15 +37,3 @@ descriptor = {
 	'include'		: ['include/'],
 	'lib'			: [	'VisualC/SDL/Release/SDL.lib', 'VisualC/SDL/Release/SDL.dll', 'VisualC/SDLmain/Release/SDLmain.lib' ]
 }
-
-#descriptor = {
-#	'urls'			: ['http://www.libsdl.org/release/SDL-devel-1.2.14-VC8.zip'],
-
-#	'name'			: 'sdl',
-#	'version'		: '1-2-14',
-
-#	'rootDir'		: 'SDL-1.2.14',
-#	'license'		: ['README-SDL.txt', 'COPYING'],
-#	'include'		: ['include/'],
-#	'lib'			: ['lib/*.dll', 'lib/*.lib']
-#}
