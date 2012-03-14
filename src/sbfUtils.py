@@ -11,6 +11,15 @@ import subprocess
 from sbfFiles import *
 
 
+###### Functions for print action ######
+def nopAction(target = None, source = None, env = None) :
+	return 0
+
+def stringFormatter( lenv, message ) :
+	columnWidth	= lenv['outputLineLength']
+	retVal = (' ' + message + ' ').center( columnWidth, '-' )
+	return retVal
+
 
 ### execute command line ###
 def subprocessCall( cmdLine, verbose = True ):

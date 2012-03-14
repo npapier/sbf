@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -10,16 +10,17 @@ from SCons.Script import *
 
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem
+from src.sbfUtils import stringFormatter
 from src.sbfUses import UseRepository
 from src.sbfVersion import splitUsesName
 from src.SConsBuildFramework import printEmptyLine, stringFormatter
 
 
-def printGenerate( target, source, localenv ) :
-	return "Generating {0} for {1}\n".format( str(os.path.basename(target[0].abspath)), localenv['sbf_project'] )
+def __printGeneratingInfofile( target, source, lenv ) :
+	return stringFormatter(lenv, 'Generating {0} for {1}'.format( str(os.path.basename(target[0].abspath)), lenv['sbf_projectPathName'] ))
 
-# Creates info.sbf file containing informations about the current project and its dependencies.
-def doTargetInfoFile( target, source, env ):
+def __doTargetInfoFile( target, source, env ):
+	"""Creates info.sbf file containing informations about the current project and its dependencies."""
 	# Retrieves/computes additional informations
 	sbf = env.sbf
 	pakSystem = PackagingSystem(sbf)
@@ -48,39 +49,53 @@ def doTargetInfoFile( target, source, env ):
 		lenColPackage = env['outputLineLength'] * 25 / 100
 		lenColVersion = env['outputLineLength'] * 15 / 100
 		lenColRepo = env['outputLineLength'] * 60 / 100
-		file.write('{0}{1}{2}\n'.format( 'Package'.ljust(lenColPackage), 'Version'.ljust(lenColVersion), 'Repository'.ljust(lenColRepo) ))
-		file.write('{0}{1}{2}\n'.format( '-------'.ljust(lenColPackage), '-------'.ljust(lenColVersion), '----------'.ljust(lenColRepo) ))
+		file.write('{0}{1}\n'.format( 'Package'.ljust(lenColPackage), 'Version'.ljust(lenColVersion) ))
+		file.write('{0}{1}\n'.format( '-------'.ljust(lenColPackage), '-------'.ljust(lenColVersion) ))
 		for useNameVersion in uses:
 			useName, useVersion = splitUsesName( useNameVersion )
-			use = UseRepository.getUse( useName )
-			packageFile = '{0}{1}{2}.zip'.format(useName, useVersion, sbf.my_Platform_myCCVersion)
-	# @todo checks if use is supported for my platform, config, cc version...
-	# pakSystem.test(packagePath)
-			packagePath = pakSystem.locatePackage(packageFile)
-			if not packagePath:
-				packagePath = '-'
-			file.write('{0}{1}{2}\n'.format(useName.ljust(lenColPackage), useVersion.ljust(lenColVersion), packagePath.ljust(lenColRepo) ))
+			# Test if package useName is installed
+			if pakSystem.isInstalled(useName):
+				# installed
+				oPakInfo = {}
+				pakSystem.loadPackageInfo( useName, oPakInfo )
+				if useVersion == oPakInfo['version']:
+					pass
+				else:
+					print ( '{0} {1} is NOT installed !!!'.format(useName, useVersion) )
+					Exit(1)
+			else:
+				# not installed
+				use = UseRepository.getUse( useName )
+				if use:
+					if use.getPackageType() in ['Normal', 'Full']:
+						print ( '{0} {1} is NOT installed !!!'.format(useName, useVersion) )
+						Exit(1)
+					else:
+						assert( use.getPackageType() in ['None', 'NoneAndNormal'] )
+						# nothing to do
+				#else nothing to do
+			file.write( '{0}{1}\n'.format(useName.ljust(lenColPackage), useVersion.ljust(lenColVersion)) )
 		else:
 			file.write('\n'*3)
 
 		# Prints informations about projects
-		lenColProject = env['outputLineLength'] * 45 / 100
-		lenColType = max( env['outputLineLength'] * 5 / 100, 6 )
-		lenColUses = env['outputLineLength'] * 50 / 100
+		outputLineLength = env['outputLineLength']
+		lenColProject = outputLineLength * 45 / 100
+		lenColType = max( outputLineLength * 5 / 100, 6 )
+		lenColUses = outputLineLength * 50 / 100
 		file.write( '{0}{1}{2}\n'.format( 'Project path '.ljust(lenColProject), 'Type'.ljust(lenColType), 'uses/stdlibs'.ljust(lenColUses) ) )
 		file.write( '{0}{1}{2}\n'.format( '-------------'.ljust(lenColProject), '----'.ljust(lenColType), '------------'.ljust(lenColUses) ) )
+
 		for project in [env['sbf_project']] + dependencies:
 			projectEnv = sbf.getEnv(project)
 
 			typeOfProject = projectEnv['type']
-			if typeOfProject == 'none':
-				typeOfProject = 'meta'
+			if typeOfProject == 'none':	typeOfProject = 'meta'
 
 			projectPathName = projectEnv['sbf_projectPathName']
-			projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
 
-			if len(projectRelPath)==0:
-				projectRelPath = projectEnv['sbf_project']
+			projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
+			if len(projectRelPath)==0:	projectRelPath = projectEnv['sbf_project']
 
 			# Adds vcs branch and revision informations to project path (path/branch@revision)
 			if projectEnv['vcsUse'] == 'yes':
@@ -106,7 +121,7 @@ def doTargetInfoFile( target, source, env ):
 
 
 
-def doTargetInfo( target, source, env ):
+def __doTargetInfo( target, source, env ):
 	# Retrieves additional informations
 	sourceName = str(source[0])
 
@@ -117,24 +132,22 @@ def doTargetInfo( target, source, env ):
 
 
 
-def configureInfoTarget( env ):
-	# Target 'infofile'
-	sbf = env.sbf
-	rootProjectEnv = sbf.getRootProjectEnv()
-	for projectName in sbf.myBuiltProjects:
-		lenv = sbf.myBuiltProjects[projectName]
-		if (lenv == rootProjectEnv) or lenv['generateInfoFile']:
-			# Must generate info.sbf file for this project (root project or option 'generateInfoFile').
-			projectPathName	= lenv['sbf_projectPathName']
-			project			= lenv['sbf_project']
-			# info.sbf is generated at the root of the project (PS: not in share directory, because it would be always rebuilt to copy an updated version in local/share).
-			infoFile = os.path.join( projectPathName, 'info.sbf' )
-			lenv['sbf_info'] = [infoFile] # @todo adds now and only if generated, but i don't have the information (see HOWTO for generated files).
-			Alias( 'infofile', lenv.Command( infoFile, 'dummy.in', lenv.Action( doTargetInfoFile, printGenerate ) ) )
-			Alias( 'infofile', lenv.Install( sbf.getShareInstallDirectory(lenv), infoFile ) )
-			lenv.AlwaysBuild( infoFile )
-			Clean( ['clean', 'mrproper'], infoFile )
+def configureInfofileTarget( lenv, forced = False ):
+	"""Alias 'infofile' and lenv['sbf_info']"""
 
+	# Target 'infofile'
+	sbf = lenv.sbf
+	if forced or lenv['generateInfoFile']:
+		# Must generate info.sbf file for this project (forced or option 'generateInfoFile').
+		projectPathName	= lenv['sbf_projectPathName']
+		project			= lenv['sbf_project']
+		# info.sbf is generated at the root of the project build directory
+		infoFile = os.path.join( sbf.myProjectBuildPathExpanded, 'info.sbf' )
+		Alias( 'infofile', lenv.Command( infoFile, 'dummy.in', lenv.Action( __doTargetInfoFile, __printGeneratingInfofile ) ) )
+		lenv.AlwaysBuild( infoFile )
+		lenv['sbf_info'] = [infoFile]
+
+def configureInfoTarget( lenv ):
 	# Target 'info'
-	if 'info' in env.sbf.myBuildTargets:
-		Alias( 'info', rootProjectEnv.Command( 'dummyInfo.out1', os.path.join(sbf.getShareInstallDirectory(), 'info.sbf'), rootProjectEnv.Action( doTargetInfo, printEmptyLine ) ) )
+	if 'info' in lenv.sbf.myBuildTargets:
+		Alias( 'info', lenv.Command( 'dummyInfo.out', lenv['sbf_info'], lenv.Action( __doTargetInfo, printEmptyLine ) ) )

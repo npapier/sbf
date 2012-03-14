@@ -125,10 +125,10 @@ from SCons.Script.SConscript import SConsEnvironment
 from SCons import SCons # for SCons.__version__
 
 
-from src.sbfCygwin	import *
 from src.sbfEnvironment import Environment
 from src.sbfFiles	import *
 from src.sbfPaths	import Paths
+from src.sbfRsync	import createRsyncAction
 from src.sbfTools	import locateProgram, getPathsForTools, getPathsForRuntime
 if sys.platform == 'win32':
 	from src.sbfTools import winGetInstallPath
@@ -369,7 +369,7 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 
 
 ###### Initial environment ######
-EnsurePythonVersion(2, 6)
+EnsurePythonVersion(2, 7)
 EnsureSConsVersion(2, 1, 0)
 
 # create objects
@@ -383,48 +383,6 @@ print ( "Configuration: {0}\n".format(env['config']) )
 
 # Dumping construction environment (for debugging).
 #print env.Dump()
-
-# rsync builder
-# @todo lazy construction
-cygpathLocation = locateProgram( 'cygpath' )
-sshLocation = locateProgram( 'ssh' )
-if len(sshLocation)>0:
-	if env['PLATFORM'] == 'win32':
-		sshLocation = callCygpath2Unix(sshLocation, cygpathLocation).lower()
-	env['RSYNCRSH'] = '--rsh={0}/ssh'.format(sshLocation)
-	#print '--rsh={0}/ssh'.format(sshLocation)
-else:
-	env['RSYNCRSH'] = ''
-
-env['RSYNCFLAGS']			= "-av --chmod=u=rwX,go=rX" # --progress
-
-def createRsyncAction( env, target, source, alias = None ):
-	# Example of generated rsync command :
-	# rsync --delete -av --chmod=u=rwX,go=rX --rsh=/usr/bin/ssh /cygdrive/d/tmp/sbf/build/pak/ulisProduct_2-0-beta13_2012-02-01_setup.exe farmer@orange:/srv/files/Dev/buildbot/vista-farm/ulisProduct_2-0-beta13_2012-02-01_setup.exe
-	cygpathLocation = locateProgram('cygpath')
-
-	if env['PLATFORM']=='win32':
-		fullSource = callCygpath2Unix( source, cygpathLocation )
-	else:
-		fullSource = source
-	#print source
-
-	publishPath = env['publishPath']
-	fullTarget = publishPath + '/' + str(target)
-	#print fullTarget
-
-	if GetOption('weakPublishing'):
-		dynamicFlags = ''
-	else:
-		dynamicFlags = '--delete'
-
-	cmd = 'rsync {rsyncFlags} {weakPublishingFlags} {rsh} {src} {dst}'.format( rsyncFlags=env['RSYNCFLAGS'], weakPublishingFlags=dynamicFlags, rsh=env['RSYNCRSH'], src=fullSource, dst=fullTarget)
-	#print cmd
-	rsyncAction = env.Command( 'dummyRsync{0}.out'.format(target), source, cmd )
-	if alias:
-		env.Alias( alias, rsyncAction )
-	return rsyncAction
-env.AddMethod( createRsyncAction )
 
 
 # target sbfCheck sbfPak sbfConfigure sbfUnconfigure sbfConfigureTools and sbfUnconfigureTools
@@ -519,8 +477,8 @@ from src.sbfPakUpdate import configurePakUpdateTarget
 configurePakUpdateTarget( env )
 
 ### target info ###
-from src.sbfInfo import configureInfoTarget
-configureInfoTarget( env )
+#from src.sbfInfo import configureInfoTarget
+#configureInfoTarget( env )
 
 
 ### special target : vcproj ###
@@ -650,7 +608,7 @@ if (	('dox_build' in sbf.myBuildTargets) or
 
 	if env['publishOn'] :
 		# @todo print message
-		rsyncAction = env.createRsyncAction( 'doc_%s_%s' % (sbf.myProject, sbf.myVersion), Dir(os.path.join(doxBuildPath, 'html')) )
+		rsyncAction = createRsyncAction( env, 'doc_%s_%s' % (sbf.myProject, sbf.myVersion), Dir(os.path.join(doxBuildPath, 'html')) )
 
 		env.Alias( 'dox_install', rsyncAction )
 		env.Depends( rsyncAction, 'dox_build' )
@@ -667,8 +625,8 @@ if (	('dox_build' in sbf.myBuildTargets) or
 	env.Clean( 'dox_mrproper', doxInstallPath )
 
 ### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
-from src.sbfNSIS import configureZipAndNSISTargets
-configureZipAndNSISTargets( env )
+#from src.sbfNSIS import configureZipAndNSISTargets
+#configureZipAndNSISTargets( env )
 
 # Tests if SConsBuildFramework is up-to-date
 # @todo Updates SConsBuildFramework

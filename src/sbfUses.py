@@ -159,10 +159,12 @@ class IUse :
 
 
 	# for packager
-	def hasAPackage( self ):
-		"""@return True to indicate that this 'uses' is provided by a sbf package, False if not (installed in the system or by the compiler toolchain)
-		@remark Used by target pakUpdate"""
-		return True
+	def getPackageType( self ):
+		"""	None			(no package, i.e. installed in the system (opengl), without files (gtkmmext), include in another package (glibmm in gtkmm))
+			NoneAndNormal	(no package (like None), but getLIBS() and getLicenses() must be redistributed (like Normal). Example: sofa)
+			Normal			(indicate that this 'uses' is provided by a sbf package and that getLIBS() and getLicenses() must be redistributed).
+			Full			(indicate that this 'uses' is provided by a sbf package and that all files in the package must be redistributed)."""
+		return 'Normal'
 
 	def getLicenses( self, version ):
 		"""@return None to indicate that license file(s) could be found automatically (by using the naming rule of sbf package).
@@ -455,8 +457,8 @@ class Use_cairo( IUse ):
 		elif self.platform == 'posix' :
 			return [], []
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 # @todo cairomm
 
@@ -529,29 +531,6 @@ class Use_gstFFmpeg( IUse ):
 			return libs, pakLibs
 
 
-class Use_hid( IUse ):
-	def getName( self ):
-		return 'hid'
-
-	def getVersions( self ):
-		return [ '2-17' ]
-
-
-	def getLIBS( self, version ):
-		if self.platform == 'win32':
-			if self.config == 'release':
-				libs = [ 'libhid_2-17_win32_{0}Exp'.format( self.ccVersion.replace('Exp','') ) ]
-				pakLibs = libs + ['libusb0']
-				return libs, pakLibs
-			else:
-				libs = [ 'libhid_2-17_win32_{0}Exp_D'.format( self.ccVersion.replace('Exp','') ) ]
-				pakLibs = libs + ['libusb0']
-				return libs, pakLibs
-
-
-	def getLicenses( self, version ):
-		return [ '0license.libusb.txt', '1license.libusb.txt', 'license.hidparser.txt', 'license.libhid2-17.txt' ]
-
 
 class Use_opengl( IUse ):
 	def getName( self ):
@@ -572,8 +551,8 @@ class Use_opengl( IUse ):
 		return []
 
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 
 class Use_poppler( IUse ):
@@ -750,8 +729,8 @@ class Use_glu( IUse ):
 	def getLicenses( self, version ):
 		return []
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 
 class Use_glm( IUse ):
@@ -1151,7 +1130,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_hid(), Use_glew(), Use_glu(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(),
 					Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
@@ -1341,8 +1320,8 @@ class Use_glibmm( IUse ):
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 
 # TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
@@ -1360,7 +1339,7 @@ class Use_gtkmm( IUse ):
 		return 'gtkmm'
 
 	def getVersions( self ):
-		return [ '2-22-0', '2-16-0', '2-14-3', '2-14-1' ]
+		return [ '2-22-0-2', '2-16-0', '2-14-3', '2-14-1' ]
 
 
 	def getCPPDEFINES( self, version ):
@@ -1416,14 +1395,14 @@ class Use_gtkmm( IUse ):
 					'atk-1.0', 'cairo',
 					'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
 					'intl' ]
-			if version == '2-22-0':
+			if version == '2-22-0-2':
 				libs += [ 'libxml2', 'fontconfig' ]
 			elif version in [ '2-16-0', '2-14-3', '2-14-1' ]:
 				libs += [ 'libxml2', 'iconv' ]
 			else:
 				return
 
-			if version in ['2-22-0', '2-16-0', '2-14-3']:
+			if version in ['2-22-0-2', '2-16-0', '2-14-3']:
 				if self.config == 'release' :
 					# RELEASE
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
@@ -1505,7 +1484,7 @@ class Use_gtkmm( IUse ):
 	def getCPPFLAGS( self, version ):
 		# compiler options
 		if self.platform == 'win32':
-			if version in ['2-22-0', '2-16-0']:
+			if version in ['2-22-0-2', '2-16-0']:
 				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 					return ['/wd4250']
 				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
@@ -1516,12 +1495,13 @@ class Use_gtkmm( IUse ):
 			return ['-Wl,--export-dynamic']
 
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'Full'
 
 	def getRedist( self, version ):
+		return []
 		if self.platform == 'win32':
-			if version == '2-22-0':
+			if version == '2-22-0-2':
 				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
 					if self.config == 'release':
 						return ['gtkmmRedist2-22-0-2_win32_cl10-0Exp.zip']
@@ -1571,8 +1551,8 @@ class Use_gtkmmext( IUse ):
 			return []
 
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 
 class Use_sigcpp( IUse ):
@@ -1640,8 +1620,8 @@ class Use_sigcpp( IUse ):
 		return libPath, pakLibPath
 
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'None'
 
 
 def use_physx( self, lenv, elt ) :

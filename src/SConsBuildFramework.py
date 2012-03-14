@@ -18,15 +18,14 @@ from sbfFiles import *
 from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
-
+from sbfPackagingSystem import PackagingSystem
 from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
 from sbfUI import askQuestion
 from sbfUses import getPathsForSofa
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUses import Use_cairo, Use_gtkmm, Use_gtkmmext, Use_itk
 from sbfUtils import *
-from sbfVersion import printSBFVersion, extractVersion, splitLibsName
-
+from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName
 # To be able to use SConsBuildFramework.py without SCons
 try:
 	from SCons.Environment import *
@@ -50,20 +49,6 @@ def createBlowfishShareBuildCommand( key ):
 	return shareBuildCommand
 
 
-def installRO( target, source, env ):
-	src = str(source[0])
-	dst = str(target[0])
-	dir = os.path.dirname( dst )
-	if not os.path.exists(dir):
-		os.makedirs( dir )
-	else:
-		if os.path.exists(dst):
-			os.chmod( dst, 0744 )
-	shutil.copyfile(src, dst) 
-	os.chmod( dst, 0444 )
-	return 0
-
-
 def sbfPrintCmdLine( cmd, target, src, env ):
 #	print ("beginning=%s" % cmd[:20])
 
@@ -79,24 +64,20 @@ def sbfPrintCmdLine( cmd, target, src, env ):
 	else:
 		print cmd
 
+
 ###### Functions for print action ######
-def stringFormatter( lenv, message ) :
-	columnWidth	= lenv['outputLineLength']
-	retVal = (' ' + message + ' ').center( columnWidth, '-' )
-	return retVal
-
-def nopAction(target = None, source = None, env = None) :
-	return 0
-
 def printEmptyLine(target = None, source = None, env = None) :
 	print ''
 
 def printBuild( target, source, localenv ) :
 	# echo -e "\033[34m test" gives a blue "test"
-	return stringFormatter( localenv, "Build %s" % localenv['sbf_projectPathName'] )
+	return '\n' + stringFormatter( localenv, 'Build {0}'.format(localenv['sbf_projectPathName']) )
 
 def printInstall( target, source, localenv ) :
 	return stringFormatter(localenv, "Install %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
+
+def printDeps( target, source, localenv ) :
+	return stringFormatter(localenv, "Install %s dependencies to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
 
 def printMrproper( target, source, localenv ) :
 	return stringFormatter( localenv, "Mrproper %s files to %s" % (localenv['sbf_projectPathName'], localenv.sbf.myInstallDirectory) )
@@ -123,8 +104,259 @@ def passthruConverter( val ):
 
 
 
-###### SConsBuildFramework main class ######
+### ###
+def isLaunchProject( lenv ):
+	return lenv['sbf_launchProject'] == lenv['sbf_project']
 
+def updateParentProjects( lenv, parentProjects ):
+	# Part inherited
+	if parentProjects is None:
+		lenv['sbf_parentProjects'] = []
+	else:
+		lenv['sbf_parentProjects'] = parentProjects
+
+	# Updates using 'deploymentType' of the current project
+	if lenv['deploymentType'] in ['standalone', 'embedded']: # do nothing for 'none' project
+		lenv['sbf_parentProjects'].append( lenv )
+		if len(lenv['sbf_parentProjects'])>1:
+			project1 = lenv['sbf_parentProjects'][0]['sbf_project']
+			project2 = lenv['sbf_parentProjects'][1]['sbf_project']
+			raise SCons.Errors.UserError( "Encountered the following two projects '{0}' and '{1}' with deploymentType different to none. It's forbidden in the same build.".format(project1, project2) )
+		#else nothing to do
+	# else nothing to do
+
+	# Debug
+	#print self.myProject + ' owned by',
+	#for project in lenv['sbf_parentProjects']:
+	#	print project['sbf_project'],
+	#print
+
+
+
+### SHARE BUILD HELPERS ###
+def computeFiltersAndCommand( lenv ):
+	"""Computes filters and command.
+	"""
+	filters = lenv['shareBuild'][0]
+	command = lenv['shareBuild'][1]
+	if len(filters) > 0:
+		if isinstance(command, str):
+			if command in lenv['userDict']:
+				command = lenv['userDict'][command]
+			else:
+				if lenv.GetOption('verbosity'): print ("Skip share build stage, because userDict['{0}'] is not defined.".format( command ))
+				filters = []
+				command = ('','','')
+		#else nothing to do
+	return filters, command
+
+def applyFilters( files, filters ):
+	"""Uses 'filters' to split the 'files' list into two subset of the list.
+	The first one contains the list of files that match at least one filter. The second one contains all others files.
+	@return (matchingFiles, nonMatchingFiles)."""
+	matchingFiles		= []
+	nonMatchingFiles	= []
+	if len(filters) > 0:
+		filters = [ (os.path.dirname(getNormalizedPathname(filter)), os.path.basename(filter)) for filter in filters ]
+		for file in files:
+			fileSplitted = os.path.split(file)
+			for (directoryFilter, fileFilter) in filters:
+				if	fnmatch.fnmatch(fileSplitted[0], directoryFilter) and \
+					fnmatch.fnmatch(fileSplitted[1], fileFilter):
+					matchingFiles.append( file )
+					break
+			else:
+				nonMatchingFiles.append( file )
+	else:
+		nonMatchingFiles = files
+	return matchingFiles, nonMatchingFiles
+
+def buildFilesFromShare( files, lenv, command ):
+	"""Adds share build stage in 'build' target
+	@return the list of files to install in 'share'"""
+
+	sbf = lenv.sbf
+
+	# list of files to install in 'share'
+	outputs = []
+	for file in files:
+		inputFile = join(sbf.myProjectPathName, file)
+		outputFile = command[1].replace('${SOURCE}', file, 1)
+		outputFile = outputFile.replace('share', join(sbf.myProjectBuildPath, sbf.myProject, 'share'), 1 )
+		if len(command)==3:
+			Alias( 'build', lenv.Command(outputFile, inputFile, Action(command[0], command[2]) ) )
+		else:
+			Alias( 'build', lenv.Command(outputFile, inputFile, command[0]) )
+		outputs.append( outputFile )
+	return outputs
+
+
+### INSTALLATION HELPERS ###
+def computeInstallDirectories( lenv, myInstallDirectory ):
+	"""Computes the desired installation directories.
+	@return the computed installation directories, i.e. the list containing the given installation directory,
+	the 'local/standalone/projectVersion' for project 'lenv' having a parent project with a standalone 'deploymentType',
+	the 'local/standalone/requiredProjectVersion/packages/projectVersion for project 'lenv' having a parent project with an embedded 'deploymentType' and 'requirements',
+	the 'local/packages/projectVersion' for project 'lenv' having a parent project with en embedded 'deploymentType' and no 'requirements'."""
+	installDirectories = [myInstallDirectory]
+	if len(lenv['sbf_parentProjects']) == 0:
+		# no parent project
+		pass
+	else:
+		for parentEnv in lenv['sbf_parentProjects']:
+			deploymentType = parentEnv['deploymentType']
+			if deploymentType == 'standalone':
+				subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
+				installDirectories.append( join( myInstallDirectory, 'standalone', subdir ) )
+			elif deploymentType == 'embedded':
+				requirementsString = parentEnv['requirements']
+				if len(requirementsString)>0:
+					(name, version) = splitLibsName( requirementsString )
+					standaloneSubdir = '{0}_{1}'.format( name, version )
+					packageSubdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
+					installDirectories.append( join( myInstallDirectory, 'standalone', standaloneSubdir, 'packages', packageSubdir ) )
+				else:
+					subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
+					installDirectories.append( join( myInstallDirectory, 'packages', subdir ) )
+			else:
+				assert( False )
+	return installDirectories
+
+
+def removeAllFilesRO( directory ):
+	if os.path.exists( directory ):
+		# 'directory' is existing, so i have to remove all files from it manually (because of read-only chmod).
+		oFiles = []
+		searchAllFiles( directory, oFiles )
+		for file in oFiles:
+			if os.path.exists(file):
+				os.chmod( file, 0744 )
+				os.remove( file )
+			#else nothing to do
+	# else nothing to do
+
+def installRO( target, source, env ):
+	src = str(source[0])
+	dst = str(target[0])
+	dir = os.path.dirname( dst )
+	if not os.path.exists(dir):
+		os.makedirs( dir )
+	else:
+		if os.path.exists(dst):
+			os.chmod( dst, 0744 )
+	shutil.copyfile(src, dst) 
+	os.chmod( dst, 0444 )
+	return 0
+
+
+### DEPS ###
+def getStdlibs( lenv, searchPathList ):
+	stdlibs = []
+	# Processes the 'stdlibs' project option
+	for stdlib in lenv.get( 'stdlibs', [] ):
+		filename = splitext(stdlib)[0] + lenv['SHLIBSUFFIX']
+		pathFilename = searchFileInDirectories( filename, searchPathList )
+		if pathFilename:
+			if lenv.GetOption('verbosity'): print('Found standard library {0}', pathFilename)
+			stdlibs.append( pathFilename )
+		else:
+			print("Standard library {0} not found (see 'stdlibs' project option of {1}).".format(filename, lenv['sbf_project']) )
+	return stdlibs
+
+def getDepsFiles( lenv, baseSearchPathList ):
+	depsFiles = []
+	sbf = lenv.sbf
+
+	if lenv['deploymentType'] in ['standalone', 'embedded']:
+		allDeps = sbf.getAllDependencies( lenv )
+		allUses = sbf.getAllUses( lenv )
+		if lenv.GetOption('verbosity'): print ('\nallDeps\n{0}\nallUses\n{1}\n'.format(allDeps, allUses))
+
+		# 'stdlibs'
+		for project in allDeps:
+			localEnv = sbf.getEnv( project )
+			stdlibs = getStdlibs( localEnv, baseSearchPathList )
+			if len(stdlibs)>0:
+				print stdlibs
+				assert(False) # not yet implemented, deprecated ?
+
+		# Processes external dependencies (i.e. 'uses')
+		# For each external dependency, do
+		for useNameVersion in allUses:
+			# Extracts name and version of incoming external dependency
+			useName, useVersion = splitUsesName( useNameVersion )
+			if lenv.GetOption('verbosity'): print ("Processing uses='{0}'...".format(useNameVersion))
+
+			# Retrieves use object for incoming dependency
+			use = UseRepository.getUse( useName )
+			if use:
+				if use.getPackageType() == 'None':
+					# nothing to do
+					if lenv.GetOption('verbosity'): print ("No files for uses='{0}'...".format(useNameVersion))
+				elif use.getPackageType() in ['NoneAndNormal', 'Normal']:
+					# Retrieves LIBS of incoming dependency
+					libs = use.getLIBS( useVersion )
+					if libs and len(libs) == 2:
+						# Computes the search path list where libraries could be located
+						searchPathList = baseSearchPathList[:]
+						libpath = use.getLIBPATH( useVersion )
+						if libpath and (len(libpath) == 2): searchPathList.extend( libpath[1] )
+
+						# For each library, do
+						if lenv.GetOption('verbosity') and len(libs[1])==0: print ("No files for uses='{0}'...".format(useNameVersion))
+						for file in libs[1]:
+							filename = file + lenv['SHLIBSUFFIX']
+							pathFilename = searchFileInDirectories( filename, searchPathList )
+							if pathFilename:
+								if lenv.GetOption('verbosity'):	print ("Found library {0} for uses='{1}'.".format(pathFilename, useName))
+								splitPathFilename = os.path.split(pathFilename)
+								depsFiles.append( (pathFilename, join('bin', splitPathFilename[1])) )
+							else:
+								raise SCons.Errors.UserError( "File {0} not found for uses='{1}'.".format(filename, useName) )
+					else:
+						raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
+				elif use.getPackageType() == 'Full':
+					pakSystem = PackagingSystem(lenv.sbf, verbose=False)
+					if pakSystem.isInstalled( useName ):
+						# installed
+						oPakInfo = {}
+						oRelDirectories = []
+						oRelFiles = []
+						pakSystem.loadPackageInfo( useName, oPakInfo, oRelDirectories, oRelFiles )
+						if oPakInfo['version'] != useVersion:
+							raise SCons.Errors.UserError( '{0} {1} is installed, but {2} is needed.'.format(useName, oPakInfo['version'], useVersion))
+						if lenv.GetOption('verbosity'):	print ( 'Collecting all files found in installed package {0} {1}'.format(oPakInfo['name'], oPakInfo['version']) )
+						for relFile in oRelFiles:
+							absFile = join( sbf.myInstallExtPaths[0], relFile )
+							depsFiles.append( (absFile, relFile) )
+					else:
+						raise SCons.Errors.UserError( '{0} {1} is NOT installed.'.format(useName, useVersion))
+				else:
+					# getPackageType() returns an unexpected value
+					assert( False )
+			else:
+				raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
+	# do nothing for 'none' project
+	return depsFiles
+
+
+
+### RUN ###
+def searchExecutable( lenv, nodeList ):
+	for node in nodeList:
+		if node.suffix == lenv['PROGSUFFIX']:
+			return node
+
+
+### ZIP/NSIS ###
+from sbfNSIS import initializeNSISInstallDirectories, configureZipAndNSISTargets
+
+
+### INFO FILE ###
+from sbfInfo import configureInfofileTarget, configureInfoTarget
+
+
+###### SConsBuildFramework main class ######
 class SConsBuildFramework :
 
 	# targets
@@ -134,6 +366,7 @@ class SConsBuildFramework :
 	myBuildTargets					= set(['info', 'infoFile', 'all', 'clean', 'mrproper', 'onlyrun', 'run', 'vcproj', 'vcproj_clean', 'vcproj_mrproper'])
 	myDoxTargets					= set(['dox', 'dox_clean', 'dox_mrproper'])
 	myZipTargets					= set(['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
+	myTargetsWhoNeedDeps			= set(['deps', 'portable', 'zipportable'])
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
@@ -204,6 +437,7 @@ class SConsBuildFramework :
 	myInstallExtPaths				= []
 	myInstallDirectory				= ''
 	myInstallDirectories			= []
+	myNSISInstallDirectories		= []
 	myIncludesInstallPaths			= []
 	myLibInstallPaths				= []
 	myIncludesInstallExtPaths		= []
@@ -608,6 +842,7 @@ configuration related target
 
 build related targets
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
+ 'scons deps'
  'scons clean' to clean intermediate files (see buildPath option).
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
@@ -624,16 +859,16 @@ doxygen related targets
  'scons dox_clean' or 'scons dox_mrproper'
 
 packaging related targets
- 'scons zipRuntime'
- 'scons zipDeps'
+ 'scons zipRuntime'		@toredo
+ 'scons zipDeps'		@toredo
  'scons portable' to create a portable package of your project and all its dependencies
  'scons zipPortable'
- 'scons zipDev'
- 'scons zipSrc'
- 'scons zip'
- 'scons nsis'
- 'scons zip_clean' and 'scons zip_mrproper'
- 'scons nsis_clean' and 'scons nsis_mrproper'
+ 'scons zipDev'			@toredo
+ 'scons zipSrc'			@toredo
+ 'scons zip'			@toredo
+ 'scons nsis'			@toredo
+ 'scons zip_clean' and 'scons zip_mrproper'		@toredo
+ 'scons nsis_clean' and 'scons nsis_mrproper'	@toredo
 
 
 Command-line options:
@@ -786,9 +1021,9 @@ SConsBuildFramework options:
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
 
 
+	def initializeProjectFromEnv( self, lenv ):
+		"""Initialize project from lenv"""
 
-	###### Initialize project from lenv ######
-	def initializeProjectFromEnv( self, lenv ) :
 		self.myVcsUse	= lenv['vcsUse']
 		self.myDefines	= lenv['defines']
 		self.myType		= lenv['type']
@@ -800,20 +1035,23 @@ SConsBuildFramework options:
 		self.myStdlibs	= lenv['stdlibs']
 
 
-
 	###### Initialize project ######
-	def initializeProject( self, projectPathName, lenv ) :
+	def initializeProject( self, lenv ):
+		#print ('initializeProject %s' % lenv['sbf_projectPathName'])
 
 		# Already done in method buildProject(), but must be redone (because of recursiv call to buildProject())
 		self.myProjectPathName	= lenv['sbf_projectPathName']
 		self.myProjectPath		= lenv['sbf_projectPath']
 		self.myProject			= lenv['sbf_project']
 
+		# changes current directory
+		os.chdir( self.myProjectPathName )
+
 		# @todo partial move to __init__()
 		if os.path.isabs(self.myBuildPath):
 			self.myProjectBuildPath = self.myBuildPath
 		else :
-			self.myProjectBuildPath = os.path.join( self.myProjectPathName, self.myBuildPath )
+			self.myProjectBuildPath = join( self.myProjectPathName, self.myBuildPath )
 
 		# processes myVersion
 		extractedVersion = extractVersion( self.myVersion )
@@ -847,6 +1085,29 @@ SConsBuildFramework options:
 
 		###
 		lenv.Append( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
+
+		### expands myProjectBuildPathExpanded
+		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject, self.myVersion, self.myPlatform, self.myCCVersion, self.myConfig )
+		if len(self.myPostfix) > 0:
+			self.myProjectBuildPathExpanded += '_' + self.myPostfix
+
+
+	def configureProject( self, lenv ):
+
+		### configures compiler and linker flags.
+		self.configureProjectCxxFlagsAndLinkFlags( lenv )
+		### configures CPPDEFINES with myDefines
+		lenv.Append( CPPDEFINES = self.myDefines )
+		# configures lenv['LIBS'] with lenv['stdlibs']
+		lenv.Append( LIBS = lenv['stdlibs'] )
+		# configures lenv['LIBS'] with lenv['libs']
+		lenv.Append( LIBS = lenv['sbf_libsExpanded'] )
+		# Configures lenv[*] with lenv['uses']
+		uses( self, lenv, lenv['uses'] )
+
+		# Configures lenv[*] with lenv['test']
+		if lenv['test'] != 'none':
+			uses( self, lenv, usesConverter(lenv['test']) )
 
 
 
@@ -976,7 +1237,9 @@ SConsBuildFramework options:
 				passthruValidator, passthruConverter ),
 
 			EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
-							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 )
+							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
+
+			(	'requirements', '', ''	)
 
 		)
 
@@ -1549,6 +1812,7 @@ SConsBuildFramework options:
 		lenv['sbf_projectPath'		] = self.myProjectPath
 		lenv['sbf_project'			] = self.myProject
 
+
 		# VCS checkout or status or relocate or mkTag/Branch or rmTag/Branch
 		self.doVcsCheckoutOrOther( lenv )
 
@@ -1567,6 +1831,7 @@ SConsBuildFramework options:
 			self.myFailedVcsProjects.add( self.myProject )
 			return
 
+
 		# VCS update
 		self.doVcsUpdate( lenv )
 
@@ -1584,31 +1849,11 @@ SConsBuildFramework options:
 			Help( self.myProjectOptions.GenerateHelpText(lenv) )
 
 
+
 		#
-		def updateParentProjects( lenv, parentProjects ):
-			# Part inherited
-			if parentProjects is None:
-				lenv['sbf_parentProjects'] = []
-			else:
-				lenv['sbf_parentProjects'] = parentProjects
-
-			# Updates using 'deploymentType' of the current project
-			if lenv['deploymentType'] in ['standalone', 'embedded']: # do nothing for 'none' project
-				lenv['sbf_parentProjects'].append( lenv )
-				if len(lenv['sbf_parentProjects'])>1:
-					project1 = lenv['sbf_parentProjects'][0]['sbf_project']
-					project2 = lenv['sbf_parentProjects'][1]['sbf_project']
-					raise SCons.Errors.UserError( "Encountered the following two projects '{0}' and '{1}' with deploymentType different to none. It's forbidden in the same build.".format(project1, project2) )
-				#else nothing to do
-			# else nothing to do
-
-			# Debug
-			#print self.myProject + ' owned by',
-			#for project in lenv['sbf_parentProjects']:
-			#	print project['sbf_project'],
-			#print
-
 		updateParentProjects( lenv, parentProjects )
+
+		if isLaunchProject(lenv):	initializeNSISInstallDirectories( self, lenv )
 
 
 		# Constructs dependencies
@@ -1632,7 +1877,10 @@ SConsBuildFramework options:
 
 		# Builds sbf library
 		if buildSbfLibrary and 'sbf' not in self.myParsedProjectsSet:
-			self.buildProject( self.mySbfLibraryRoot, lenv['sbf_parentProjects'], lenv['nodeps'] )
+			if lenv['nodeps'] == False:
+				self.buildProject( self.mySbfLibraryRoot, lenv['sbf_parentProjects'], lenv['nodeps'] )
+			#else nothing to do
+		#else nothing to do
 
 		# Built project dependencies (i.e. 'deps')
 		for dependency in lenv['deps']:
@@ -1649,9 +1897,10 @@ SConsBuildFramework options:
 				# dependency not already encountered
 				#print ('buildProject %s' % normalizedDependency)
 				if incomingProjectName not in self.myFailedVcsProjects:
-					# Built the dependency and takes care of 'nodeps' option by enabling project
-					# configuration only (and not the full building process).
-					self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
+					# Built the dependency and takes care of 'nodeps'.
+					if lenv['nodeps'] == False:
+						self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
+					# else nothing to do
 				#else: nothing to do
 			else:
 				# A project with the same name (without taking case into account) has been already parsed.
@@ -1675,144 +1924,47 @@ SConsBuildFramework options:
 
 
 		# Initializes the project
-	#	print 'initializeProject %s' % projectPathName
 		self.initializeProjectFromEnv( lenv )
-		self.initializeProject( projectPathName, lenv )
 
 		if lenv['sbf_tryVcsOperation'] or configureOnly:
+			if lenv.GetOption('verbosity'): print ( "Parsing project {0}...".format(lenv['sbf_project']) )
 			return
 		else:
 			# Adds the new environment
 			self.myBuiltProjects[self.myProject] = lenv
+			if lenv.GetOption('verbosity'): print ( "Studying project {0}...".format(lenv['sbf_project']) )
+
+		# Dumping construction environment (for debugging) : print lenv.Dump() Exit()
 
 		### Starts building stage
-		os.chdir( projectPathName )
+		self.initializeProject( lenv )
+		self.configureProject( lenv )
 
-		if lenv.GetOption('verbosity'):
-			#print ( "Studying project {0} in {1}".format(self.myProject, dirname(self.myProjectPathName)) )
-			print ( "Studying project {0}".format(self.myProject) )
 
-		# Dumping construction environment (for debugging).
-		#print lenv.Dump()
 
-		### expands myProjectBuildPathExpanded
-		self.myProjectBuildPathExpanded = os.path.join( self.myProjectBuildPath, self.myProject, self.myVersion, self.myPlatform, self.myCCVersion, self.myConfig )
+		### BIN BUILD ###
 
-		if len(self.myPostfix) > 0 :
-			self.myProjectBuildPathExpanded += '_' + self.myPostfix
+		# lenv modified: CPPPATH, PDB, Precious(), SideEffect(), Alias(), Clean()
+		#
+		# installInBinTarget
+		# lenv['sbf_rc'] =[resource.rc, resource_sbf.rc, project.ico]
+		# lenv['sbf_bin_debuginfo']
+		# 'myProject_resource_generation' and 'myProject_build' (aliasProjectBuild) targets
 
-		### configures compiler and linker flags.
-		self.configureProjectCxxFlagsAndLinkFlags( lenv )
-
-		### configures CPPDEFINES with myDefines
-		lenv.Append( CPPDEFINES = self.myDefines )
-
-		# configures lenv['LIBS'] with lenv['stdlibs']
-		lenv.Append( LIBS = lenv['stdlibs'] )
-
-		# configures lenv['LIBS'] with lenv['libs']
-		lenv.Append( LIBS = lenv['sbf_libsExpanded'] )
-
-		# Configures lenv[*] with lenv['uses']
-		uses( self, lenv, lenv['uses'] )
-
-		# @todo moves usesAlreadyConfigured into uses() function
-		#usesAlreadyConfigured = set( lenv['uses'] )
-
-		# Configures lenv[*] with lenv['test']
-		if lenv['test'] != 'none':
-			uses( self, lenv, usesConverter(lenv['test']) )
-
-			# @todo moves usesAlreadyConfigured into uses() function
-			#usesAlreadyConfigured.add( lenv['test'] )
-
-		###### setup 'pseudo BuildDir' (with OBJPREFIX) ######									###todo use builddir ?
-		### TODO: .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?
-		filesFromSrc = self.getFiles( 'src', lenv )
-		filesFromInclude = self.getFiles( 'include', lenv )
-		filesFromShareToFilter = self.getFiles( 'share', lenv )
-
-		## shareBuild (share build stage)
-
-		# Computes filters and command
-		filters = lenv['shareBuild'][0]
-		command = lenv['shareBuild'][1]
-		if len(filters) > 0 :
-			if isinstance(command, str):
-				if command in lenv['userDict']:
-					command = lenv['userDict'][command]
-				else:
-					if lenv.GetOption('verbosity'):		print "Skip share build stage, because userDict[{0}] is not defined.".format( command )
-					filters = []
-					command = ('','','')
-			else:
-				command = lenv['shareBuild'][1]
-
-		# Apply filters to filesFromShareToFilter => constructs filesFromShare and filesFromShareToBuild
-		if len(filters) > 0:
-			filesFromShare			= []
-			filesFromShareToBuild	= []
-			filters = [ (os.path.dirname(getNormalizedPathname(filter)), os.path.basename(filter)) for filter in filters ]
-			for file in filesFromShareToFilter:
-				fileSplitted = os.path.split(file)
-				for (directoryFilter, fileFilter) in filters:
-					if	fnmatch.fnmatch(fileSplitted[0], directoryFilter) and \
-						fnmatch.fnmatch(fileSplitted[1], fileFilter):
-						filesFromShareToBuild.append( file )
-						break
-				else:
-					filesFromShare.append( file )
-		else:
-			filesFromShare			= filesFromShareToFilter
-			filesFromShareToBuild	= []
-
-		# Adds share build stage in 'build' target
-		filesFromShareBuilt = []	# list of files to install in 'share'
-		for file in filesFromShareToBuild:
-			inputFile = os.path.join(self.myProjectPathName, file)
-# @todo check ${SOURCE}
-			outputFile = command[1].replace('${SOURCE}', file, 1)
-			outputFile = outputFile.replace('share', os.path.join(self.myProjectBuildPath, self.myProject, 'share'), 1 )
-			if len(command)==3:
-				Alias( 'build', lenv.Command(outputFile, inputFile, Action(command[0], command[2]) ) )
-			else:
-				Alias( 'build', lenv.Command(outputFile, inputFile, command[0]) )
-			filesFromShareBuilt.append( outputFile )
-
+		## Processes win32 resource files (resource.rc and resource_sbf.rc)
 		objFiles = []
-		if		self.myType in ['exec', 'static']:
-			for srcFile in filesFromSrc :
-				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
-				srcFileExpanded	=	os.path.join(self.myProjectPathName, srcFile)
-				objFiles		+=	lenv.Object( objFile, srcFileExpanded )				# Object is a synonym for the StaticObject builder method.
-				### print objFile, ':', srcFileExpanded, '\n'
+		installInBinTarget = []
 
-		elif	self.myType == 'shared':
-			for srcFile in filesFromSrc :
-				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
-				srcFileExpanded	=	os.path.join(self.myProjectPathName, srcFile)
-				objFiles		+=	lenv.SharedObject( objFile, srcFileExpanded )
-				### print objFile, ':', srcFileExpanded, '\n'
-		else:
-			if	self.myType != 'none' :
-				print 'sbfWarning: during setup of pseudo BuildDir'
-			# else nothing to do for 'none'
-
-
-		### Processes win32 resource files
 		# @todo generalizes a rc system
-		# @todo a lib for rc/share resource (in a zip) ?
 		Alias( self.myProject + '_resource.rc_generation' )
 
 		if self.myPlatform == 'win32':
-			# Adds rc directory to CPPPATH
-			rcPath = os.path.join(self.myProjectPathName, 'rc')
-			if os.path.isdir( rcPath ):
-				# Appends rc to CPPPATH
-				lenv.Append( CPPPATH = rcPath )
+			# Adds project/rc directory to CPPPATH
+			rcPath = join(self.myProjectPathName, 'rc')
+			if os.path.isdir( rcPath ): lenv.Append( CPPPATH = rcPath )
 
 			# Compiles resource.rc
-			rcFile = os.path.join(rcPath, 'resource.rc')
+			rcFile = join(rcPath, 'resource.rc')
 			if os.path.isfile( rcFile ):
 				# Compiles the resource file
 				objFiles += lenv.RES( rcFile )
@@ -1821,143 +1973,145 @@ SConsBuildFramework options:
 				lenv['sbf_rc'] = []
 
 			# Generates resource_sbf.rc file
-			sbfRCFile = os.path.join(self.myProjectBuildPathExpanded, 'resource_sbf.rc')
+			sbfRCFile = join(self.myProjectBuildPathExpanded, 'resource_sbf.rc')
+# @todo Textfile()
 			Alias(	self.myProject + '_resource_generation',
 					lenv.Command( sbfRCFile, 'dummy.in', Action( resourceFileGeneration, printGenerate ) ) )
 			objFiles += lenv.RES( sbfRCFile )
 
 			# @todo FIXME not very cute, same code in sbfRC
-			iconFile		= lenv['sbf_project'] + '.ico'
-			iconAbsPathFile	= os.path.join( lenv['sbf_projectPathName'], 'rc', iconFile )
+			iconAbsPathFile	= join( rcPath, lenv['sbf_project'] + '.ico' )
 			if os.path.isfile( iconAbsPathFile ) :
 				lenv['sbf_rc'].append( iconAbsPathFile )
 		else:
 			lenv['sbf_rc'] = []
 
 
-		### final result of project ###
-		objProject = os.path.join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
+		## Build source files
+		# setup 'pseudo BuildDir' (with OBJPREFIX)
+		# @todo use VariantDir()
+		filesFromSrc = self.getFiles( 'src', lenv )
+		objProject = join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
 
-		#
-		installInBinTarget		= []
-		installInIncludeTarget	= []
-		installInLibTarget		= []
+		if self.myType in ['exec', 'static']:
+			# Compiles source files
+			for srcFile in filesFromSrc:
+				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
+				# Object is a synonym for the StaticObject builder method.
+				objFiles		+=	lenv.Object( objFile, join(self.myProjectPathName, srcFile) )
+			# Creates executable or static library
+			if self.myType == 'exec':
+				# executable
+				projectTarget = lenv.Program( objProject, objFiles )
+			else:
+				# static library
+				projectTarget = lenv.StaticLibrary( objProject, objFiles )
+		elif self.myType == 'shared':
+			# Compiles source files
+			for srcFile in filesFromSrc:
+				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
+				objFiles		+=	lenv.SharedObject( objFile, join(self.myProjectPathName, srcFile) )
+			# Creates shared library
+			projectTarget = lenv.SharedLibrary( objProject, objFiles )
 
-		if		self.myType == 'exec':
-			projectTarget			=	lenv.Program( objProject, objFiles )
-			installInBinTarget		+=	projectTarget
-		elif	self.myType == 'static':
-			projectTarget			=	lenv.StaticLibrary( objProject, objFiles )
-			installInLibTarget		+=	projectTarget
-			installInIncludeTarget	+=	filesFromInclude
-		elif	self.myType == 'shared':
-			projectTarget			=	lenv.SharedLibrary( objProject, objFiles )
-
-			#if self.myPlatform == 'win32':
-			# filter *.exp file
-			filteredProjectTarget = []
-			for elt in projectTarget:
-				if os.path.splitext(elt.name)[1] != '.exp':
-					filteredProjectTarget.append(elt)
-			installInLibTarget		+=	filteredProjectTarget
-
-			installInIncludeTarget	+=	filesFromInclude
-		elif self.myType == 'none':
-			projectTarget			=	''
-			installInIncludeTarget	+=	filesFromInclude
+			if self.myPlatform == 'win32':
+				# filter *.exp file
+				filteredProjectTarget = []				# @todo uses conprehension list
+				for elt in projectTarget:
+					if os.path.splitext(elt.name)[1] != '.exp':
+						filteredProjectTarget.append(elt)
+				projectTarget = filteredProjectTarget
+			# else no filtering
 		else:
-			print 'sbfWarning: during final setup of project'
+			assert( self.myType == 'none' )
+			projectTarget = None
 
-		if self.myType in ['exec', 'static', 'shared'] :
+		if projectTarget:
+			# Installation part
+			installInBinTarget += projectTarget
+
 			# projectTarget is not deleted before it is rebuilt.
 			lenv.Precious( projectTarget )
 
-		# @todo /PDBSTRIPPED:pdb_file_name
-		# PDB: pdb only generate on win32 and when debug informations are required
-		if self.myPlatform == 'win32':
-			if (self.myConfig == 'debug') or ( (self.myConfig == 'release') and lenv['generateDebugInfoInRelease'] ):
-				# PDB Generation. Static library don't generate pdb.
-				if self.myType in ['exec', 'shared']:
-					lenv['PDB'] = objProject + '.pdb'
-					lenv.SideEffect( lenv['PDB'], projectTarget )
-					# it is not deleted before it is rebuilt.
-					lenv.Precious( lenv['PDB'] )
-					if self.myType == 'exec':
+# @todo /PDBSTRIPPED:pdb_file_name
+			# Generating debug informations
+			if self.myPlatform == 'win32':
+				if lenv['generateDebugInfoInRelease'] or self.myConfig == 'debug':
+					# PDB Generation. Static library don't generate pdb.
+					if self.myType in ['exec', 'shared']:
+						lenv['PDB'] = objProject + '.pdb'
+						lenv.SideEffect( lenv['PDB'], projectTarget )
+						# it is not deleted before it is rebuilt.
+						lenv.Precious( lenv['PDB'] )
 						lenv['sbf_bin_debuginfo'] = lenv['PDB']
-					else:
-						lenv['sbf_lib_debuginfo'] = lenv['PDB']
+					# else nothing to do
+				# else nothing to do
+			# else nothing to do
 
-
-		######	setup targets : myProject_build myProject_install myProject myProject_clean myProject_mrproper ######
-
-		### myProject_build
-		Alias( self.myProject + '_build_print', lenv.Command('dummy_build_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printEmptyLine ) ) )
-		Alias( self.myProject + '_build_print', lenv.Command('dummy_build_print' + self.myProject + 'out2', 'dummy.in', Action( nopAction, printBuild ) ) )
-		AlwaysBuild( self.myProject + '_build_print' )
-
-		aliasProjectBuild = Alias( self.myProject + '_build', self.myProject + '_build_print' )
+		### target 'myProject_build'
+		aliasProjectBuild = Alias( self.myProject + '_build', lenv.Command('dummy_build_print_' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
 		Alias( self.myProject + '_build', self.myProject + '_resource.rc_generation' )
 		Alias( self.myProject + '_build', projectTarget )
 		Clean( self.myProject + '_build', self.myProjectBuildPathExpanded )
 
-		### myProject_install
 
-		# Computes installation directory
-		def computeInstallDirectories( lenv ):
-			installDirectories = [self.myInstallDirectory]
-			if len(lenv['sbf_parentProjects']) == 0:
-				# no parent project
-				pass
-			else:
-				for parentEnv in lenv['sbf_parentProjects']:
-					deploymentType = parentEnv['deploymentType']
-					if deploymentType == 'standalone':
-						pass
-					elif deploymentType == 'embedded':
-						subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
-						installDirectories.append( join( self.myInstallDirectory, 'packages', subdir ) )
-					else:
-						assert( False )
-			return installDirectories
 
-		self.myInstallDirectories = computeInstallDirectories( lenv )
+		### SHARE BUILD ###
+		# filters, command
+		# filesFromShare, filesFromShareToBuild
+		# filesFromShareBuilt
 
-		# install libraries and binaries in 'bin'
+		(filters, command) = computeFiltersAndCommand( lenv )
+		(filesFromShareToBuild, filesFromShare) = applyFilters( self.getFiles('share', lenv), filters )
+		filesFromShareBuilt = buildFilesFromShare( filesFromShareToBuild, lenv, command )
+
+
+
+		### DEPS 'BUILD' ###
+		# depsFiles
+		if isLaunchProject(lenv) and len(self.myBuildTargets & self.myTargetsWhoNeedDeps) > 0:
+			depsFiles = getDepsFiles( lenv, self.myLibInstallExtPaths )
+		else:
+			depsFiles = []
+
+
+
+		### INSTALLATION ###
+
+		# self.myInstallDirectories
+		# installTarget
+
+		self.myInstallDirectories = computeInstallDirectories(lenv, self.myInstallDirectory)
+		self.myInstallDirectories.extend( self.myNSISInstallDirectories )
+
+		# for debugging : print lenv['sbf_project'], self.myInstallDirectories
+
+		# infofile, info, zip* and nsis
+		configureInfofileTarget( lenv, isLaunchProject(lenv) )
+
+		if isLaunchProject(lenv):
+			configureInfoTarget( lenv )
+			configureZipAndNSISTargets(lenv)
+
 		installTarget = []
+
+
+		# install libraries and binaries in 'bin' (from installInBinTarget)
 		if len(installInBinTarget) > 0:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
 
-		if len(installInLibTarget) > 0:
+		# install dependencies in 'bin' (from depsFiles)
+		# depsTarget
+		depsTarget = []
+
+		if len(depsFiles) > 0:
 			for installDir in self.myInstallDirectories:
-				installTarget += lenv.Install( join(installDir, 'bin'), installInLibTarget )
-
-		# install in 'include'
-		if 'mrproper' in self.myBuildTargets:
-			localInclude = join(self.myInstallDirectory, 'include')
-			if os.path.exists( localInclude ):
-				# There is an 'include' directory in installation directory, so i have to remove all files from it (because of read-only chmod).
-				oFiles = []
-				searchAllFiles( localInclude, oFiles )
-				for file in oFiles:
-					if os.path.exists(file):
-						os.chmod( file, 0744 )
-						os.remove( file )
-					#else nothing to do
-			# else nothing to do
-		elif 'clean' in self.myBuildTargets:
-			pass
-		else:
-			# @todo one Command per directory
-			for file in installInIncludeTarget :
-				dst = join(self.myInstallDirectory, file)
-				src = join(self.myProjectPathName, file)
-				# Installing filename.hpp
-				lenv.Precious( dst )
-				installTarget += lenv.Command( dst, src, Action(installRO, 'Installing {0}'.format(file) ) )
+				for (absFile, relFile) in depsFiles:
+					depsTarget += lenv.InstallAs( join(installDir, relFile), absFile )
 
 
-		# install in 'share'
+		# install in 'share' (from filesFromShare, filesFromShareBuilt and lenv['sbf_info'])
 		for installDir in self.myInstallDirectories:
 			shareBaseDir = join(installDir, 'share', self.myProject, self.myVersion)
 			for file in filesFromShare:
@@ -1965,13 +2119,44 @@ SConsBuildFramework options:
 			for fileAbs in filesFromShareBuilt:
 				fileRel = fileAbs[ fileAbs.index('share') : ]
 				installTarget += lenv.InstallAs( fileRel.replace('share', shareBaseDir, 1), fileAbs )
+			for file in lenv.get('sbf_info', []):
+				installTarget += lenv.Install( shareBaseDir, file )
 
-		#
-		Alias( self.myProject + '_install_print', lenv.Command('dummy_install_print' + self.myProject + 'out1', 'dummy.in', Action( nopAction, printInstall ) ) )
-		AlwaysBuild( self.myProject + '_install_print' )
 
+		# install in 'include'
+		# installInIncludeTarget
+		if self.myType in ['static', 'shared', 'none']:
+			installInIncludeTarget = self.getFiles( 'include', lenv )
+		else:
+			assert( self.myType == 'exec' )
+			installInIncludeTarget	= []
+
+		# install in 'include'
+		if 'mrproper' in self.myBuildTargets:
+			removeAllFilesRO( join(self.myInstallDirectory, 'include') )
+		elif 'clean' in self.myBuildTargets:
+			pass
+		else:
+			# @todo one Command per directory
+			for file in installInIncludeTarget :
+				dst = join(self.myInstallDirectory, file)
+				src = join(self.myProjectPathName, file)
+
+				# Installing filename.hpp
+				lenv.Precious( dst )
+				installTarget += lenv.Command( dst, src, Action(installRO, 'Installing {0}'.format(file) ) )
+
+
+
+		######	setup targets : myProject_deps myProject_install myProject myProject_clean myProject_mrproper ######
+
+		### myProject_deps
+		aliasProjectDeps = Alias( self.myProject + '_deps', lenv.Command('dummy_deps_print' + self.myProject, 'dummy.in', Action( nopAction, printDeps ) ) )
+		Alias( self.myProject + '_deps', depsTarget )
+
+		### myProject_install
 		aliasProjectInstall = Alias( self.myProject + '_install', self.myProject + '_build' )
-		Alias( self.myProject + '_install', self.myProject + '_install_print' )
+		Alias( self.myProject + '_install', lenv.Command('dummy_install_print' + self.myProject, 'dummy.in', Action(nopAction, printInstall)) )
 		Alias( self.myProject + '_install', installTarget )
 
 		### myProject
@@ -1984,63 +2169,24 @@ SConsBuildFramework options:
 		aliasProjectMrproper = Alias( self.myProject + '_mrproper', aliasProjectInstall )
 		# temporary build path
 		Clean( self.myProject + '_mrproper', join(self.myProjectBuildPath, self.myProject) )
-		# 'include'
+		# clean 'share'
 		for installDir in self.myInstallDirectories:
-			Clean( self.myProject + '_mrproper', join(installDir, 'include', self.myProject) )
-
-		# 'share'
-		for installDir in self.myInstallDirectories:
-			shareProjectInstallDirectory = os.path.join( installDir, 'share', self.myProject )
+			shareProjectInstallDirectory = join( installDir, 'share', self.myProject )
 			if os.path.exists( shareProjectInstallDirectory ):
 				shareProjectInstallEntries = os.listdir( shareProjectInstallDirectory )
 				if	len(shareProjectInstallEntries) == 0 or \
 					(len(shareProjectInstallEntries) == 1 and shareProjectInstallEntries[0] == self.myVersion):
 					Clean( self.myProject + '_mrproper', shareProjectInstallDirectory )
 				else:
-					print self.getShareInstallDirectory()
 					Clean( self.myProject + '_mrproper', join(shareProjectInstallDirectory, self.myVersion) )
 			# else : nothing to do, no share/myProject directory
 
 		# @todo Improves mrproper (local/doc/myProject directory ?)
 
-		### Configures lenv
-		lenv['sbf_bin']							= []
-		lenv['sbf_include']						= filesFromInclude
-
-# @todo unify lenv['sbf_share'] and lenv['sbf_shareBuilt'] in lenv['sbf_share']
-		lenv['sbf_share']						= filesFromShare
-		lenv['sbf_shareBuilt']					= filesFromShareBuilt
-
-		lenv['sbf_src']							= filesFromSrc
-		lenv['sbf_lib_object']					= []
-		lenv['sbf_lib_object_for_developer']	= []
-
-		#lenv['sbf_bin_debuginfo'] = lenv['PDB']
-		#lenv['sbf_lib_debuginfo'] = lenv['PDB']
-
-		lenv['sbf_files']						= glob.glob( join(self.myProjectPathName, '*.options') )
-		lenv['sbf_files'].append( join(self.myProjectPathName, 'sconstruct') )
-		#lenv['sbf_info']
-		#lenv['sbf_rc']
-		# @todo configures sbf_... for msvc/eclipse ?
-
-		for elt in installInBinTarget :
-			lenv['sbf_bin'].append( elt.abspath )
-
-		# @todo not very platform independent
-		for elt in installInLibTarget:
-			# @todo must be optimize
-			absPathFilename	= elt.abspath
-			filename		= os.path.split(absPathFilename)[1]
-			filenameExt		= os.path.splitext(filename)[1]
-			if filenameExt == '.lib':
-				lenv['sbf_lib_object_for_developer'].append( absPathFilename )
-			else :
-				lenv['sbf_lib_object'].append( absPathFilename )
-
-		###### special targets: build install all clean mrproper ######
+		###### special targets: build install deps all clean mrproper ######
 		Alias( 'build',		aliasProjectBuild		)
 		Alias( 'install',	aliasProjectInstall		)
+		Alias( 'deps',		aliasProjectDeps		)
 		Alias( 'all',		aliasProject			)
 		Alias( 'clean',		aliasProjectClean		)
 		Alias( 'mrproper',	[aliasProjectClean, aliasProjectMrproper] )
@@ -2049,17 +2195,18 @@ SConsBuildFramework options:
 		self.doVcsCleanOrAdd( lenv )
 
 		# Targets: onlyRun and run
-		if len(lenv['sbf_bin']) > 0:
-			executableFilename	= os.path.basename(lenv['sbf_bin'][0])
-			pathForExecutable	= os.path.join(self.myInstallDirectory, 'bin')
+		executableNode = searchExecutable( lenv, installInBinTarget )
+		if executableNode:
+			executableFilename	= basename(executableNode.abspath)
+			pathForExecutable	= join(self.myInstallDirectory, 'bin')
 
 			cmdParameters = ''
 			for param in lenv['runParams']:
 				cmdParameters += ' ' + param
 
-			printMsg = '\n' + stringFormatter(lenv, 'Launching %s' % executableFilename)
+			printMsg = '\n' + stringFormatter(lenv, 'Launching {0}'.format(executableFilename))
 			if len(cmdParameters) > 0:
-				printMsg += stringFormatter(lenv, 'with parameters:%s' % cmdParameters)
+				printMsg += stringFormatter(lenv, 'with parameters:{0}'.format(cmdParameters))
 
 			Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
 								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
@@ -2070,10 +2217,13 @@ SConsBuildFramework options:
 										printMsg ) ) )
 
 
+
 	###### Helpers ######
 
 	def getFiles( self, what, lenv ):
-		"""what		select what to collect. It could be 'src', 'include', 'share'"""
+		"""what		select what to collect. It could be 'src', 'include', 'share'
+		"""
+
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
 
 		files = []
@@ -2163,21 +2313,11 @@ SConsBuildFramework options:
 		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
 
 
-	def extractVersion( self, versionStr ):
-		"""Returns a tuple containing (major, minor, maintenance, postfix) version information from versionStr (major-minor[-postfix] or major-minor-maintenance[-postfix])."""
 
-		versionRE = re.compile( r'^(?P<major>[0-9]+)-(?P<minor>[0-9]+)(?:-(?P<maint>[0-9]+))?(?:-(?P<postfix>[a-zA-Z0-9]+))?$' )
-		versionMatch = versionRE.match( versionStr )
-		if versionMatch:
-			return versionMatch.groups()
-		else:
-			raise SCons.Errors.UserError("Given version:{0}.\nThe project version must follow the schema major-minor-[postfix] or major-minor-maintenance[-postfix].".format(versionStr) )
-
-
-	###
-	# Returns a list containing all direct dependencies (deps options) of the project with the given environment.
-	# The returned list contains only project names (not full path or SCons environment).
 	def getDepsProjectName( self, lenv, keepOnlyExistingProjects = True ):
+		"""@return	a list containing all direct dependencies (deps options) of the project with the given environment.
+					The returned list contains only project names (not full path or SCons environment)."""
+
 		if keepOnlyExistingProjects :
 			retVal = []
 			for dep in lenv['deps']:
@@ -2193,9 +2333,9 @@ SConsBuildFramework options:
 				retVal.append( projectName )
 			return retVal
 
-	# Collects recursively all dependencies of the project with the given environment.
-	# Returns a list containing project name of all its dependencies.
 	def getAllDependencies( self, lenv ) :#, keepOnlyExistingProjects = True ):
+		"""	Collects recursively all dependencies of the project with the given environment.
+			Returns a list containing project name of all its dependencies."""
 		stackDependencies			= self.getDepsProjectName(lenv) #, keepOnlyExistingProjects)
 		recursiveDependenciesSet	= set()
 		recursiveDependencies		= []
@@ -2225,7 +2365,7 @@ SConsBuildFramework options:
 		"""Computes the set of all 'uses' for the project described by lenv and all its dependencies"""
 
 		# The return value containing all 'uses'
-		retValUses = set()
+		retValUses = set( set(lenv['uses']) )
 
 		# Retrieves all dependencies
 		dependencies = self.getAllDependencies(lenv)
@@ -2239,9 +2379,9 @@ SConsBuildFramework options:
 		return retValUses
 
 
-	# Computes common root of all projects
-	# Returns the desired path
 	def getProjectsRoot( self, lenv ):
+		"""	Computes common root of all projects
+			Returns the desired path"""
 		projectPathNameList = [ lenv['sbf_projectPathName'] ]
 		for projectName in self.getAllDependencies(lenv):
 			projectPathNameList.append( self.myParsedProjects[projectName]['sbf_projectPathName'] )
