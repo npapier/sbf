@@ -981,8 +981,8 @@ class Use_sofa( IUse, sofaConfig ):
 	def getLicenses( self, version ):
 		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
 
-	def hasAPackage( self ):
-		return False
+	def getPackageType( self ):
+		return 'NoneAndNormal'
 
 
 def getPathsForSofa( debugAndRelease = False ):
