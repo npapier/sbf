@@ -29,9 +29,9 @@ def doTargetPakUpdate( target, source, env ):
 			oPakInfo = {}
 			pakSystem.loadPackageInfo( useName, oPakInfo )
 			if useVersion == oPakInfo['version']:
-				print ( '{0} version {1} is installed.'.format(useName.ljust(13), useVersion.ljust(8)) )
+				print ( '{0} {1} is installed.'.format(useName.ljust(13), useVersion.ljust(8)) )
 			else:
-				print ( '{0} version {1} is installed, but version {2} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
+				print ( '{0} {1} is installed, but {2} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
 				print ( 'Upgrading...' )
 				pakSystem.remove( oPakInfo['name'] )
 				pakSystem.install( packageFilename )
@@ -40,13 +40,13 @@ def doTargetPakUpdate( target, source, env ):
 			# not installed
 			# Test if package 'packageFilename' is available
 			if pakSystem.isAvailable( packageFilename ):
-				print ( '{0} version {1} is NOT installed.'.format(useName.ljust(13), useVersion))
+				print ( '{0} {1} is NOT installed.'.format(useName.ljust(13), useVersion))
 				pakSystem.install( packageFilename )
 				print ('\n'* 3)
 			else:
 				use = UseRepository.getUse( useName )
-				if use.hasAPackage():
-					print ( '{0} version {1} is NOT installed and its package is NOT available !!!'.format(useName, useVersion))
+				if use.getPackageType() in ['Normal', 'Full']:
+					print ( '{0} {1} is NOT installed and its package is NOT available !!!'.format(useName, useVersion))
 					Exit(1)
 				#else nothing to do
 
