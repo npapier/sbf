@@ -2183,6 +2183,20 @@ SConsBuildFramework options:
 
 		# @todo Improves mrproper (local/doc/myProject directory ?)
 
+		### Configures lenv
+		lenv['sbf_bin']						= []
+		lenv['sbf_include']					= installInIncludeTarget
+
+		lenv['sbf_share']						= filesFromShare
+
+		lenv['sbf_src']							= filesFromSrc
+
+		lenv['sbf_files']						= glob.glob( join(self.myProjectPathName, '*.options') )
+		lenv['sbf_files'].append( join(self.myProjectPathName, 'sconstruct') )
+
+		for elt in installInBinTarget :
+			lenv['sbf_bin'].append( elt.abspath )
+
 		###### special targets: build install deps all clean mrproper ######
 		Alias( 'build',		aliasProjectBuild		)
 		Alias( 'install',	aliasProjectInstall		)

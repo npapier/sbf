@@ -241,12 +241,12 @@ def vcprojAction( target, source, env ):
 	MSVSProjectBuildTarget			= ''
 	MSVSProjectBuildTargetDirectory	= ''
 
-	if len(env['sbf_bin']) > 0 :
+	if len(env['sbf_bin']) > 0:
 		MSVSProjectBuildTarget = os.path.basename( env['sbf_bin'][0] )
 		MSVSProjectBuildTargetDirectory = 'bin'
-	elif len(env['sbf_lib_object']) > 0 :
-		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
-		MSVSProjectBuildTargetDirectory = 'lib'
+#	elif len(env['sbf_lib_object']) > 0 :
+#		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
+#		MSVSProjectBuildTargetDirectory = 'lib'
 	else:
 		# Nothing to debug (project of type 'none')
 		return
@@ -394,6 +394,7 @@ def vcprojAction( target, source, env ):
 				res = re_sbfShare.match(line)
 				if res != None :
 					vcprojWriteTree( targetFile, env['sbf_share'] )
+# @todo take care of sbf_shareBuilt
 					continue
 
 				# sbfSrc customization point
