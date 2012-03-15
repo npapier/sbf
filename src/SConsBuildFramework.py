@@ -263,11 +263,12 @@ def getStdlibs( lenv, searchPathList ):
 			print("Standard library {0} not found (see 'stdlibs' project option of {1}).".format(filename, lenv['sbf_project']) )
 	return stdlibs
 
-def getDepsFiles( lenv, baseSearchPathList ):
+
+def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 	depsFiles = []
 	sbf = lenv.sbf
 
-	if lenv['deploymentType'] in ['standalone', 'embedded']:
+	if forced or (lenv['deploymentType'] in ['standalone', 'embedded']):
 		allDeps = sbf.getAllDependencies( lenv )
 		allUses = sbf.getAllUses( lenv )
 		if lenv.GetOption('verbosity'): print ('\nallDeps\n{0}\nallUses\n{1}\n'.format(allDeps, allUses))
@@ -2070,7 +2071,7 @@ SConsBuildFramework options:
 		### DEPS 'BUILD' ###
 		# depsFiles
 		if isLaunchProject(lenv) and len(self.myBuildTargets & self.myTargetsWhoNeedDeps) > 0:
-			depsFiles = getDepsFiles( lenv, self.myLibInstallExtPaths )
+			depsFiles = getDepsFiles( lenv, self.myLibInstallExtPaths, isLaunchProject(lenv) )
 		else:
 			depsFiles = []
 
