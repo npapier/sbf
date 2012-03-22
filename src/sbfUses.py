@@ -275,7 +275,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-48-0', '1-47-0', '1-46-1', '1-45-0' ]
+		return [ '1-48-0', '1-49-0', '1-47-0', '1-46-1', '1-45-0' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -315,7 +315,12 @@ class Use_boost( IUse ):
 			genPakLibs2 = [	'boost_chrono-{vc}-{conf}-{ver}' ]
 			genPakLibs3 = [	'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
 
-			if version == '1-48-0':
+			if version == '1-49-0':
+				# autolinking, so nothing to do.
+				ver = '1_49'
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
+				return [], pakLibs
+			elif version == '1-48-0':
 				# autolinking, so nothing to do.
 				ver = '1_48'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
