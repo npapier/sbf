@@ -52,6 +52,7 @@ def extractVersion( versionStr ):
 ### Helpers to split 'uses' or 'libs' value ###
 usesNamePattern = '(?P<name>[a-zA-Z]+(?:[\d_][a-zA-Z]+|))'
 usesORlibsSplitter = re.compile( r'^{0}[ \t]*{1}$'.format(usesNamePattern, versionPattern) )
+nameDoc = ''
 
 def splitUsesORlibs( value, text ):
 	"""@return (name, version) from 'nameVersion', 'name' or 'name version'.
@@ -112,3 +113,20 @@ def joinPackageName( pakInfo ):
 		joinPackageName(tmp) returns 'opencollada865_win32_cl10-0Exp.zip'
 	"""
 	return "{0}{1}_{2}_{3}.{4}".format( pakInfo['name'], pakInfo['version'], pakInfo['platform'], pakInfo['cc'], pakInfo['extension'] )
+
+
+### Helpers to split 'deploymentPrecond' ###
+operatorPattern = '(?P<operator>==|>=|>|<|<=)'
+deploymentPrecondSplitter = re.compile( r'^{0}[ \t]+{1}[ \t]+{2}$'.format( usesNamePattern, operatorPattern, versionPattern ) )
+operatorDoc = 'versionOperator have to be choosen among ==, >=, >, < and <=.'
+
+def splitDeploymentPrecond( deploymentPrecond ):
+	"""	Split and verify the deploymentPrecond option of sbf project
+		@param deploymentPrecond		allowed schemas 'projectName versionOperator version'.
+		versionOperator have to be choosen among ==, >=, >, < and <=. version have to follow the classical sbf version convention.
+		@return (projectName, versionOperator, version) or None if deploymentPrecond is not valid."""
+	match = deploymentPrecondSplitter.match( deploymentPrecond )
+	if match:
+		return (match.group('name'), match.group('operator'), match.group('version'))
+	else:
+		raise SCons.Errors.UserError("deploymentPrecond='{0}'.\n The following schema have to be used 'projectName versionOperator version'.\n{1}\n{2}\n{3}".format(deploymentPrecond, nameDoc, operatorDoc, versionDoc) )

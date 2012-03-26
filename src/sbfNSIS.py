@@ -13,7 +13,7 @@ from src.sbfTools	import locateProgram
 from src.sbfUses	import UseRepository
 from src.sbfUtils	import capitalize
 from src.sbfUI		import askQuestion
-from src.sbfVersion import splitUsesName
+from src.sbfVersion import splitUsesName, splitDeploymentPrecond
 from src.SConsBuildFramework import stringFormatter, nopAction
 from SCons.Script import *
 
@@ -23,304 +23,28 @@ from SCons.Script import *
 # @todo improves output
 
 
-def nsisGeneration( target, source, env ):
 
-	# Retrieves/computes additional information
-	targetName = str(target[0])
+### Helpers ####
 
-	# Open output file
-	with open( targetName, 'w' ) as file:
-		# Retrieves informations (all executables, ...)
-		products	= []
-		executables	= []
-		rootProject	= ''
-		for (projectName, lenv) in env.sbf.myParsedProjects.iteritems():
-			if lenv['type'] == 'exec' :
-				#print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
-				if len(products) == 0:
-					rootProject = lenv['sbf_project']
-				products.append( capitalize(lenv['sbf_project']) + lenv.sbf.my_PostfixLinkedToMyConfig )
-				executables.append( os.path.basename(lenv['sbf_bin'][0]) )
+def installAs( lenv, dirDest, dirSource, pruneDirectoriesPatterns = ['.svn'] ):
+	"""Copy the directory tree from dirSource in dirDest using lenv.InstallAs(). pruneDirectoriesPatterns is used to exclude several sources directories."""
+	files = []
+	searchFiles( dirSource, files, pruneDirectoriesPatterns )
 
-		# Generates PRODUCTNAME
-		PRODUCTNAME = ''
-		for (i, product) in enumerate(products):
-			PRODUCTNAME += "!define PRODUCTNAME%s	\"%s\"\n" % (i, product)
-		PRODUCTNAME += "!define PRODUCTNAME	${PRODUCTNAME0}\n"
+	installFiles = []
+	parentOfDirSource = os.path.dirname(dirSource)
+	for file in files:
+		installFiles += lenv.InstallAs( file.replace(parentOfDirSource, dirDest, 1), file )
+	return installFiles
 
-		# Generates PRODUCTEXE, SHORTCUT, DESKTOPSHORTCUT, QUICKLAUNCHSHORTCUT, UNINSTALL_SHORTCUT, UNINSTALL_DESKTOPSHORTCUT and UNINSTALL_QUICKLAUNCHSHORTCUT
-		PRODUCTEXE						= ''
-		SHORTCUT						= ''
-		DESKTOPSHORTCUT					= ''
-		QUICKLAUNCHSHORTCUT				= ''
-		UNINSTALL_SHORTCUT				= ''
-		UNINSTALL_DESKTOPSHORTCUT		= ''
-		UNINSTALL_QUICKLAUNCHSHORTCUT	= ''
-		if len(executables) > 1 :
-			SHORTCUT = '  CreateDirectory \"${STARTMENUROOT}\\tools\"\n'
-			UNINSTALL_SHORTCUT	=	'  Delete \"${STARTMENUROOT}\\tools\\*.*\"\n'
-			UNINSTALL_SHORTCUT	+=	'  RMDir \"${STARTMENUROOT}\\tools\"\n'
 
-		for (i, executable) in enumerate(executables) :
-			PRODUCTEXE	+=	"!define PRODUCTEXE{0}	\"{1}\"\n".format( i, executable)
-			if i > 0:
-				SHORTCUT	+=	'  SetOutPath \"$INSTDIR\\bin\"\n'
-				SHORTCUT	+=	"  CreateShortCut \"${STARTMENUROOT}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
-			else:
-				SHORTCUT						=	'  SetOutPath \"$INSTDIR\\bin\"\n'
-				SHORTCUT						+=	'  CreateShortCut \"${STARTMENUROOT}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
-				DESKTOPSHORTCUT					=	'  SetOutPath \"$INSTDIR\\bin\"\n'
-				DESKTOPSHORTCUT					+=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
-				QUICKLAUNCHSHORTCUT				=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
-				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
-				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
 
-		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
+def printNSISGeneration( target, source, env ):
+	return stringFormatter(env, 'Generating {0} nsis setup program'.format(env['sbf_project']))
 
-		# Generates ICON
-		ICON = "; no icon"
-		if rootProject:
-			lenv = env.sbf.myParsedProjects[rootProject]
-			iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
-			if os.path.exists( iconFile ):
-				ICON = 'Icon "{0}"'.format( iconFile )
-			#else: ICON = "; no icon"
-
-		str_sbfNSISTemplate = """\
-; sbfNSISTemplate.nsi
-;
-; This script :
-; - It will install files into a directory that the user selects
-; - remember the installation directory (so if you install again, it will
-; overwrite the old one automatically).
-; - run as admin and installation occurs for all users
-; - components chooser
-; - has uninstall support
-; - install/launch/uninstall Visual C++ redistributable and sbfPak redistributable.
-; - installs start menu shortcuts (run all exe and uninstall).
-; - (optionally) installs desktop menu shortcut for the main executable.
-; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
-; - prevent running multiple instances of the installer
-
-; @todo write access on several directories
-; @todo section with redistributable
-
-; @todo mui
-; @todo quicklaunch
-; @todo repair/modify
-; @todo LogSet on
-
-
-;--------------------------------
-
-!include "FileFunc.nsh"
-
-SetCompressor lzma
-
-!define SBFPROJECTNAME				"{projectName}"
-!define SBFPROJECTNAMECAPITALIZED	"{projectNameCapitalized}"
-!define SBFPROJECTVERSION			"{projectVersion}"
-!define SBFPROJECTCONFIG			"{projectConfig}"
-!define SBFPROJECTVENDOR			"{projectVendor}"
-!define SBFDATE						"{date}"
-
-; SETUPFILE
-!define SETUPFILE "${{SBFPROJECTNAMECAPITALIZED}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
-
-;
-!define REGKEYROOT		"Software\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
-!define STARTMENUROOT	"$SMPROGRAMS\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
-
-; PRODUCTNAME
-{productName}
-
-; PRODUCTEXE
-{productExe}
-
-;--------------------------------
-
-Function .onInit
- System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
- Pop $R0
- StrCmp $R0 0 +3
- MessageBox MB_OK|MB_ICONSTOP "The installer is already running."
- Abort
-FunctionEnd
-
-;--------------------------------
-
-; The name of the installer
-Name "${{PRODUCTNAME}}"
-
-; Version information
-VIAddVersionKey "ProductName" "${{PRODUCTNAME}}"
-VIAddVersionKey "CompanyName" "${{SBFPROJECTVENDOR}}"
-VIAddVersionKey "LegalCopyright" "(C) ${{SBFPROJECTVENDOR}}"
-VIAddVersionKey "FileDescription" "{projectDescription}"
-VIAddVersionKey "FileVersion" "{productVersion}"
-VIAddVersionKey "ProductVersion" "{productVersion}"
-
-VIProductVersion "{productVersion}"
-
-; icon of the installer
-{icon}
-
-; The file to write
-OutFile "${{SETUPFILE}}"
-
-; The default installation directory
-; @todo InstallDir should be configurable
-; InstallDir "$PROGRAMFILES\${{PRODUCTNAME}}"
-; InstallDir "$PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}"
-InstallDir "$PROGRAMFILES\${{SBFPROJECTVENDOR}}\${{PRODUCTNAME}}\${{SBFPROJECTVERSION}}"
-
-; Registry key to check for directory (so if you install again, it will
-; overwrite the old one automatically)
-InstallDirRegKey HKLM "${{REGKEYROOT}}" "Install_Dir"
-
-; Request application privileges for Windows Vista
-RequestExecutionLevel admin
-
-;--------------------------------
-
-; Pages
-
-Page components
-Page directory
-Page instfiles
-
-UninstPage uninstConfirm
-UninstPage instfiles
-
-;--------------------------------
-
-; The stuff to install
-Section "${{PRODUCTNAME}} core (required)"
-  SectionIn RO
-
-  SetShellVarContext all
-
-  ; Set output path to the installation directory.
-  SetOutPath $INSTDIR
-
-  ; Backups 'var' directory if already present
-  ${{GetTime}} "" "L" $0 $1 $2 $6 $3 $4 $5
-  CopyFiles /SILENT "$INSTDIR\\var" "$INSTDIR\\var_backup_$0-$1-$2_$3-$4-$5"
-  RmDir /r "$INSTDIR\\var"
-
-  ; Put files there
-  !include "${{SBFPROJECTNAME}}_install_files.nsi"
- 
-  ; 'var' directory is created by SBFPROJECTNAME_install_files.nsi
-
-  ; Changes ACL
-  ; From MSDN
-  ; SID: S-1-5-32-545
-  ; Name: Users
-  ; Description: A built-in group.
-  ; After the initial installation of the operating system, the only member is the Authenticated Users group.
-  ; When a computer joins a domain, the Domain Users group is added to the Users group on the computer.
-
-;AccessControl::GrantOnFile "$INSTDIR\share" "(S-1-5-32-545)" "GenericRead + GenericWrite"
-;AccessControl::EnableFileInheritance "$INSTDIR\share"
-  AccessControl::GrantOnFile "$INSTDIR\\var" "(S-1-5-32-545)" "FullAccess"
-;AccessControl::EnableFileInheritance "$INSTDIR\\var"
-
-  ; Redistributable
-  !include "${{SBFPROJECTNAME}}_install_redist.nsi"
-
-  ; Write the installation path into the registry
-  WriteRegStr HKLM "${{REGKEYROOT}}" "Install_Dir" "$INSTDIR"
-
-  ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayIcon" '"$INSTDIR\\bin\\${{PRODUCTEXE}}"'
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayName" "${{SBFPROJECTVENDOR}} ${{PRODUCTNAME}} ${{SBFPROJECTVERSION}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "DisplayVersion" "${{SBFPROJECTVERSION}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "Publisher" "${{SBFPROJECTVENDOR}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "UninstallString" '"$INSTDIR\\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}" "NoRepair" 1
-  WriteUninstaller "uninstall.exe"
-
-SectionEnd
-
-
-
-Section "Start Menu Shortcuts"
-  SectionIn RO
-
-  SetShellVarContext all
-  CreateDirectory "${{STARTMENUROOT}}"
-{startMenuShortcuts}
-  CreateShortCut "${{STARTMENUROOT}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
-SectionEnd
-
-
-; Optional section (can be disabled by the user)
-Section "Shortcut on desktop"
-
-  SetShellVarContext all
- 
-{desktopShortcuts}
-
-SectionEnd
-
-
-;--------------------------------
-; Uninstaller
-
-Section "Uninstall"
-
-  SetShellVarContext all
-
-  ; Remove files
-  !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
-
-  ; Remove redistributable
-  !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
-
-  ; Remove registry keys
-  DeleteRegKey HKLM "${{REGKEYROOT}}"
-  DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{PRODUCTNAME}}"
-
-  ; Remove uninstaller
-  Delete $INSTDIR\uninstall.exe
-
-  ; Remove installation directory
-  RmDir $INSTDIR
-
-  ; Remove shortcuts, if any
-{removeStartMenuShortcuts}
-  Delete "${{STARTMENUROOT}}\*.*"
-  ; Remove directories used
-  RMDir "${{STARTMENUROOT}}"
-  RMDir "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
- 
-{removeDesktopShortcuts}
- 
-SectionEnd
-""".format(	projectName=env['sbf_project'],
-			projectNameCapitalized=capitalize(env['sbf_project']),
-			projectVersion=env['version'],
-			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
-			projectVendor=env.sbf.myCompanyName,
-			projectDescription=env['description'],
-			date=env.sbf.myDate,
-			productName=PRODUCTNAME,
-			productExe=PRODUCTEXE,
-			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
-			icon=ICON,
-			startMenuShortcuts=SHORTCUT,
-			desktopShortcuts=DESKTOPSHORTCUT,
-#			quicklaunchShortcuts=QUICKLAUNCHSHORTCUT,
-			removeStartMenuShortcuts=UNINSTALL_SHORTCUT,
-			removeDesktopShortcuts=UNINSTALL_DESKTOPSHORTCUT,
-#			removeQuicklaunchShortcuts=UNINSTALL_QUICKLAUNCHSHORTCUT
-			)
-
-		file.write( str_sbfNSISTemplate )
-
+### project_redist.nsi and project_uninstall_redist.nsi generator ###
+def printRedistGeneration( target, source, env ):
+	return 'Generating {0} and {1} (redist files)'.format(os.path.basename(str(target[0])), os.path.basename(str(target[1])))
 
 def redistGeneration( target, source, env ):
 	"""target must be [${SBFPROJECTNAME}_redist.nsi , ${SBFPROJECTNAME}_uninstall_redist.nsi]"""
@@ -389,11 +113,16 @@ def redistGeneration( target, source, env ):
 
 
 
-def zipPrinterForNSISInstallFiles( target, source, env ):
+### project_install_files.nsi generator ###
+def printGenerateNSISInstallFiles( target, source, env ):
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return 'Generating {0} (nsis install files) from {1}'.format(os.path.basename(targetName), sourceName)
+
+def generateNSISInstallFiles( target, source, env ):
 	# Retrieves informations
 	targetName = str( target[0] )
 	sourceName = str( source[0] )
-	parentOfSource = os.path.dirname( sourceName )
 
 	encounteredFiles		= []
 	encounteredDirectories	= []
@@ -403,18 +132,23 @@ def zipPrinterForNSISInstallFiles( target, source, env ):
 	with open( targetName, 'w' ) as outputFile:
 		# Creates directories
 		for directory in encounteredDirectories:
-			outputFile.write( "CreateDirectory \"$OUTDIR\%s\"\n" % convertPathAbsToRel(sourceName, directory) )
+			outputFile.write( 'CreateDirectory \"$OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
 
 		# Copies files
 		for file in encounteredFiles:
-			outputFile.write( "File \"/oname=$OUTDIR\%s\" \"%s\"\n" % (convertPathAbsToRel(sourceName, file), file) )
+			outputFile.write( 'File \"/oname=$OUTDIR\{0}\" \"{1}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
 
 
-def zipPrinterForNSISUninstallFiles( target, source, env ):
+### project_uninstall_files.nsi generator ###
+def printGenerateNSISUninstallFiles( target, source, env ):
+	targetName = str(target[0])
+	sourceName = str(source[0])
+	return 'Generating {0} (nsis uninstall files) from {1}'.format(os.path.basename(targetName), sourceName)
+
+def generateNSISUninstallFiles( target, source, env ):
 	# Retrieves informations
 	targetName = str( target[0] )
 	sourceName = str( source[0] )
-	parentOfSource = os.path.dirname( sourceName )
 
 	encounteredFiles		= []
 	encounteredDirectories	= []
@@ -424,60 +158,424 @@ def zipPrinterForNSISUninstallFiles( target, source, env ):
 	with open( targetName, 'w' ) as outputFile:
 		# Removes files
 		for file in encounteredFiles:
-			outputFile.write( "Delete \"$INSTDIR\%s\"\n" % convertPathAbsToRel(sourceName, file) )
+			outputFile.write( 'Delete \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
 
 		# Removes directories
 		for directory in encounteredDirectories:
-			outputFile.write( "RmDir \"$INSTDIR\%s\"\n" % convertPathAbsToRel(sourceName, directory) )
+			outputFile.write( 'RmDir \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
 
 
-
-def printZipPrinterForNSISInstallFiles( target, source, env ) :
+### project.nsi generator ###
+def printGenerateNSISMainScript( target, source, env ):
 	targetName = str(target[0])
-	sourceName = str(source[0])
-	return ("Generates %s (nsis install files) from %s" % (os.path.basename(targetName), sourceName) )
+	return ( 'Generating {0} (nsis main script)'.format(os.path.basename(targetName)) )
 
-def printZipPrinterForNSISUninstallFiles( target, source, env ) :
-	targetName = str(target[0])
-	sourceName = str(source[0])
-	return ("Generates %s (nsis uninstall files) from %s" % (os.path.basename(targetName), sourceName) )
 
-def printNsisGeneration( target, source, env ) :
+def generateNSISMainScript( target, source, env ):
+	# Retrieves/computes additional information
 	targetName = str(target[0])
-	sourceName = str(source[0])
-	return ("Generates %s (nsis main script)" % os.path.basename(targetName) )
+	sbf = env.sbf
 
-def printRedistGeneration( target, source, env ) :
+	# Open output file
+	with open( targetName, 'w' ) as file:
+		# Retrieves informations (all executables, ...)
+		rootProject = env['sbf_project']
+
+		mainProject = ''
+		products	= []
+		executables	= []
+		for (projectName, lenv) in env.sbf.myParsedProjects.iteritems():
+			if lenv['type'] == 'exec':
+				#print lenv['sbf_project'], os.path.basename(lenv['sbf_bin'][0])
+				if len(products) == 0:
+					mainProject = lenv['sbf_project']
+				products.append( lenv['productName'] + sbf.my_PostfixLinkedToMyConfig )
+				executables.append( os.path.basename(lenv['sbf_bin'][0]) )
+
+		# Generates PRODUCTNAME
+		PRODUCTNAME = ''
+		for (i, product) in enumerate(products):
+			PRODUCTNAME += "!define PRODUCTNAME{0}	\"{1}\"\n".format(i, product)
+
+		# Generates PRODUCTEXE, SHORTCUT, DESKTOPSHORTCUT, QUICKLAUNCHSHORTCUT, UNINSTALL_SHORTCUT, UNINSTALL_DESKTOPSHORTCUT and UNINSTALL_QUICKLAUNCHSHORTCUT
+		PRODUCTEXE						= ''
+		SHORTCUT						= ''
+		DESKTOPSHORTCUT					= ''
+		QUICKLAUNCHSHORTCUT				= ''
+		UNINSTALL_SHORTCUT				= ''
+		UNINSTALL_DESKTOPSHORTCUT		= ''
+		UNINSTALL_QUICKLAUNCHSHORTCUT	= ''
+		if len(executables) > 1:
+			SHORTCUT = '  CreateDirectory \"${STARTMENUROOT}\\tools\"\n'
+			UNINSTALL_SHORTCUT	=	'  Delete \"${STARTMENUROOT}\\tools\\*.*\"\n'
+			UNINSTALL_SHORTCUT	+=	'  RMDir \"${STARTMENUROOT}\\tools\"\n'
+
+		for (i, executable) in enumerate(executables) :
+			PRODUCTEXE	+=	'!define PRODUCTEXE{0}	"{1}"\n'.format( i, executable)
+			if i > 0:
+				SHORTCUT	+=	'  SetOutPath \"$INSTDIR\\bin\"\n'
+				SHORTCUT	+=	"  CreateShortCut \"${STARTMENUROOT}\\tools\\${PRODUCTNAME%s}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE%s}\" 0\n" % (i, i, i)
+			else:
+				SHORTCUT						=	'  SetOutPath \"$INSTDIR\\bin\"\n'
+				SHORTCUT						+=	'  CreateShortCut \"${STARTMENUROOT}\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				DESKTOPSHORTCUT					=	'  SetOutPath \"$INSTDIR\\bin\"\n'
+				DESKTOPSHORTCUT					+=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				QUICKLAUNCHSHORTCUT				=	'  SetOutPath \"$INSTDIR\\bin\"\n'
+				QUICKLAUNCHSHORTCUT				+=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
+				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
+				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
+
+		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
+
+		# installationDirectorySection and onInitInstallationDirectory
+		if env['deploymentType'] in ['none', 'standalone']:
+			### standalone|none project
+			installationDirectorySection = """
+; standalone or none project
+InstallDir "$PROGRAMFILES\${SBFPROJECTVENDOR}\${SBFPRODUCTNAME}${SBFPROJECTCONFIG}\${SBFPROJECTVERSION}"
+
+; Registry key to check for directory (so if you install again, it will overwrite the old one automatically)
+InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
+"""
+			onInitInstallationDirectory = '; standalone/none project initializes the installation directory in global section and not here.'
+		else:
+			### embedded project
+			assert( env['deploymentType'] == 'embedded' )
+
+			if len(env['deploymentPrecond'])==0:
+				print ('sbfError: deploymentPrecond have to be defined for {0} project.'.format(env['sbf_project']))
+				Exit(1)
+
+			# Extract deployment preconditions
+			(name, operator, version) = splitDeploymentPrecond(env['deploymentPrecond'])
+
+			installationDirectorySection = """
+; embedded project
+
+; deploymentPrecond = 'projectName >= 2-0-beta15'
+!define DEPLOYMENTPRECOND_STANDALONE_NAME				"{deploymentPrecond_standalone_name}"
+!define DEPLOYMENTPRECOND_STANDALONE_COMPAREOPERATOR	"{deploymentPrecond_standalone_compareOperator}"
+!define DEPLOYMENTPRECOND_STANDALONE_VERSION			"{deploymentPrecond_standalone_version}"
+
+Function initInstallDir
+
+	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{DEPLOYMENTPRECOND_STANDALONE_NAME}}" "Install_Dir"
+	; Test if standalone is installed
+	${{If}} $0 == ''
+		; not installed, abort
+		MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system.'
+		Abort
+	${{Else}}
+		; installed, continue
+
+		; debug message
+		MessageBox MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} is installed in the system in $0.'
+
+		StrCpy $INSTDIR "$0\packages\${{SBFPRODUCTNAME}}_${{SBFPROJECTVERSION}}"
+
+		; debug message
+		MessageBox MB_OK 'Installing ${{SBFPRODUCTNAME}} in $INSTDIR'
+
+		; @todo test version
+	${{EndIf}}
+FunctionEnd
+""".format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version )
+
+			onInitInstallationDirectory = ' ; Initialize $INSTDIR\n Call initInstallDir'
+
+		# Generates ICON
+		ICON = "; no icon"
+		if mainProject:
+			lenv = env.sbf.myParsedProjects[mainProject]
+			iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
+			if os.path.exists( iconFile ):
+				ICON = 'Icon "{0}"'.format( iconFile )
+			#else: ICON = "; no icon"
+
+		str_sbfNSISTemplate = """\
+; sbfNSISTemplate.nsi
+;
+; This script :
+; - It will install files into a "PROGRAMFILES\SBFPROJECTVENDOR\SBFPROJECTNAME SBFPROJECTCONFIG\SBFPROJECTVERSION" or a directory that the user selects for 'standalone' or 'none' project
+; - or in a directory found in registry for 'embedded' project
+; - checks if deploymentPrecond is true (for embedded project) @TODO
+; - remember the installation directory (so if you install again, it will overwrite the old one automatically) and version.
+; - creates a 'var' directory with full access for 'Users' and backups 'var' directory if already present.
+; - icon of setup program comes from first executable project (if any)
+; - ProductName, CompanyName, LegalCopyright, FileDescription, FileVersion and ProductVersion fields in the version tab of the File Properties are filled.
+; - install in registry Software/SBFPROJECTVENDOR/SBFPROJECTNAME/Version
+; - run as admin and installation occurs for all users
+; - components chooser
+; - has uninstall support (no modify, no repair).
+; - install/launch/uninstall Visual C++ redistributable and sbfPak redistributable.
+; - installs start menu shortcuts (run all exe and uninstall).
+; - (optionally) installs desktop menu shortcut for the main executable.
+; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
+; - prevent running multiple instances of the installer
+
+; @todo write access on several directories
+; @todo section with redistributable
+
+; @todo mui
+; @todo quicklaunch
+; @todo repair/modify
+; @todo LogSet on
+
+
+;--------------------------------
+
+!include "FileFunc.nsh"
+!include "LogicLib.nsh"
+
+
+SetCompressor lzma
+
+!define SBFPROJECTNAME				"{projectName}"
+!define SBFPRODUCTNAME				"{productName}"
+!define SBFPROJECTVERSION			"{projectVersion}"
+!define SBFPROJECTCONFIG			"{projectConfig}"
+!define SBFPROJECTVENDOR			"{projectVendor}"
+!define SBFDATE						"{date}"
+
+; SETUPFILE
+!define SETUPFILE "${{SBFPRODUCTNAME}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
+
+;
+!define REGKEYROOT		"Software\${{SBFPROJECTVENDOR}}\${{SBFPROJECTNAME}}"
+!define STARTMENUROOT	"$SMPROGRAMS\${{SBFPROJECTVENDOR}}\${{SBFPRODUCTNAME}}"
+
+; PRODUCTNAME section
+{productNameSection}
+
+; PRODUCTEXE
+{productExe}
+
+;--------------------------------
+; The installation directory
+{installationDirectorySection}
+
+Function .onInit
+ ; Abort installation process if installer is already running
+ System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
+ Pop $R0
+ StrCmp $R0 0 +3
+ MessageBox MB_OK|MB_ICONSTOP "The installer is already running."
+ Abort
+
+ {onInitInstallationDirectory}
+FunctionEnd
+
+;--------------------------------
+
+; The name of the installer
+Name "${{SBFPRODUCTNAME}}${{SBFPROJECTCONFIG}} ${{SBFPROJECTVERSION}}"
+
+; Version information
+VIAddVersionKey "ProductName" "${{SBFPRODUCTNAME}}"
+VIAddVersionKey "CompanyName" "${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "LegalCopyright" "(C) ${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "FileDescription" "{projectDescription}"
+VIAddVersionKey "FileVersion" "{productVersion}"
+VIAddVersionKey "ProductVersion" "{productVersion}"
+
+VIProductVersion "{productVersion}"
+
+; icon of the installer
+{icon}
+
+; The file to write
+OutFile "${{SETUPFILE}}"
+
+
+; Request application privileges for Windows Vista
+RequestExecutionLevel admin
+
+;--------------------------------
+
+; Pages
+
+Page components
+Page directory
+Page instfiles
+
+UninstPage uninstConfirm
+UninstPage instfiles
+
+;--------------------------------
+
+; The stuff to install
+Section "${{SBFPRODUCTNAME}} core (required)"
+  SectionIn RO
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+
+  ; Backups 'var' directory if already present
+  ${{GetTime}} "" "L" $0 $1 $2 $6 $3 $4 $5
+  CopyFiles /SILENT "$INSTDIR\\var" "$INSTDIR\\var_backup_$0-$1-$2_$3-$4-$5"
+  RmDir /r "$INSTDIR\\var"
+
+  ; Put files there
+  !include "${{SBFPROJECTNAME}}_install_files.nsi"
+ 
+  ; 'var' directory is created by SBFPROJECTNAME_install_files.nsi
+
+  ; Changes ACL
+  ; From MSDN
+  ; SID: S-1-5-32-545
+  ; Name: Users
+  ; Description: A built-in group.
+  ; After the initial installation of the operating system, the only member is the Authenticated Users group.
+  ; When a computer joins a domain, the Domain Users group is added to the Users group on the computer.
+
+  AccessControl::GrantOnFile "$INSTDIR\\var" "(S-1-5-32-545)" "FullAccess"
+;AccessControl::EnableFileInheritance "$INSTDIR\\var"
+
+  ; Redistributable
+  !include "${{SBFPROJECTNAME}}_install_redist.nsi"
+
+  ; Write the installation path into the registry
+  WriteRegStr HKLM "${{REGKEYROOT}}" "Install_Dir" "$INSTDIR"
+
+  ; Write the version into the registry
+  WriteRegStr HKLM "${{REGKEYROOT}}" "Version" "${{SBFPROJECTVERSION}}"
+
+  ; Write the uninstall keys for Windows
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayIcon" '"$INSTDIR\\bin\\${{PRODUCTEXE}}"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayName" "${{SBFPROJECTVENDOR}} ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayVersion" "${{SBFPROJECTVERSION}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "Publisher" "${{SBFPROJECTVENDOR}}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "UninstallString" '"$INSTDIR\\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoRepair" 1
+  WriteUninstaller "uninstall.exe"
+
+SectionEnd
+
+
+
+Section "Start Menu Shortcuts"
+  SectionIn RO
+
+  SetShellVarContext all
+  CreateDirectory "${{STARTMENUROOT}}"
+{startMenuShortcuts}
+  CreateShortCut "${{STARTMENUROOT}}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+SectionEnd
+
+
+; Optional section (can be disabled by the user)
+Section "Shortcut on desktop"
+
+  SetShellVarContext all
+{desktopShortcuts}
+
+SectionEnd
+
+
+;--------------------------------
+; Uninstaller
+
+Section "Uninstall"
+
+  SetShellVarContext all
+
+  ; Remove files
+  !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
+
+  ; Remove redistributable
+  !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
+
+  ; Remove registry keys
+  ;DeleteRegKey HKLM "${{REGKEYROOT}}"			; containing 'Install_Dir' and 'Version'
+  DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
+  
+  DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
+
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}"
+
+  ; Remove uninstaller
+  Delete $INSTDIR\uninstall.exe
+
+  ; Remove installation directory
+  RmDir $INSTDIR
+
+  ; Remove shortcuts, if any
+{removeStartMenuShortcuts}
+  Delete "${{STARTMENUROOT}}\*.*"
+  ; Remove directories used
+  RMDir "${{STARTMENUROOT}}"
+  ; Remove root directory if empty
+  RMDir "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
+ 
+  {removeDesktopShortcuts}
+ 
+SectionEnd
+""".format(	projectName=env['sbf_project'],
+			productName=env['productName'],
+			projectNameCapitalized=capitalize(env['sbf_project']),
+			projectVersion=env['version'],
+			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
+			projectVendor=env.sbf.myCompanyName,
+			projectDescription=env['description'],
+			date=env.sbf.myDate,
+			productNameSection=PRODUCTNAME,
+			productExe=PRODUCTEXE,
+			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
+			installationDirectorySection=installationDirectorySection,
+			onInitInstallationDirectory=onInitInstallationDirectory,
+			icon=ICON,
+			startMenuShortcuts=SHORTCUT,
+			desktopShortcuts=DESKTOPSHORTCUT,
+#			quicklaunchShortcuts=QUICKLAUNCHSHORTCUT,
+			removeStartMenuShortcuts=UNINSTALL_SHORTCUT,
+			removeDesktopShortcuts=UNINSTALL_DESKTOPSHORTCUT,
+#			removeQuicklaunchShortcuts=UNINSTALL_QUICKLAUNCHSHORTCUT
+			)
+
+		file.write( str_sbfNSISTemplate )
+
+
+def __printGenerateNSISSetupProgram( target, source, env ):
 	targetName = str(target[0])
-	sourceName = str(source[0])
-	return ("Generates %s (redist files)" % os.path.basename(targetName) )
+	return ( '\nBuilding {0} setup program'.format(env['sbf_project']) )
+
+
 
 ### special zip related targets : zipRuntime, zipDeps, portable, zipPortable, zipDev, zipSrc and zip ###
 # @todo zip*_[build,install,clean,mrproper]
 # @todo zip doxygen
 
 ### ZIP/NSIS ###
-def getTmpNSISPath( sbf ):
+def getTmpNSISPath( lenv ):
+	sbf = lenv.sbf
 	return join( sbf.myBuildPath, 'nsis' )
 
-def getTmpNSISProjectPath( lenv ):
+def __getProjectSubdir( lenv ):
 	sbf = lenv.sbf
-	nsisPath = getTmpNSISPath(sbf)
-	return join( nsisPath, lenv['sbf_project'] + '_' + lenv['version'] + sbf.my_Platform_myCCVersion + sbf.my_FullPostfix )
+	return lenv['sbf_project'] + '_' + lenv['version'] + sbf.my_Platform_myCCVersion + sbf.my_FullPostfix
 
 def getTmpNSISPortablePath( lenv ):
-	return getTmpNSISProjectPath(lenv) + '_portable' + lenv.sbf.myDate
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_portable_' + lenv.sbf.myDate )
+
+def getTmpNSISSetupPath( lenv ):
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_setup_' + lenv.sbf.myDate )
 
 def initializeNSISInstallDirectories( sbf, lenv ):
 	sbf.myNSISInstallDirectories = []
 
-	if len( set(['portable', 'zipportable']) & sbf.myBuildTargets )>0:
+	if len( set(['portable', 'zipportable', 'nsis']) & sbf.myBuildTargets )>0:			# @todo set()
 		# portable, zipportable
 		portablePath = getTmpNSISPortablePath(lenv)
 		varPortablePath = join( portablePath, 'var' )
 		# To ensure that only latest files would be package in zip* and nsis targets, removes directories
 		if not GetOption('weakPublishing'):
 			Execute([Delete(varPortablePath), Delete(portablePath), Mkdir(portablePath), Mkdir(varPortablePath)])
+
+			nsisSetupPath = getTmpNSISSetupPath(lenv)
+			Execute([Delete(nsisSetupPath), Mkdir(nsisSetupPath)])
 		else:
 			print ('Weak publishing option is enabled. So intermediate files are not cleaned.\nTips: Do the first publishing of the day without --weak-publishing.\n')
 		sbf.myNSISInstallDirectories.append( portablePath )
@@ -486,21 +584,6 @@ def initializeNSISInstallDirectories( sbf, lenv ):
 	# for debugging
 	#print 'myNSISInstallDirectories:', sbf.myNSISInstallDirectories
 
-
-#def printZipRuntime( target, source, localenv ) :
-#	return '\n' + stringFormatter( localenv, "Create runtime package" )
-
-#def printZipDeps( target, source, localenv ) :
-#	return '\n' + stringFormatter( localenv, "Create deps package" )
-
-#def printZipPortable( target, source, localenv ) :
-#	return '\n' + stringFormatter( localenv, "Create portable package" )
-
-#def printZipDev( target, source, localenv ) :
-#	return '\n' + stringFormatter( localenv, "Create dev package" )
-
-#def printZipSrc( target, source, localenv ) :
-#	return '\n' + stringFormatter( localenv, "Create src package" )
 
 def __warnAboutProjectExclude( env ):
 	# Checks project exclusion to warn user
@@ -511,291 +594,89 @@ def __warnAboutProjectExclude( env ):
 			raise SCons.Errors.UserError( "Build interrupted by user." )
 		#else continue the build
 
+
 # @todo zip targets => package targets
 def configureZipAndNSISTargets( lenv ):
+	sbf = lenv.sbf
+
 # @todo others targets (deps and runtime at least)
 	#zipAndNSISTargets = set( ['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis'] )
-	zipAndNSISTargets = set( ['portable', 'zipportable'] )
+	zipAndNSISTargets = set( ['portable', 'zipportable', 'nsis'] )
+
 # @todo clean targets, test clean targets
 	cleanAndMrproperTargets = set( ['zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'] )
 	allTargets = zipAndNSISTargets | cleanAndMrproperTargets
 
 	# Have to enable clean/mrproper
-	if	len(cleanAndMrproperTargets & lenv.sbf.myBuildTargets) > 0:
+	if	len(cleanAndMrproperTargets & sbf.myBuildTargets) > 0:
 		lenv.SetOption('clean', 1)
 
-	if len(allTargets & lenv.sbf.myBuildTargets) > 0:
+	if len(allTargets & sbf.myBuildTargets) > 0:
 		__warnAboutProjectExclude(lenv)
 
 		# lazzy scons lenv construction => @todo generalize (but must be optional)
-		sbf = lenv.sbf
 
+		# 'portable' target
 		portablePath = getTmpNSISPortablePath(lenv)
 		portableZipPath = portablePath + '.7z'
-
 		Alias( 'portable', ['infofile', 'install', 'deps'] )
 
-		if 'zipportable' in lenv.sbf.myBuildTargets:
+		# 'zipportable' target
+		if 'zipportable' in sbf.myBuildTargets:
 			Execute( Delete(portableZipPath) )
-		Alias( 'zipportable', ['infofile', 'install', 'deps'] )
-		create7ZipCompressAction( lenv, portableZipPath, portablePath, 'zipportable' )
+			Alias( 'zipportable', ['infofile', 'install', 'deps'] )
+			create7ZipCompressAction( lenv, portableZipPath, portablePath, 'zipportable' )
+
+		# 'nsis' target
+		if 'nsis' in sbf.myBuildTargets:
+			tmpNSISSetupPath = getTmpNSISSetupPath(lenv)
+
+			Alias( 'nsis', ['infofile', 'install', 'deps'] )
+
+			# Copies redistributable related files (redistributable.nsi and redistributableDatabase.nsi)
+			sbfNSISPath = join(sbf.mySCONS_BUILD_FRAMEWORK, 'NSIS' )
+			installRedistributableFiles = lenv.Install( tmpNSISSetupPath, join(sbfNSISPath, 'redistributable.nsi') )
+
+			sbfRcNsisPath = join(sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
+			installRedistributableFiles += lenv.Install( tmpNSISSetupPath, join(sbfRcNsisPath, 'redistributableDatabase.nsi') )
+
+			# Copies $SCONS_BUILD_FRAMEWORK/rc/nsis/Redistributable/*
+			installRedistributableFiles += installAs( lenv, tmpNSISSetupPath, join(sbfRcNsisPath, 'Redistributable') )
+			Alias( 'nsis', lenv.Command( 'dummy_nsis_print' + lenv['sbf_project'], 'dummy.in', Action(nopAction, printNSISGeneration) ) )
+			Alias( 'nsis', installRedistributableFiles )
+
+			# Generates several nsis files
+			# project_install_redist.nsi and project_uninstall_redist.nsi
+			nsisRedistFiles		= [ join( tmpNSISSetupPath, lenv['sbf_project'] + '_install_redist.nsi' ), join( tmpNSISSetupPath, lenv['sbf_project'] + '_uninstall_redist.nsi' ) ]
+			Alias( 'nsis', lenv.Command( nsisRedistFiles, 'dummy.in', lenv.Action(redistGeneration, printRedistGeneration) ) )
+
+			# project_install_files.nsi
+			nsisInstallFiles	= join( tmpNSISSetupPath, lenv['sbf_project'] + '_install_files.nsi' )
+			Alias( 'nsis', lenv.Command( nsisInstallFiles, portablePath, lenv.Action(generateNSISInstallFiles, printGenerateNSISInstallFiles) ) )
+
+			# project_uninstall_files.nsi
+			nsisUninstallFile	= join( tmpNSISSetupPath, lenv['sbf_project'] + '_uninstall_files.nsi' )
+			Alias( 'nsis', lenv.Command( nsisUninstallFile, portablePath, lenv.Action(generateNSISUninstallFiles, printGenerateNSISUninstallFiles) ) )
+
+			# Main nsis file
+			nsisTargetFile = join(tmpNSISSetupPath, lenv['sbf_project']+'.nsi')
+			sourceFiles = [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile]
+
+			Alias( 'nsis', lenv.Command( nsisTargetFile, sourceFiles, lenv.Action(generateNSISMainScript, printGenerateNSISMainScript) ) )
+
+			# Build nsis project
+			nsisLocation = locateProgram( 'nsis' )
+
+			nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=capitalize(lenv['sbf_project']), version=lenv['version'], config=sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myDate)
+
+			nsisBuildAction = lenv.Command(	join(tmpNSISSetupPath, nsisSetupFile), nsisTargetFile,
+											"\"{0}\" $SOURCES".format(join(nsisLocation, 'makensis')) )
+			Alias( 'nsis', lenv.Command('nsis_build.out', 'dummy.in', Action(nopAction, __printGenerateNSISSetupProgram) ) )
+			Alias( 'nsis', nsisBuildAction )
 
 		if lenv['publishOn']:
 			createRsyncAction( lenv, '', portablePath, 'portable' )
 			createRsyncAction( lenv, '', portableZipPath, 'zipportable' )
+			createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
 
 
-
-#		licenseInstallExtPaths	= [ join(element, 'license') for element in sbf.myInstallExtPaths ]
-		#
-		# Processes projects built with sbf
-		#
-#		for projectName in sbf.myParsedProjects:
-#			lenv			= sbf.getEnv(projectName)
-#			projectPathName	= lenv['sbf_projectPathName']
-#			project			= lenv['sbf_project']
-
-#			runtimeDestPath		= join(runtimeZipPath, 'share', project, lenv['version'])
-#			portableDestPath	= join(portableZipPath, 'share', project, lenv['version'])
-
-			# Adds executables and libraries
-#			if 'sbf_bin' in lenv:
-#				runtimeZipFiles		+= Install( join(runtimeZipPath, 'bin'),	lenv['sbf_bin'] )
-#				portableZipFiles	+= Install( join(portableZipPath, 'bin'),	lenv['sbf_bin'] )
-#				devZipFiles			+= Install( join(devZipPath, 'bin'),		lenv['sbf_bin'] )
-#			if 'sbf_lib_object' in lenv:
-#				runtimeZipFiles		+= Install( join(runtimeZipPath, 'bin'),	lenv['sbf_lib_object'] )
-#				portableZipFiles	+= Install( join(portableZipPath, 'bin'),	lenv['sbf_lib_object'] )
-#				devZipFiles			+= Install( join(devZipPath, 'lib'),		lenv['sbf_lib_object'] )
-#			if 'sbf_bin_debuginfo' in lenv:
-#				devZipFiles			+= Install( join(devZipPath, 'pdb'),		lenv['sbf_bin_debuginfo'] )
-#			if 'sbf_lib_debuginfo' in lenv:
-#				devZipFiles			+= Install( join(devZipPath, 'pdb'),		lenv['sbf_lib_debuginfo'] )
-
-			# Processes the 'stdlibs' project option
-#			for stdlib in lenv.get( 'stdlibs', [] ):
-#				filename = splitext(stdlib)[0] + lenv['SHLIBSUFFIX']
-#				pathFilename = searchFileInDirectories( filename, sbf.myLibInstallExtPaths )
-#				if pathFilename:
-##					print("Found standard library %s" % pathFilename)
-#					depsZipFiles		+= Install( join(depsZipPath, 'bin'), pathFilename )
-#					portableZipFiles	+= Install( join(portableZipPath, 'bin'), pathFilename )
-#				else:
-#					print("Standard library %s not found (see 'stdlibs' project option of %s)." % (filename, projectName) )
-
-#			# Processes the share directory
-#			for file in lenv.get('sbf_share', []):
-#				sourceFile = join(projectPathName, file)
-#				runtimeZipFiles += InstallAs(	file.replace('share', runtimeDestPath, 1), sourceFile )
-#				portableZipFiles+= InstallAs(	file.replace('share', portableDestPath, 1), sourceFile )
-
-#			# Processes the built share directory
-#			for fileAbs in lenv.get('sbf_shareBuilt', []):
-#				fileRel = fileAbs[ fileAbs.index('share') : ]
-#				runtimeZipFiles += InstallAs(	fileRel.replace('share', runtimeDestPath, 1), fileAbs )
-#				portableZipFiles+= InstallAs(	fileRel.replace('share', portableDestPath, 1), fileAbs )
-
-#			# Processes the info files.
-#			for file in lenv.get('sbf_info', []):
-#				runtimeZipFiles += Install( runtimeDestPath, file )
-#				portableZipFiles += Install( portableDestPath, file )
-
-#			# Adds include files to dev zip
-#			for file in lenv.get('sbf_include', []):
-#				devZipFiles += InstallAs( join(devZipPath, file), join(projectPathName, file) )
-
-#			# Adds source files to src zip
-#			if lenv['vcsUse'] == 'yes':
-#				allFiles = sbf.myVcs.getAllVersionedFiles( projectPathName )
-
-#				projectRelPath = convertPathAbsToRel( rootOfProjects, projectPathName )
-
-#				for absFile in allFiles:
-#					relFile = convertPathAbsToRel( projectPathName, absFile )
-#					srcZipFiles += InstallAs( join(srcZipPath, projectRelPath, relFile), absFile )
-			# else nothing to do
-
-#		#
-		# Processes external dependencies
-		#
-
-#		sbfRcNsisPath = join(lenv.sbf.mySCONS_BUILD_FRAMEWORK, 'rc', 'nsis' )
-
-		# For each external dependency, do
-#		listOfExternalDependencies = sbf.getAllUses( sbf.getRootProjectEnv() )
-#		for useNameVersion in listOfExternalDependencies:
-			# Extracts name and version of incoming external dependency
-#			useName, useVersion = splitUsesName( useNameVersion )
-	#print ("%s = %s, %s" %(useNameVersion, useName, useVersion))
-
-			# Retrieves use object for incoming dependency
-#			use = UseRepository.getUse( useName )
-#			if use:
-				# Retrieves LIBS of incoming dependency
-#				libs = use.getLIBS( useVersion )
-#				if libs and len(libs) == 2:
-					# Computes the search path list where libraries could be located
-#					searchPathList = sbf.myLibInstallExtPaths[:]
-#					libpath = use.getLIBPATH( useVersion )
-#					if libpath and (len(libpath) == 2):
-#						searchPathList.extend( libpath[1] )
-
-					# For each library, do
-#					for file in libs[1]:
-#						filename = file + lenv['SHLIBSUFFIX']
-#						pathFilename = searchFileInDirectories( filename, searchPathList )
-#						if pathFilename:
-##							print ("Found library %s" % pathFilename)
-#							depsZipFiles		+= Install( join(depsZipPath, 'bin'), pathFilename )
-#							portableZipFiles	+= Install( join(portableZipPath, 'bin'), pathFilename )
-#						else:
-#							raise SCons.Errors.UserError( "File %s not found." % filename )
-#				else:
-#					raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (useNameVersion, sbf.myPlatform) )
-
-
-#				# Retrieves license file(s) of incoming dependency from IUse class
-#				warningAboutLicense = True
-#				licenses = use.getLicenses( useVersion )
-#				if licenses is not None:
-#					if len(licenses)>0:
-#						for filename in licenses:
-#							pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
-#							if pathFilename:
-#								#print ("Found license %s" % pathFilename)
-#								warningAboutLicense = False
-#								depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
-#								portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
-#							else:
-#								raise SCons.Errors.UserError( "File %s not found." % filename )
-#					else:
-#						warningAboutLicense = False
-#				# else: warningAboutLicense = True
-
-
-#				# Retrieves license file(s) of incoming dependency using implicit license file(s) if any
-
-#				# license file without prefix (case: only one license file)
-#				licenses = ['license.{0}{1}.txt'.format( useName, useVersion)]
-#				# license file with prefix (case: several license files)
-#				for prefix in range(9):
-#					licenses += ['{0}license.{1}{2}.txt'.format( prefix, useName, useVersion)]
-#				for filename in licenses:
-#					pathFilename = searchFileInDirectories( filename, licenseInstallExtPaths )
-#					if pathFilename:
-#						print ("Found license %s" % pathFilename)
-#						warningAboutLicense = False
-#						depsZipFiles		+= Install( join(depsZipPath, 'license'), pathFilename )
-#						portableZipFiles	+= Install( join(portableZipPath, 'license'), pathFilename )
-					#else nothing to do
-
-#				# Prints warning if needed
-#				if warningAboutLicense:
-#					print ('sbfWarning: No license file for {0}'.format(useNameVersion))
-
-
-#				# Retrieves redistributables of incoming dependency
-#				for redistributable in use.getRedist( useVersion ):
-#					if not isinstance(redistributable, tuple) and isExtractionSupported(redistributable):
-#						if (not lenv.GetOption('clean')) and (not GetOption('weakPublishing')):
-#							# @todo deferred extraction
-#							print ( 'Extracts {redist} into {destination}'.format(redist=redistributable, destination=portableZipPath) )
-#							extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), portableZipPath )
-#							print ( 'Extracts {redist} into {destination}'.format(redist=redistributable, destination=depsZipPath) )
-#							extractArchive( join(sbfRcNsisPath, 'Redistributable', redistributable), depsZipPath )
-
-#		runtimeZip = runtimeZipPath + lenv['SEVENZIPSUFFIX']
-#		Alias( 'zipRuntime_generate7z', lenv.SevenZipAdd( runtimeZip, Dir(runtimeZipPath) ) )
-#		Alias( 'zipruntime',	[runtimeZipFiles, 'zipRuntime_generate7z'] )
-
-#		depsZip = depsZipPath + lenv['SEVENZIPSUFFIX']
-#		Alias( 'zipDeps_generate7z', lenv.SevenZipAdd( depsZip, Dir(depsZipPath) ) )
-#		Alias( 'zipdeps',		[depsZipFiles, 'zipDeps_generate7z'] )
-
-		#Alias( 'portable', portableZipFiles )
-
-# ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-#		portableZip = portableZipPath + lenv['SEVENZIPSUFFIX']
-#		Alias( 'zipPortable_generate7z', lenv.SevenZipAdd( portableZip, Dir(portableZipPath) ) )
-#		Alias( 'zipportable',	[portableZipFiles, 'zipPortable_generate7z'] )
-
-#		devZip = devZipPath + lenv['SEVENZIPSUFFIX']
-#		Alias( 'zipDev_generate7z', lenv.SevenZipAdd( devZip, Dir(devZipPath) ) )
-#		Alias( 'zipdev',		[devZipFiles, 'zipDev_generate7z'] )
-
-#		if len(srcZipFiles) > 0:
-#			srcZip = srcZipPath + lenv['SEVENZIPSUFFIX']
-#			Alias( 'zipSrc_generate7z', lenv.SevenZipAdd( srcZip, Dir(srcZipPath) ) )
-#			Alias( 'zipsrc',	[srcZipFiles, 'zipSrc_generate7z'] )
-#		else:
-#			Alias( 'zipsrc',	srcZipFiles )
-
-# ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-#		if lenv['publishOn']:
-	# @todo print message
-#			lenv.createRsyncAction( os.path.basename(runtimeZip), File(runtimeZip), 'zipruntime' )
-#			lenv.createRsyncAction( os.path.basename(depsZip), File(depsZip), 'zipdeps' )
-#			lenv.createRsyncAction( '', Dir(portableZipPath), 'portable' )
-#			lenv.createRsyncAction( os.path.basename(portableZip), File(portableZip), 'zipportable' )
-#			lenv.createRsyncAction( os.path.basename(devZip), File(devZip), 'zipdev' )
-
-#			if len(srcZipFiles) > 0:
-#				lenv.createRsyncAction( os.path.basename(srcZip), File(srcZip), 'zipsrc' )
-			#else: nothing to do
-
-#		Alias( 'zip', ['zipruntime', 'zipdeps', 'zipportable', 'zipdev', 'zipsrc'] )
-
-# ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-		### nsis target ###
-#		Alias( 'nsis', ['infofile', 'build', portableZipFiles] ) # @todo uses 'zipportable' and @todo check order 'build', 'infofile'
-
-		# Copies redistributable related files
-#		sbfNSISPath = join(lenv.sbf.mySCONS_BUILD_FRAMEWORK, 'NSIS' )
-#		Alias( 'nsis', lenv.Install( zipPakPath, join(sbfNSISPath, 'redistributable.nsi') ) )
-#		Alias( 'nsis', lenv.Install( zipPakPath, join(sbfRcNsisPath, 'redistributableDatabase.nsi') ) )
-
-		# @todo Creates a function to InstallAs( dirDest, dirSrc * )
-#		redistributableFiles = []
-#		searchFiles( join(sbfRcNsisPath, 'Redistributable'), redistributableFiles, ['.svn'] )
-
-#		installRedistributableFiles = []
-#		for file in redistributableFiles :
-#			installRedistributableFiles += lenv.InstallAs( join( zipPakPath, file.replace(sbfRcNsisPath + os.sep, '') ), file )
-		# endtodo
-#		Alias( 'nsis', installRedistributableFiles )
-
-		# Generates several nsis files
-#		nsisRedistFiles		= [ join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_redist.nsi' ), join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_redist.nsi' ) ]
-#		nsisInstallFiles	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_install_files.nsi' )
-#		nsisUninstallFile	= join( zipPakPath, rootProjectEnv['sbf_project'] + '_uninstall_files.nsi' )
-
-#		Alias( 'nsis', rootProjectEnv.Command( nsisRedistFiles, portableZipPath, rootProjectEnv.Action( redistGeneration, printRedistGeneration ) ) )
-		#AlwaysBuild( nsisRedistFiles )
-#		Alias( 'nsis', lenv.Command( nsisInstallFiles, portableZipPath, lenv.Action( zipPrinterForNSISInstallFiles, printZipPrinterForNSISInstallFiles ) ) )
-		#AlwaysBuild( nsisInstallFiles )
-#		Alias( 'nsis', lenv.Command( nsisUninstallFile, portableZipPath, lenv.Action( zipPrinterForNSISUninstallFiles, printZipPrinterForNSISUninstallFiles ) ) )
-		#AlwaysBuild( nsisUninstallFile )
-
-		# Main nsis file
-#		Alias( 'nsis', rootProjectEnv.Command( portableZipPath + '.nsi', [nsisRedistFiles, nsisInstallFiles, nsisUninstallFile], rootProjectEnv.Action( nsisGeneration, printNsisGeneration ) ) )
-#		AlwaysBuild( portableZipPath + '.nsi' )
-
-# @todo Nsis builder
-#		nsisRootPath = locateProgram( 'nsis' )
-#		nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=lenv.sbf.myProject, version=lenv.sbf.myVersion, config=lenv.sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myDate)
-
-#		nsisBuildAction = lenv.Command(	join(zipPakPath, nsisSetupFile), portableZipPath + '.nsi',
-#										"\"{0}\" $SOURCES".format( join(nsisRootPath, 'makensis.exe' ) ) )
-#		AlwaysBuild( nsisBuildAction )
-#		Alias( 'nsis', nsisBuildAction )
-
-		# clean and mrproper targets
-#		Alias( ['zip_clean', 'zip_mrproper'], 'zip' )
-#		Clean( ['zip_clean', 'zip_mrproper'], zipPakPath )
-#		Alias( ['nsis_clean', 'nsis_mrproper'], 'nsis' )
-#		Clean( ['nsis_clean', 'nsis_mrproper'], zipPakPath )
-
-#		if lenv['publishOn'] :
-#			# @todo print message
-#			lenv.createRsyncAction( nsisSetupFile, File(join(zipPakPath, nsisSetupFile)), 'nsis' )
-		# @todo uses zip2exe on win32 ?

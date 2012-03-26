@@ -1,5 +1,6 @@
 # project settings
 #description		= ''
+#productName		= ''
 #vcsUse				= 'yes' # no
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
@@ -16,3 +17,4 @@ type				= 'shared'	# exec, static, shared, none
 #console			= True
 #runParams			= []
 #deploymentType		= 'none'
+#requirements		= ''
