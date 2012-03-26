@@ -23,9 +23,8 @@ from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, append
 from sbfUI import askQuestion
 from sbfUses import getPathsForSofa
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
-from sbfUses import Use_cairo, Use_gtkmm, Use_gtkmmext, Use_itk
 from sbfUtils import *
-from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName
+from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
 # To be able to use SConsBuildFramework.py without SCons
 try:
 	from SCons.Environment import *
@@ -195,9 +194,9 @@ def buildFilesFromShare( files, lenv, command ):
 def computeInstallDirectories( lenv, myInstallDirectory ):
 	"""Computes the desired installation directories.
 	@return the computed installation directories, i.e. the list containing the given installation directory,
-	the 'local/standalone/projectVersion' for project 'lenv' having a parent project with a standalone 'deploymentType',
-	the 'local/standalone/requiredProjectVersion/packages/projectVersion for project 'lenv' having a parent project with an embedded 'deploymentType' and 'requirements',
-	the 'local/packages/projectVersion' for project 'lenv' having a parent project with en embedded 'deploymentType' and no 'requirements'."""
+	the 'local/standalone/parentProjectVersion' for project 'lenv' having a parent project with a standalone 'deploymentType',
+	the 'local/standalone/parentProjectVersionRequired/packages/projectVersion for project 'lenv' having a parent project with an embedded 'deploymentType' and 'deploymentPrecond',
+	the 'local/packages/projectVersion' for project 'lenv' having a parent project with en embedded 'deploymentType' and no 'deploymentPrecond'."""
 	installDirectories = [myInstallDirectory]
 	if len(lenv['sbf_parentProjects']) == 0:
 		# no parent project
@@ -209,15 +208,13 @@ def computeInstallDirectories( lenv, myInstallDirectory ):
 				subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
 				installDirectories.append( join( myInstallDirectory, 'standalone', subdir ) )
 			elif deploymentType == 'embedded':
-				requirementsString = parentEnv['requirements']
-				if len(requirementsString)>0:
-					(name, version) = splitLibsName( requirementsString )
-					standaloneSubdir = '{0}_{1}'.format( name, version )
-					packageSubdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
-					installDirectories.append( join( myInstallDirectory, 'standalone', standaloneSubdir, 'packages', packageSubdir ) )
+				packageSubdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
+				if len(parentEnv['deploymentPrecond'])==0:
+					installDirectories.append( join( myInstallDirectory, 'packages', packageSubdir ) )
 				else:
-					subdir = '{0}_{1}'.format( parentEnv['sbf_project'], parentEnv['version'] )
-					installDirectories.append( join( myInstallDirectory, 'packages', subdir ) )
+					(name, operator, version) = splitDeploymentPrecond(parentEnv['deploymentPrecond'])
+					standaloneSubdir = '{0}_{1}'.format( name, version )
+					installDirectories.append( join( myInstallDirectory, 'standalone', standaloneSubdir, 'packages', packageSubdir ) )
 			else:
 				assert( False )
 	return installDirectories
@@ -367,7 +364,7 @@ class SConsBuildFramework :
 	myBuildTargets					= set(['info', 'infoFile', 'all', 'clean', 'mrproper', 'onlyrun', 'run', 'vcproj', 'vcproj_clean', 'vcproj_mrproper'])
 	myDoxTargets					= set(['dox', 'dox_clean', 'dox_mrproper'])
 	myZipTargets					= set(['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
-	myTargetsWhoNeedDeps			= set(['deps', 'portable', 'zipportable'])
+	myTargetsWhoNeedDeps			= set(['deps', 'portable', 'zipportable', 'nsis'])
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
@@ -862,12 +859,12 @@ doxygen related targets
 packaging related targets
  'scons zipRuntime'		@toredo
  'scons zipDeps'		@toredo
- 'scons portable' to create a portable package of your project and all its dependencies
- 'scons zipPortable'
+ 'scons portable' to create a portable package of your project and all its dependencies.
+ 'scons zipPortable' to create a zip file of the portable package created by 'scons portable'.
  'scons zipDev'			@toredo
  'scons zipSrc'			@toredo
  'scons zip'			@toredo
- 'scons nsis'			@toredo
+ 'scons nsis' to create an nsis installation program.
  'scons zip_clean' and 'scons zip_mrproper'		@toredo
  'scons nsis_clean' and 'scons nsis_mrproper'	@toredo
 
@@ -1045,6 +1042,10 @@ SConsBuildFramework options:
 		self.myProjectPath		= lenv['sbf_projectPath']
 		self.myProject			= lenv['sbf_project']
 
+		# 'productName'
+		if len(lenv['productName'])==0:
+			lenv['productName'] = self.myProject
+
 		# changes current directory
 		os.chdir( self.myProjectPathName )
 
@@ -1196,6 +1197,7 @@ SConsBuildFramework options:
 		myOptions = Variables( file )
 		myOptions.AddVariables(
 			('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
+			('productName', 'Name of the product to be presented to users. This information is used by nsis installation program. Default value (i.e. empty string) means that project name is used instead.', ''),
 
 			EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
 							allowed_values=('yes', 'no'),
@@ -1240,7 +1242,7 @@ SConsBuildFramework options:
 			EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
 							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
 
-			(	'requirements', '', ''	)
+			(	'deploymentPrecond', '', ''	)
 
 		)
 
@@ -1785,7 +1787,6 @@ SConsBuildFramework options:
 
 	###### Build a project ######
 	def buildProject( self, projectPathName, parentProjects, configureOnly = False ):
-
 		# Normalizes incoming path
 		projectPathName = getNormalizedPathname( projectPathName )
 
