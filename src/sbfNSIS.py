@@ -205,10 +205,10 @@ def generateNSISMainScript( target, source, env ):
 		UNINSTALL_SHORTCUT				= ''
 		UNINSTALL_DESKTOPSHORTCUT		= ''
 		UNINSTALL_QUICKLAUNCHSHORTCUT	= ''
-		if len(executables) > 1:
-			SHORTCUT = '  CreateDirectory \"${STARTMENUROOT}\\tools\"\n'
-			UNINSTALL_SHORTCUT	=	'  Delete \"${STARTMENUROOT}\\tools\\*.*\"\n'
-			UNINSTALL_SHORTCUT	+=	'  RMDir \"${STARTMENUROOT}\\tools\"\n'
+#		if len(executables) > 1:
+#			SHORTCUT = '  CreateDirectory \"${STARTMENUROOT}\\tools\"\n'
+#			UNINSTALL_SHORTCUT	=	'  Delete \"${STARTMENUROOT}\\tools\\*.*\"\n'
+#			UNINSTALL_SHORTCUT	+=	'  RMDir \"${STARTMENUROOT}\\tools\"\n'
 
 		for (i, executable) in enumerate(executables) :
 			PRODUCTEXE	+=	'!define PRODUCTEXE{0}	"{1}"\n'.format( i, executable)
@@ -230,6 +230,7 @@ def generateNSISMainScript( target, source, env ):
 		# installationDirectorySection and onInitInstallationDirectory
 		if env['deploymentType'] in ['none', 'standalone']:
 			### standalone|none project
+			embedded_deploymentType = ''
 			installationDirectorySection = """
 ; standalone or none project
 InstallDir "$PROGRAMFILES\${SBFPROJECTVENDOR}\${SBFPRODUCTNAME}${SBFPROJECTCONFIG}\${SBFPROJECTVERSION}"
@@ -241,6 +242,8 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 		else:
 			### embedded project
 			assert( env['deploymentType'] == 'embedded' )
+
+			embedded_deploymentType = '!define EMBEDDED_DEPLOYMENTTYPE'
 
 			if len(env['deploymentPrecond'])==0:
 				print ('sbfError: deploymentPrecond have to be defined for {0} project.'.format(env['sbf_project']))
@@ -260,23 +263,27 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 Function initInstallDir
 
 	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{DEPLOYMENTPRECOND_STANDALONE_NAME}}" "Install_Dir"
+	ReadRegStr $1 HKLM "Software\${{SBFPROJECTVENDOR}}\${{DEPLOYMENTPRECOND_STANDALONE_NAME}}" "Version"
+
 	; Test if standalone is installed
 	${{If}} $0 == ''
-		; not installed, abort
-		MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system.'
+		; never installed, abort
+		MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'.'
 		Abort
-	${{Else}}
-		; installed, continue
+	${{Else}} ;$0 != ''
+		${{If}} $1 == ''
+			; already installed, but not now => abort
+			MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'.'
+			Abort
+		${{Else}} ; $0 != '' & $1 != ''
+			; debug message
+			MessageBox MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0.'
 
-		; debug message
-		MessageBox MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} is installed in the system in $0.'
+			StrCpy $INSTDIR "$0\packages\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
 
-		StrCpy $INSTDIR "$0\packages\${{SBFPRODUCTNAME}}_${{SBFPROJECTVERSION}}"
-
-		; debug message
-		MessageBox MB_OK 'Installing ${{SBFPRODUCTNAME}} in $INSTDIR'
-
-		; @todo test version
+			; debug message
+			MessageBox MB_OK 'Installing ${{SBFPRODUCTNAME}} in $INSTDIR'
+		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
 """.format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version )
@@ -329,6 +336,7 @@ FunctionEnd
 
 
 SetCompressor lzma
+XPStyle on
 
 !define SBFPROJECTNAME				"{projectName}"
 !define SBFPRODUCTNAME				"{productName}"
@@ -336,6 +344,8 @@ SetCompressor lzma
 !define SBFPROJECTCONFIG			"{projectConfig}"
 !define SBFPROJECTVENDOR			"{projectVendor}"
 !define SBFDATE						"{date}"
+{embedded_deploymentType}
+
 
 ; SETUPFILE
 !define SETUPFILE "${{SBFPRODUCTNAME}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
@@ -368,7 +378,7 @@ FunctionEnd
 ;--------------------------------
 
 ; The name of the installer
-Name "${{SBFPRODUCTNAME}}${{SBFPROJECTCONFIG}} ${{SBFPROJECTVERSION}}"
+Name "${{SBFPRODUCTNAME}}${{SBFPROJECTCONFIG}} v${{SBFPROJECTVERSION}}"
 
 ; Version information
 VIAddVersionKey "ProductName" "${{SBFPRODUCTNAME}}"
@@ -395,7 +405,11 @@ RequestExecutionLevel admin
 ; Pages
 
 Page components
-Page directory
+
+!ifndef EMBEDDED_DEPLOYMENTTYPE
+ Page directory
+!endif
+
 Page instfiles
 
 UninstPage uninstConfirm
@@ -456,6 +470,7 @@ SectionEnd
 
 
 
+!ifndef EMBEDDED_DEPLOYMENTTYPE
 Section "Start Menu Shortcuts"
   SectionIn RO
 
@@ -473,6 +488,7 @@ Section "Shortcut on desktop"
 {desktopShortcuts}
 
 SectionEnd
+!endif
 
 
 ;--------------------------------
@@ -521,6 +537,7 @@ SectionEnd
 			projectVendor=env.sbf.myCompanyName,
 			projectDescription=env['description'],
 			date=env.sbf.myDate,
+			embedded_deploymentType=embedded_deploymentType,
 			productNameSection=PRODUCTNAME,
 			productExe=PRODUCTEXE,
 			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
@@ -673,10 +690,10 @@ def configureZipAndNSISTargets( lenv ):
 											"\"{0}\" $SOURCES".format(join(nsisLocation, 'makensis')) )
 			Alias( 'nsis', lenv.Command('nsis_build.out', 'dummy.in', Action(nopAction, __printGenerateNSISSetupProgram) ) )
 			Alias( 'nsis', nsisBuildAction )
+			if lenv['publishOn']: createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
 
 		if lenv['publishOn']:
 			createRsyncAction( lenv, '', portablePath, 'portable' )
 			createRsyncAction( lenv, '', portableZipPath, 'zipportable' )
-			createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
 
 
