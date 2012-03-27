@@ -77,7 +77,7 @@ def createRsyncAction( lenv, target, source, alias = None, useDeleteOption = Non
 			dynamicFlags = ''
 
 	# cmd
-	cmd = 'rsync {rsyncFlags} {weakPublishingFlags} {rsh} {src} {dst}'.format( rsyncFlags=lenv['RSYNCFLAGS'], weakPublishingFlags=dynamicFlags, rsh=lenv['RSYNCRSH'], src=fullSource, dst=fullTarget)
+	cmd = "rsync {rsyncFlags} {weakPublishingFlags} {rsh} '{src}' '{dst}'".format( rsyncFlags=lenv['RSYNCFLAGS'], weakPublishingFlags=dynamicFlags, rsh=lenv['RSYNCRSH'], src=fullSource, dst=fullTarget)
 
 	rsyncAction = lenv.Command( '{0}_dummyRsync.out'.format(source), source, cmd )
 	if alias:
