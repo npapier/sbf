@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -7,7 +7,7 @@ from sbfUtils import execute
 
 # cygpath utilities (used by rsync)
 def callCygpath2Unix( path, cygwinBinPath ):
-	cmdParams = ['cygpath', '-u', "'{path}'".format(path=path)]
+	cmdParams = ['cygpath', '-u', "{path}".format(path=path)]
 	output = execute(cmdParams, cygwinBinPath)
 	return output.rstrip('\n')
 
