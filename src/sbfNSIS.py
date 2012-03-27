@@ -684,7 +684,7 @@ def configureZipAndNSISTargets( lenv ):
 			# Build nsis project
 			nsisLocation = locateProgram( 'nsis' )
 
-			nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=capitalize(lenv['sbf_project']), version=lenv['version'], config=sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myDate)
+			nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=lenv['productName'], version=lenv['version'], config=sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myDate)
 
 			nsisBuildAction = lenv.Command(	join(tmpNSISSetupPath, nsisSetupFile), nsisTargetFile,
 											"\"{0}\" $SOURCES".format(join(nsisLocation, 'makensis')) )
