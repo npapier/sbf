@@ -268,21 +268,21 @@ Function initInstallDir
 	; Test if standalone is installed
 	${{If}} $0 == ''
 		; never installed, abort
-		MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'.'
+		MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 		Abort
 	${{Else}} ;$0 != ''
 		${{If}} $1 == ''
 			; already installed, but not now => abort
-			MessageBox MB_ICONSTOP|MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'.'
+			MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 			Abort
 		${{Else}} ; $0 != '' & $1 != ''
 			; debug message
-			MessageBox MB_OK '${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0.'
+			MessageBox MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0."
 
 			StrCpy $INSTDIR "$0\packages\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
 
 			; debug message
-			MessageBox MB_OK 'Installing ${{SBFPRODUCTNAME}} in $INSTDIR'
+			MessageBox MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR"
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
