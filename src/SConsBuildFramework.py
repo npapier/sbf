@@ -1887,9 +1887,7 @@ SConsBuildFramework options:
 		# Built project dependencies (i.e. 'deps')
 		for dependency in lenv['deps']:
 			# Checks dependency path
-			if os.path.isabs( dependency ):
-				# dependency is an absolute path
-				raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
+			if os.path.isabs( dependency ): raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
 
 			# dependency is a path relative to the directory containing default.options
 			normalizedDependency			= getNormalizedPathname( projectPathName + os.sep + dependency )
@@ -1933,7 +1931,7 @@ SConsBuildFramework options:
 			return
 		else:
 			# Adds the new environment
-			self.myBuiltProjects[self.myProject] = lenv
+			self.myBuiltProjects[ lenv['sbf_project'] ] = lenv
 			if lenv.GetOption('verbosity'): print ( "Studying project {0}...".format(lenv['sbf_project']) )
 
 		# Dumping construction environment (for debugging) : print lenv.Dump() Exit()
