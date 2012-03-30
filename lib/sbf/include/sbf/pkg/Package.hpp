@@ -75,15 +75,12 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	/**
 	 * @brief	Retrieves the given module.
 	 *
-	 * If none of the registered module matches the query, then a new module instance will created and returned.
-	 * So you have to be carefull because the given name and version may not match a real module of the system.
-	 *
 	 * @param	name	a module name
 	 * @param	version	a optionnal module version, if not specified the first matching module will be returned.
 	 *
 	 * @return	a shared pointer to the module
 	 */
-	const boost::shared_ptr< Module > getModule( const std::string & name, const std::string & version = std::string() ) const;
+	const boost::shared_ptr< Module > findModule( const std::string & name, const std::string & version = std::string() ) const;
 	
 	/** 
 	 * @brief	Retrieves the iterator on the module collection's beginning.
@@ -181,8 +178,9 @@ private:
 	 * @name	Helpers
 	 */
 	//@{
-	static void init();		///< Initializes the whole system.
-	void initPluggables();	///< Initializes the pluggable modules of the package.
+	static void init();									///< Initializes the whole system.
+	void initModules( const PathType & pathType );		///< Initializes modules and pluggable modules of the package, looking into the given path.
+	const boost::shared_ptr< Module > initModule( const PathType & pathType, const std::string & name, const std::string & version );	///< Initializes a module using the given path type, module name and version.
 	//@}
 };
 

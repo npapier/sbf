@@ -116,25 +116,24 @@ Package::const_iterator Package::end()
 }
 
 
-const boost::shared_ptr< Module > Package::getModule( const std::string & name, const std::string & version ) const
+const boost::shared_ptr< Module > Package::findModule( const std::string & name, const std::string & version ) const
 {
+	namespace bfs = boost::filesystem;
+
 	// First, we search for a module already registered.
 	// If none of the registered module matches the query, 
-	// then we create a new module instance and returns it.
-	const_module_iterator found = std::find_if( m_modules.begin(), m_modules.end(), module_has(name, version) );
-
+	// we search in the var sub-directory for a module that created ressource after startup,
+	// and if all this fails, we cannot return a valid module.
+	const_module_iterator		found = std::find_if( m_modules.begin(), m_modules.end(), module_has(name, version) );
+	
 	if( found != m_modules.end() )
 	{
 		return *found;
 	}
 	else
 	{
-		const boost::shared_ptr< Package >	package( boost::const_pointer_cast< Package >(shared_from_this()) );
-		const boost::shared_ptr< Module >	module( new Module(package, name, version) );
-
-		m_modules.push_back( module );
-		return module;
-	}
+		return const_cast< Package* >(this)->initModule( VarPath, name, version );
+	}	
 }
 
 
@@ -221,7 +220,8 @@ void Package::init()
 	// The root package is the first package in the collection.
 	const boost::shared_ptr< Package >	rootPackage( new Package(std::string(), std::string(), rootPath) );
 	m_packages.push_back( rootPackage );
-	rootPackage->initPluggables();
+	rootPackage->initModules(SharePath);
+	rootPackage->initModules(VarPath);
 
 
 	// Get's the path of the package repository
@@ -244,60 +244,93 @@ void Package::init()
 			const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path) );
 			
 			m_packages.push_back( package );
-			package->initPluggables();
+			package->initModules( SharePath );
+			package->initModules( VarPath );
 		}
 	}
 }
 
 
-void Package::initPluggables()
+void Package::initModules( const PathType & pathType )
 {
 	namespace bfs = boost::filesystem;
 
-	const bfs::path			sharePath = getPathSafe( SharePath );
+	const bfs::path			basePath = getPathSafe( pathType );
 
 	std::string	moduleName;
 	std::string	moduleVersion;
 	
-	for( bfs::recursive_directory_iterator i(sharePath); i != bfs::recursive_directory_iterator(); ++i )
+	for( bfs::recursive_directory_iterator i(basePath); i != bfs::recursive_directory_iterator(); ++i )
 	{
 		const bfs::directory_entry	entry( *i );
 		const bfs::file_status		fileStatus( entry.status() );
-		const int					level = i.level();
-		const bfs::path				path = entry.path();
+		
 
-		// At level 0, a directory corresponds to a module name.
+		// At level 0, a directory corresponds to a module name,
+		// so we simply stores the module name.
 		if( fileStatus.type() == bfs::directory_file && i.level() == 0 )
 		{
 			moduleName = entry.path().filename().string();
-			continue;
 		}
-
-		// At level 1, a directory corresponds to a module version.
-		if( fileStatus.type() == bfs::directory_file && i.level() == 1 )
+		// At level 1, a directory corresponds to a module version,
+		// so we store the module version, stop recursing to avoid module's data
+		// and we create the module instance.
+		else if( fileStatus.type() == bfs::directory_file && i.level() == 1 )
 		{
 			moduleVersion = entry.path().filename().string();
-			continue;
-		}
-
-		// From level 2, we do not want to recurs into sub-directories.
-		// These hold a module's data.
-		if( i.level() >= 2 )
-		{
 			i.no_push();
-		}
-
-		// If we encounter a plugable module description file, 
-		// we build a plugable instance and store it as a module and a pluggable.
-		if( fileStatus.type() == bfs::regular_file && entry.path().filename() == "module.xml")
-		{
-			const boost::shared_ptr< Pluggable>	pluggable( new Pluggable(shared_from_this(), moduleName, moduleVersion) );
-
-			m_modules.push_back( pluggable );
-			m_pluggables.push_back( pluggable );
+			initModule( pathType, moduleName, moduleVersion );
 			moduleName.clear();
 			moduleVersion.clear();
 		}
+	}
+}
+
+
+const boost::shared_ptr< Module > Package::initModule( const PathType & pathType, const std::string & name, const std::string & version )
+{
+	namespace bfs = boost::filesystem;
+
+	const_module_iterator		found		= std::find_if( m_modules.begin(), m_modules.end(), module_has(name, version) );
+	const bfs::path				modulePath	= getPathSafe(pathType) / name / version;
+	
+	// If the module exists, then we return that instance.
+	// Else if the module path is valid, we create an instance of module or pluggable.
+	// Else if the module version has properly been specified, we create a module instance.
+	if( found != m_modules.end() )
+	{
+		return *found;
+	}
+	else if( bfs::is_directory(modulePath) )
+	{
+		const bool	isPluggable = bfs::is_regular(modulePath/"module.xml");
+
+		if( isPluggable )
+		{
+			const boost::shared_ptr< Pluggable>	pluggable( new Pluggable(shared_from_this(), name, version) );
+
+			m_modules.push_back( pluggable );
+			m_pluggables.push_back( pluggable );
+			return pluggable;
+		}
+		else
+		{
+			boost::shared_ptr< Module >	module( new Module(shared_from_this(), name, version) );
+
+			m_modules.push_back( module );
+			return module;
+		}
+	}
+	else if( !version.empty() )
+	{
+		boost::shared_ptr< Module >	module( new Module(shared_from_this(), name, version) );
+
+		m_modules.push_back( module );
+		return module;
+	}
+	else
+	{
+		return boost::shared_ptr< Module >();
 	}
 }
 

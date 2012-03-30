@@ -27,7 +27,7 @@ Module::~Module()
 
 boost::shared_ptr< Module > Module::get( const std::string & name, const std::string & version )
 {
-	return Package::current()->getModule( name, version );
+	return Package::current()->findModule( name, version );
 }
 
 
