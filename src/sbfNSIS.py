@@ -171,6 +171,12 @@ def printGenerateNSISMainScript( target, source, env ):
 	return ( 'Generating {0} (nsis main script)'.format(os.path.basename(targetName)) )
 
 
+def __computeICON( lenv ):
+	iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
+	if os.path.exists( iconFile ):
+		return 'Icon "{0}"'.format( iconFile )
+
+
 def generateNSISMainScript( target, source, env ):
 	# Retrieves/computes additional information
 	targetName = str(target[0])
@@ -252,6 +258,30 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 			# Extract deployment preconditions
 			(name, operator, version) = splitDeploymentPrecond(env['deploymentPrecond'])
 
+			# Test version
+			assert( operator == '>=' )
+
+			testVersionPrecond = """
+			; prepare version numbers
+			${{VersionConvert}} $1 "" $5
+			${{VersionConvert}} ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}} "" $6
+			;MessageBox MB_OK "$1 >= ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}} => $5 >= $6"				; debug
+
+			; test version
+			${{VersionCompare}} $5 $6 $7
+
+			;MessageBox MB_OK "VersionCompare=$7"														; debug
+
+			; >=
+			${{If}} $7 == 2
+				; test failed (<)
+				MessageBox MB_ICONSTOP|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}."
+				Abort
+			${{EndIf}}
+
+			; test passed
+""".format()
+
 			installationDirectorySection = """
 ; embedded project
 
@@ -279,6 +309,9 @@ Function initInstallDir
 			; debug message
 			MessageBox MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0."
 
+			; test version precondition
+			{testVersionPrecond}
+
 			StrCpy $INSTDIR "$0\packages\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
 
 			; debug message
@@ -286,18 +319,21 @@ Function initInstallDir
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
-""".format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version )
+""".format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version, testVersionPrecond = testVersionPrecond )
 
 			onInitInstallationDirectory = ' ; Initialize $INSTDIR\n Call initInstallDir'
 
 		# Generates ICON
-		ICON = "; no icon"
-		if mainProject:
-			lenv = env.sbf.myParsedProjects[mainProject]
-			iconFile = os.path.join( lenv['sbf_projectPathName'], 'rc', lenv['sbf_project']+'.ico')
-			if os.path.exists( iconFile ):
-				ICON = 'Icon "{0}"'.format( iconFile )
-			#else: ICON = "; no icon"
+		# icon from the project launching sbf ?
+		ICON = __computeICON( sbf.myParsedProjects[rootProject] )
+		# icon from the first project containing an executable ?
+		if not ICON and mainProject:
+			ICON = __computeICON( sbf.myParsedProjects[mainProject] )
+
+		# no icon ?
+		if not ICON:
+			ICON = "; no icon"
+
 
 		str_sbfNSISTemplate = """\
 ; sbfNSISTemplate.nsi
@@ -305,10 +341,10 @@ FunctionEnd
 ; This script :
 ; - It will install files into a "PROGRAMFILES\SBFPROJECTVENDOR\SBFPROJECTNAME SBFPROJECTCONFIG\SBFPROJECTVERSION" or a directory that the user selects for 'standalone' or 'none' project
 ; - or in a directory found in registry for 'embedded' project
-; - checks if deploymentPrecond is true (for embedded project) @TODO
+; - checks if deploymentPrecond is true (for embedded project) @TODO all operators
 ; - remember the installation directory (so if you install again, it will overwrite the old one automatically) and version.
 ; - creates a 'var' directory with full access for 'Users' and backups 'var' directory if already present.
-; - icon of setup program comes from first executable project (if any)
+; - icon of setup program comes from the launching project (if it contains an icon in rc/project.ico), otherwise from the first executable project (if any and if it contains an icon), else no icon at all.
 ; - ProductName, CompanyName, LegalCopyright, FileDescription, FileVersion and ProductVersion fields in the version tab of the File Properties are filled.
 ; - install in registry Software/SBFPROJECTVENDOR/SBFPROJECTNAME/Version
 ; - run as admin and installation occurs for all users
@@ -333,6 +369,7 @@ FunctionEnd
 
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
+!include "WordFunc.nsh"
 
 
 SetCompressor lzma
