@@ -714,6 +714,7 @@ def configureZipAndNSISTargets( lenv ):
 
 			Alias( 'zipdbg', 'dbg' )
 			create7ZipCompressAction( lenv, zipDbgPath, dbgPath, 'zipdbg' )
+			if lenv['publishOn']:	createRsyncAction( lenv, '', zipDbgPath, 'zipdbg' )
 
 		# 'nsis' target
 		if 'nsis' in sbf.myBuildTargets:
