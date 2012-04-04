@@ -614,6 +614,9 @@ def __getProjectSubdir( lenv ):
 def getTmpNSISPortablePath( lenv ):
 	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_portable_' + lenv.sbf.myDate )
 
+def getTmpNSISDbgPath( lenv ):
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_dbg_' + lenv.sbf.myDate )
+
 def getTmpNSISSetupPath( lenv ):
 	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_setup_' + lenv.sbf.myDate )
 
@@ -639,6 +642,17 @@ def initializeNSISInstallDirectories( sbf, lenv ):
 	#print 'myNSISInstallDirectories:', sbf.myNSISInstallDirectories
 
 
+def getAllDebugFiles( env ):
+	"""@return the list of all pdb files (on windows platform) for the project described by 'env' and all its dependencies."""
+	sbf = env.sbf
+	debugFiles = []
+
+	for project in sbf.getAllDependencies( env ):
+		lenv = sbf.getEnv(project)
+		if 'PDB' in lenv: debugFiles.append( lenv['PDB'] )
+	return debugFiles
+
+
 def __warnAboutProjectExclude( env ):
 	# Checks project exclusion to warn user
 	if env['exclude'] and len(env['projectExclude'])>0:
@@ -655,7 +669,7 @@ def configureZipAndNSISTargets( lenv ):
 
 # @todo others targets (deps and runtime at least)
 	#zipAndNSISTargets = set( ['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis'] )
-	zipAndNSISTargets = set( ['portable', 'zipportable', 'nsis'] )
+	zipAndNSISTargets = set( ['portable', 'zipportable', 'dbg', 'zipdbg', 'nsis'] )
 
 # @todo clean targets, test clean targets
 	cleanAndMrproperTargets = set( ['zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'] )
@@ -680,6 +694,26 @@ def configureZipAndNSISTargets( lenv ):
 			Execute( Delete(portableZipPath) )
 			Alias( 'zipportable', ['infofile', 'install', 'deps'] )
 			create7ZipCompressAction( lenv, portableZipPath, portablePath, 'zipportable' )
+
+		# 'dbg' target
+		dbgPath = getTmpNSISDbgPath(lenv)
+		zipDbgPath = dbgPath + '.7z'
+		if	'dbg' in sbf.myBuildTargets or\
+			'zipdbg' in sbf.myBuildTargets:
+			Execute( Delete(dbgPath) )
+
+			installTarget = []
+			for file in getAllDebugFiles(lenv):
+				installTarget += lenv.Install( dbgPath, file )
+
+			Alias( 'dbg', ['install', installTarget] )
+
+		# 'zipDbg' target
+		if 'zipdbg' in sbf.myBuildTargets:
+			Execute( Delete(zipDbgPath) )
+
+			Alias( 'zipdbg', 'dbg' )
+			create7ZipCompressAction( lenv, zipDbgPath, dbgPath, 'zipdbg' )
 
 		# 'nsis' target
 		if 'nsis' in sbf.myBuildTargets:

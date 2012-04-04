@@ -861,6 +861,8 @@ packaging related targets
  'scons zipDeps'		@toredo
  'scons portable' to create a portable package of your project and all its dependencies.
  'scons zipPortable' to create a zip file of the portable package created by 'scons portable'.
+ 'scons dbg' to create a package containing all pdb files on Windows platform of your project (@todo and all its dependencies).
+ 'scons zipDbg' to create a zip file of the package created by 'scons dbg'.
  'scons zipDev'			@toredo
  'scons zipSrc'			@toredo
  'scons zip'			@toredo
@@ -2347,9 +2349,10 @@ SConsBuildFramework options:
 				retVal.append( projectName )
 			return retVal
 
-	def getAllDependencies( self, lenv ) :#, keepOnlyExistingProjects = True ):
+	def getAllDependencies( self, lenv, addSBFLibrary = True ) :#, keepOnlyExistingProjects = True ):
 		"""	Collects recursively all dependencies of the project with the given environment.
-			Returns a list containing project name of all its dependencies."""
+			@param addSBFLibrary True to implicitly append the 'sbf' library, False otherwise
+			@return a list containing project name of all its dependencies."""
 		stackDependencies			= self.getDepsProjectName(lenv) #, keepOnlyExistingProjects)
 		recursiveDependenciesSet	= set()
 		recursiveDependencies		= []
@@ -2371,12 +2374,14 @@ SConsBuildFramework options:
 				dependencyEnv	= self.myParsedProjects[ dependencyName ]
 				stackDependencies += self.getDepsProjectName( dependencyEnv )
 
+		if addSBFLibrary: recursiveDependencies.append( 'sbf' )
+
 		# Returns the list
 		return recursiveDependencies
 
 
 	def getAllUses( self, lenv ):
-		"""Computes the set of all 'uses' for the project described by lenv and all its dependencies"""
+		"""Computes the set of all 'uses' for the project described by lenv and all its dependencies."""
 
 		# The return value containing all 'uses'
 		retValUses = set( set(lenv['uses']) )
