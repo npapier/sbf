@@ -643,13 +643,26 @@ def initializeNSISInstallDirectories( sbf, lenv ):
 
 
 def getAllDebugFiles( env ):
-	"""@return the list of all pdb files (on windows platform) for the project described by 'env' and all its dependencies."""
+	"""@return the list of all pdb files (on windows platform) for the project described by 'env' and all its dependencies.
+	Append files returned by IUse::getDbg() for all 'uses' of the project described by 'env' and all its dependencies."""
 	sbf = env.sbf
 	debugFiles = []
 
+	# Collect debug files from sbf projects
 	for project in sbf.getAllDependencies( env ):
 		lenv = sbf.getEnv(project)
 		if 'PDB' in lenv: debugFiles.append( lenv['PDB'] )
+
+	# Collect debug files from 'uses'
+	for useNameVersion in sbf.getAllUses( env ):
+		# Extracts name and version of incoming external dependency
+		useName, useVersion = splitUsesName( useNameVersion )
+
+		# Retrieves use object for incoming dependency
+		use = UseRepository.getUse( useName )
+		if use:
+			debugFiles.extend( use.getDbg(useVersion) )
+
 	return debugFiles
 
 
@@ -687,31 +700,36 @@ def configureZipAndNSISTargets( lenv ):
 		# 'portable' target
 		portablePath = getTmpNSISPortablePath(lenv)
 		portableZipPath = portablePath + '.7z'
+
 		Alias( 'portable', ['infofile', 'install', 'deps'] )
+		if ('portable' in sbf.myBuildTargets) and lenv['publishOn']:	createRsyncAction( lenv, '', portablePath, 'portable' )
 
 		# 'zipportable' target
 		if 'zipportable' in sbf.myBuildTargets:
 			Execute( Delete(portableZipPath) )
 			Alias( 'zipportable', ['infofile', 'install', 'deps'] )
 			create7ZipCompressAction( lenv, portableZipPath, portablePath, 'zipportable' )
+			if lenv['publishOn']:	createRsyncAction( lenv, '', portableZipPath, 'zipportable' )
 
 		# 'dbg' target
 		dbgPath = getTmpNSISDbgPath(lenv)
 		zipDbgPath = dbgPath + '.7z'
-		if	'dbg' in sbf.myBuildTargets or\
-			'zipdbg' in sbf.myBuildTargets:
-			Execute( Delete(dbgPath) )
 
+		hasDbg = 'dbg' in sbf.myBuildTargets
+		hasZipDbg = 'zipdbg' in sbf.myBuildTargets
+		if hasDbg or hasZipDbg:
+			if hasDbg:	Execute( Delete(dbgPath) )
+
+			# Collect debug files from sbf projects and from 'uses'
 			installTarget = []
 			for file in getAllDebugFiles(lenv):
 				installTarget += lenv.Install( dbgPath, file )
-
 			Alias( 'dbg', ['install', installTarget] )
+			if hasDbg and lenv['publishOn']:	createRsyncAction( lenv, '', dbgPath, 'dbg' )
 
 		# 'zipDbg' target
-		if 'zipdbg' in sbf.myBuildTargets:
+		if hasZipDbg:
 			Execute( Delete(zipDbgPath) )
-
 			Alias( 'zipdbg', 'dbg' )
 			create7ZipCompressAction( lenv, zipDbgPath, dbgPath, 'zipdbg' )
 			if lenv['publishOn']:	createRsyncAction( lenv, '', zipDbgPath, 'zipdbg' )
@@ -764,8 +782,5 @@ def configureZipAndNSISTargets( lenv ):
 			Alias( 'nsis', nsisBuildAction )
 			if lenv['publishOn']: createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
 
-		if lenv['publishOn']:
-			createRsyncAction( lenv, '', portablePath, 'portable' )
-			createRsyncAction( lenv, '', portableZipPath, 'zipportable' )
 
 

@@ -3,6 +3,7 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+import glob
 import os
 import string
 import sys
@@ -165,6 +166,10 @@ class IUse :
 			Normal			(indicate that this 'uses' is provided by a sbf package and that getLIBS() and getLicenses() must be redistributed).
 			Full			(indicate that this 'uses' is provided by a sbf package and that all files in the package must be redistributed)."""
 		return 'Normal'
+
+	def getDbg( self, version ):
+		"""@return a list of file containing debug informations (PDB on Windows platform)."""
+		return []
 
 	def getLicenses( self, version ):
 		"""@return None to indicate that license file(s) could be found automatically (by using the naming rule of sbf package).
@@ -982,12 +987,17 @@ class Use_sofa( IUse, sofaConfig ):
 			pakLibPath.append( path )
 			return libPath, pakLibPath
 
-
-	def getLicenses( self, version ):
-		return [ 'license.glew1-5-1.txt', 'license.glut3-7.txt' ]
-
 	def getPackageType( self ):
 		return 'NoneAndNormal'
+
+	def getDbg( self, version ):
+		path = os.path.join( self.getBasePath(), 'lib' )
+		dbgFiles = glob.glob( join(path,'*.pdb') )
+		return dbgFiles
+
+	def getLicenses( self, version ):
+		return []
+
 
 
 def getPathsForSofa( debugAndRelease = False ):
