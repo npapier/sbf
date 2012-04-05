@@ -87,10 +87,11 @@ struct module_has
 Package::PackageContainer	Package::m_packages;
 
 
-Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & path )
+Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & path, const boost::weak_ptr< Package > parent )
 :	m_name( name ),
 	m_version( version ),
-	m_path( path )
+	m_path( path ),
+	m_parent( parent )
 {}
 
 
@@ -149,6 +150,12 @@ const boost::shared_ptr< Pluggable > Package::findPluggable( const std::string &
 const std::string & Package::getName() const
 {
 	return m_name;
+}
+
+
+const boost::shared_ptr< Package > Package::getParent() const
+{
+	return m_parent.lock();
 }
 
 
@@ -241,7 +248,7 @@ void Package::init()
 			// creates a new package and adds it the collection.
 			const bfs::path								path			= entry->path();
 			const std::pair< std::string, std::string >	nameAndVersion	= getPackageNameAndVersion( path );
-			const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path) );
+			const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path, rootPackage) );
 			
 			m_packages.push_back( package );
 			package->initModules( SharePath );

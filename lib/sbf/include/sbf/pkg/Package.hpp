@@ -11,6 +11,7 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/weak_ptr.hpp>
 
 #include "sbf/sbf.hpp"
 #include "sbf/pkg/types.hpp"
@@ -63,6 +64,7 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	//@{
 	const std::string & getName() const;										///< Retrieves the name of the package.
 	const std::string & getVersion() const;										///< Retrieves the version of the package.
+	const boost::shared_ptr< Package > getParent() const;						///< Retrieves the parent package (returns null if none).
 	const boost::filesystem::path & getPath() const;							///< Retrieves the root directory of the package.
 	const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the given path in the package tree.
 	const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the given path in the package tree and also ensures that the path exists.
@@ -163,16 +165,26 @@ private:
 
 	static PackageContainer		m_packages;	///< The collection of packages found on the system.
 
-	const std::string				m_name;			///< The package name.
-	const std::string				m_version;		///< The package version.
-	const boost::filesystem::path	m_path;			///< The package root's path.
-	mutable ModuleContainer			m_modules;		///< The collection of modules available in the package.
-	PluggableContainer				m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
+	const std::string					m_name;			///< The package name.
+	const std::string					m_version;		///< The package version.
+	const boost::filesystem::path		m_path;			///< The package root's path.
+	const boost::weak_ptr< Package >	m_parent;		///< The package parent.
+	mutable ModuleContainer				m_modules;		///< The collection of modules available in the package.
+	PluggableContainer					m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
 
 	/**
 	 * @brief	Constructor
+	 *
+	 * @param	name	a string containing the name of the package
+	 * @param	version	a string containing the version of the package
+	 * @param	root	a path to the root directory of the package
+	 * @param	parent	an optional reference to the parent package (default is none)
 	 */
-	Package( const std::string & name, const std::string & version, const boost::filesystem::path & root );
+	Package( 
+		const std::string & name, 
+		const std::string & version, 
+		const boost::filesystem::path & root, 
+		const boost::weak_ptr< Package > parent = boost::weak_ptr< Package >() );
 
 	/** 
 	 * @name	Helpers
