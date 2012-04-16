@@ -993,7 +993,14 @@ class Use_sofa( IUse, sofaConfig ):
 	def getDbg( self, version ):
 		path = os.path.join( self.getBasePath(), 'lib' )
 		dbgFiles = glob.glob( join(path,'*.pdb') )
-		return dbgFiles
+		dbgFilesD = glob.glob( join(path,'*_[0-9]_[0-9]d.pdb') )
+		dbgFilesR = glob.glob( join(path,'*_[0-9]_[0-9].pdb') )
+		assert( len(dbgFiles) == len(dbgFilesD) + len(dbgFilesR) )
+
+		if self.config == 'release':
+			return dbgFilesR
+		else:
+			return dbgFilesD
 
 	def getLicenses( self, version ):
 		return []
