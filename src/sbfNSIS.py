@@ -464,7 +464,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   SetOutPath $INSTDIR
 
   ; Backups 'var' directory if already present
-  ${{GetTime}} "" "L" $0 $1 $2 $6 $3 $4 $5
+  ${{GetTime}} "" "L" $2 $1 $0 $6 $3 $4 $5
   CopyFiles /SILENT "$INSTDIR\\var" "$INSTDIR\\var_backup_$0-$1-$2_$3-$4-$5"
   RmDir /r "$INSTDIR\\var"
 
