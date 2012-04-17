@@ -403,6 +403,8 @@ class SConsBuildFramework :
 	#myGHasCleanOption				= False
 
 	# Globals attributes
+	myCurrentTime					= None			# time.localtime()
+	myTimePostFix					= ''
 	myDate							= ''
 	myTime							= ''
 	myDateTime						= ''
@@ -650,18 +652,18 @@ class SConsBuildFramework :
 		#sys.stderr = sys.stdout = open( os.path.join( env['buildPath'], myProject + "_sbf.log"), 'w' )# or
 		#sys.stdout = sys.stderr = os.popen(logCommand, "w")
 
-		# myDate, myTime, myDateTime, myDateTimeForUI
-		currentTime = time.localtime()
+		# myCurrentTime, myDate, myTime, myDateTime, myDateTimeForUI
+		self.myCurrentTime = time.localtime()
 
-		self.myDate	= time.strftime( '%Y-%m-%d', currentTime )
-		self.myTime	= time.strftime( '%Hh%Mm%Ss', currentTime )
+		self.myTimePostFix = time.strftime( self.myEnv['postfixTimeFormat'], self.myCurrentTime )
+
+		self.myDate	= time.strftime( '%Y-%m-%d', self.myCurrentTime )
+		self.myTime	= time.strftime( '%Hh%Mm%Ss', self.myCurrentTime )
 
 		# format compatible with that specified in the RFC 2822 Internet email standard.
 		# self.myDateTime	= str(datetime.datetime.today().strftime("%a, %d %b %Y %H:%M:%S +0000"))
-
 		self.myDateTime	= '{0}_{1}'.format( self.myDate, self.myTime )
-
-		self.myDateTimeForUI = time.strftime( '%d-%b-%Y %H:%M:%S', currentTime )
+		self.myDateTimeForUI = time.strftime( '%d-%b-%Y %H:%M:%S', self.myCurrentTime )
 
 		# Sets the vcs subsystem (at this time only svn is supported).
 		if isSubversionAvailable:
@@ -1160,6 +1162,8 @@ SConsBuildFramework options:
 									} ),
 
 			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
+
+			('postfixTimeFormat', "A string controlling the format of the date/time postfix (used by 'nsis' and 'zip' targets). Default time format is '%Y-%m-%d' producing for example the date 2012-04-12. Adds '%Hh%Mm%Ss' to append for example 10h40m21s. See python documentation on time.strftime() for additionnal informations.", '%Y-%m-%d' ),
 
 			('publishPath', 'The result of a target, typically copied in installPaths[0], could be transfered to another host over a remote shell using rsync. This option sets the destination of publishing (see rsync for destination syntax).', ''),
 			BoolVariable('publishOn', 'Sets to True to enabled the publishing. See \'publishPath\' option for additional informations.', False),

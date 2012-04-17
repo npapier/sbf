@@ -14,6 +14,7 @@
 #svnUpdateExclude			= [ '*/vgsdk*' ]
 #clVersion					= 'highest'
 #installPaths				= []
+#postfixTimeFormat			= '%Y-%m-%d' # '%Hh%Mm%Ss'
 
 # On windows platform
 #publish on a local drive	:	publishPath = '/cygdrive/d/local/rsync/'

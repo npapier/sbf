@@ -573,7 +573,7 @@ SectionEnd
 			projectConfig=env.sbf.my_PostfixLinkedToMyConfig,
 			projectVendor=env.sbf.myCompanyName,
 			projectDescription=env['description'],
-			date=env.sbf.myDate,
+			date=lenv.sbf.myTimePostFix,
 			embedded_deploymentType=embedded_deploymentType,
 			productNameSection=PRODUCTNAME,
 			productExe=PRODUCTEXE,
@@ -612,13 +612,13 @@ def __getProjectSubdir( lenv ):
 	return lenv['sbf_project'] + '_' + lenv['version'] + sbf.my_Platform_myCCVersion + sbf.my_FullPostfix
 
 def getTmpNSISPortablePath( lenv ):
-	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_portable_' + lenv.sbf.myDate )
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_portable_' + lenv.sbf.myTimePostFix )
 
 def getTmpNSISDbgPath( lenv ):
-	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_dbg_' + lenv.sbf.myDate )
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_dbg_' + lenv.sbf.myTimePostFix )
 
 def getTmpNSISSetupPath( lenv ):
-	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_setup_' + lenv.sbf.myDate )
+	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_setup_' + lenv.sbf.myTimePostFix )
 
 def initializeNSISInstallDirectories( sbf, lenv ):
 	sbf.myNSISInstallDirectories = []
@@ -661,6 +661,7 @@ def getAllDebugFiles( env ):
 		# Retrieves use object for incoming dependency
 		use = UseRepository.getUse( useName )
 		if use:
+			#print useName, use.getDbg(useVersion)
 			debugFiles.extend( use.getDbg(useVersion) )
 
 	return debugFiles
@@ -723,7 +724,7 @@ def configureZipAndNSISTargets( lenv ):
 			# Collect debug files from sbf projects and from 'uses'
 			installTarget = []
 			for file in getAllDebugFiles(lenv):
-				installTarget += lenv.Install( dbgPath, file )
+				installTarget += lenv.Install( join(dbgPath,'bin'), file )
 			Alias( 'dbg', ['install', installTarget] )
 			if hasDbg and lenv['publishOn']:	createRsyncAction( lenv, '', dbgPath, 'dbg' )
 
@@ -774,7 +775,7 @@ def configureZipAndNSISTargets( lenv ):
 			# Build nsis project
 			nsisLocation = locateProgram( 'nsis' )
 
-			nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=lenv['productName'], version=lenv['version'], config=sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myDate)
+			nsisSetupFile = '{project}_{version}{config}_{date}_setup.exe'.format(project=lenv['productName'], version=lenv['version'], config=sbf.my_PostfixLinkedToMyConfig, date=lenv.sbf.myTimePostFix)
 
 			nsisBuildAction = lenv.Command(	join(tmpNSISSetupPath, nsisSetupFile), nsisTargetFile,
 											"\"{0}\" $SOURCES".format(join(nsisLocation, 'makensis')) )
