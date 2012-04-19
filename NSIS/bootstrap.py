@@ -83,7 +83,7 @@ def svnCheckoutOrUpdateSBF( path, action ):
 
 
 SConsBuildFramework_optionsString = """numJobs = %s
-pakPaths = [ 'V:\\Dev\\localExt', 'V:\\Dev\\localExt_win32_cl9-0' ]
+pakPaths = [ 'V:\\Dev\\localExt' ]
 
 # to authenticate check out the source code using your login:
 #	'svn+ssh://login@orange/srv/svn/lib/{PROJECT}/trunk' or
@@ -101,15 +101,23 @@ svnUrls = { 'displayDriverConnector'	: 'http://oglpp.googlecode.com/svn/displayD
 			'' : [ 'svn://orange/srv/svn/lib/{PROJECT}/trunk', 'svn://orange/srv/svn/bin/{PROJECT}/trunk', 'svn://orange/srv/svn/share/{PROJECT}/trunk' ] }
 
 #projectExclude		= [ '*/vgsdk*' ]
+
 weakLocalExtExclude = ['sofa'] # to avoid cleaning projects at each sofa update.
-clVersion = '2008Exp'
 
 installPaths = ['%s']
 buildPath    = '%s'
 
+# Publishing on drive Z: (could be a local or a remote filesystem)
+#publishPath = '/cygdrive/Z/tmp/myWork'
+#publishOn	= True
 
+generateDebugInfoInRelease = True
+
+#userDict					= {}
 #from src.SConsBuildFramework import createBlowfishShareBuildCommand
-#userDict =	{ 'blowfish' : createBlowfishShareBuildCommand( 'theKey' ) }
+#userDict = { 'blowfish' : createBlowfishShareBuildCommand( 'theKey' ) }
+# or
+#userDict = { 'blowfish' : ('command ${SOURCE} ${TARGET}', '${SOURCE}.encrypt', 'Encrypt $SOURCE.file') }
 """
 
 

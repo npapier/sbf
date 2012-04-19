@@ -1,4 +1,4 @@
-; SConsBuildFramework - Copyright (C) 2009, 2011, Nicolas Papier.
+; SConsBuildFramework - Copyright (C) 2009, 2011, 2012, Nicolas Papier.
 ; Distributed under the terms of the GNU General Public License (GPL)
 ; as published by the Free Software Foundation.
 ; Author Nicolas Papier
@@ -24,7 +24,7 @@
 ; @todo end(Updates what the script do)
 
 ;--------------------------------
-; @todo adds notepad++
+; @todo adds depends.exe
 ; @todo silent mode
 ; @todo Shortcuts for sbfConfigure
 ; @todo others tools ( cygwin/rsync_ssh...) => installer embedded @todo embedded download
@@ -40,7 +40,7 @@
 ; @todo portable apps for dt (eclipse, npp)
 
 !define SBFPROJECTNAME		"SConsBuildFramework"
-!define SBFPROJECTVERSION	"0-9-5"
+!define SBFPROJECTVERSION	"0-11-0"
 !define PRODUCTNAME			${SBFPROJECTNAME}
 
 ;--------------------------------
@@ -49,10 +49,10 @@
 
 !define PYTHON_REG_INSTALLPATH	"SOFTWARE\Python\PythonCore\2.7\InstallPath"
 
-!define PYTHON							"python-2.7.2.msi"
+!define PYTHON							"python-2.7.3.msi"
 !define PYWIN32							"pywin32-216.win32-py2.7.exe"
 !define PYWIN32_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\pywin32-py2.7"
-!define PYSVN							"py27-pysvn-svn1615-1.7.5-1360.exe"
+!define PYSVN							"py27-pysvn-svn173-1.7.6-1457.exe"
 !define PYSVN_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Python 2.7 PySVN_is1"
 !define SCONS							"scons-2.1.0.win32.exe"
 !define SCONS_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\scons-py2.7"
@@ -80,15 +80,21 @@
 !define DOXYGEN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1"
 !define GRAPHVIZ						"graphviz-2.26.3.msi"
 
-!define SVNCLIENT						"CollabNetSubversion-client-1.6.15-1.win32.exe"
+!define SVNCLIENT						"CollabNetSubversion-client-1.7.3-1-Win32.exe"
 !define SVNCLIENT_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CollabNet Subversion Client"
-!define TORTOISESVN						"TortoiseSVN-1.6.16.21511-win32-svn-1.6.17.msi"
-!define TORTOISESVN64					"TortoiseSVN-1.6.16.21511-x64-svn-1.6.17.msi"
+!define TORTOISESVN						"TortoiseSVN-1.7.6.22632-win32-svn-1.7.4.msi"
+!define TORTOISESVN64					"TortoiseSVN-1.7.6.22632-x64-svn-1.7.4.msi"
+
+
+!define NOTEPADPP						"npp.6.1.1.Installer.exe"
+!define NOTEPADPP_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++"
 
 
 !define GTKMM_DEVEL						"gtkmm-win32-devel-2.22.0-2.exe"
 !define GTKMM_DEVEL_UNINSTALL_STRING	"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\gtkmm"
 
+!define CMAKE							"cmake-2.8.6-win32-x86.exe"
+!define CMAKE_UNINSTALL_STRING			"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\CMake 2.8.6"
 
 !define VCSETUP_2008					"vcsetup_2008ExpressEdWebInstall.exe"
 !define VCSETUP_2010					"vcsetup_2010ExpressEdWebInstall.exe"
@@ -220,35 +226,6 @@ UninstPage instfiles
 
 
 ; Optional section (can be disabled by the user)
-Section "Visual C++ 2008 Express Edition (web install)"
-
-  SetShellVarContext all
-
-  ; Set output path to the installation directory.
-  SetOutPath $INSTDIR
-  SetDetailsView show
-
-  ; Redistributable
-!insertmacro InstallAndLaunchRedistributable ${VCSETUP_2008} ""
-
-SectionEnd
-
-
-Section "Visual C++ 2010 Express Edition (web install)"
-
-  SetShellVarContext all
-
-  ; Set output path to the installation directory.
-  SetOutPath $INSTDIR
-  SetDetailsView show
-
-  ; Redistributable
-!insertmacro InstallAndLaunchRedistributable ${VCSETUP_2010} ""
-
-SectionEnd
-
-
-; Optional section (can be disabled by the user)
 Section "Documentation tools"
 
   SetShellVarContext all
@@ -282,6 +259,21 @@ SectionEnd
 
 
 ; Optional section (can be disabled by the user)
+Section "Tool for developer (Notepad++)"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+  SetDetailsView show
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${NOTEPADPP} ""
+
+SectionEnd
+
+
+; Optional section (can be disabled by the user)
 Section "gtkmm SDK"
 
   SetShellVarContext all
@@ -295,6 +287,20 @@ Section "gtkmm SDK"
 
 SectionEnd
 
+
+; Section external dependencies builder (can be disabled by the user)
+Section "External dependencies builder (cmake)"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+  SetDetailsView show
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${CMAKE} ""
+
+SectionEnd
 
 
 ; The stuff to install
@@ -393,6 +399,35 @@ cygwin_end:
 SectionEnd
 
 
+; Optional section (can be disabled by the user)
+Section "Visual C++ 2008 Express Edition (web install)"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+  SetDetailsView show
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${VCSETUP_2008} ""
+
+SectionEnd
+
+
+Section "Visual C++ 2010 Express Edition (web install)"
+
+  SetShellVarContext all
+
+  ; Set output path to the installation directory.
+  SetOutPath $INSTDIR
+  SetDetailsView show
+
+  ; Redistributable
+!insertmacro InstallAndLaunchRedistributable ${VCSETUP_2010} ""
+
+SectionEnd
+
+
 ; @todo Adds menu shortcuts for launching sub-installer and sbf uninstall.
 
 ; Optional section (can be disabled by the user)
@@ -477,9 +512,19 @@ MessageBox MB_ICONINFORMATION "cygwin must be uninstalled manually."
 !insertmacro MSIUninstallRedistributable ${TORTOISESVN64} ""
 !insertmacro RmRedistributable ${TORTOISESVN64}
 
+
+; NOTEPADPP
+!insertmacro UninstallString "Notepad++" "${NOTEPADPP_UNINSTALL_STRING}"
+!insertmacro RmRedistributable ${NOTEPADPP}
+
+
 ; GTKMM_DEVEL
 !insertmacro UninstallString "gtkmm" ${GTKMM_DEVEL_UNINSTALL_STRING}
 !insertmacro RmRedistributable ${GTKMM_DEVEL}
+
+; CMAKE
+!insertmacro UninstallString "CMake" "${CMAKE_UNINSTALL_STRING}"
+!insertmacro RmRedistributable ${CMAKE}
 
   RmDir $INSTDIR\Redistributable
 
