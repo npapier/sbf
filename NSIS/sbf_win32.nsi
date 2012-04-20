@@ -76,7 +76,7 @@
 ; SConsBuildFramework redistributable
 !define SCONS_BUILD_FRAMEWORK_REDIST	"SConsBuildFrameworkRedistributable.zip"
 
-!define DOXYGEN							"doxygen-1.7.6.1-setup.exe"
+!define DOXYGEN							"doxygen-1.8.0-setup.exe"
 !define DOXYGEN_UNINSTALL_STRING		"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1"
 !define GRAPHVIZ						"graphviz-2.26.3.msi"
 
