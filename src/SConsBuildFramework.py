@@ -2378,7 +2378,7 @@ SConsBuildFramework options:
 				dependencyEnv	= self.myParsedProjects[ dependencyName ]
 				stackDependencies += self.getDepsProjectName( dependencyEnv )
 
-		if addSBFLibrary: recursiveDependencies.append( 'sbf' )
+		if addSBFLibrary and ('sbf' in self.myParsedProjects): recursiveDependencies.append( 'sbf' )
 
 		# Returns the list
 		return recursiveDependencies
