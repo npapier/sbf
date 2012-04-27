@@ -43,7 +43,7 @@ except ImportError as e:
 def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command
 	@todo version and platform"""
-	shareBuildCommand = (	'blowfish_0-0_win32_cl9-0Exp.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
+	shareBuildCommand = (	'blowfish_0-0_${PLATFORM}_${CCVERSION}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
 
