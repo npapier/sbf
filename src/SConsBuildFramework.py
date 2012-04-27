@@ -738,6 +738,7 @@ class SConsBuildFramework :
 			if self.myIsExpressEdition :
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
+			self.myEnv['CCVERSION'] = self.myCCVersion
 			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
 			if self.myEnv.GetOption('verbosity'):
 				print 'VC version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
