@@ -932,6 +932,8 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
 						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture', 'BeamAdapter' ]
 
+			#libsBoth += [ 'sofa_eigen2_solver' ]
+
 			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
 
 			sofaVersion = '_1_0'
