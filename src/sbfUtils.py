@@ -79,15 +79,14 @@ def capitalize( str ):
 	return str[0].upper() + str[1:]
 
 
-def getPathFromEnv( varname, normalizedPathname = True ) :
+def getPathFromEnv( varname, normalizedPathname = True ):
 	"""Return the value of the environment variable varname if it exists, or None.
 	The returned path, if any, could be normalized (see getNormalizedPathname())
 	A warning is printed if the environment variable does'nt exist or if the environment variable refers to an non existing path."""
 
 	# Retrieves environment variable
 	#path = os.getenv( varname )
-	env = Environment()
-	path = env.get( varname, True )
+	path = Environment().get(varname, True)
 
 	# Error cases
 	if not path :
@@ -103,6 +102,21 @@ def getPathFromEnv( varname, normalizedPathname = True ) :
 		path = getNormalizedPathname( path )
 
 	return path
+
+
+def getFromEnv( varname, returnEmptyStringIfNotExist = False ):
+	"""	@return If returnEmptyStringIfNotExist is false, the value of the environment variable varname if it exists or None.
+		If returnEmptyStringIfNotExist is true, the value of the environment variable varname if it exists or an empty string."""
+
+	value = Environment().get(varname, False)
+
+	if returnEmptyStringIfNotExist:
+		if value:
+			return value
+		else:
+			return ''
+	else:
+		return value
 
 
 def removePathHead( param ):

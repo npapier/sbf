@@ -15,9 +15,8 @@ except ImportError as e:
 	pass
 
 from sbfTools import *
-from sbfUtils import getPathFromEnv, convertToList
+from sbfUtils import getPathFromEnv, getFromEnv, convertToList
 from sbfVersion import splitUsesName
-
 
 #@todo moves to sbfConfig.py ?
 class pythonConfig:
@@ -41,21 +40,35 @@ class pythonConfig:
 
 class sofaConfig:
 	__basePath = None
+	__pluginsList = []
 
 	@classmethod
 	def __initialize( cls ):
 		# Retrieves SOFA_PATH
 		cls.__basePath = getPathFromEnv('SOFA_PATH')
 
-		# Post-conditions
+		# Post-conditions for SOFA_PATH
 		if cls.__basePath is None or len(cls.__basePath)==0:
 			raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
+
+
+		# Retrieves SOFA_PLUGINS
+		sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
+		if len(sofaPlugins)>0:
+			cls.__pluginsList = sofaPlugins.split(':')
+
 
 	@classmethod
 	def getBasePath( cls ):
 		if cls.__basePath is None:
 			cls.__initialize()
 		return cls.__basePath
+
+	@classmethod
+	def getPluginsList( cls ):
+		if cls.__basePath is None:
+			cls.__initialize()
+		return cls.__pluginsList
 
 
 class gtkmmConfig:
@@ -930,15 +943,19 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
-						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree', 'TriangularMeshRefiner', 'PersistentContact', 'Suture', 'BeamAdapter' ]
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree'
+						# core plugins
+						, 'BeamAdapter', 'PersistentContact', 'TriangularMeshRefiner' ]
 
-			#libsBoth += [ 'DTToolControllers' ]
+			# optional plugins (sofa-dt)
+			libsBoth += self.getPluginsList()
+
+			# shared library
 			#libsBoth += [ 'sofa_eigen2_solver' ]
 
 			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
 
 			sofaVersion = '_1_0'
-
 			libsBoth = [ lib + sofaVersion for lib in libsBoth ]
 			staticLibs = [ lib + sofaVersion for lib in staticLibs ]
 
@@ -1748,6 +1765,7 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 			useNameVersion = elt
 
 			useName, useVersion = splitUsesName( useNameVersion )
+			#print useNameVersion, useName, useVersion
 			use = UseRepository.getUse( useName )
 
 			if use:
