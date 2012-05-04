@@ -262,8 +262,17 @@ void Package::initModules( const PathType & pathType )
 {
 	namespace bfs = boost::filesystem;
 
-	const bfs::path			basePath = getPathSafe( pathType );
+	// Get the base path for the module discovery.
+	// And checks that the path exists or stop processing.
+	const bfs::path	basePath = getPath(pathType);
 
+	if( !bfs::exists(basePath) )
+	{
+		return;
+	}
+
+
+	// Walks the base path content to discover modules.
 	std::string	moduleName;
 	std::string	moduleVersion;
 	
