@@ -8,7 +8,9 @@ from os.path import join, exists
 import subprocess
 
 
+from sbfEnvironment import Environment
 from sbfFiles import *
+
 
 
 ###### Functions for print action ######
@@ -81,8 +83,11 @@ def getPathFromEnv( varname, normalizedPathname = True ) :
 	"""Return the value of the environment variable varname if it exists, or None.
 	The returned path, if any, could be normalized (see getNormalizedPathname())
 	A warning is printed if the environment variable does'nt exist or if the environment variable refers to an non existing path."""
+
 	# Retrieves environment variable
-	path = os.getenv( varname )
+	#path = os.getenv( varname )
+	env = Environment()
+	path = env.get( varname, True )
 
 	# Error cases
 	if not path :
