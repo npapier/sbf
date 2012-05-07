@@ -912,7 +912,12 @@ class Use_sofa( IUse, sofaConfig ):
 		return 'sofa'
 
 	def getCPPDEFINES( self, version ):
-		return ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
+		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
+		
+		for plugin in self.getPluginsList():
+			definesList += ['SOFA_HAVE_' + plugin.upper()]
+			
+		return definesList
 
 	def getCPPFLAGS( self, version ):
 		if self.platform == 'win32' :
