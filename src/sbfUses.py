@@ -56,6 +56,7 @@ class sofaConfig:
 		sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
 		if len(sofaPlugins)>0:
 			cls.__pluginsList = sofaPlugins.split(':')
+			print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
 
 
 	@classmethod
