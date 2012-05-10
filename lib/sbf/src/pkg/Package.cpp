@@ -101,7 +101,7 @@ Package::const_iterator Package::begin()
 }
 
 
-boost::shared_ptr< Package > Package::current()
+const boost::shared_ptr< Package > Package::current()
 {
 	init();
 	
@@ -114,6 +114,32 @@ boost::shared_ptr< Package > Package::current()
 Package::const_iterator Package::end()
 {
 	return m_packages.end();
+}
+
+
+const Package::PackageContainer Package::findDuplicates()
+{
+	PackageContainer	result;
+	std::string			name;
+
+	for( PackageContainer::const_iterator package = m_packages.begin(); package != m_packages.end(); ++package )
+	{
+		if( (*package)->getName().empty() )
+		{
+			// Nothing to do, because this is the root package.
+		}
+		else if( name.empty() )
+		{
+			name = (*package)->getName();
+			result.push_back( *package );
+		}
+		else if( (*package)->getName() == name )
+		{
+			result.push_back( *package );
+		}
+	}
+
+	return result.size() > 1 ? result : PackageContainer();
 }
 
 

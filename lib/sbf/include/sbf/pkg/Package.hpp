@@ -3,8 +3,8 @@
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
 
-#ifndef _SBF_MODULE_PACKAGE_HPP_
-#define _SBF_MODULE_PACKAGE_HPP_
+#ifndef _SBF_PKG_PACKAGE_HPP_
+#define _SBF_PKG_PACKAGE_HPP_
 
 #include <string>
 #include <vector>
@@ -53,9 +53,10 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	 * @name	Package collection
 	 */
 	//@{
-	static const_iterator begin();					///< Retrieves the iterator on the beginning of the package collection.
-	static boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
-	static const_iterator end();					///< Retrieves the iterator on the end of the package collection.
+	static const_iterator begin();							///< Retrieves the iterator on the beginning of the package collection.
+	static const boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
+	static const_iterator end();							///< Retrieves the iterator on the end of the package collection.
+	static const PackageContainer findDuplicates();			///< Retrieves the first packages having the same name but a different version.
 	//@}
 
 	/**
