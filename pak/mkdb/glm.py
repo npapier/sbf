@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 # ok for clx.y
 descriptor = {
- 'urls'			: ['http://prdownloads.sourceforge.net/glf/glm-0.8.4.1.zip'],
+ 'urls'			: ['http://sourceforge.net/projects/ogl-math/files/glm-0.9.3.3/glm-0.9.3.3.zip'],
 
  'name'			: 'glm',
- 'version'		: '0-8-4-1',
+ 'version'		: '0-9-3-3',
 
- 'rootDir'		: 'glm-0.8.4.1',
- 'license'		: ['copying'],
+ 'rootDir'		: 'glm-0.9.3.3',
+ 'license'		: ['copying.txt'],
  'include'		: [('glm/', 'glm/')],
 }
