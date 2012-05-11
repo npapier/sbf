@@ -4,6 +4,8 @@
 # Author Nicolas Papier
 
 import os
+import sys
+import tempfile
 from os.path import join, exists
 import subprocess
 
@@ -24,7 +26,23 @@ def stringFormatter( lenv, message ) :
 
 
 ### execute command line ###
-def subprocessCall( cmdLine, verbose = True ):
+def subprocessCall2( command ):
+	# Executes commands
+	try:
+		retcode = subprocess.call( command )
+		if retcode < 0:
+			print >>sys.stderr, "  Child was terminated by signal", -retcode
+			return -retcode
+		elif retcode == 0:
+			pass
+		else:
+			print >>sys.stderr, "  Child returned", retcode
+			return retcode
+	except OSError, e:
+		print >>sys.stderr, "  Execution failed:", e
+		exit(1)
+
+def subprocessGetOuputCall( cmdLine, verbose = True ):
 	"""Executes cmdLine in a subprocess.
 	if verbose if True, then message about the command executed and its output is printed.
 	@return the output of the executed command"""
@@ -72,6 +90,32 @@ def execute( commandAndParams, commandPath = None ):
 			return line
 
 
+def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = None ):
+	if not vcvarsPath:
+		# Microsoft Visual Studio 2010 x86 tools.
+		vcvarsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\bin\\vcvars32.bat'
+
+	# Reads batch file to set environment for using Microsoft Visual Studio 20xx x86 tools.
+	with open(vcvarsPath) as file:
+		setupVCLines = file.readlines()
+
+	# Appends command
+	setupVCLines.append( 'call {0}\n'.format(command) )
+	if appendExit:
+		setupVCLines.append( 'exit\n'.format(command) )
+
+	# Writes patched vcvars.bat
+	with tempfile.NamedTemporaryFile(suffix='.bat', delete=False) as file:
+		file.writelines( setupVCLines )
+
+	# Executing command
+	retVal = subprocessCall2( '{comspec} /k ""{vcvarsbat}""'.format( comspec=os.environ['COMSPEC'], vcvarsbat=file.name ) )
+
+	# Cleaning
+	os.remove(file.name)
+
+	return retVal
+
 
 ### Severals helpers ###
 def capitalize( str ):
@@ -86,7 +130,7 @@ def getPathFromEnv( varname, normalizedPathname = True ):
 
 	# Retrieves environment variable
 	#path = os.getenv( varname )
-	path = Environment().get(varname, True)
+	path = Environment().get(varname, False)
 
 	# Error cases
 	if not path :

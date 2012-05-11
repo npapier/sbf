@@ -21,7 +21,7 @@ from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile, sea
 from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
-from sbfUtils import subprocessCall, removePathHead
+from sbfUtils import removePathHead
 from sbfVersion import splitPackageName, joinPackageName
 
 

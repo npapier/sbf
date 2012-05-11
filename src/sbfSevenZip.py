@@ -4,7 +4,7 @@
 # Author Nicolas Papier
 
 from sbfTools import locateProgram
-from sbfUtils import subprocessCall, nopAction, stringFormatter
+from sbfUtils import subprocessGetOuputCall, nopAction, stringFormatter
 
 try:
 	from SCons.Script import *
@@ -21,7 +21,7 @@ def sevenZipExtract( pathArchive, outputDir, verbose = True ):
 	else:
 		cmdLine = '"{sevenZip}" x "{pathArchive}"'.format( sevenZip=join(path7z, '7z'), pathArchive = pathArchive )
 
-	return subprocessCall( cmdLine, verbose )
+	return subprocessGetOuputCall( cmdLine, verbose )
 
 # @todo sevenZipCompress()
 
