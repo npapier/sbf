@@ -418,7 +418,7 @@ class SvnListDirectory( SvnList ):
 		return retVal
 
 
-# SvnGetWorkingAndRepositoryRevision, SvnUpdateAvailable
+# SvnGetWorkingAndRepositoryRevision, SvnGetWorkingAndRepositoryLastChangedRevision, SvnUpdateAvailable
 class SvnGetWorkingAndRepositoryRevision( SvnGetInfo ):
 	"""SvnGetWorkingAndRepositoryRevision()( workingCopyPath )
 		@param workingCopyPath	path to the current working copy
@@ -430,6 +430,19 @@ class SvnGetWorkingAndRepositoryRevision( SvnGetInfo ):
 			repositoryInfo = SvnGetInfo.doSvnOperation( self, workingInfo['URL'] )
 			if repositoryInfo:
 				return (workingInfo['rev'].number, repositoryInfo['rev'].number)
+
+
+class SvnGetWorkingAndRepositoryLastChangedRevision( SvnGetInfo ):
+	"""SvnGetWorkingAndRepositoryLastChangedRevision()( workingCopyPath )
+		@param workingCopyPath	path to the current working copy
+		@return None if not under vcs, otherwise returns (workingLastChangedRevisionNumber, repositoryLastChangedRevisionNumber)"""
+
+	def doSvnOperation( self, *args ):
+		workingInfo = SvnGetInfo.doSvnOperation( self, *args )
+		if workingInfo:
+			repositoryInfo = SvnGetInfo.doSvnOperation( self, workingInfo['URL'] )
+			if repositoryInfo:
+				return (workingInfo['last_changed_rev'].number, repositoryInfo['last_changed_rev'].number)
 
 
 # @todo Improves SvnUpdateAvailable() => retVal = SvnStatus(), checks len(retVal) and retVal contents
