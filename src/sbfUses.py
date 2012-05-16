@@ -759,10 +759,10 @@ class Use_glu( IUse ):
 
 class Use_glm( IUse ):
 	def getName(self ):
-		return "glm"
+		return 'glm'
 
 	def getVersions( self ):
-		return [ '0-8-4-1' ]
+		return [ '0-9-3-3', '0-8-4-1' ]
 
 
 class Use_glut( IUse ):
