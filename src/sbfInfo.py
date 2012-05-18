@@ -6,7 +6,11 @@
 import getpass
 import platform
 
-from SCons.Script import *
+# To be able to use this file without SCons
+try:
+	from SCons.Script import *
+except ImportError as e:
+	print ('sbfWarning: unable to import SCons.Script')
 
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem

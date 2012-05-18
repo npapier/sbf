@@ -10,6 +10,7 @@ import sbfIVersionControlSystem
 import os
 import re
 import string
+import tempfile
 import time
 
 from collections import OrderedDict
@@ -399,7 +400,8 @@ class SConsBuildFramework :
 	myProjectOptions				= None
 
 	# Global attributes from command line
-	myBuildTargets					= set()
+	myBuildTargets					= set()		# 'all' if no target is specified, without command line options (like 'debug'...)
+	myCurrentCmdLineOptions			= set()
 	#myGHasCleanOption				= False
 
 	# Globals attributes
@@ -415,7 +417,8 @@ class SConsBuildFramework :
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
 	myIsExpressEdition				= False			# True if Visual Express Edition, False otherwise
 	myCCVersion						= ''			# cl8-0Exp
-	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE).
+	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe).
+	myMSVCVARS32					= ''			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
 	my_Platform_myCCVersion			= ''
 
 
@@ -680,15 +683,14 @@ class SConsBuildFramework :
 		self.myBuildTargets = [str(buildTarget).lower() for buildTarget in BUILD_TARGETS]
 		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
 		self.myBuildTargets = set(self.myBuildTargets)
+		self.myCurrentCmdLineOptions = self.myBuildTargets & self.myCmdLineOptions
+		self.myBuildTargets = self.myBuildTargets - self.myCurrentCmdLineOptions
+		if len(self.myBuildTargets)==0:	self.myBuildTargets = set(['all'])
 
-		buildTargetsWithoutCmdLineOptions = self.myBuildTargets - self.myCmdLineOptions
-		if len(buildTargetsWithoutCmdLineOptions)==0:
-			buildTargetsWithoutCmdLineOptions = set(['all'])
-		Alias('all')
-		Default( 'all' )
-
-		Alias( list(buildTargetsWithoutCmdLineOptions)[0] )
-		Alias( self.myCmdLineOptionsList, list(buildTargetsWithoutCmdLineOptions)[0] )
+		tmp = list(self.myBuildTargets)[0]
+		Alias( tmp )
+		Alias( list(self.myCurrentCmdLineOptions), tmp )
+		Default('all')
 
 		# 'clean' and 'mrproper'
 		#self.myGHasCleanOption = env.GetOption('clean')
@@ -709,16 +711,16 @@ class SConsBuildFramework :
 
 		# Overrides the 'config' option, when one of the special targets, named 'debug' and 'release', is specified
 		# at command line.
-		if ('debug' in self.myBuildTargets) and ('release' in self.myBuildTargets) :
+		if ('debug' in self.myCurrentCmdLineOptions) and ('release' in self.myCurrentCmdLineOptions) :
 			raise SCons.Errors.UserError("Targets 'debug' and 'release' have been specified at command-line. Chooses one of both.")
-		if 'debug' in self.myBuildTargets :
+		if 'debug' in self.myCurrentCmdLineOptions:
 			self.myEnv['config'] = 'debug'
-		elif 'release' in self.myBuildTargets :
+		elif 'release' in self.myCurrentCmdLineOptions:
 			self.myEnv['config'] = 'release'
 
 
 		# myPlatform, myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
-		# myPlatform = win32 | cygwin  | posix | darwin				@todo TOTHINK: posix != linux and bsd ?, env['PLATFORM'] != sys.platform
+		# myPlatform = win32 | cygwin | posix | darwin				@todo TOTHINK: posix != linux and bsd ?, env['PLATFORM'] != sys.platform
 		self.myPlatform	= self.myEnv['PLATFORM']
 
 		# myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
@@ -740,8 +742,22 @@ class SConsBuildFramework :
 				self.myCCVersion += 'Exp'
 			self.myEnv['CCVERSION'] = self.myCCVersion
 			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
+			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
 			if self.myEnv.GetOption('verbosity'):
-				print 'VC version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
+				print 'Visual C++ version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
+				if self.myMSVSIDE and len(self.myMSVSIDE)>0:
+					print ("Found VCExpress.exe in '{0}'.".format(self.myMSVSIDE))
+				else:
+					print ('VCExpress.exe not found.')
+
+				if self.myMSVCVARS32 and len(self.myMSVCVARS32)>0:
+					print ("Found vcvars32.bat in '{0}'.".format(self.myMSVCVARS32))
+				else:
+					print ('vcvars32.bat not found.')
+
+#			print self.myEnv.WhereIs( 'signtool.exe' )
+
+
 		elif self.myEnv['CC'] == 'gcc' :
 			# Sets compiler
 			self.myCC = 'gcc'
@@ -1236,6 +1252,9 @@ SConsBuildFramework options:
 
 			('shareExclude', "The list of Unix shell-style wildcards to exclude files from 'share' directory", []),
 			('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
+
+			('customBuild',	"A dictionnary containing { target : pyScript, ... } to specify a python script for a target. Python script is executed during 'thinking stage' of SConsBuildFramework if its associated target have to be built. Script has access to SCONS_BUILD_FRAMEWORK environment variable and lenv, the SCons environment for the project. Python 'sys.path' is adjusted to allow direct 'import' of python script from the root directory of the project.",
+							{}),
 
 			BoolVariable(	'console',
 							'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
@@ -1933,6 +1952,51 @@ SConsBuildFramework options:
 		# Initializes the project
 		self.initializeProjectFromEnv( lenv )
 
+		### option 'customBuild' of project
+		if len(lenv['customBuild']):
+			for target, cmd in lenv['customBuild'].iteritems():
+				if target not in self.myBuildTargets:	continue
+
+				### Moves to 'sandbox'
+				# Writes cmd in a temporary file
+				with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as file:
+					file.writelines( cmd )
+
+				# Backups current working directory
+				backupCWD = os.getcwd()
+				os.chdir( lenv['sbf_projectPathName'] )
+
+				# Adapts sys.path
+				sys.path.append( lenv['sbf_projectPathName'] )
+
+				# Executing command, lenv is available to command
+				print stringFormatter(lenv, "customBuild '{0}' for project {1}".format( target, lenv['sbf_project']))
+				locals = { 'lenv': lenv }
+				execfile( file.name, locals  )
+
+				# Process returned value
+				if locals['exitCode'] > 0:
+					print ('exit code:{0}'.format(locals['exitCode']))
+					Exit(locals['exitCode'])
+				print
+
+				# Restores state before 'sandbox'
+				sys.path.pop()
+				os.chdir( backupCWD )
+
+				# Cleaning
+				os.remove(file.name)
+
+				### Deferred executing cmd (command line and not python code)
+				# Propagating SCONS_BUILD_FRAMEWORK environment variable in command(s)
+				#lenv['ENV']['SCONS_BUILD_FRAMEWORK'] = self.mySCONS_BUILD_FRAMEWORK
+				#Alias( target, lenv.Command(
+				#	'{0}_{1}_print.out'.format(lenv['sbf_project'], target), 'dummy.in',
+				#	Action( nopAction, stringFormatter(lenv, "customBuild for project {0} : '{1}'".format(lenv['sbf_project'], cmd)) ) ))
+				#Alias( target, lenv.Command(
+				#	'{0}_{1}.out'.format(lenv['sbf_project'], target), 'dummy.in', '{cmd}'.format(cmd=cmd), chdir=lenv['sbf_projectPathName'] ) )
+
+		#
 		if lenv['sbf_tryVcsOperation'] or configureOnly:
 			if lenv.GetOption('verbosity'): print ( "Parsing project {0}...".format(lenv['sbf_project']) )
 			return

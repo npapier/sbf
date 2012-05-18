@@ -14,6 +14,11 @@ type				= 'shared'	# exec, static, shared, none
 #test				= 'none' # gtest
 #shareExclude		= ['*.avi']
 #shareBuild			= ([filters], ('command ${SOURCE} ${TARGET}', '${SOURCE}.encrypt', 'Encrypt $SOURCE.file') )
+#customBuild		= { 'all' : customBuildForAll }
+	#customBuildForAll = """import os
+	#						print os.getenv('SCONS_BUILD_FRAMEWORK')
+	#						print lenv.Dump()
+	#						import myFile # a file name myFile.py in the directory of this project"""
 #console			= True
 #runParams			= []
 #deploymentType		= 'none'
