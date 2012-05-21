@@ -698,9 +698,9 @@ class SConsBuildFramework :
 		if (	'clean' in self.myBuildTargets or
 				'mrproper' in self.myBuildTargets	) :
 			# target clean or mrproper
-			if len(buildTargetsWithoutCmdLineOptions) != 1 :
+			if len(self.myBuildTargets) != 1 :
 				raise SCons.Errors.UserError(	"'clean' and 'mrproper' special targets must be used without any others targets.\nCurrent specified targets: %s"
-												% convertToString(buildTargetsWithoutCmdLineOptions) )
+												% convertToString(self.myBuildTargets) )
 			else :
 				self.myEnv.SetOption('clean', 1)
 
