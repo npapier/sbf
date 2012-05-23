@@ -44,7 +44,7 @@ except ImportError as e:
 def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command
 	@todo version and platform"""
-	shareBuildCommand = (	'blowfish_0-0_${PLATFORM}_${CCVERSION}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
+	shareBuildCommand = (	'blowfish_1-0_${PLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
 
@@ -391,6 +391,7 @@ class SConsBuildFramework :
 	# sbf_version_minor
 	# sbf_version_maintenance
 	# sbf_version_postfix
+	# sbf_my_FullPostfix
 
 	# sbf_projectGUID
 	#@todo completes this list
@@ -1105,6 +1106,7 @@ SConsBuildFramework options:
 			self.my_FullPostfix = '_' + self.myFullPostfix
 		else :
 			self.my_FullPostfix = ''
+		lenv['sbf_my_FullPostfix']		= self.my_FullPostfix
 
 		###
 		lenv.Append( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
