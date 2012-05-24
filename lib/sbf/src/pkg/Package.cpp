@@ -179,6 +179,12 @@ const std::string & Package::getName() const
 }
 
 
+const std::string Package::getNameAndVersion() const
+{
+	return m_version.empty() ? m_name : m_name+"_"+m_version;
+}
+
+
 const boost::shared_ptr< Package > Package::getParent() const
 {
 	return m_parent.lock();

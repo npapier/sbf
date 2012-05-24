@@ -37,6 +37,12 @@ const std::string & Module::getName() const
 }
 
 
+const std::string Module::getNameAndVersion() const
+{
+	return m_version.empty() ? m_name : m_name+"_"+m_version;
+}
+
+
 boost::shared_ptr< Package > Module::getPackage() const
 {
 	return m_package.lock();

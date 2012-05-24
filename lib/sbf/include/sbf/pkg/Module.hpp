@@ -58,6 +58,11 @@ struct SBF_API Module
 	const std::string & getName() const;
 
 	/**
+	 * @brief	Retrieves the name and version string of the module.
+	 */
+	const std::string getNameAndVersion() const;
+
+	/**
 	 * @brief	Retrieves the package owing the module.
 	 */
 	boost::shared_ptr< Package > getPackage() const;

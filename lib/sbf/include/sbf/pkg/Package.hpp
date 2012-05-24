@@ -65,6 +65,7 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	//@{
 	const std::string & getName() const;										///< Retrieves the name of the package.
 	const std::string & getVersion() const;										///< Retrieves the version of the package.
+	const std::string getNameAndVersion() const;								///< Retrieves the name and version string of the package.
 	const boost::shared_ptr< Package > getParent() const;						///< Retrieves the parent package (returns null if none).
 	const boost::filesystem::path & getPath() const;							///< Retrieves the root directory of the package.
 	const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the given path in the package tree.
