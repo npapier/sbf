@@ -96,6 +96,10 @@ def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = No
 		vcvarsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\bin\\vcvars32.bat'
 
 	# Reads batch file to set environment for using Microsoft Visual Studio 20xx x86 tools.
+	if not exists(vcvarsPath):
+		print ("vcvars32.bat not found in '{0}'.".format(vcvarsPath))
+		return 1
+
 	with open(vcvarsPath) as file:
 		setupVCLines = file.readlines()
 
