@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -26,7 +26,7 @@ if sys.platform == 'win32':
 		import win32gui
 		isPyWin32Available = True
 
-		def getInstallPath( key = win32con.HKEY_LOCAL_MACHINE, subkey = '', printedMessage = '', enableLogging = True ):
+		def _getInstallPath( key = win32con.HKEY_LOCAL_MACHINE, subkey = '', samDesired = win32con.KEY_READ, printedMessage = '', enableLogging = True ):
 			"""	SOFTWARE\Python\PythonCore\2.6\InstallPath\\ => default value of SOFTWARE\Python\PythonCore\2.6\InstallPath
 				SOFTWARE\7-Zip\Path => Path value of SOFTWARE\7-Zip"""
 
@@ -34,7 +34,7 @@ if sys.platform == 'win32':
 			mySubkey = subkey[:p]
 			myValueName = subkey[p+1:]
 			try:
-				regKey = win32api.RegOpenKey( key, mySubkey )
+				regKey = win32api.RegOpenKeyEx( key, mySubkey, 0, samDesired )
 				value, dataType = win32api.RegQueryValueEx( regKey, myValueName )
 				regKey.Close()
 				if len(printedMessage) > 0 and enableLogging:
@@ -44,6 +44,18 @@ if sys.platform == 'win32':
 				if len(printedMessage) > 0 and enableLogging:
 					logging.warning( '%s is not installed' % printedMessage )
 				return ''
+
+		def getInstallPath( key = win32con.HKEY_LOCAL_MACHINE, subkey = '', printedMessage = '', enableLogging = True ):
+			"""Calls _getInstallPath() using KEY_WOW64_64KEY to access a 64-bit key from either a 32-bit or 64-bit application, then if needed KEY_WOW64_32KEY
+			to access a 32-bit key from either a 32-bit or 64-bit application. See _getInstallPath()."""
+
+			# Access a 64-bit key from either a 32-bit or 64-bit application
+			installPath = _getInstallPath( key, subkey, win32con.KEY_READ | win32con.KEY_WOW64_64KEY )
+			if len(installPath):	return installPath
+
+			# Access a 32-bit key from either a 32-bit or 64-bit application.
+			installPath = _getInstallPath( key, subkey, win32con.KEY_READ | win32con.KEY_WOW64_32KEY )
+			return installPath
 
 	except ImportError:
 		print ('sbfWarning: pywin32 is not installed (from sbfTools.py).')
@@ -69,7 +81,7 @@ def locateProgramUsingRegistry( programName ):
 	myMap = {
 		'cygwin'		: cygwin,
 		'cygpath'		: cygwin,
-		'doxygen'		: [ r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1\InstallLocation' ],
+		'doxygen'		: [r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1\InstallLocation' ],
 		'graphviz'		: [r'SOFTWARE\AT&T Research Labs\Graphviz\InstallPath', r'SOFTWARE\ATT\Graphviz\InstallPath'],
 		'gtkmm'			: [r'SOFTWARE\gtkmm\2.4\Path'],
 		'nsis'			: [r'SOFTWARE\NSIS\\'],
@@ -79,6 +91,7 @@ def locateProgramUsingRegistry( programName ):
 		'svn'			: [	r'SOFTWARE\CollabNet\Subversion\{0}\Client\Install Location'.format(currentSvnVersion),
 							r'SOFTWARE\CollabNet\Subversion\{0}\Server\Install Location'.format(currentSvnVersion) ],
 		'7z'			: [r'SOFTWARE\7-Zip\Path'],
+		'tortoisemerge'	: [r'SOFTWARE\TortoiseSVN\TMergePath']
 	}
 
 	actionMap = {
@@ -113,7 +126,7 @@ def locateProgramUsingPATH( programName ):
 def locateProgram( programName ):
 	# Using registry
 	if isPyWin32Available:
-		location = locateProgramUsingRegistry( programName )
+		location = locateProgramUsingRegistry( programName.lower() )
 		if len(location)>0:
 			return location
 
