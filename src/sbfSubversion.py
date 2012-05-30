@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -301,9 +301,7 @@ class SvnOperation:
 			self.client.callback_notify.detach( self.statistics )
 			return retVal
 		except pysvn.ClientError as e:
-			print ('An error occurs during an svn operation:')
-			print ('{0}\n'.format(e.args[0]))
-			#print e.args[1]
+			self.printErrorMessages(e)
 			Exit(1)
 
 	def doSvnOperation( self, *args ):
@@ -314,6 +312,11 @@ class SvnOperation:
 
 	def printStatisticsReport( self ):
 		self.statistics.printReport()
+
+	def printErrorMessages( self, e ):
+		print ('An error occurs during an svn operation:')
+		print ('{0}\n'.format(e.args[0]))
+		#print e.args[1]
 
 
 # SvnGetInfo, SvnGetRevision, svnGetUUID
@@ -351,7 +354,8 @@ class SvnGetInfo( SvnOperation ):
 				else:
 					raise e
 			else:
-				raise AssertionError('len(pysvn.ClientError)!=1')
+				assert( len(e[1]) > 1 )
+				self.printErrorMessages(e)
 
 
 class SvnGetRevision( SvnGetInfo ):
