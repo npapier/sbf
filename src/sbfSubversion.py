@@ -355,7 +355,8 @@ class SvnGetInfo( SvnOperation ):
 					raise e
 			else:
 				assert( len(e[1]) > 1 )
-				self.printErrorMessages(e)
+				raise e
+				#self.printErrorMessages(e)
 
 
 class SvnGetRevision( SvnGetInfo ):
