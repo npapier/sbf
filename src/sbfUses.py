@@ -915,8 +915,14 @@ class Use_sofa( IUse, sofaConfig ):
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
 		
+		pluginsDefine = ''
 		for plugin in self.getPluginsList():
-			definesList += ['SOFA_HAVE_' + plugin.upper()]
+			if len(pluginsDefine)>0:
+				pluginsDefine += ':' + plugin
+			else:
+				pluginsDefine += plugin
+			
+		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefine)]
 			
 		return definesList
 
@@ -949,9 +955,7 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
-						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree'
-						# core plugins
-						, 'BeamAdapter', 'PersistentContact', 'TriangularMeshRefiner' ]
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
 			# optional plugins (sofa-dt)
 			libsBoth += self.getPluginsList()
