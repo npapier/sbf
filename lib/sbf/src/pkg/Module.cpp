@@ -14,10 +14,8 @@ namespace pkg
 {
 
 
-Module::Module( const boost::weak_ptr< Package > package, const std::string & name, const std::string & version )
-:	m_package( package ),
-	m_name( name ),
-	m_version( version )
+Module::Module( const boost::weak_ptr< Package > parent, const std::string & name, const std::string & version )
+:	Component( name, version, parent )
 {}
 
 
@@ -31,48 +29,15 @@ boost::shared_ptr< Module > Module::get( const std::string & name, const std::st
 }
 
 
-const std::string & Module::getName() const
-{
-	return m_name;
-}
-
-
-const std::string Module::getNameAndVersion() const
-{
-	return m_version.empty() ? m_name : m_name+"_"+m_version;
-}
-
-
-boost::shared_ptr< Package > Module::getPackage() const
-{
-	return m_package.lock();
-}
-
-
 const boost::filesystem::path Module::getPath( const PathType & type ) const
 {
 	boost::filesystem::path	result;
 	
-	result  = getPackage()->getPath(type);
+	result  = getParent()->getPath(type);
 	result /= m_name;
 	result /= m_version;
 
 	return result;
-}
-
-
-const boost::filesystem::path Module::getPathSafe( const PathType & type ) const
-{
-	const boost::filesystem::path	result = getPath( type );
-
-	boost::filesystem::create_directories( result );
-	return result;
-}
-
-
-const std::string & Module::getVersion() const
-{
-	return m_version;
 }
 
 

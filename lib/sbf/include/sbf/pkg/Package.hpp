@@ -15,6 +15,7 @@
 
 #include "sbf/sbf.hpp"
 #include "sbf/pkg/types.hpp"
+#include "sbf/pkg/Component.hpp"
 
 
 namespace sbf
@@ -31,14 +32,14 @@ struct Pluggable;
 /**
  * @brief	Provide package system management and package interactions.
  */
-struct SBF_API Package : public boost::enable_shared_from_this< Package >
+struct SBF_API Package : public boost::enable_shared_from_this< Package >, public Component
 {
 	/**
 	 * @name	Containers and iterators
 	 */
 	//@{
 	typedef std::vector< boost::shared_ptr< Package > >	PackageContainer;
-	typedef PackageContainer::const_iterator			const_iterator;
+	typedef PackageContainer::iterator			iterator;
 
 	typedef std::vector< boost::shared_ptr< Module > >	ModuleContainer;
 	typedef ModuleContainer::iterator					module_iterator;
@@ -53,9 +54,9 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	 * @name	Package collection
 	 */
 	//@{
-	static const_iterator begin();							///< Retrieves the iterator on the beginning of the package collection.
+	static iterator begin();								///< Retrieves the iterator on the beginning of the package collection.
 	static const boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
-	static const_iterator end();							///< Retrieves the iterator on the end of the package collection.
+	static iterator end();									///< Retrieves the iterator on the end of the package collection.
 	static const PackageContainer findDuplicates();			///< Retrieves the first packages having the same name but a different version.
 	//@}
 
@@ -63,13 +64,18 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >
 	 * @name	Properties
 	 */
 	//@{
-	const std::string & getName() const;										///< Retrieves the name of the package.
-	const std::string & getVersion() const;										///< Retrieves the version of the package.
-	const std::string getNameAndVersion() const;								///< Retrieves the name and version string of the package.
-	const boost::shared_ptr< Package > getParent() const;						///< Retrieves the parent package (returns null if none).
 	const boost::filesystem::path & getPath() const;							///< Retrieves the root directory of the package.
 	const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the given path in the package tree.
-	const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the given path in the package tree and also ensures that the path exists.
+	const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the given path in the package tree, and also ensures that the path exists.
+	//@}
+
+	/**
+	 * @name	Configuration
+	 */
+	//@{
+	const bool isEnabled() const;			///< Tells if the package is enabled.
+	void setEnabled( const bool enable );	///< Enables or disables the package (may need a software restart to take effect).
+	const bool willBeEnabled() const;		///< Tells if the package will be enabled after a software restart.
 	//@}
 
 	/**
@@ -167,13 +173,11 @@ private:
 
 	static PackageContainer		m_packages;	///< The collection of packages found on the system.
 
-	const std::string					m_name;			///< The package name.
-	const std::string					m_version;		///< The package version.
-	const boost::filesystem::path		m_path;			///< The package root's path.
-	const boost::weak_ptr< Package >	m_parent;		///< The package parent.
-	mutable ModuleContainer				m_modules;		///< The collection of modules available in the package.
-	PluggableContainer					m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
-
+	const boost::filesystem::path	m_path;			///< The package root's path.
+	const bool						m_enabled;		///< Tells if the package is enable.
+	mutable ModuleContainer			m_modules;		///< The collection of modules available in the package.
+	PluggableContainer				m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
+	
 	/**
 	 * @brief	Constructor
 	 *

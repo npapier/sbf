@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 #include <iostream>
 
-#include <boost/filesystem/convenience.hpp>
 #include <boost/filesystem/operations.hpp>
 
 #ifdef WIN32
@@ -88,14 +88,13 @@ Package::PackageContainer	Package::m_packages;
 
 
 Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & path, const boost::weak_ptr< Package > parent )
-:	m_name( name ),
-	m_version( version ),
+:	Component( name, version, parent ),
 	m_path( path ),
-	m_parent( parent )
+	m_enabled( !boost::filesystem::exists(path/toString(VarPath)/"disabled") )
 {}
 
 
-Package::const_iterator Package::begin()
+Package::iterator Package::begin()
 {
 	return m_packages.begin();
 }
@@ -111,7 +110,7 @@ const boost::shared_ptr< Package > Package::current()
 }
 
 
-Package::const_iterator Package::end()
+Package::iterator Package::end()
 {
 	return m_packages.end();
 }
@@ -173,24 +172,6 @@ const boost::shared_ptr< Pluggable > Package::findPluggable( const std::string &
 }
 
 
-const std::string & Package::getName() const
-{
-	return m_name;
-}
-
-
-const std::string Package::getNameAndVersion() const
-{
-	return m_version.empty() ? m_name : m_name+"_"+m_version;
-}
-
-
-const boost::shared_ptr< Package > Package::getParent() const
-{
-	return m_parent.lock();
-}
-
-
 const std::vector< std::string > Package::getPlugablesByTag( const std::string & tag ) const
 {
 	std::vector< std::string > result;
@@ -225,17 +206,17 @@ const boost::filesystem::path Package::getPath( const PathType & type ) const
 
 const boost::filesystem::path Package::getPathSafe( const PathType & type ) const
 {
-	boost::filesystem::path	result = getPath(type);
+	const boost::filesystem::path	path = getPath( type );
 
-	boost::filesystem::create_directories( result );
-	return result;
-}	
-
-
-const std::string & Package::getVersion() const
-{
-	return m_version;
+	boost::filesystem::create_directories(path);
+	return path;
 }
+
+
+const bool Package::isEnabled() const
+{
+	return m_enabled;
+}	
 
 
 void Package::init()
@@ -257,7 +238,7 @@ void Package::init()
 
 	// Creates the root package representing the running application.
 	// The root package is the first package in the collection.
-	const boost::shared_ptr< Package >	rootPackage( new Package(std::string(), std::string(), rootPath) );
+	const boost::shared_ptr< Package >	rootPackage( new Package("root", std::string(), rootPath) );
 	m_packages.push_back( rootPackage );
 	rootPackage->initModules(SharePath);
 	rootPackage->initModules(VarPath);
@@ -283,8 +264,11 @@ void Package::init()
 			const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path, rootPackage) );
 			
 			m_packages.push_back( package );
-			package->initModules( SharePath );
-			package->initModules( VarPath );
+			if( package->isEnabled() )
+			{
+				package->initModules( SharePath );
+				package->initModules( VarPath );
+			}
 		}
 	}
 }
@@ -460,6 +444,34 @@ Package::pluggable_iterator Package::pluggableEnd()
 Package::const_pluggable_iterator Package::pluggableEnd() const
 {
 	return m_pluggables.end();
+}
+
+
+void Package::setEnabled( const bool enabled )
+{
+	// It is not allowed to change this configuration aspect on the root package.
+	assert( m_parent.lock() != 0 );
+
+	const boost::filesystem::path	disableFilename		= getPathSafe(VarPath)/"disabled";
+	const bool						disableFileExists	= boost::filesystem::exists( disableFilename );
+
+	if( enabled && disableFileExists )
+	{
+		boost::filesystem::remove(disableFilename);
+	}
+	else if( !enabled && !disableFileExists )
+	{
+		std::ofstream( disableFilename.string().c_str() );
+	}
+}
+
+
+const bool Package::willBeEnabled() const
+{
+	const boost::filesystem::path	disableFilename		= getPath(VarPath)/"disabled";
+	const bool						disableFileExists	= boost::filesystem::exists( disableFilename );
+
+	return !disableFileExists;
 }
 
 

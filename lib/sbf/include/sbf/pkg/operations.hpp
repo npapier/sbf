@@ -28,7 +28,7 @@ void getAllModules( ModuleSharedPtrContainerT & result )
 {
 	// Walk the packages and append each package's module collection 
 	// to the result collection.
-	for( Package::const_iterator package = Package::begin(); package != Package::end(); ++package )
+	for( Package::iterator package = Package::begin(); package != Package::end(); ++package )
 	{
 		result.insert( result.end(), (*package)->moduleBegin(), (*package)->moduleEnd() );
 	}
@@ -44,7 +44,7 @@ template< typename PlugableSharedPtrContainerT >
 void getAllPluggables( PlugableSharedPtrContainerT & result )
 {
 	// Walk the packages and for each module that is a plugable, appends it to the result.
-	for( Package::const_iterator package = Package::begin(); package != Package::end(); ++package )
+	for( Package::iterator package = Package::begin(); package != Package::end(); ++package )
 	{
 		result.insert( result.end(), (*package)->pluggableBegin(), (*package)->pluggableEnd() );
 	}
