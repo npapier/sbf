@@ -236,40 +236,47 @@ void Package::init()
 	const bfs::path	rootPath = getRoot();
 
 
-	// Creates the root package representing the running application.
-	// The root package is the first package in the collection.
-	const boost::shared_ptr< Package >	rootPackage( new Package("root", std::string(), rootPath) );
-	m_packages.push_back( rootPackage );
-	rootPackage->initModules(SharePath);
-	rootPackage->initModules(VarPath);
-
-
-	// Get's the path of the package repository
-	// and walks the sub-directories to populate the package collection.
-	const bfs::path	 repositoryPath = rootPath / "packages";
-
-	if( bfs::is_directory(repositoryPath) )
+	try
 	{
-		bfs::directory_iterator	end;
+		// Creates the root package representing the running application.
+		// The root package is the first package in the collection.
+		const boost::shared_ptr< Package >	rootPackage( new Package("root", std::string(), rootPath) );
+		m_packages.push_back( rootPackage );
+		rootPackage->initModules(SharePath);
+		rootPackage->initModules(VarPath);
 
-		for( bfs::directory_iterator entry(repositoryPath); entry != end; ++entry )
+
+		// Get's the path of the package repository
+		// and walks the sub-directories to populate the package collection.
+		const bfs::path	 repositoryPath = rootPath / "packages";
+
+		if( bfs::is_directory(repositoryPath) )
 		{
-			// Skips the current entry if it is not a directory
-			if( entry->status().type() != bfs::directory_file ) continue;
+			bfs::directory_iterator	end;
 
-			// Collects various informations, 
-			// creates a new package and adds it the collection.
-			const bfs::path								path			= entry->path();
-			const std::pair< std::string, std::string >	nameAndVersion	= getPackageNameAndVersion( path );
-			const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path, rootPackage) );
-			
-			m_packages.push_back( package );
-			if( package->isEnabled() )
+			for( bfs::directory_iterator entry(repositoryPath); entry != end; ++entry )
 			{
-				package->initModules( SharePath );
-				package->initModules( VarPath );
+				// Skips the current entry if it is not a directory
+				if( entry->status().type() != bfs::directory_file ) continue;
+
+				// Collects various informations, 
+				// creates a new package and adds it the collection.
+				const bfs::path								path			= entry->path();
+				const std::pair< std::string, std::string >	nameAndVersion	= getPackageNameAndVersion( path );
+				const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path, rootPackage) );
+			
+				m_packages.push_back( package );
+				if( package->isEnabled() )
+				{
+					package->initModules( SharePath );
+					package->initModules( VarPath );
+				}
 			}
 		}
+	}
+	catch( const std::exception & e )
+	{
+		std::cerr << "Error while initializing sbf package system. " << e.what() << std::endl;
 	}
 }
 

@@ -39,7 +39,14 @@ const boost::filesystem::path Component::getPathSafe( const PathType & type ) co
 {
 	const boost::filesystem::path	result = getPath(type);
 
-	boost::filesystem::create_directories( result );
+	try
+	{
+		boost::filesystem::create_directories( result );
+	}
+	catch( const std::exception & e )
+	{
+		std::cerr << "Error while creating directories. " << e.what() << std::endl;
+	}
 	return result;
 }	
 
