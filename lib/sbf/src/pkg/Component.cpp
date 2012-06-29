@@ -1,5 +1,6 @@
 #include "sbf/pkg/Component.hpp"
 
+#include <iostream>
 #include <boost/filesystem/convenience.hpp>
 
 
