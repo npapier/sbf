@@ -294,7 +294,8 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-48-0', '1-49-0', '1-47-0', '1-46-1', '1-45-0' ]
+		#return [ '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1', '1-45-0' ]
+		return [ '1-48-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1', '1-45-0' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -334,14 +335,12 @@ class Use_boost( IUse ):
 			genPakLibs2 = [	'boost_chrono-{vc}-{conf}-{ver}' ]
 			genPakLibs3 = [	'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
 
-			if version == '1-49-0':
+			versionToVer = {	'1-48-0'	: '1_48',
+								'1-49-0'	: '1_49',
+								'1-50-0'	: '1_50' }
+			if version in ['1-50-0', '1-49-0', '1-48-0']:
 				# autolinking, so nothing to do.
-				ver = '1_49'
-				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
-				return [], pakLibs
-			elif version == '1-48-0':
-				# autolinking, so nothing to do.
-				ver = '1_48'
+				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
 				return [], pakLibs
 			elif version == '1-47-0':
@@ -353,63 +352,6 @@ class Use_boost( IUse ):
 				# autolinking, so nothing to do.
 				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
-				return [], pakLibs
-			elif version == '1-45-0': # "same" libs as '1-44-0'
-				# autolinking, so nothing to do.
-				if self.config == 'release' :
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						pakLibs = [	'boost_date_time-vc100-mt-1_45', 'boost_filesystem-vc100-mt-1_45', 'boost_graph-vc100-mt-1_45',
-									'boost_iostreams-vc100-mt-1_45', 'boost_math_c99-vc100-mt-1_45', 'boost_math_c99f-vc100-mt-1_45',
-									'boost_math_c99l-vc100-mt-1_45', 'boost_math_tr1-vc100-mt-1_45', 'boost_math_tr1f-vc100-mt-1_45',
-									'boost_math_tr1l-vc100-mt-1_45', 'boost_prg_exec_monitor-vc100-mt-1_45', 'boost_program_options-vc100-mt-1_45',
-									'boost_python-vc100-mt-1_45', 'boost_random-vc100-mt-1_45', 'boost_regex-vc100-mt-1_45', 'boost_serialization-vc100-mt-1_45',
-									'boost_signals-vc100-mt-1_45', 'boost_system-vc100-mt-1_45', 'boost_thread-vc100-mt-1_45',
-									'boost_unit_test_framework-vc100-mt-1_45', 'boost_wave-vc100-mt-1_45', 'boost_wserialization-vc100-mt-1_45' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						pakLibs = [	'boost_date_time-vc90-mt-1_45', 'boost_filesystem-vc90-mt-1_45', 'boost_graph-vc90-mt-1_45',
-									'boost_iostreams-vc90-mt-1_45', 'boost_math_c99-vc90-mt-1_45', 'boost_math_c99f-vc90-mt-1_45',
-									'boost_math_c99l-vc90-mt-1_45', 'boost_math_tr1-vc90-mt-1_45', 'boost_math_tr1f-vc90-mt-1_45',
-									'boost_math_tr1l-vc90-mt-1_45', 'boost_prg_exec_monitor-vc90-mt-1_45', 'boost_program_options-vc90-mt-1_45',
-									'boost_python-vc90-mt-1_45', 'boost_random-vc90-mt-1_45', 'boost_regex-vc90-mt-1_45', 'boost_serialization-vc90-mt-1_45',
-									'boost_signals-vc90-mt-1_45', 'boost_system-vc90-mt-1_45', 'boost_thread-vc90-mt-1_45',
-									'boost_unit_test_framework-vc90-mt-1_45', 'boost_wave-vc90-mt-1_45', 'boost_wserialization-vc90-mt-1_45' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						pakLibs = [	'boost_date_time-vc80-mt-1_45', 'boost_filesystem-vc80-mt-1_45', 'boost_graph-vc80-mt-1_45',
-									'boost_iostreams-vc80-mt-1_45', 'boost_math_c99-vc80-mt-1_45', 'boost_math_c99f-vc80-mt-1_45',
-									'boost_math_c99l-vc80-mt-1_45', 'boost_math_tr1-vc80-mt-1_45', 'boost_math_tr1f-vc80-mt-1_45',
-									'boost_math_tr1l-vc80-mt-1_45', 'boost_prg_exec_monitor-vc80-mt-1_45', 'boost_program_options-vc80-mt-1_45',
-									'boost_python-vc80-mt-1_45', 'boost_random-vc80-mt-1_45', 'boost_regex-vc80-mt-1_45', 'boost_serialization-vc80-mt-1_45',
-									'boost_signals-vc80-mt-1_45', 'boost_system-vc80-mt-1_45', 'boost_thread-vc80-mt-1_45',
-									'boost_unit_test_framework-vc80-mt-1_45', 'boost_wave-vc80-mt-1_45', 'boost_wserialization-vc80-mt-1_45' ]
-					else:
-						return
-				else:
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						pakLibs = [	'boost_date_time-vc100-mt-gd-1_45', 'boost_filesystem-vc100-mt-gd-1_45', 'boost_graph-vc100-mt-gd-1_45',
-									'boost_iostreams-vc100-mt-gd-1_45', 'boost_math_c99-vc100-mt-gd-1_45', 'boost_math_c99f-vc100-mt-gd-1_45',
-									'boost_math_c99l-vc100-mt-gd-1_45', 'boost_math_tr1-vc100-mt-gd-1_45', 'boost_math_tr1f-vc100-mt-gd-1_45',
-									'boost_math_tr1l-vc100-mt-gd-1_45', 'boost_prg_exec_monitor-vc100-mt-gd-1_45', 'boost_program_options-vc100-mt-gd-1_45',
-									'boost_python-vc100-mt-gd-1_45', 'boost_random-vc100-mt-gd-1_45', 'boost_regex-vc100-mt-gd-1_45', 'boost_serialization-vc100-mt-gd-1_45',
-									'boost_signals-vc100-mt-gd-1_45', 'boost_system-vc100-mt-gd-1_45', 'boost_thread-vc100-mt-gd-1_45',
-									'boost_unit_test_framework-vc100-mt-gd-1_45', 'boost_wave-vc100-mt-gd-1_45', 'boost_wserialization-vc100-mt-gd-1_45' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						pakLibs = [	'boost_date_time-vc90-mt-gd-1_45', 'boost_filesystem-vc90-mt-gd-1_45', 'boost_graph-vc90-mt-gd-1_45',
-									'boost_iostreams-vc90-mt-gd-1_45', 'boost_math_c99-vc90-mt-gd-1_45', 'boost_math_c99f-vc90-mt-gd-1_45',
-									'boost_math_c99l-vc90-mt-gd-1_45', 'boost_math_tr1-vc90-mt-gd-1_45', 'boost_math_tr1f-vc90-mt-gd-1_45',
-									'boost_math_tr1l-vc90-mt-gd-1_45', 'boost_prg_exec_monitor-vc90-mt-gd-1_45', 'boost_program_options-vc90-mt-gd-1_45',
-									'boost_python-vc90-mt-gd-1_45',  'boost_random-vc90-mt-gd-1_45', 'boost_regex-vc90-mt-gd-1_45', 'boost_serialization-vc90-mt-gd-1_45',
-									'boost_signals-vc90-mt-gd-1_45', 'boost_system-vc90-mt-gd-1_45', 'boost_thread-vc90-mt-gd-1_45',
-									'boost_unit_test_framework-vc90-mt-gd-1_45', 'boost_wave-vc90-mt-gd-1_45', 'boost_wserialization-vc90-mt-gd-1_45' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						pakLibs = [	'boost_date_time-vc80-mt-gd-1_45', 'boost_filesystem-vc80-mt-gd-1_45', 'boost_graph-vc80-mt-gd-1_45',
-									'boost_iostreams-vc80-mt-gd-1_45', 'boost_math_c99-vc80-mt-gd-1_45', 'boost_math_c99f-vc80-mt-gd-1_45',
-									'boost_math_c99l-vc80-mt-gd-1_45', 'boost_math_tr1-vc80-mt-gd-1_45', 'boost_math_tr1f-vc80-mt-gd-1_45',
-									'boost_math_tr1l-vc80-mt-gd-1_45', 'boost_prg_exec_monitor-vc80-mt-gd-1_45', 'boost_program_options-vc80-mt-gd-1_45',
-									'boost_python-vc80-mt-gd-1_45',  'boost_random-vc80-mt-gd-1_45', 'boost_regex-vc80-mt-gd-1_45', 'boost_serialization-vc80-mt-gd-1_45',
-									'boost_signals-vc80-mt-gd-1_45', 'boost_system-vc80-mt-gd-1_45', 'boost_thread-vc80-mt-gd-1_45',
-									'boost_unit_test_framework-vc80-mt-gd-1_45', 'boost_wave-vc80-mt-gd-1_45', 'boost_wserialization-vc80-mt-gd-1_45' ]
-					else:
-						return
 				return [], pakLibs
 		elif self.platform == 'posix' and version in ['1-38-0', '1-34-1']:
 			libs = [	'libboost_date_time-mt',	'libboost_filesystem-mt',		'libboost_graph-mt',
