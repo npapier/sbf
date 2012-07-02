@@ -846,6 +846,24 @@ class Use_physfs( IUse ):
 			return libs, []
 
 
+
+class Use_scintilla( IUse ):
+	def getName( self ):
+		return 'scintilla'
+
+	def getVersions( self ):
+		return [ '3-2-0']
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = ['ScintillaEdit3']
+				return libs, libs
+			else:
+				libs = ['ScintillaEdit3d']
+				return libs, libs
+
+
 # @todo getSvnRevision()
 # @todo SOFA_PATH documentation
 # TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
@@ -863,9 +881,9 @@ class Use_sofa( IUse, sofaConfig ):
 				pluginsDefine += ':' + plugin
 			else:
 				pluginsDefine += plugin
-			
+
 		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefine)]
-			
+
 		return definesList
 
 	def getCPPFLAGS( self, version ):
@@ -1125,7 +1143,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_sdl(), Use_sdlMixer(),
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_scintilla(), Use_sdl(), Use_sdlMixer(),
 					Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
