@@ -846,6 +846,44 @@ class Use_physfs( IUse ):
 			return libs, []
 
 
+class Use_qt( IUse ):
+	cppModules = ['QtCore', 'QtGui']
+	linkModules = ['QtCore', 'QtGui']
+	linkVersionPostfix = '4'
+
+	def getName( self ):
+		return 'qt'
+
+	def getVersions( self ):
+		return ['4-8-1']
+
+	def getCPPDEFINES( self, version ):
+		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_DLL', 'QT_LARGEFILE_SUPPORT', 'QT_THREAD_SUPPORT' ]
+		cppDefines += [ 'QT_HAVE_MMX', 'QT_HAVE_3DNOW', 'QT_HAVE_SSE', 'QT_HAVE_MMXEXT', 'QT_HAVE_SSE2']
+		cppDefines += [ 'QT_CORE_LIB', 'QT_GUI_LIB' ]
+		if self.config == 'release':
+			cppDefines += ['QT_NO_DEBUG']
+		#else nothing to do
+
+		return cppDefines
+
+	def getCPPPATH( self, version ):
+		return self.cppModules
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
+			else:
+				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
+
+	def getPackageType( self ):
+		return 'Normal'
+
 
 class Use_scintilla( IUse ):
 	def getName( self ):
@@ -1143,8 +1181,8 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_opencollada(), Use_opengl(), Use_itk(), Use_openil(), Use_scintilla(), Use_sdl(), Use_sdlMixer(),
-					Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_scintilla(),
+					Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):

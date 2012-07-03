@@ -19,6 +19,7 @@ from sbfFiles import *
 from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
+from sbfQt import *
 from sbfPackagingSystem import PackagingSystem
 from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
 from sbfUI import askQuestion
@@ -26,13 +27,16 @@ from sbfUses import getPathsForSofa
 from sbfUses import UseRepository, usesValidator, usesConverter, uses
 from sbfUtils import *
 from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
+
 # To be able to use SConsBuildFramework.py without SCons
+import __builtin__
 try:
 	from SCons.Environment import *
 	from SCons.Options import *
 	from SCons.Script import *
 except ImportError as e:
-	print ('sbfWarning: unable to import SCons.[Environment,Options,Script]')
+	if not hasattr(__builtin__, 'SConsBuildFrameworkQuietImport'):
+		print ('sbfWarning: unable to import SCons.[Environment,Options,Script]')
 
 # To be able to use sbfUses.py without SCons
 try:
@@ -513,8 +517,10 @@ class SConsBuildFramework :
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions, tools=[] )
 
+		myTools = ['textfile']
 		if tmpEnv['PLATFORM'] == 'win32':
-			myTools = ['msvc', 'mslib', 'mslink', 'mssdk']
+			myTools += ['msvc', 'mslib', 'mslink', 'mssdk']
+
 			myTargetArch = 'x86'
 			if tmpEnv['clVersion'] != 'highest':
 				myMsvcVersion = tmpEnv['clVersion']
@@ -533,7 +539,7 @@ class SConsBuildFramework :
 			if pathFromEnv != None:
 				self.myEnv['ENV']['PATH'] += pathFromEnv
 		else:
-			self.myEnv = Environment( options = self.mySBFOptions )
+			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools )
 
 		# export SCONS_MSCOMMON_DEBUG=ms.log
 		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
@@ -738,10 +744,11 @@ class SConsBuildFramework :
 			# Constructs myCCVersion ( clMajor-Minor[Exp] )
 			self.myIsExpressEdition = self.myEnv['MSVS_VERSION'].find('Exp') != -1
 			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
-			if self.myIsExpressEdition :
+			if self.myIsExpressEdition:
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
 			self.myEnv['CCVERSION'] = self.myCCVersion
+
 			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
 			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
 			if self.myEnv.GetOption('verbosity'):
@@ -2031,9 +2038,9 @@ SConsBuildFramework options:
 		# @todo generalizes a rc system
 		Alias( self.myProject + '_resource.rc_generation' )
 
+		rcPath = join(self.myProjectPathName, 'rc')
 		if self.myPlatform == 'win32':
 			# Adds project/rc directory to CPPPATH
-			rcPath = join(self.myProjectPathName, 'rc')
 			if os.path.isdir( rcPath ): lenv.Append( CPPPATH = rcPath )
 
 			# Compiles resource.rc
@@ -2059,12 +2066,33 @@ SConsBuildFramework options:
 		else:
 			lenv['sbf_rc'] = []
 
+		# Qt: rcc on rc/resources.qrc
+		rcFile = join(rcPath, 'resources.qrc')
+		if os.path.isfile( rcFile ):
+			# Compiles the resource file
+			inputFile = rcFile
+			outputFile = join(self.myProjectBuildPathExpanded, 'qrc_resources.cpp')
+			objFiles += lenv.Command( outputFile, inputFile,
+					Action( [['rcc', '$SOURCE', '-o', '${TARGETS[0]}']] ) )
+			lenv['sbf_rc'].append( rcFile )
+		#else nothing todo
 
 		## Build source files
 		# setup 'pseudo BuildDir' (with OBJPREFIX)
 		# @todo use VariantDir()
+		filesFromInclude = self.getFiles( 'include', lenv )
 		filesFromSrc = self.getFiles( 'src', lenv )
+
 		objProject = join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
+
+		# Qt
+		qtUse = UseRepository.getUse( 'qt' )
+		if qtUse:
+			if qtUse.getName() + qtUse.getVersions()[0] in lenv['uses']: # @todo note very generic 'qt4-8-0' !!!
+				# MOC
+				moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
+			# else nothing to do
+		# else nothing to do
 
 		if self.myType in ['exec', 'static']:
 			# Compiles source files
