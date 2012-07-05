@@ -892,13 +892,16 @@ class Use_scintilla( IUse ):
 	def getVersions( self ):
 		return [ '3-2-0']
 
+	def getCPPPATH( self, version ):
+		return ['Scintilla']
+
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
 			if self.config == 'release':
 				libs = ['ScintillaEdit3']
 				return libs, libs
 			else:
-				libs = ['ScintillaEdit3d']
+				libs = ['ScintillaEditd3']
 				return libs, libs
 
 
