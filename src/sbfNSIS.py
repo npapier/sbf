@@ -15,7 +15,14 @@ from src.sbfUtils	import capitalize
 from src.sbfUI		import askQuestion
 from src.sbfVersion import splitUsesName, splitDeploymentPrecond
 from src.SConsBuildFramework import stringFormatter, nopAction
-from SCons.Script import *
+
+# To be able to use this file without SCons
+import __builtin__
+try:
+	from SCons.Script import *
+except ImportError as e:
+	if not hasattr(__builtin__, 'SConsBuildFrameworkQuietImport'):
+		print ('sbfWarning: unable to import SCons.Script')
 
 
 # @todo debug zipsrc if a used file is no more under vcs.
@@ -671,8 +678,8 @@ def __warnAboutProjectExclude( env ):
 	# Checks project exclusion to warn user
 	if env['exclude'] and len(env['projectExclude'])>0:
 		answer = askQuestion(	"WARNING: The following projects are excluded from the build : {0}\nWould you continue the process".format(env['projectExclude']),
-								['yes', 'no'], env['queryUser'] )
-		if answer == 'n':		# @todo test != answer no, n, y, yes...
+								['(y)es', '(n)o'], env['queryUser'] )
+		if answer == 'no':
 			raise SCons.Errors.UserError( "Build interrupted by user." )
 		#else continue the build
 

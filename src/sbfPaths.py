@@ -98,13 +98,13 @@ class Paths:
 				return path
 
 	# Removes all non existing paths
-	def removeAllNonExisting( self ):
+	def removeAllNonExisting( self, verbose = True ):
 		while( True ):
 			nonExistingPath = self.findFirstNonExisting()
 			if nonExistingPath == None:
 				break
 			else:
-				print( 'Removes non existing path {0}'.format(nonExistingPath) )
+				if verbose:	print( 'Removes non existing path {0}'.format(nonExistingPath) )
 				self.remove( nonExistingPath )
 
 	# Accessors

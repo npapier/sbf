@@ -16,6 +16,15 @@ from sbfFiles import *
 
 
 ###### Functions for print action ######
+def printSeparator( text ):
+	if len(text)==0:
+		print ( '-' * 77 )
+	else:
+		text = ' ' + text + ' '
+		numSep = (78 - len(text))/2
+		print ( '-' * numSep + text + '-' * numSep )
+
+
 def nopAction(target = None, source = None, env = None) :
 	return 0
 
@@ -49,7 +58,7 @@ def subprocessGetOuputCall( cmdLine, verbose = True ):
 	if verbose:
 		print ( 'Executing {0}'.format(cmdLine) )
 	try:
-		output = subprocess.check_output( cmdLine, shell=True )
+		output = subprocess.check_output( cmdLine )
 		if verbose:
 			print output
 		return output
@@ -119,6 +128,10 @@ def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = No
 	os.remove(file.name)
 
 	return retVal
+
+
+def getLambdaForExecuteCommandInVCCommandPrompt( vcvarsPath ):
+	return lambda command, appendExit=True : executeCommandInVCCommandPrompt(command, appendExit, vcvarsPath)
 
 
 ### Severals helpers ###
@@ -225,3 +238,27 @@ def convertDictToString( dict ) :
 #	for key, value in dict.iteritems() :
 #		result += "%s=%s " % (key, value)
 	return result
+
+
+def getDictPythonCode( dict, dictName, orderedDict = False, eol = False ):
+	"""@return list of string containing python code building the given dictionary"""
+	# Computing the maximum length of the keys
+	maxLength = 0;
+	for key in dict.iterkeys():
+		maxLength = max(maxLength, len(key))
+	if orderedDict:
+		retVal = ['from collections import OrderedDict', '{0} = OrderedDict()'.format(dictName)]
+	else:
+		retVal = ['{0} = {{}}'.format(dictName)]
+	for (key, value) in dict.iteritems():
+		tmp = "{0}['{1}']".format(dictName, key).ljust(maxLength+len(dictName)+5)
+		if isinstance(value, list):
+			tmp += "= {0}".format(value)
+			retVal.append( tmp )
+		else:
+			tmp += "= '{0}'".format(value)
+			retVal.append( tmp )
+	if eol:
+		retVal = [ elt + '\n' for elt in retVal ]
+	return retVal
+

@@ -7,10 +7,12 @@ import getpass
 import platform
 
 # To be able to use this file without SCons
+import __builtin__
 try:
 	from SCons.Script import *
 except ImportError as e:
-	print ('sbfWarning: unable to import SCons.Script')
+	if not hasattr(__builtin__, 'SConsBuildFrameworkQuietImport'):
+		print ('sbfWarning: unable to import SCons.Script')
 
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem

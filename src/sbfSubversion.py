@@ -3,9 +3,7 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-import atexit
-import fnmatch
-import sys
+import atexit, fnmatch, glob, re, sys
 
 # pysvn must be installed
 try:
@@ -17,13 +15,6 @@ except ImportError as e:
 from os.path import basename, dirname, isfile, isdir, join, normpath, relpath
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
-
-# To be able to use sbfSubversion.py without SCons
-try:
-	from SCons.Script import *
-except ImportError as e:
-	#print ('sbfWarning: unable to import SCons.Script')
-	pass
 
 
 
@@ -254,12 +245,12 @@ class CallbackGetLogMessage:
 # List of classes encapsulating pysvn operation(s)
 # abstract SvnOperation
 # SvnGetInfo, SvnGetRevision, svnGetUUID
-# SvnList, SvnListDirectory
+# SvnList, SvnListDirectory, SvnListFile
 # SvnGetWorkingAndRepositoryRevision, SvnUpdateAvailable
 # svnIsUnversioned, svnIsVersioned
 # SvnAddFileOrDir, SvnAddDirs
 # SvnMkDir, SvnRemove
-# SvnCheckout, SvnExport, SvnUpdate
+# SvnCheckout, SvnExport, SvnUpdate, SvnCat
 # SvnRelocate
 # SvnCopy
 # (SvnStatus, SvnRemoteStatus @todo)
@@ -322,7 +313,7 @@ class SvnOperation:
 # SvnGetInfo, SvnGetRevision, svnGetUUID
 class SvnGetInfo( SvnOperation ):
 	"""SvnGetInfo()(urlOrPath)
-		@param urlOrPath
+		@param urlOrPath	path of the current working copy or url of the repository
 		@return None if not under vcs, otherwise returns the desired info (i.e. info_dict)
 		@see http://pysvn.tigris.org/docs/pysvn_prog_ref.html#pysvn_client_info2"""
 
@@ -361,7 +352,7 @@ class SvnGetInfo( SvnOperation ):
 
 class SvnGetRevision( SvnGetInfo ):
 	"""SvnGetRevision()(urlOrPath)
-		@param urlOrPath
+		@param urlOrPath	path of the current working copy or url of the repository
 		@return None if not under vcs, otherwise returns the revision number"""
 
 	def doSvnOperation( self, *args ):
@@ -372,7 +363,7 @@ class SvnGetRevision( SvnGetInfo ):
 
 class SvnGetUUID( SvnGetInfo ):
 	"""SvnGetUUID()(urlOrPath)
-		@param urlOrPath
+		@param urlOrPath	path of the current working copy or url of the repository
 		@return None if not under vcs, otherwise returns the repository UUID"""
 
 	def doSvnOperation( self, *args ):
@@ -381,33 +372,42 @@ class SvnGetUUID( SvnGetInfo ):
 			return retVal['repos_UUID']
 
 
-# SvnList, SvnListDirectory
+# SvnList, SvnListDirectory, SvnListFile
 class SvnList( SvnOperation ):
-	"""SvnList()( urlOrPath, depth, revisionNumber = None )
-		Returns a list of each file/directory in the given urlOrPath at the provided revision.
+	"""SvnList()( urlOrPath, depth, pattern = '*', revisionNumber = None )
+		@brief Returns a list of each file/directory in the given urlOrPath at the provided revision.
 		@param urlOrPath		path of the current working copy or url of the repository
 		@param depth			one of the pysvn.depth enumeration values
-		@param revisionNumber	None for head or a number for a specific revision
+		@param pattern			the returned list contains only element matching this pattern (default value is '*')
+		@param revisionNumber	None for head or a number for a specific revision (default value is None)
 		@return a list of files and directories"""
+
+	def __call__( self, urlOrPath, depth, pattern = '*', revisionNumber = None ):
+		return SvnOperation.__call__(self, urlOrPath, depth, pattern, revisionNumber)
 
 	def doSvnOperation( self, *args ):
 		# arguments
 		urlOrPath = args[0]
 		depth = args[1]
-		if len(args)==3 and args[2]:
-			revision = pysvn.Revision( pysvn.opt_revision_kind.number, args[2] )
+		pattern = args[2]
+		if args[3]:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.number, args[3] )
 		else:
 			revision = pysvn.Revision( pysvn.opt_revision_kind.head )
 
 		# do
 		entries = self.client.list( urlOrPath, revision=revision, dirent_fields=pysvn.SVN_DIRENT_KIND, depth=depth )
-		return entries
+		filteredEntries = [ entry for entry in entries if fnmatch.fnmatch(entry[0].path, pattern) ]
+		return filteredEntries
 
 
 class SvnListDirectory( SvnList ):
-	"""SvnListDirectory()( urlOrPath, depth, revisionNumber = None )
+	"""SvnListDirectory()( urlOrPath, depth, pattern = '*', revisionNumber = None )
 		See SvnList for explanation.
 		@return a list of directories"""
+
+	def __call__( self, urlOrPath, depth, pattern = '*', revisionNumber = None ):
+		return SvnList.__call__(self, urlOrPath, depth, pattern, revisionNumber)
 
 	def doSvnOperation( self, *args ):
 		urlOrPath = args[0]
@@ -417,9 +417,30 @@ class SvnListDirectory( SvnList ):
 		retVal = []
 		for entry in entries:
 			if entry[0].kind == pysvn.node_kind.dir:
-				newElement = entry[0].path.replace(urlOrPath, '', 1)
+				newElement = entry[0].path.replace(urlOrPath, '', 1).lstrip('/')
 				if len(newElement)>0:
 					retVal.append(newElement)
+		return retVal
+
+
+class SvnListFile( SvnList ):
+	"""SvnListFile()( urlOrPath, depth, pattern = '*', revisionNumber = None )
+		See SvnList for explanation.
+		@return a list of files"""
+
+	def __call__( self, urlOrPath, depth, pattern = '*', revisionNumber = None ):
+		return SvnList.__call__(self, urlOrPath, depth, pattern, revisionNumber)
+
+	def doSvnOperation( self, *args ):
+		urlOrPath = args[0]
+
+		#
+		entries = SvnList.doSvnOperation( self, *args )
+		retVal = []
+		for entry in entries:
+			if entry[0].kind == pysvn.node_kind.file:
+				newElement = entry[0].path.replace(urlOrPath, '', 1).lstrip('/')
+				retVal.append(newElement)
 		return retVal
 
 
@@ -575,7 +596,7 @@ class SvnRemove( SvnOperation ):
 		return retVal
 
 
-# SvnCheckout, SvnExport, SvnUpdate
+# SvnCheckout, SvnExport, SvnUpdate, SvnCat
 class SvnCheckout( SvnOperation ):
 	"""SvnCheckout()( url, path, [revisionNumber] )
 		Check out a working copy from a repository url into path to head or revisionNumber if provided
@@ -639,6 +660,29 @@ class SvnUpdate( SvnOperation ):
 				raise AssertionError('revision.kind != pysvn.opt_revision_kind.number')
 		else:
 			raise AssertionError('len(revisionList)!=1')
+
+
+class SvnCat( SvnOperation ):
+	"""SvnCat()(urlOrPath, [revisionNumber])
+		@brief Returns the content of urlOrPath for the specified revision if provided or head
+		@return a string with the content of urlOrPath"""
+
+	def __call__( self, urlOrPath, revisionNumber = None ):
+		return SvnOperation.__call__(self, urlOrPath, revisionNumber)
+
+	def doSvnOperation( self, *args ):
+		# argument(s)
+		urlOrPath = args[0]
+		revision = args[1]
+
+		if revision:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.number, revision )
+		else:
+			revision = pysvn.Revision( pysvn.opt_revision_kind.head )
+
+		# do
+		file_content = self.client.cat( urlOrPath, revision=revision )
+		return file_content
 
 
 # SvnRelocate
@@ -767,9 +811,6 @@ class Subversion( IVersionControlSystem ):
 		else:
 			return self.mySvnUrls.get('', [])
 
-	def __splitSvnUrl( self, svnUrl, projectName = '{PROJECT}' ):
-		return splitSvnUrl( svnUrl, projectName )
-
 
 	#
 	def __printPySvnRevision( self, myProject, revision ):
@@ -808,19 +849,23 @@ class Subversion( IVersionControlSystem ):
 		client.exception_style						= 1
 		return client
 
-	def __init__( self, sbf = None ):
+	def __init__( self, sbf = None, svnUrls = None ):
 		# Prints global statistics at exit
 		atexit.register( atExitPrintStatistics, self.stats )
 
 		#
 		self.sbf = sbf
-		if sbf != None:
+		if sbf:
 			self.mySvnUrls = sbf.myEnv['svnUrls']
+
+		if svnUrls:
+			self.mySvnUrls = svnUrls
 
 		#
 		self.client = self.__createPysvnClient__()
 
 
+	### OPERATIONS ###
 	def add( self, myProjectPathName, myProject ):
 		"""@pre self.sbf != None"""
 
@@ -853,7 +898,18 @@ class Subversion( IVersionControlSystem ):
 		return True
 
 
-	def _checkout( self, url, path, revision ):
+	def locateProject( self, projectName, verbose = False ):
+		"""@return (url of repository containing the project 'projectName', revision) or None"""
+		for svnUrl in self.__searchSvnUrlList( projectName ):
+			(svnUrl, revision) = splitSvnUrl( svnUrl, projectName )
+			if svnIsVersioned( svnUrl ):
+				if verbose:	print ( "{project} found at {url}".format( project=projectName, url=svnUrl ) )
+				return (svnUrl, revision)
+			else:
+				if verbose:	print ( "{project} not found at {url}".format( project=projectName, url=svnUrl ) )
+
+
+	def _checkout( self, url, path, revision = None ):
 		svnCheckout = SvnCheckout( rootPath=path, statisticsObservers=[self.stats] )
 		if revision:
 			revisionNumber = svnCheckout( url, path, revision ) 
@@ -870,7 +926,7 @@ class Subversion( IVersionControlSystem ):
 
 		# Try a checkout
 		for svnUrl in self.__searchSvnUrlList( myProject ):
-			(svnUrl, revision) = self.__splitSvnUrl( svnUrl, myProject )
+			(svnUrl, revision) = splitSvnUrl( svnUrl, myProject )
 			if SvnGetRevision()( svnUrl ):
 				print ( "{project} found at {url}".format( project=myProject, url=svnUrl ) )
 				self._checkout( svnUrl, myProjectPathName, revision )
@@ -964,7 +1020,7 @@ class Subversion( IVersionControlSystem ):
 
 		# Tests if repository url of working copy is still valid
 		for svnUrl in self.__searchSvnUrlList( myProject ):
-			(svnUrl, revision) = self.__splitSvnUrl( svnUrl, myProject )
+			(svnUrl, revision) = splitSvnUrl( svnUrl, myProject )
 			if SvnGetRevision()( svnUrl ):
 				print ( "{project} working copy from {url}".format( project=myProject, url=workingInfo['URL'] ) )
 				# Retrieves UUID and info of remote repository
@@ -1015,13 +1071,13 @@ class Subversion( IVersionControlSystem ):
 
 		# Search a matching urlWC in 'svnUrls' option
 		for svnUrl in self.__searchSvnUrlList( myProject ):
-			(url, rev) = self.__splitSvnUrl( svnUrl, myProject )
+			(url, rev) = splitSvnUrl( svnUrl, myProject )
 			if ( url == urlWC ):
 				break
 		else:
 			print ( "{project} working copy from {url}".format( project=myProject, url=urlWC ) )
 			print ("sbfError: Unable to found a matching url in 'svnUrls' option.")
-			Exit(1)
+			exit(1)
 
 		# Found a matching url
 		if rev != revWC:
@@ -1218,22 +1274,22 @@ class Subversion( IVersionControlSystem ):
 		else:
 			depth = pysvn.depth.immediates
 
-		entries = svnListDirectory( urlOrPath, depth, revisionNumber )
+		entries = svnListDirectory( urlOrPath, depth, revisionNumber=revisionNumber )
 		return entries
 
 
 	def listBranch( self, projectPathName, branch ):
-		"""	Lists available tag/branch in repository for the given project
-			@param branch	'tags' or 'branches'"""
-		if branch not in ['tags', 'branches']:
-			raise AssertionError( "branch parameter must be 'tags' or 'branches'." )
+		"""	@param projectPathName		the path of the project
+			@param branch				'tags' or 'branches'
+			@return a list containing all tag or branch available in repository for the given project
+		"""
+		# assert
+		checkBranch( branch )
 
 		url = self.getSplitUrl( projectPathName )
 		urlBranch = url[0] + url[1] + '/{0}'.format(branch)
-		revision = self.getRevision( urlBranch )
-		if revision:
-			entries = self._listDir( urlBranch, False )
-			return entries
+		if svnIsVersioned(urlBranch):
+			return self._listDir( urlBranch, False )
 		else:
 			return []
 
@@ -1253,30 +1309,50 @@ class Subversion( IVersionControlSystem ):
 			return []
 
 
-# @todo uses new API
-	def getUrl( self, path ):
-		try:
-			client = self.__createPysvnClient__()
-			info = client.info( path )
-			if not info :
-				return ""
-			else:
-				return info.url
-		except pysvn.ClientError, e :
-			print e.args[0]
-			return ""
+	def getUrl( self, urlOrPath ):
+		"""@return svn url for the given 'urlOrPath' or None if not under vcs."""
+		# Tests if project is under vcs
+		if svnIsUnversioned( urlOrPath ):
+			# @todo print message if verbose
+			return
+
+		# Gets WC informations
+		infoWC = SvnGetInfo()( urlOrPath )
+		return infoWC['URL']
+
+
+	def getRevision( self, urlOrPath ):
+		"""Returns the revision number for the given 'urlOrPath' or None if not under vcs"""
+		revision = SvnGetRevision()(urlOrPath)
+		return revision
+
+
+	def getUrlAndRevision( self, urlOrPath ):
+		"""@return (svn url, revision) for the given 'urlOrPath'."""
+		# Tests if project is under vcs
+		if svnIsUnversioned( urlOrPath ):
+			# @todo print message if verbose
+			return
+
+		# Gets WC informations
+		infoWC = SvnGetInfo()( urlOrPath )
+		urlWC = infoWC['URL']
+		revWC = infoWC['rev'].number
+		return (urlWC, revWC)
 
 
 	def getSplitUrl( self, urlOrPath ):
-		"""Returns (reposUrl, dirname, basename, revision)
+		"""Returns (reposUrl, dirname, basename, revision) or ('','','',0)
 			example:
 			 url												=> reposUrl								dirname		basename
 			 http://project.googlecode.com/svn/foobar/trunk		=> http://project.googlecode.com/svn	/foobar		/trunk
-			 http://project.googlecode.com/svn/foobar/tags/0.1	=> http://project.googlecode.com/svn				/tags/0.1"""
+			 http://project.googlecode.com/svn/foobar/tags/0.1	=> http://project.googlecode.com/svn	/foobar		/tags/0.1"""
 
 		# Gets informations
 		# @todo SvnGetRepositoryInfo()
 		info = SvnGetInfo()( urlOrPath )
+		if info == None:
+			return ('','','',0)
 		url = info['URL']
 		reposUrl = info['repos_root_URL']
 		rev = info['rev'].number
@@ -1301,7 +1377,87 @@ class Subversion( IVersionControlSystem ):
 		return (reposUrl, dirname, basename, rev)
 
 
-	def getRevision( self, urlOrPath ):
-		"""Returns None if not under vcs, otherwise returns the revision number"""
-		revision = SvnGetRevision()(urlOrPath)
-		return revision
+### Several helpers for url processing
+def anonymizeUrl( url ):
+	"""Returns 'http://' instead of 'https://' or 'svn://' instead of 'svn+ssh://username@'"""
+	# 'http://' instead of 'https://'
+	url = url.replace('https://', 'http://', 1)
+	# 'svn://' instead of 'svn+ssh://username@'
+	reSvnSsh = re.compile('^svn\+ssh://.+@(.*)$')
+	match = reSvnSsh.match(url)
+	if match:
+		url = 'svn://{0}'.format( match.group(1) )
+	return url
+
+def removeTrunkOrTagsOrBranches( url ):
+	"""Returns	'.../svn/projectName for '.../svn/projectName/trunk'
+				'.../svn/projectName for '.../svn/projectName/tags/0.2'
+				'.../svn/projectName for '.../svn/projectName/branches/2.0'"""
+	# trunk
+	index = url.rfind('/trunk')
+	if index != -1:
+		# Remove '/trunk...'
+		return url[:index]
+
+	# tags
+	index = url.rfind('/tags')
+	if index != -1:
+		# Remove '/tags...'
+		return url[:index]
+
+	# branches
+	index = url.rfind('/branches')
+	if index != -1:
+		# Remove '/branches...'
+		return url[:index]
+
+### Several helpers for branch management
+def checkBranch( branch ):
+	if branch not in ['tags', 'branches']:
+		raise AssertionError( "branch parameter must be 'tags' or 'branches'." )
+
+def branch2branches( branch ):
+	if branch == 'branch':
+		return 'branches'
+	else:
+		assert( branch == 'tag' )
+		return 'tags'
+
+def branches2branch( branch ):
+	if branch == 'branches':
+		return 'branch'
+	else:
+		assert( branch == 'tags' )
+		return 'tag'
+
+
+def listSbfBranch( urlOrPath, branch ):
+	"""	@param urlOrPath		path of the current working copy or url of the repository
+		@param branch			'tags' or 'branches'
+		@return a list containing all tag or branch available at urlOrPath location."""
+
+	# assert
+	checkBranch(branch)
+
+	#
+	if svnIsVersioned(urlOrPath):
+		branches = SvnListFile()( urlOrPath, pysvn.depth.files, '*.{0}'.format(branch) )
+		return branches
+	else:
+		return []
+
+def printSbfBranch( projectName, urlOrPath, branch ):
+	"""	@param projectName		name of the project in urlOrPath
+		@param urlOrPath		path of the current working copy or url of the repository
+		@param branch			'tags' or 'branches'
+		@return a list containing all tag or branch available at urlOrPath location."""
+
+	branches = listSbfBranch(urlOrPath, branch)
+	print ( "List of {0} for project '{1}':".format(branch, projectName) )
+	if len(branches) > 0:
+		for elt in branches:
+			print (' - {0}'.format(elt))
+	else:
+		print ( ' * No {0}'.format(branch) )
+	return branches
+

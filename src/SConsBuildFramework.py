@@ -20,6 +20,7 @@ from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
 from sbfQt import *
+from sbfSubversion import anonymizeUrl, removeTrunkOrTagsOrBranches
 from sbfPackagingSystem import PackagingSystem
 from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
 from sbfUI import askQuestion
@@ -51,6 +52,19 @@ def createBlowfishShareBuildCommand( key ):
 	shareBuildCommand = (	'blowfish_1-0_${PLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
+
+
+def getSConsBuildFrameworkOptionsFileLocation( SCONS_BUILD_FRAMEWORK ):
+	""" @return the full path to the SConsBuildFramework.options file.
+		@remark SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK."""
+	homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
+
+	if os.path.isfile(homeSConsBuildFrameworkOptions):
+		# Reads from your home directory.
+		return homeSConsBuildFrameworkOptions
+	else:
+		# Reads from $SCONS_BUILD_FRAMEWORK directory.
+		return join( SCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' )
 
 
 def sbfPrintCmdLine( cmd, target, src, env ):
@@ -424,6 +438,7 @@ class SConsBuildFramework :
 	myCCVersion						= ''			# cl8-0Exp
 	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe).
 	myMSVCVARS32					= ''			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
+	myMSVC							= ''			# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
 	my_Platform_myCCVersion			= ''
 
 
@@ -489,29 +504,26 @@ class SConsBuildFramework :
 	# @todo checks usage of myBuiltProjects instead of myParsedProjects
 	myBuiltProjects					= OrderedDict()
 
-
+	# Used by mktag
+	myBranchSvnUrls = OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
+	#lenv['myBranchesOrTags']	= 'tags' or 'branches' or None
+	#lenv['myBranchOrTag']		= 'tag' or 'branch' or None
+	#lenv['myBranch']			= None or env['svnDefaultBranch'] or '2.0' for example.
+	#lenv['myNeverCreateAVCSBranch'] = None or 'always'
 
 	###### Constructor ######
-	def __init__( self ) :
+	def __init__( self, initializeOptions = True ) :
 
 		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
 		self.mySCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
-		if self.mySCONS_BUILD_FRAMEWORK == None :
+		if self.mySCONS_BUILD_FRAMEWORK == None:
 			raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
 		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
 
 		# Sets the root directory of sbf library
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
 
-		# Reads .SConsBuildFramework.options from your home directory or SConsBuildFramework.options from $SCONS_BUILD_FRAMEWORK.
-		homeSConsBuildFrameworkOptions = os.path.expanduser('~/.SConsBuildFramework.options')
-
-		if os.path.isfile(homeSConsBuildFrameworkOptions) :
-			# Reads from your home directory.
-			currentSConsBuildFrameworkOptions = homeSConsBuildFrameworkOptions
-		else :
-			# Reads from $SCONS_BUILD_FRAMEWORK directory.
-			currentSConsBuildFrameworkOptions = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'SConsBuildFramework.options' )
+		currentSConsBuildFrameworkOptions = getSConsBuildFrameworkOptionsFileLocation( self.mySCONS_BUILD_FRAMEWORK )
 		self.mySBFOptions = self.readSConsBuildFrameworkOptions( currentSConsBuildFrameworkOptions )
 
 		# Constructs SCons environment.
@@ -541,9 +553,6 @@ class SConsBuildFramework :
 		else:
 			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools )
 
-		# export SCONS_MSCOMMON_DEBUG=ms.log
-		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
-		#print self.myEnv.Dump()
 
 		# Configures command line max length
 		if self.myEnv['PLATFORM'] == 'win32':
@@ -751,6 +760,9 @@ class SConsBuildFramework :
 
 			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
 			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
+			# Assuming that the parent directory of cl.exe is the root directory of MSVC (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+			self.myMSVC = os.path.dirname( self.myEnv.WhereIs( 'cl.exe' ) )
+
 			if self.myEnv.GetOption('verbosity'):
 				print 'Visual C++ version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
 				if self.myMSVSIDE and len(self.myMSVSIDE)>0:
@@ -763,7 +775,10 @@ class SConsBuildFramework :
 				else:
 					print ('vcvars32.bat not found.')
 
-#			print self.myEnv.WhereIs( 'signtool.exe' )
+				if self.myMSVC and len(self.myMSVC)>0:
+					print ("Found MSVC in '{0}'.".format(self.myMSVC))
+				else:
+					print ('MSVC not found.')
 
 
 		elif self.myEnv['CC'] == 'gcc' :
@@ -785,34 +800,39 @@ class SConsBuildFramework :
 
 		self.my_Platform_myCCVersion = '_' + self.myPlatform + '_' + self.myCCVersion
 
-		# Option 'fast'
-		if self.myEnv['decider'] == 'fast':
-			#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
-			#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
-
-			# The drawback of MD5-timestamp is that SCons will not detect if a file's content 
-			# has changed but its timestamp is the same, as might happen in an automated script
-			# that runs a build, updates a file, and runs the build again, all within a single 
-			# second.
-			self.myEnv.Decider('MD5-timestamp')									# 29.8, 17.9
-
-			# implicit-cache instructs SCons to not rebuild "correctly" in the following cases:
-			# - SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH,).
-			#	This can lead to SCons not rebuilding a file if a change to $CPPPATH would normally cause a different,
-			#	same-named file from a different directory to be used.
-			# - SCons will not detect if a same-named file has been added to a directory that is earlier in the search 
-			#	path than the directory in which the file was found last time.
-			# =>	So obviously the only way to defeat implicit-cache is to change CPPPATH such that the set of files 
-			#		included changes without touching ANY files in the entire include tree (from mailing list).
-			self.myEnv.SetOption('implicit_cache', 1)							# 11.57, 11.4
-# @todo --implicit-deps-changed ?
-# @todo target incr with --implicit-deps-unchanged => incremental build
-			self.myEnv.SetOption('max_drift', 1)								# 11.57, 11.3
-		else:
-			self.myEnv.Decider('MD5')											# 34, 19.3
-
 		#
 		self.initializeGlobalsFromEnv( self.myEnv )
+
+		#
+		if initializeOptions:
+			# Option 'fast'
+			if self.myEnv['decider'] == 'fast':
+				#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
+				#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
+
+				# The drawback of MD5-timestamp is that SCons will not detect if a file's content 
+				# has changed but its timestamp is the same, as might happen in an automated script
+				# that runs a build, updates a file, and runs the build again, all within a single 
+				# second.
+				self.myEnv.Decider('MD5-timestamp')									# 29.8, 17.9
+
+				# implicit-cache instructs SCons to not rebuild "correctly" in the following cases:
+				# - SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH,).
+				#	This can lead to SCons not rebuilding a file if a change to $CPPPATH would normally cause a different,
+				#	same-named file from a different directory to be used.
+				# - SCons will not detect if a same-named file has been added to a directory that is earlier in the search 
+				#	path than the directory in which the file was found last time.
+				# =>	So obviously the only way to defeat implicit-cache is to change CPPPATH such that the set of files 
+				#		included changes without touching ANY files in the entire include tree (from mailing list).
+				self.myEnv.SetOption('implicit_cache', 1)							# 11.57, 11.4
+	# @todo --implicit-deps-changed ?
+	# @todo target incr with --implicit-deps-unchanged => incremental build
+				self.myEnv.SetOption('max_drift', 1)								# 11.57, 11.3
+			else:
+				self.myEnv.Decider('MD5')											# 34, 19.3
+
+			# option num_jobs
+			self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
 
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( self.myEnv )
@@ -948,6 +968,10 @@ SConsBuildFramework options:
 
 		Help( self.mySBFOptions.GenerateHelpText(self.myEnv) )
 
+		# export SCONS_MSCOMMON_DEBUG=ms.log
+		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
+		#print self.myEnv.Dump()
+		#exit()
 
 
 	###### Initialize global attributes ######
@@ -961,8 +985,6 @@ SConsBuildFramework options:
 		self.mySvnUrls				= lenv['svnUrls']
 		self.mySvnCheckoutExclude	= lenv['svnCheckoutExclude']
 		self.mySvnUpdateExclude		= lenv['svnUpdateExclude']
-
-		self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
 
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
@@ -1562,13 +1584,14 @@ SConsBuildFramework options:
 
 	###################################################################################
 	def doVcsCheckoutOrOther( self, lenv ):
-		"""Do a vcs checkout, status, relocate, mkTag or rmTag
+		"""Do a vcs checkout, status, relocate, mkTag or rmTag.
 			@todo OPTME: just compute tryVcs* once and not for each project"""
 
 		# User wants a vcs checkout, status or relocate ?
 		tryVcsCheckout = 'svncheckout' in self.myBuildTargets
 		tryVcsStatus = 'svnstatus' in self.myBuildTargets
 		tryVcsRelocate = 'svnrelocate' in self.myBuildTargets
+		# User wants a vcs mktag, rmtag, mkbranch or rmbranch ?
 		tryVcsMkTag = 'svnmktag' in self.myBuildTargets
 		tryVcsRmTag = 'svnrmtag' in self.myBuildTargets
 		tryVcsMkBranch = 'svnmkbranch' in self.myBuildTargets
@@ -1588,7 +1611,6 @@ SConsBuildFramework options:
 
 		# Tests existance of project path name
 		existanceOfProjectPathName = os.path.isdir(self.myProjectPathName)
-
 		if not existanceOfProjectPathName :
 			if tryVcsCheckout:
 				self.vcsCheckout( lenv )
@@ -1605,7 +1627,7 @@ SConsBuildFramework options:
 		else:
 			successful = self.readProjectOptionsAndUpdateEnv( lenv )
 			if successful:
-				if tryVcsCheckout :
+				if tryVcsCheckout:
 					if lenv['vcsUse'] == 'yes' :
 						projectURL = self.myVcs.getUrl( self.myProjectPathName )
 						if len(projectURL) > 0 :
@@ -1628,10 +1650,8 @@ SConsBuildFramework options:
 				elif tryVcsRelocate and lenv['vcsUse'] == 'yes':
 					self.vcsRelocate( lenv )
 				# vcsMk
-				elif tryVcsMkTag and lenv['vcsUse'] == 'yes':
-					self.vcsMkTagOrBranch( 'tag', lenv['myBranch'] )
-				elif tryVcsMkBranch and lenv['vcsUse'] == 'yes':
-					self.vcsMkTagOrBranch( 'branch', lenv['myBranch'] )
+				elif (tryVcsMkTag or tryVcsMkBranch) and lenv['vcsUse'] == 'yes':
+					self.vcsMkTagOrBranch( lenv['myBranch'] )
 				# vcsRm
 				elif tryVcsRmTag and lenv['vcsUse'] == 'yes':
 					self.vcsRmTagOrBranch( 'tag', lenv['myBranch'] )
@@ -1730,41 +1750,54 @@ SConsBuildFramework options:
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
 
 
-	def vcsMkTagOrBranch( self, tagOrBranch, tagOrBranchName ):
-		"""	@param tagOrBranch		'tag' or 'branch'
-			@param tagOrBranchName	lenv['myBranch']"""
-		# parameters
-		if tagOrBranch not in ['tag', 'branch']:
-			raise SCons.Errors.UserError("Internal sbf error.")
-		if tagOrBranch == 'tag':
-			dirname = 'tags'
+	def vcsMkTagOrBranch( self, branchName ):
+		"""@param branchName	name of branch to create."""
+
+		def updateMyBranchSvnUrls( sbf, projectPathName, branchAndBranchName = None ):
+			projectName = basename(projectPathName)
+			# Adds vcs url of the project to self.myBranchSvnUrls
+			if branchAndBranchName:
+				url = sbf.myVcs.getUrl( projectPathName )
+				url = removeTrunkOrTagsOrBranches( anonymizeUrl(url) )
+				sbf.myBranchSvnUrls[ projectName ] = url + '/' + branchAndBranchName
+			else:
+				(url, revision ) = sbf.myVcs.getUrlAndRevision( projectPathName )
+				sbf.myBranchSvnUrls[ projectName ] = '{0}@{1}'.format(anonymizeUrl(url), revision)
+
+		lenv = self.myCurrentLocalEnv
+		print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
+
+		#
+		if not lenv.get('myNeverCreateAVCSBranch'):
+			# Checks if branch already created in repository ?
+			branches = self.myVcs.listBranch( self.myProjectPathName, lenv['myBranchesOrTags'] )
+			if branchName in set(branches):
+				# nothing to create
+				print ("{0} '{1}' already in repository of project {2}\n".format( lenv['myBranchOrTag'], branchName, self.myProject))
+				updateMyBranchSvnUrls( self, self.myProjectPathName, lenv['myBranchesOrTags']+'/'+branchName )
+				return
+			else:
+				answer = askQuestion(	"Do you want to create a vcs {0} named '{1}' for {2}".format(lenv['myBranchOrTag'], branchName, self.myProject),
+										['(n)o', '(y)es', '(ne)ver'] )
+				if answer == 'yes':
+					# Do the job
+					logMessage = 'Created {0} {1} for {2}'.format(lenv['myBranchOrTag'], branchName, self.myProject)
+					retVal = self.myVcs.copy( self.myProjectPathName,
+							'/{0}/{1}'.format(lenv['myBranchesOrTags'], branchName),
+							logMessage )
+					print '@todo uncomment myVcs.copy(...)'
+					print
+					updateMyBranchSvnUrls( self, self.myProjectPathName, lenv['myBranchesOrTags']+'/'+branchName )
+					return
+				elif answer == 'no':
+					updateMyBranchSvnUrls( self, self.myProjectPathName )
+				else:
+					assert( answer == 'never' )
+					updateMyBranchSvnUrls( self, self.myProjectPathName )
+					self.myEnv['myNeverCreateAVCSBranch'] = 'yes'
 		else:
-			dirname = 'branches'
-		basename = tagOrBranchName
-
-		#
-		print stringFormatter( self.myEnv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
-
-		# Checks if already created ?
-		branches = self.myVcs.listBranch( self.myProjectPathName, dirname )
-		if '/{0}'.format(basename) in set(branches):
-			# nothing to create
-			print ('{0} {1} already in repository of project {2}\n'.format( tagOrBranch, basename, self.myProject))
-			return
-
-		#
-		answer = askQuestion(	"Do you want to create {0} {1} for {2}".format(tagOrBranch, basename, self.myProject),
-								['no', 'yes'] )
-		if answer == 'n':
-			return
-
-		# Do the job
-		logMessage = 'Created {0} {1} for {2}'.format(tagOrBranch, basename, self.myProject)
-		retVal = self.myVcs.copy( self.myProjectPathName,
-				'/{0}/{1}'.format(dirname, basename),
-				logMessage )
-		print
-		return retVal
+			assert( lenv['myNeverCreateAVCSBranch'] == 'yes' )
+			updateMyBranchSvnUrls( self, self.myProjectPathName )
 
 
 	def vcsRmTagOrBranch( self, tagOrBranch, tagOrBranchName ):
@@ -1791,8 +1824,8 @@ SConsBuildFramework options:
 
 		# The given branch exists and must be removed
 		answer = askQuestion(	"Do you want to delete {0} {1} for {2}".format(tagOrBranch, basename, self.myProject),
-								['no', 'yes'] )
-		if answer == 'n':
+								['(n)o', '(y)es'] )
+		if answer == 'no':
 			return
 
 		# Do the job
@@ -2227,7 +2260,7 @@ SConsBuildFramework options:
 		# install in 'include'
 		# installInIncludeTarget
 		if self.myType in ['static', 'shared', 'none']:
-			installInIncludeTarget = self.getFiles( 'include', lenv )
+			installInIncludeTarget = filesFromInclude
 		else:
 			assert( self.myType == 'exec' )
 			installInIncludeTarget	= []

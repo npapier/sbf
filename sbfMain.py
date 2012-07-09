@@ -124,33 +124,18 @@ except ImportError as e:
 from SCons.Script.SConscript import SConsEnvironment
 from SCons import SCons # for SCons.__version__
 
-
-from src.sbfEnvironment import Environment
+from src.sbfConfiguration import sbfConfigure, sbfUnconfigure, sbfConfigureTools, sbfUnconfigureTools
 from src.sbfFiles	import *
-from src.sbfPaths	import Paths
 from src.sbfRsync	import createRsyncAction
-from src.sbfTools	import locateProgram, getPathsForTools, getPathsForRuntime
+from src.sbfTools	import locateProgram
 if sys.platform == 'win32':
 	from src.sbfTools import winGetInstallPath
-from src.sbfUI		import ask
-from src.sbfUses	import uses, getPathsForSofa
+from src.sbfUI		import ask, askQuestion
+from src.sbfUses	import uses
 from src.sbfUtils	import *
 from src.sbfVersion import printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-
-
-###### Archiver action ######
-# @todo Uses 7Zip (because make_archive seems to allocate a lot of memory for big files...)
-def zipArchiver( target, source, env ) :
-	targetName = str(target[0])
-	sourceName = str(source[0])
-	distutils.archive_util.make_archive( os.path.splitext(targetName)[0], 'zip', sourceName )
-
-def printZipArchiver( target, source, env ) :
-	targetName = str(target[0])
-	sourceName = str(source[0])
-	return ("Generates %s with files from %s" % (targetName, sourceName))
-
+from src.sbfSubversion import anonymizeUrl, branches2branch, printSbfBranch # @todo add into abstract interface
 
 
 ###### Action function for sbfCheck target #######
@@ -291,81 +276,7 @@ def checkCC(target = None, source = None, env = None) :
 	checkTool( env, 'gcc', ['gcc', '-dumpversion'] )
 
 
-###### Implementation of sbfConfigure and sbfUnconfigure targets #######
-
-def _sbfConfigure( pathsToPrepend, pathsToAppend ):
-	if sys.platform == 'win32':
-		environment = Environment()
-		paths = Paths( environment.get('PATH') )
-		paths.prependList( pathsToPrepend, True )
-		paths.appendList( pathsToAppend, True )
-		print
-		environment.set('PATH', paths.getString())
-	else:
-		print ('Target sbfConfigure* not yet implemented on {0} platform.'.format(env['PLATFORM']))
-
-
-def _sbfUnconfigure( pathsToRemove ):
-	if sys.platform == 'win32':
-		environment = Environment()
-		paths = Paths( environment.get('PATH') )
-		paths.removeList( pathsToRemove )
-# @todo asks user
-		paths.removeAllNonExisting()
-		print
-		environment.set('PATH', paths.getString())
-	else:
-		print ('Target sbfUnconfigure* not yet implemented on {0} platform.'.format(env['PLATFORM']))
-
-
-def _getSBFRuntimePaths( sbf ):
-	prependList = []
-	appendList  = []
-
-	# Prepends $SCONS_BUILD_FRAMEWORK in PATH for 'scons' file containing scons.bat $*
-	prependList.append( sbf.mySCONS_BUILD_FRAMEWORK )
-
-	# Adds C:\PythonXY (where C:\PythonXY is the path to your python's installation directory) to your PATH environment variable.
-	# This is important to be able to run the Python executable from any directory in the command line.
-	pythonLocation = locateProgram('python')
-	appendList.append( pythonLocation )
-
-	# Adds c:\PythonXY\Scripts (for scons.bat)
-	appendList.append( join(pythonLocation, 'Scripts') )
-
-	#
-	return (prependList, appendList)
-
-
-def sbfConfigure( sbf ):
-	toPrepend = getPathsForSofa(True) + getPathsForRuntime(sbf)
-
-	sbfRuntimePaths = _getSBFRuntimePaths( sbf )
-
-	_sbfConfigure( toPrepend + sbfRuntimePaths[0], sbfRuntimePaths[1] )
-
-
-def sbfUnconfigure( sbf ):
-	toRemove = getPathsForSofa(True) + getPathsForRuntime(sbf)
-
-	# Don't remove sbfRuntimePaths = _getSBFRuntimePaths()
-
-	_sbfUnconfigure( toRemove )
-
-
-def sbfConfigureTools( sbf ):
-	toAppend = getPathsForTools()
-	_sbfConfigure( [], toAppend )
-
-
-def sbfUnconfigureTools( sbf ):
-	toRemove = getPathsForTools()
-	_sbfUnconfigure( toRemove )
-
-
-
 from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLine
-
 
 
 ###### Initial environment ######
@@ -427,27 +338,21 @@ if len(buildTargetsSet & sbf.mySvnTargets) > 0:
 	Alias( 'svnstatus',		Command('dummySvnStatus.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
+
 # svnMkTag, svnRmTag, svnMkBranch and svnRmBranch
 hasBranchOrTagTarget = len(buildTargetsSet & sbf.mySvnBranchOrTagTargets) > 0
 if hasBranchOrTagTarget:
 	# branch or tag targets ?
 	if len( set(['svnmktag', 'svnrmtag']) & buildTargetsSet ) > 0:
-		branch = 'tags'
+		env['myBranchesOrTags'] = 'tags'
 	else:
-		branch = 'branches'
+		env['myBranchesOrTags'] = 'branches'
+	env['myBranchOrTag'] = branches2branch(env['myBranchesOrTags'])
 
-	# Lists available tag/branch in repository for the launching project
-	entries = sbf.myVcs.listBranch( env['sbf_projectPathName'], branch )
-	if len(entries) > 0:
-		print ('List of {0} in repository of project {1}:'.format(branch, env['sbf_project']))
-		for entry in entries:
-			print entry.lstrip('/')
-	else:
-		print ('No {0} in repository of project {1}'.format(branch, env['sbf_project']))
+	# Lists available tag/branch for the launching project
+	printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], env['myBranchesOrTags'] )
 
-	answer = ask( '\nGives the name of {0}'.format(branch.rstrip('s')), env['svnDefaultBranch'] )
-	env['myBranch'] = answer
-
+	env['myBranch'] = ask( "\nGives the name of {0} without the extension '.{0}'".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
 	Alias( 'svnmktag',		Command('dummySvnMkTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnrmtag',		Command('dummySvnRmTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnmkbranch',	Command('dummySvnMkBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
@@ -457,6 +362,40 @@ if hasBranchOrTagTarget:
 # Builds the root project (i.e. launchDir).
 sbf.buildProject( env['sbf_projectPathName'], None, False )
 Clean( 'mrproper', join(sbf.myInstallDirectory, 'include') )
+
+# Creates (if needed) the file named branchName.tags|branches
+if len(sbf.myBranchSvnUrls)>0:
+	# Checks target
+	target = join( env['sbf_projectPathName'], '{0}.{1}'.format(env['myBranch'], env['myBranchesOrTags']) )
+#	if os.path.exists(target):
+#		overwrite = askQuestion( 'Overwrite previous file named {0}'.format(target), ['(n)o', '(y)es'] )
+#		if overwrite == 'yes':	os.remove( target )
+
+	# Adds informations about SConsBuildFramework project used into self.myBranchSvnUrls
+	(url, revision ) = sbf.myVcs.getUrlAndRevision(sbf.mySCONS_BUILD_FRAMEWORK)
+	url = anonymizeUrl(url)
+	sbf.myBranchSvnUrls[ 'SConsBuildFramework' ] = '{0}@{1}'.format(url, revision)
+
+	# Filling source
+
+	#	Constructs the 'svnUrls'
+	source = getDictPythonCode( sbf.myBranchSvnUrls, 'svnUrls', orderedDict=True )
+
+	#	clVersion
+	source.append( "\nclVersion	= '{0}'\n".format(env['clVersion']) )
+
+	#
+	textFile = env.Textfile( target = target, source = source )
+	Alias( 'svnmktag', textFile )
+	Alias( 'svnmkbranch', textFile )
+
+#
+if env.GetOption('verbosity'):
+	if len(sbf.myInstallDirectories)>1:
+		print 'Installation directories', sbf.myInstallDirectories
+	elif len(sbf.myInstallDirectories)==1:
+		print 'Installation directory', sbf.myInstallDirectories
+	#else nothing to do
 
 
 ### special targets: onlyRun and run ###
