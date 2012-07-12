@@ -11,8 +11,10 @@ import os, sys
 # Command line options
 usage = """Usage: sbfInit.py [Options]"""
 parser = OptionParser(usage)
+parser.add_option(	"-s", "--switch", action="store_true", dest="switch", default=False,
+					help="Switch from one SConsBuildFramework installation to another one (i.e. update the current SConsBuildFramework configuration to use the SConsBuildFramework found in the current directory)." )
 parser.add_option(	"-v", "--verbose", action="store_true", dest="verbose", default=False,
-					help="increase verbosity")
+					help="increase verbosity" )
 (options, args) = parser.parse_args()
 verbose = options.verbose
 
@@ -49,6 +51,7 @@ from src.SConsBuildFramework import getSConsBuildFrameworkOptionsFileLocation
 import multiprocessing
 
 def createNewSConsBuildFramework( vcs, newSbfRoot, trunkAndHeadRevision = False ):
+	"""Checkout SConsBuildFramework in newSbfRoot directory"""
 	(sbfSvnUrl, sbfRevision) = vcs.locateProject( 'SConsBuildFramework' )
 	if not sbfSvnUrl:
 		print ( "SConsBuildFramework not found. Check your 'svnUrls' SConsBuildFramework option." )
@@ -60,6 +63,36 @@ def createNewSConsBuildFramework( vcs, newSbfRoot, trunkAndHeadRevision = False 
 		vcs._checkout( sbfSvnUrl, newSbfRoot, sbfRevision )
 
 
+def fullyConfigureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguration, newConfiguration, verbose ):
+	assert( 'svnUrls' in newConfiguration )
+	assert( 'installPaths' in newConfiguration )
+	assert( 'buildPath' in newConfiguration )
+
+	# old configuration
+	unconfigureSConsBuildFramework( sbf, verbose )
+
+	# new configuration
+	setSCONS_BUILD_FRAMEWORK( sbfRoot, verbose )
+	createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfiguration, verbose)
+	sbf = configureSConsBuildFramework( sbfRoot, verbose )
+	return sbf
+
+
+def unconfigureSConsBuildFramework( sbf, verbose ):
+	# Unconfiguring current SConsBuildFramework
+	print ('* Unconfiguring current SConsBuildFramework')
+	sbfUnconfigure(sbf, takeCareOfSBFRuntimePaths = True, verbose = verbose)
+	print
+
+
+def setSCONS_BUILD_FRAMEWORK( newSCONS_BUILD_FRAMEWORK, verbose ):
+	# Updating SCONS_BUILD_FRAMEWORK
+	environment = Environment()
+	print ('* Updating SCONS_BUILD_FRAMEWORK')
+	environment.set( 'SCONS_BUILD_FRAMEWORK', newSCONS_BUILD_FRAMEWORK, verbose )
+	print
+
+
 # numJobs from newConfiguration, otherwise multiprocessing.cpu_count()
 # outputLineLength from newConfiguration, otherwise do nothing
 # pakPaths from newConfiguration if available, otherwise oldConfiguration, otherwise []
@@ -69,23 +102,7 @@ def createNewSConsBuildFramework( vcs, newSbfRoot, trunkAndHeadRevision = False 
 # installPaths and buildPath from newConfiguration
 # config from newConfiguration, otherwise do nothing
 # generateDebugInfoInRelease from newConfiguration, otherwise do nothing
-def configureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguration, newConfiguration, verbose ):
-	assert( 'svnUrls' in newConfiguration )
-	assert( 'installPaths' in newConfiguration )
-	assert( 'buildPath' in newConfiguration )
-
-	environment = Environment()
-
-	# Updating SCONS_BUILD_FRAMEWORK
-	print ('* Updating SCONS_BUILD_FRAMEWORK')
-	environment.set( 'SCONS_BUILD_FRAMEWORK', sbfRoot, verbose )
-	print
-
-	# Unconfiguring old SConsBuildFramework
-	print ('* Unconfiguring old SConsBuildFramework')
-	sbfUnconfigure(sbf, takeCareOfSBFRuntimePaths = True, verbose = verbose)
-	print
-
+def createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfiguration, verbose):
 	# Configuration file of the newly created SConsBuildFramework
 	print ('* Creating the SConsBuildFramework.options file')
 	with open( join(sbfRoot, 'SConsBuildFramework.options'), 'w' ) as newConfigFile:
@@ -120,10 +137,12 @@ def configureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguration, ne
 			newConfigFile.write( 'generateDebugInfoInRelease		= {0}\n'.format(newConfiguration['generateDebugInfoInRelease']) )
 	print
 
+
+def configureSConsBuildFramework( SCONS_BUILD_FRAMEWORK, verbose ):
 	# Configuring new SConsBuildFramework
 	print ('* Configuring new SConsBuildFramework')
 	#	Changing SCONS_BUILD_FRAMEWORK environment variable for the current process
-	os.environ['SCONS_BUILD_FRAMEWORK'] = sbfRoot
+	os.environ['SCONS_BUILD_FRAMEWORK'] = SCONS_BUILD_FRAMEWORK
 
 	# Creating a new sbf using the newly SConsBuildFramework and its new configuration file
 	sbf = SConsBuildFramework( initializeOptions = False )
@@ -132,6 +151,8 @@ def configureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguration, ne
 	sbfConfigure(sbf, verbose=verbose)
 
 	return sbf
+
+
 
 # SCONS_BUILD_FRAMEWORK current configuration
 sbfConfigurationPath = getSConsBuildFrameworkOptionsFileLocation( sbf_root )
@@ -201,7 +222,7 @@ def main( options, args, sbf, vcs ):
 		if 'outputLineLength' in sbfConfigurationDict:				newSbfConfigFileDict['outputLineLength'] = sbfConfigurationDict['outputLineLength']
 		if 'config' in sbfConfigurationDict:						newSbfConfigFileDict['config'] = sbfConfigurationDict['config']
 		if 'generateDebugInfoInRelease' in sbfConfigurationDict:	newSbfConfigFileDict['generateDebugInfoInRelease'] = sbfConfigurationDict['generateDebugInfoInRelease']
-		sbf = configureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
+		sbf = fullyConfigureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
 		print
 
 		# Checkout the root project
@@ -244,7 +265,7 @@ def main( options, args, sbf, vcs ):
 		if 'config' in sbfConfigurationDict:						newSbfConfigFileDict['config'] = sbfConfigurationDict['config']
 		if 'generateDebugInfoInRelease' in sbfConfigurationDict:	newSbfConfigFileDict['generateDebugInfoInRelease'] = sbfConfigurationDict['generateDebugInfoInRelease']
 
-		sbf = configureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
+		sbf = fullyConfigureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
 		print
 
 		# Checkout the root project
@@ -258,8 +279,27 @@ def main( options, args, sbf, vcs ):
 	print ('cd $SCONS_BUILD_FRAMEWORK; cd ../{0}'.format(projectName))
 	print ('scons svnCheckout;scons pakUpdate;scons debug;scons release')
 
+
+def commandSwitch( options, args, sbf, vcs ):
+	newSbfRoot = os.getcwd()
+
+	# check if cwd is an SConsBuildFramework installation
+	if not os.path.exists('SConsBuildFramework.options'):
+		print ('{0} seems to be an invalid SConsBuildFramework installation directory.'.format(newSbfRoot))
+		exit(1)
+	# old configuration
+	unconfigureSConsBuildFramework( sbf, verbose )
+
+	# new configuration
+
+	setSCONS_BUILD_FRAMEWORK( newSbfRoot, verbose )
+	sbf = configureSConsBuildFramework( newSbfRoot, verbose )
+
 if __name__ == "__main__":
-	exitCode = main( options, args, sbf, vcs )
-	sys.exit(exitCode)
+	if options.switch:
+		commandSwitch( options, args, sbf, vcs )
+	else:
+		exitCode = main( options, args, sbf, vcs )
+		sys.exit(exitCode)
 #else nothing to do
 
