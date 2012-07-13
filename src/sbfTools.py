@@ -13,8 +13,8 @@ except ImportError as e:
 	pass
 
 import logging
+import os, sys
 from os.path import join
-import sys
 #from sbfFiles import getNormalizedPathname
 
 isPyWin32Available = False
@@ -150,7 +150,7 @@ def getPathsForTools():
 	#
 	cygwinLocation = locateProgram('cygwin')
 	if cygwinLocation:
-		paths.append( os.path.join(cygwinLocation, 'bin') )
+		paths.append( join(cygwinLocation, 'bin') )
 
 	# TortoiseMerge is append to the PATH by installation program
 
