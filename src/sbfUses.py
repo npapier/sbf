@@ -120,7 +120,6 @@ class gtkmmConfig:
 		return cls.getBasePath()
 
 
-
 ###
 # @todo licences
 class IUse :
@@ -176,8 +175,8 @@ class IUse :
 	# for packager
 	def getPackageType( self ):
 		"""	None			(no package, i.e. installed in the system (opengl), without files (gtkmmext), include in another package (glibmm in gtkmm))
-			NoneAndNormal	(no package (like None), but getLIBS() and getLicenses() must be redistributed (like Normal). Example: sofa)
-			Normal			(indicate that this 'uses' is provided by a sbf package and that getLIBS() and getLicenses() must be redistributed).
+			NoneAndNormal	(no package (like None), but getLIBS() and getLicenses() must be redistributed. Example: sofa)
+			Normal			(indicate that this 'uses' is provided by a sbf package, that getLIBS() must be redistributed and that licenses files from package must be redistributed too.).
 			Full			(indicate that this 'uses' is provided by a sbf package and that all files in the package must be redistributed)."""
 		return 'Normal'
 
@@ -189,7 +188,7 @@ class IUse :
 		"""@return None to indicate that license file(s) could be found automatically (by using the naming rule of sbf package).
 		Returns [] to explicitly specify that there is no license file at all (provided by another 'uses', like glibmm/gtkmm).
 		Returns [...] to explicitly specify one or more license file(s)"""
-		return
+		return []
 
 	def getRedist( self, version ):
 		"""Returns the redistributable to include in nsis setup program. A redistributable must be a zip file or an executable available in SCONS_BUILD_FRAMEWORK/rc/nsis/ directory"""
@@ -294,7 +293,6 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		#return [ '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1', '1-45-0' ]
 		return [ '1-48-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1', '1-45-0' ]
 
 	def getCPPDEFINES( self, version ):
@@ -1034,7 +1032,13 @@ class Use_sofa( IUse, sofaConfig ):
 			return dbgFilesD
 
 	def getLicenses( self, version ):
-		return []
+		# sofa framework license
+		licenses = [ os.path.join( self.getBasePath(), 'LICENCE.txt' ) ]
+		# plugins licenses
+		pluginsDir = os.path.join( self.getBasePath(), 'applications', 'plugins' )
+		for plugin in self.getPluginsList():
+			licenses.append( join(pluginsDir, plugin, plugin + '.txt') )
+		return licenses
 
 
 

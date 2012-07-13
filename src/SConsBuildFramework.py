@@ -282,6 +282,7 @@ def getStdlibs( lenv, searchPathList ):
 
 def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 	depsFiles = []
+	licensesFiles = []
 	sbf = lenv.sbf
 
 	if forced or (lenv['deploymentType'] in ['standalone', 'embedded']):
@@ -295,7 +296,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 			stdlibs = getStdlibs( localEnv, baseSearchPathList )
 			if len(stdlibs)>0:
 				print stdlibs
-				assert(False) # not yet implemented, deprecated ?
+				assert(False) # not yet implemented, @todo deprecated ?
 
 		# Processes external dependencies (i.e. 'uses')
 		# For each external dependency, do
@@ -307,6 +308,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 			# Retrieves use object for incoming dependency
 			use = UseRepository.getUse( useName )
 			if use:
+				### LIBS ###
 				if use.getPackageType() == 'None':
 					# nothing to do
 					if lenv.GetOption('verbosity'): print ("No files for uses='{0}'...".format(useNameVersion))
@@ -351,11 +353,47 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 				else:
 					# getPackageType() returns an unexpected value
 					assert( False )
+
+				### LICENSE ###
+				if use.getPackageType() == 'None':
+					# nothing to do
+					pass
+				elif use.getPackageType() == 'NoneAndNormal':
+					# Retrieves license files of incoming dependency
+					licenses = use.getLicenses( useVersion )
+					for i, licenseSource in enumerate(licenses):
+						licenseTarget = 'license.{0}{1}.{2}.txt'.format( useName, useVersion, i )
+						licensesFiles.append( (licenseTarget, licenseSource) )
+				elif use.getPackageType() == 'Normal':
+					# Retrieves license files of incoming dependency from package
+					pakSystem = PackagingSystem(lenv.sbf, verbose=False)
+					if pakSystem.isInstalled( useName ):
+						# installed
+						oPakInfo = {}
+						oRelDirectories = []
+						oRelFiles = []
+						pakSystem.loadPackageInfo( useName, oPakInfo, oRelDirectories, oRelFiles )
+						if oPakInfo['version'] != useVersion:
+							raise SCons.Errors.UserError( '{0} {1} is installed, but {2} is needed.'.format(useName, oPakInfo['version'], useVersion))
+						if lenv.GetOption('verbosity'):	print ( 'Collecting license files found in installed package {0} {1}'.format(oPakInfo['name'], oPakInfo['version']) )
+						for relFile in oRelFiles:
+							licensePrefix = 'license' + os.sep
+							if relFile.find(licensePrefix) == 0:
+								#print 'FOUND', (os.path.basename(relFile), join( sbf.myInstallExtPaths[0], relFile ) )
+								licensesFiles.append( (os.path.basename(relFile), join(sbf.myInstallExtPaths[0], relFile) ) )
+					else:
+						raise SCons.Errors.UserError( '{0} {1} is NOT installed.'.format(useName, useVersion))
+				elif use.getPackageType() == 'Full':
+					# nothing to do
+					pass
+				else:
+					# getPackageType() returns an unexpected value
+					assert( False )
 			else:
 				raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
 	# do nothing for 'none' project
-	return depsFiles
 
+	return depsFiles, licensesFiles
 
 
 ### RUN ###
@@ -460,6 +498,7 @@ class SConsBuildFramework :
 	myInstallExtPaths				= []
 	myInstallDirectory				= ''
 	myInstallDirectories			= []
+	myDepsInstallDirectories		= []
 	myNSISInstallDirectories		= []
 	myIncludesInstallPaths			= []
 	myLibInstallPaths				= []
@@ -2204,20 +2243,22 @@ SConsBuildFramework options:
 		### DEPS 'BUILD' ###
 		# depsFiles
 		if isLaunchProject(lenv) and len(self.myBuildTargets & self.myTargetsWhoNeedDeps) > 0:
-			depsFiles = getDepsFiles( lenv, self.myLibInstallExtPaths, isLaunchProject(lenv) )
+			depsFiles, licensesFiles = getDepsFiles( lenv, self.myLibInstallExtPaths, isLaunchProject(lenv) )
 		else:
 			depsFiles = []
+			licensesFiles = []
 
 
 
 		### INSTALLATION ###
 
-		# self.myInstallDirectories
+		# self.myInstallDirectories, self.myDepsInstallDirectories
 		# installTarget
 
 		self.myInstallDirectories = computeInstallDirectories(lenv, self.myInstallDirectory)
 		self.myInstallDirectories.extend( self.myNSISInstallDirectories )
-
+		#   Don't install deps files in myInstallDirectories[0], because myInstallDirectories[0] is in the PATH.
+		self.myDepsInstallDirectories = self.myInstallDirectories[1:]
 		# for debugging : print lenv['sbf_project'], self.myInstallDirectories
 
 		# infofile, info, zip* and nsis
@@ -2235,15 +2276,21 @@ SConsBuildFramework options:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
 
-		# install dependencies in 'bin' (from depsFiles)
+		# install dependencies in 'bin' and 'license' (from depsFiles)
 		# depsTarget
 		depsTarget = []
 
 		if len(depsFiles) > 0:
-			for installDir in self.myInstallDirectories:
+			for installDir in self.myDepsInstallDirectories:
 				for (absFile, relFile) in depsFiles:
 					depsTarget += lenv.InstallAs( join(installDir, relFile), absFile )
 
+		if len(licensesFiles) >0:
+			licenseDir = join(installDir, 'license')
+			for installDir in self.myDepsInstallDirectories:
+				for (licenseTarget, licenseSource) in licensesFiles:
+					print licenseTarget, licenseSource
+					depsTarget += lenv.InstallAs( join(licenseDir, licenseTarget), licenseSource )
 
 		# install in 'share' (from filesFromShare, filesFromShareBuilt and lenv['sbf_info'])
 		for installDir in self.myInstallDirectories:
