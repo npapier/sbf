@@ -12,6 +12,7 @@ except ImportError as e:
 	print ('sbfWarning: pysvn is not installed.')
 	raise e
 
+import os
 from os.path import basename, dirname, isfile, isdir, join, normpath, relpath
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
