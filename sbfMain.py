@@ -109,10 +109,7 @@
 #import datetime
 #sbfMainBeginTime = datetime.datetime.now()
 
-import distutils.archive_util
-import os
-import string
-import sys
+import collections, os, string, sys
 
 # To be able to catch wrong SCons version or missing SCons
 try:
@@ -133,7 +130,7 @@ if sys.platform == 'win32':
 from src.sbfUI		import ask, askQuestion
 from src.sbfUses	import uses
 from src.sbfUtils	import *
-from src.sbfVersion import printSBFVersion
+from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
 from src.sbfSubversion import anonymizeUrl, branches2branch, printSbfBranch # @todo add into abstract interface
 
@@ -362,6 +359,7 @@ if hasBranchOrTagTarget:
 # Builds the root project (i.e. launchDir).
 sbf.buildProject( env['sbf_projectPathName'], None, False )
 Clean( 'mrproper', join(sbf.myInstallDirectory, 'include') )
+env = sbf.getRootProjectEnv()
 
 # Creates (if needed) the file named branchName.tags|branches
 if len(sbf.myBranchSvnUrls)>0:
@@ -383,6 +381,17 @@ if len(sbf.myBranchSvnUrls)>0:
 
 	#	clVersion
 	source.append( "\nclVersion	= '{0}'\n".format(env['clVersion']) )
+
+	#	'uses' alias
+	allUses = sbf.getAllUses( env )
+	usesAlias = collections.OrderedDict()
+	for useNameVersion in sorted(allUses):
+		# Extracts name and version of incoming external dependency
+		useName, useVersion = splitUsesName( useNameVersion )
+		if len(useVersion)>0:
+			usesAlias[useName] = useVersion
+
+	source.append( getDictPythonCode(usesAlias, 'usesAlias', orderedDict=True, addImport=False) )
 
 	#
 	textFile = env.Textfile( target = target, source = source )

@@ -240,14 +240,17 @@ def convertDictToString( dict ) :
 	return result
 
 
-def getDictPythonCode( dict, dictName, orderedDict = False, eol = False ):
+def getDictPythonCode( dict, dictName, orderedDict = False, eol = False, addImport = True ):
 	"""@return list of string containing python code building the given dictionary"""
 	# Computing the maximum length of the keys
 	maxLength = 0;
 	for key in dict.iterkeys():
 		maxLength = max(maxLength, len(key))
 	if orderedDict:
-		retVal = ['from collections import OrderedDict', '{0} = OrderedDict()'.format(dictName)]
+		if addImport:
+			retVal = ['from collections import OrderedDict', '{0} = OrderedDict()'.format(dictName)]
+		else:
+			retVal = ['{0} = OrderedDict()'.format(dictName)]
 	else:
 		retVal = ['{0} = {{}}'.format(dictName)]
 	for (key, value) in dict.iteritems():
