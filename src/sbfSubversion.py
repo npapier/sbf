@@ -293,7 +293,7 @@ class SvnOperation:
 			return retVal
 		except pysvn.ClientError as e:
 			self.printErrorMessages(e)
-			Exit(1)
+			exit(1)
 
 	def doSvnOperation( self, *args ):
 		raise AssertionError( '{0}::doSvnOperation() not implemented.'.format(self) )
