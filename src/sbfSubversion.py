@@ -337,8 +337,9 @@ class SvnGetInfo( SvnOperation ):
 			#e[1] = list((msg str,error code)
 			if len(e[1])==1:
 				errorCode = e[1][0][1]
-				if errorCode in [155007, 170000, 200005]:
+				if errorCode in [155007, 155010, 170000, 200005]:
 					# 155007 : "'path' is not a working copy"
+					# 155010 : "The node 'path' was not found."
 					# 170000 : "URL 'url' non-existent in revision REVNUM
 					# 200005 : "'path' is not under version control"
 					return
