@@ -415,11 +415,11 @@ from sbfInfo import configureInfofileTarget, configureInfoTarget
 class SConsBuildFramework :
 
 	# targets
-	mySbfTargets					= set( ['sbfcheck', 'sbfpakupdate', 'sbfpak', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
+	mySbfTargets					= set( ['sbfcheck', 'sbfpak', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
 	mySvnTargets					= set( ['svnadd', 'svncheckout', 'svnclean', 'svnrelocate', 'svnstatus', 'svnupdate'] )
 	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnremotemkbranch'] )
 	myInformationsTargets			= set( ['info', 'infofile'] )
-	myBuildingTargets				= set( ['all', 'clean', 'mrproper'] )
+	myBuildingTargets				= set( ['pakupdate', 'all', 'clean', 'mrproper'] )
 	myRunTargets					= set( ['onlyrun', 'run'] )
 	myVCProjTargets					= set( ['vcproj', 'vcproj_clean', 'vcproj_mrproper'] )
 	myDoxTargets					= set( ['dox', 'dox_clean', 'dox_mrproper'] )
