@@ -415,13 +415,20 @@ from sbfInfo import configureInfofileTarget, configureInfoTarget
 class SConsBuildFramework :
 
 	# targets
-	mySbfTargets					= set( ['sbfcheck', 'sbfpak', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
-	mySvnTargets					= set(['svnadd', 'svncheckout', 'svnclean', 'svnrelocate', 'svnstatus', 'svnupdate'])
-	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnrmtag', 'svnmkbranch', 'svnrmbranch'] )
-	myBuildTargets					= set(['info', 'infoFile', 'all', 'clean', 'mrproper', 'onlyrun', 'run', 'vcproj', 'vcproj_clean', 'vcproj_mrproper'])
-	myDoxTargets					= set(['dox', 'dox_clean', 'dox_mrproper'])
-	myZipTargets					= set(['zipruntime', 'zipdeps', 'portable', 'zipportable', 'zipdev', 'zipsrc', 'zip', 'nsis', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'])
-	myTargetsWhoNeedDeps			= set(['deps', 'portable', 'zipportable', 'nsis'])
+	mySbfTargets					= set( ['sbfcheck', 'sbfpakupdate', 'sbfpak', 'sbfconfigure', 'sbfunconfigure', 'sbfconfiguretools', 'sbfunconfiguretools'] )
+	mySvnTargets					= set( ['svnadd', 'svncheckout', 'svnclean', 'svnrelocate', 'svnstatus', 'svnupdate'] )
+	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnremotemkbranch'] )
+	myInformationsTargets			= set( ['info', 'infofile'] )
+	myBuildingTargets				= set( ['all', 'clean', 'mrproper'] )
+	myRunTargets					= set( ['onlyrun', 'run'] )
+	myVCProjTargets					= set( ['vcproj', 'vcproj_clean', 'vcproj_mrproper'] )
+	myDoxTargets					= set( ['dox', 'dox_clean', 'dox_mrproper'] )
+	# @todo 'zipruntime', 'zipdeps', 'zipdev', 'zipsrc', 'zip', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'
+	myZipTargets					= set( ['portable', 'zipportable', 'dbg', 'zipdbg', 'nsis'] )
+
+	myTargetsWhoNeedDeps			= set( ['deps', 'portable', 'zipportable', 'nsis'] )
+
+	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']

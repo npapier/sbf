@@ -286,6 +286,11 @@ SConsEnvironment.sbf = sbf
 env = sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
 buildTargetsSet = sbf.myBuildTargets
 
+# checks if target is valid
+if buildTargetsSet.issubset(sbf.myAllTargets) == False:
+	print( 'sbfError: invalid target(s): {0}'.format(string.join(list(buildTargetsSet-sbf.myAllTargets), ', ')) )
+	exit(1)
+
 # Prints current 'config' option
 print ( "Configuration: {0}\n".format(env['config']) )
 
