@@ -2313,11 +2313,7 @@ SConsBuildFramework options:
 
 		# install in 'include'
 		# installInIncludeTarget
-		if self.myType in ['static', 'shared', 'none']:
-			installInIncludeTarget = filesFromInclude
-		else:
-			assert( self.myType == 'exec' )
-			installInIncludeTarget	= []
+		installInIncludeTarget = filesFromInclude
 
 		# install in 'include'
 		if 'mrproper' in self.myBuildTargets:
