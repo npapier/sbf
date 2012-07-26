@@ -469,6 +469,20 @@ class SConsBuildFramework :
 	#myGHasCleanOption				= False
 
 	# Globals attributes
+
+	# tryVcsCheckout
+	# tryVcsUpdate
+
+	# tryVcsClean
+	# tryVcsAdd
+
+	# tryVcsStatus
+	# tryVcsRelocate
+	# tryVcsMkTag
+	# tryVcsRemoteMkBranch
+
+	# tryVcsOperation
+
 	myCurrentTime					= None			# time.localtime()
 	myTimePostFix					= ''
 	myDate							= ''
@@ -551,11 +565,10 @@ class SConsBuildFramework :
 	myBuiltProjects					= OrderedDict()
 
 	# Used by mktag
-	myBranchSvnUrls = OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
+	myBranchSvnUrls				= OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
 	#lenv['myBranchesOrTags']	= 'tags' or 'branches' or None
 	#lenv['myBranchOrTag']		= 'tag' or 'branch' or None
 	#lenv['myBranch']			= None or env['svnDefaultBranch'] or '2.0' for example.
-	#lenv['myNeverCreateAVCSBranch'] = None or 'always'
 
 	###### Constructor ######
 	def __init__( self, initializeOptions = True ) :
@@ -754,6 +767,28 @@ class SConsBuildFramework :
 		Alias( list(self.myCurrentCmdLineOptions), tmp )
 		Default('all')
 
+		# Tests which target is given
+		# 	User wants a vcs checkout or update ?
+		self.tryVcsCheckout = 'svncheckout' in self.myBuildTargets
+		if self.tryVcsCheckout and len(self.mySvnUrls) == 0:
+			# Checks validity of 'svnUrls' option.
+			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
+		#
+		self.tryVcsUpdate = 'svnupdate' in self.myBuildTargets
+		#
+		self.tryVcsClean = 'svnclean' in self.myBuildTargets
+		self.tryVcsAdd = 'svnadd' in self.myBuildTargets
+		# 	User wants a vcs status or relocate ?
+		self.tryVcsStatus = 'svnstatus' in self.myBuildTargets
+		self.tryVcsRelocate = 'svnrelocate' in self.myBuildTargets
+		# User wants a vcs mktag or svnremotemkbranch ?
+		self.tryVcsMkTag = 'svnmktag' in self.myBuildTargets
+		self.tryVcsRemoteMkBranch = 'svnremotemkbranch' in self.myBuildTargets
+
+		self.tryVcsOperation = self.tryVcsCheckout# or self.tryVcsUpdate
+		self.tryVcsOperation = self.tryVcsOperation or self.tryVcsStatus or self.tryVcsRelocate
+		self.tryVcsOperation = self.tryVcsOperation or self.tryVcsMkTag or self.tryVcsRemoteMkBranch
+
 		# 'clean' and 'mrproper'
 		#self.myGHasCleanOption = env.GetOption('clean')
 		# Sets clean=1 option if needed.
@@ -903,7 +938,6 @@ class SConsBuildFramework :
 Type:
 SBF related targets
  'scons sbfCheck' to check availability and version of sbf components and tools.
- 'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
  'scons sbfPak' to launch sbf packaging system.
  'scons sbfConfigure' to add several paths to environment variable $PATH (windows platform only).
  'scons sbfUnconfigure' to remove paths installed by 'sbfConfigure' except sbf runtime paths.
@@ -920,18 +954,16 @@ svn related targets
  'scons svnStatus' to print the status of working copy files and directories.
  'scons svnUpdate' to update your working copy.
 
- 'scons svnMkTag' to create a tag. See 'svnDefaultBranch' option.
- 'scons svnRmTag' to remove a tag. See 'svnDefaultBranch' option.
- 'scons svnMkBranch' to create a branch. See 'svnDefaultBranch' option.
- 'scons svnRmBranch' to remove a branch. See 'svnDefaultBranch' option.
+ 'scons svnMkTag' to create tag locally and used revision from working copy. But any local modifications are ignored. See 'svnDefaultBranch' option.
+ 'scons svnRemoteMkBranch' to create a a branch directly on the repository from a local tag file.
 
-
-configuration related target
+informations related target
  'scons info' to print informations about the current project, its dependencies and external packages needed.
  'scons infoFile' to generate info.sbf file for the starting project only.
 	This file is generated in root of the project and intalled in the local/share directory of the project.
 
 build related targets
+ 'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
  'scons deps'
  'scons clean' to clean intermediate files (see buildPath option).
@@ -1234,7 +1266,7 @@ SConsBuildFramework options:
 			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPaths[0]/sbfPak'.", [] ),
 
 			('svnUrls', 'A dictionnary... @todo doc ... The list of subversion repositories used, from first to last, until a successful checkout occurs.', {}),
-			('svnDefaultBranch', 'svnMkTag, svnRmTag, svnMkBranch and svnRmBranch asks user the name of the tag/branch to use. This option sets the default choice suggested to user.', '1.0'),
+			('svnDefaultBranch', 'svnMkTag and svnRemoteMkBranch asks user the name of the tag/branch to use. This option sets the default choice suggested to user.', '1.0'),
 			('projectExclude', 'The list of projects excludes from any sbf operations. All projects not explicitly excluded will be included. The project from which sbf was initially invoked is never excluded. The unix filename pattern matching is used by the list.', []),
 			('weakLocalExtExclude', 'The list of packages (see \'uses\' project option for a complete list of available packages) excludes by the --weak-localext option.'
 			' --weak-localext could be used to disables SCons scanners for localExt directories.'
@@ -1630,22 +1662,9 @@ SConsBuildFramework options:
 
 	###################################################################################
 	def doVcsCheckoutOrOther( self, lenv ):
-		"""Do a vcs checkout, status, relocate, mkTag or rmTag.
-			@todo OPTME: just compute tryVcs* once and not for each project"""
+		"""Do a vcs checkout, status, relocate, tag/branch related targets."""
 
-		# User wants a vcs checkout, status or relocate ?
-		tryVcsCheckout = 'svncheckout' in self.myBuildTargets
-		tryVcsStatus = 'svnstatus' in self.myBuildTargets
-		tryVcsRelocate = 'svnrelocate' in self.myBuildTargets
-		# User wants a vcs mktag, rmtag, mkbranch or rmbranch ?
-		tryVcsMkTag = 'svnmktag' in self.myBuildTargets
-		tryVcsRmTag = 'svnrmtag' in self.myBuildTargets
-		tryVcsMkBranch = 'svnmkbranch' in self.myBuildTargets
-		tryVcsRmBranch = 'svnrmbranch' in self.myBuildTargets
-
-		#
-		lenv['sbf_tryVcsOperation'] = (tryVcsCheckout or tryVcsStatus or tryVcsRelocate or tryVcsMkTag or tryVcsRmTag or tryVcsMkBranch or tryVcsRmBranch)
-		if not lenv['sbf_tryVcsOperation']:
+		if not self.tryVcsOperation:
 			return
 
 		# What must be done for this project ?
@@ -1658,91 +1677,78 @@ SConsBuildFramework options:
 		# Tests existance of project path name
 		existanceOfProjectPathName = os.path.isdir(self.myProjectPathName)
 		if not existanceOfProjectPathName :
-			if tryVcsCheckout:
+			if self.tryVcsCheckout:
 				self.vcsCheckout( lenv )
-#			else: nothing to do
-#			if not tryVcsCheckout:
+			else:
+				return
 #				print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
 #				print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
 #				print "sbfInfo: target svnCheckout have not been specified."
 #				print "sbfInfo: None of targets svnCheckout or", self.myProject + "_svnCheckout have been specified."
 #				self.myFailedVcsProjects.add( self.myProject )
 #				return
-#			else:
-#				self.vcsCheckout( lenv )
 		else:
 			successful = self.readProjectOptionsAndUpdateEnv( lenv )
 			if successful:
-				if tryVcsCheckout:
-					if lenv['vcsUse'] == 'yes' :
-						projectURL = self.myVcs.getUrl( self.myProjectPathName )
-						if len(projectURL) > 0 :
-							# @todo only if verbose
-							print stringFormatter( lenv, "project %s in %s" % (self.myProject, self.myProjectPath) )
+				if lenv['vcsUse'] != 'yes':
+					if lenv.GetOption('verbosity'): print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
+					return
+
+				if self.tryVcsCheckout:
+					projectURL = self.myVcs.getUrl( self.myProjectPathName )
+					if len(projectURL) > 0 :
+						print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
+						if lenv.GetOption('verbosity'):
 							print "sbfInfo: Already checkout from %s using svn." % projectURL
 							print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
-							print
-						else:
-							self.vcsCheckout( lenv )
+						print
 					else:
-						if lenv.GetOption('verbosity') :
-							print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
-							print
-						# @todo only if verbose
-						#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
-						#print "sbfInfo: 'vcsUse' option sets to no. So svn checkout is disabled."
-				elif tryVcsStatus and lenv['vcsUse'] == 'yes' : # @todo moves lenv['vcsUse'] == 'yes' test in vcsOperation ?
+						self.vcsCheckout( lenv )
+				elif self.tryVcsStatus:
 					self.vcsStatus( lenv )
-				elif tryVcsRelocate and lenv['vcsUse'] == 'yes':
+				elif self.tryVcsRelocate:
 					self.vcsRelocate( lenv )
-				# vcsMk
-				elif (tryVcsMkTag or tryVcsMkBranch) and lenv['vcsUse'] == 'yes':
-					self.vcsMkTagOrBranch( lenv['myBranch'] )
-				# vcsRm
-				elif tryVcsRmTag and lenv['vcsUse'] == 'yes':
-					self.vcsRmTagOrBranch( 'tag', lenv['myBranch'] )
-				elif tryVcsRmBranch and lenv['vcsUse'] == 'yes':
-					self.vcsRmTagOrBranch( 'branch', lenv['myBranch'] )
-			#else nothing to do
-
+				# vcsMkTag
+				elif self.tryVcsMkTag:
+					self.vcsMkTagOrBranch( lenv )
+				# tryVcsRemoteMkBranch
+#				elif self.tryVcsRemoteMkBranch:
+#					self.vcsRemoteMkBranch( lenv )
+				else:
+					assert( False )
+					#else nothing to do
+			else:
+				raise SCons.Errors.UserError("Unable to find 'default.options' file for project {0} in directory {1}.".format(self.myProject, self.myProjectPath) )
 
 
 	def doVcsUpdate( self, lenv ):
 		# User wants a vcs update ?
-		tryVcsUpdate = 'svnupdate' in self.myBuildTargets
-
-		lenv['sbf_tryVcsOperation'] = lenv['sbf_tryVcsOperation'] or tryVcsUpdate
-
-		if tryVcsUpdate :
-			if lenv['vcsUse'] == 'yes' :
+		if self.tryVcsUpdate:
+			if lenv['vcsUse'] == 'yes':
 				self.vcsUpdate( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
 			else:
-				if lenv.GetOption('verbosity') :
-					print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
-				# @todo only if verbose
-				#print "----------------------- project %s in %s -----------------------" % (self.myProject, self.myProjectPath)
-				#print "sbfInfo: 'vcsUse' option sets to no. So svn update is disabled."
+				if lenv.GetOption('verbosity'):
+					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
 		# else nothing to do.
 
 
 	def doVcsCleanOrAdd( self, lenv ):
 		# a vcs cleanup ?
-		if 'svnclean' in self.myBuildTargets:
-			if lenv['vcsUse'] == 'yes' :
+		if self.tryVcsClean:
+			if lenv['vcsUse'] == 'yes':
 				self.vcsClean( lenv )
-			#else:
-			#	if lenv.GetOption('verbosity') :
-			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
+			else:
+				if lenv.GetOption('verbosity'):
+					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
 
 		# a vcs add ?
-		if 'svnadd' in self.myBuildTargets:
-			#if lenv['vcsUse'] == 'yes' :	# @todo moves this test in vcsOperation
-			self.vcsAdd( lenv )
-			#else:
-			#	if lenv.GetOption('verbosity') :
-			#		print "Skip project %s in %s" % (self.myProject, self.myProjectPath)
-
+		if self.tryVcsAdd:
+			if lenv['vcsUse'] == 'yes':
+				self.vcsAdd( lenv )
+			else:
+				if lenv.GetOption('verbosity'):
+					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
 
 
 	###################################################################################
@@ -1750,54 +1756,55 @@ SConsBuildFramework options:
 
 		# Checks if vcs operation of this project has already failed
 		if self.myProject not in self.myFailedVcsProjects :
-			print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
+			print stringFormatter( lenv, "vcs {0} project {1} in {2}".format(opDescription, self.myProject, self.myProjectPath) )
 
 			successful = vcsOperation( self.myProjectPathName, self.myProject )
 
-			if not successful :
+			if successful:
+				print
+				return successful
+			else:
 				self.myFailedVcsProjects.add( self.myProject )
-				print "sbfWarning: Unable to do vcs operation in directory", self.myProjectPathName
-			#else vcs operation successful.
-			print
-			return successful
+				print ( "sbfWarning: Unable to do vcs operation in directory {0}\n".format( self.myProjectPathName ) )
+				return successful
 		else:
 			print
 			return False
 
 
-	def vcsAdd( self, lenv ):
-		return self.vcsOperation( lenv, self.myVcs.add, 'add' )
-
-	def vcsCheckout( self, lenv ):
-		opDescription = 'checkout'
-
-		# Checks validity of 'svnUrls' option.
-		if len(self.mySvnUrls) == 0:
-			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
-
-		# Checks if this project must skip vcs operation
-		if self.matchProjectInList( self.myProjectPathName, self.mySvnCheckoutExclude ):
-			if lenv.GetOption('verbosity') :
-				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
-				print "sbfInfo: Exclude from vcs %s." % opDescription
-				print "sbfInfo: Skip to the next project..."
-				print
+	def _vcsCheckoutOrUpdate( self, lenv, vcsOperation, opDescription, excludeList ):
+		# Checks if this project have to skip vcs operation
+		if self.matchProjectInList( self.myProjectPathName, excludeList ):
+			if lenv.GetOption('verbosity'):
+				print stringFormatter( lenv, "vcs {0} project {1} in {2}".format( opDescription, self.myProject, self.myProjectPath ) )
+				print ("sbfInfo: Exclude from vcs {0}.".format(opDescription))
+				print ("sbfInfo: Skip to the next project...\n")
 			return
 		else:
-			return self.vcsOperation( lenv, self.myVcs.checkout, opDescription )
+			return self.vcsOperation( lenv, vcsOperation, opDescription )
+
+
+	def vcsCheckout( self, lenv ):
+		retVal = self._vcsCheckoutOrUpdate( lenv, self.myVcs.checkout, 'checkout', self.mySvnCheckoutExclude )
+		return retVal
+
+	def vcsUpdate( self, lenv ):
+		retVal = self._vcsCheckoutOrUpdate( lenv, self.myVcs.update, 'update', self.mySvnUpdateExclude )
+		return retVal
 
 	def vcsClean( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.clean, 'clean' )
 
-	def vcsRelocate( self, lenv ):
-		return self.vcsOperation( lenv, self.myVcs.relocate, 'relocate' )
+	def vcsAdd( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.add, 'add' )
 
 	def vcsStatus( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.status, 'status' )
 
+	def vcsRelocate( self, lenv ):
+		return self.vcsOperation( lenv, self.myVcs.relocate, 'relocate' )
 
-	def vcsMkTagOrBranch( self, branchName ):
-		"""@param branchName	name of branch to create."""
+	def vcsMkTagOrBranch( self, lenv ):
 
 		def updateMyBranchSvnUrls( sbf, projectPathName, branchAndBranchName = None ):
 			projectName = basename(projectPathName)
@@ -1810,93 +1817,13 @@ SConsBuildFramework options:
 				(url, revision ) = sbf.myVcs.getUrlAndRevision( projectPathName )
 				sbf.myBranchSvnUrls[ projectName ] = '{0}@{1}'.format(anonymizeUrl(url), revision)
 
-		lenv = self.myCurrentLocalEnv
 		print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
-
-		#
-		if not lenv.get('myNeverCreateAVCSBranch'):
-			# Checks if branch already created in repository ?
-			branches = self.myVcs.listBranch( self.myProjectPathName, lenv['myBranchesOrTags'] )
-			if branchName in set(branches):
-				# nothing to create
-				print ("{0} '{1}' already in repository of project {2}\n".format( lenv['myBranchOrTag'], branchName, self.myProject))
-				updateMyBranchSvnUrls( self, self.myProjectPathName, lenv['myBranchesOrTags']+'/'+branchName )
-				return
-			else:
-				answer = askQuestion(	"Do you want to create a vcs {0} named '{1}' for {2}".format(lenv['myBranchOrTag'], branchName, self.myProject),
-										['(n)o', '(y)es', '(ne)ver'] )
-				if answer == 'yes':
-					# Do the job
-					logMessage = 'Created {0} {1} for {2}'.format(lenv['myBranchOrTag'], branchName, self.myProject)
-					retVal = self.myVcs.copy( self.myProjectPathName,
-							'/{0}/{1}'.format(lenv['myBranchesOrTags'], branchName),
-							logMessage )
-					print '@todo uncomment myVcs.copy(...)'
-					print
-					updateMyBranchSvnUrls( self, self.myProjectPathName, lenv['myBranchesOrTags']+'/'+branchName )
-					return
-				elif answer == 'no':
-					updateMyBranchSvnUrls( self, self.myProjectPathName )
-				else:
-					assert( answer == 'never' )
-					updateMyBranchSvnUrls( self, self.myProjectPathName )
-					self.myEnv['myNeverCreateAVCSBranch'] = 'yes'
-		else:
-			assert( lenv['myNeverCreateAVCSBranch'] == 'yes' )
-			updateMyBranchSvnUrls( self, self.myProjectPathName )
-
-
-	def vcsRmTagOrBranch( self, tagOrBranch, tagOrBranchName ):
-		"""	@param tagOrBranch		'tag' or 'branch'
-			@param tagOrBranchName	lenv['myBranch']"""
-		# parameters
-		if tagOrBranch not in ['tag', 'branch']:
-			raise SCons.Errors.UserError("Internal sbf error.")
-		if tagOrBranch == 'tag':
-			dirname = 'tags'
-		else:
-			dirname = 'branches'
-		basename = tagOrBranchName
-
-		#
-		print stringFormatter( self.myEnv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
-
-		# Checks if already removed ?
-		branches = self.myVcs.listBranch( self.myProjectPathName, dirname )
-		if '/{0}'.format(basename) not in set(branches):
-			# nothing to remove
-			print ('No {0} {1} in repository of project {2}\n'.format( tagOrBranch, basename, self.myProject))
-			return
-
-		# The given branch exists and must be removed
-		answer = askQuestion(	"Do you want to delete {0} {1} for {2}".format(tagOrBranch, basename, self.myProject),
-								['(n)o', '(y)es'] )
-		if answer == 'no':
-			return
-
-		# Do the job
-		logMessage = 'Deleted {0} {1} for {2}'.format(tagOrBranch, basename, self.myProject)
-		retVal = self.myVcs.remove( self.myProjectPathName,
-				'/{0}/{1}'.format(dirname, basename),
-				logMessage )
-		print
-		return retVal
+		updateMyBranchSvnUrls( self, self.myProjectPathName )
 
 
 
-	def vcsUpdate( self, lenv ):
-		opDescription = 'update'
 
-		# Checks if this project must skip vcs operation
-		if self.matchProjectInList( self.myProjectPathName, self.mySvnUpdateExclude ):
-			if lenv.GetOption('verbosity') :
-				print stringFormatter( lenv, "vcs %s project %s in %s" % (opDescription, self.myProject, self.myProjectPath) )
-				print "sbfInfo: Exclude from vcs %s." % opDescription
-				print "sbfInfo: Skip to the next project..."
-				print
-			return
-		else:
-			return self.vcsOperation( lenv, self.myVcs.update, opDescription )
+
 
 
 	###### Build a project ######
@@ -2085,7 +2012,7 @@ SConsBuildFramework options:
 				#	'{0}_{1}.out'.format(lenv['sbf_project'], target), 'dummy.in', '{cmd}'.format(cmd=cmd), chdir=lenv['sbf_projectPathName'] ) )
 
 		#
-		if lenv['sbf_tryVcsOperation'] or configureOnly:
+		if self.tryVcsOperation or configureOnly:
 			if lenv.GetOption('verbosity'): print ( "Parsing project {0}...".format(lenv['sbf_project']) )
 			return
 		else:

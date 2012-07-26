@@ -42,7 +42,7 @@ from src.sbfAllVcs import *
 from src.sbfConfiguration import sbfConfigure, sbfUnconfigure
 from src.sbfEnvironment import Environment
 from src.sbfPaths import Paths
-from src.sbfSubversion import SvnCat, branches2branch, listSbfBranch, splitSvnUrl, anonymizeUrl, removeTrunkOrTagsOrBranches
+from src.sbfSubversion import SvnCat, locateProject, branches2branch, listSbfBranch, splitSvnUrl, anonymizeUrl, removeTrunkOrTagsOrBranches
 from src.sbfUtils import getDictPythonCode, printSeparator
 from src.sbfUI import *
 from src.SConsBuildFramework import getSConsBuildFrameworkOptionsFileLocation
@@ -175,16 +175,8 @@ vcs = Subversion( svnUrls=sbfConfigurationDict['svnUrls'] )
 
 def main( options, args, sbf, vcs ):
 	# Asks project name ?
-	projectName = ask( 'Gives the name of the project to checkout', 'ulis' ) # @todo ulis => projectName
-	(projectSvnUrl, tmp) = vcs.locateProject( projectName, verbose )
-	if not projectSvnUrl:
-		print ( "{project} not found. Check your 'svnUrls' SConsBuildFramework option.".format( project=projectName ) )
-		exit(1)
-	else:
-		# Removes /trunk or /tags or /branches of projectSvnUrl
-		projectSvnUrl = removeTrunkOrTagsOrBranches(projectSvnUrl)
-		print ( "{project} found at {url}".format( project=projectName, url=projectSvnUrl ) )
-
+	projectName = ask( 'Gives the name of the project to checkout', 'projectName' )
+	projectSvnUrl = locateProject( vcs, projectName, verbose )
 	# Asks which branch ?
 	print
 	branch = askQuestion( "Checkout project '{0}' from trunk, tags or branches".format(projectName), ['(tr)unk', '(t)ags', '(b)ranches'] )
@@ -294,6 +286,10 @@ def commandSwitch( options, args, sbf, vcs ):
 
 	setSCONS_BUILD_FRAMEWORK( newSbfRoot, verbose )
 	sbf = configureSConsBuildFramework( newSbfRoot, verbose )
+
+	#
+	printSeparator('What remains to be done')
+	print ('Restart your command prompt to take care of the modifications')
 
 if __name__ == "__main__":
 	if options.switch:

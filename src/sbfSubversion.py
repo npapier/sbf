@@ -1128,6 +1128,28 @@ class Subversion( IVersionControlSystem ):
 
 		return revisionNumber
 
+	def copy( self, project, sourceUrlOrPath, sourceRevision, destinationUrlOrPath, logMessage ):
+		"""	@param project					name of project (used for output message)
+			@param sourceUrlOrPath			
+			@param sourceRevision			
+			@param destinationUrlOrPath		
+			@param logMessage				
+
+			@remark see SvnCopy()"""
+
+		#
+		svnCopy = SvnCopy( rootPath = '', statisticsObservers=[self.stats] )
+
+		revisionNumber = svnCopy( sourceUrlOrPath, sourceRevision, destinationUrlOrPath, logMessage )
+
+		print message
+
+		# Print revision and statistics
+		self.__printRevision( project, revisionNumber )
+		svnCopy.printStatisticsReport()
+
+		return revisionNumber
+
 
 	def remove( self, pathToWC, branchToRemove, message ):
 		"""	@param pathToWC			path to the current working copy used to define repository url, but WITHOUT any local modifications)
@@ -1374,12 +1396,24 @@ class Subversion( IVersionControlSystem ):
 			basename = dirnameBaseName[branchesLocation:]
 		else:
 			print ('{0} must contain /trunk or /tags or /branches to be valid'.format(url))
-			Exit(1)
+			exit(1)
 
 		return (reposUrl, dirname, basename, rev)
 
 
 ### Several helpers for url processing
+def isUrl( urlOrPath ):
+	return urlOrPath.find('://')>0
+
+def urlJoin( path1, path2 ):
+	if isUrl(path1):
+		if path1[-1:] == '/':
+			return path1 + path2
+		else:
+			return '{0}/{1}'.format(path1, path2)
+	else:
+		return join(path1,path2)
+
 def anonymizeUrl( url ):
 	"""Returns 'http://' instead of 'https://' or 'svn://' instead of 'svn+ssh://username@'"""
 	# 'http://' instead of 'https://'
@@ -1414,6 +1448,18 @@ def removeTrunkOrTagsOrBranches( url ):
 		return url[:index]
 
 ### Several helpers for branch management
+def locateProject( vcs, projectName, verbose ):
+	"""@return url of projectName (without trunk/tag/branch) or exit(1)"""
+	(projectSvnUrl, tmp) = vcs.locateProject( projectName, verbose )
+	if not projectSvnUrl:
+		print ( "{project} not found. Check your 'svnUrls' SConsBuildFramework option.".format( project=projectName ) )
+		exit(1)
+	else:
+		# Removes /trunk or /tags or /branches of projectSvnUrl
+		projectSvnUrl = removeTrunkOrTagsOrBranches(projectSvnUrl)
+		if verbose: print ( "{project} found at {url}".format( project=projectName, url=projectSvnUrl ) )
+		return projectSvnUrl
+
 def checkBranch( branch ):
 	if branch not in ['tags', 'branches']:
 		raise AssertionError( "branch parameter must be 'tags' or 'branches'." )
@@ -1433,33 +1479,44 @@ def branches2branch( branch ):
 		return 'tag'
 
 
-def listSbfBranch( urlOrPath, branch ):
+def listSbfBranch( urlOrPath, branch, localPath = False ):
 	"""	@param urlOrPath		path of the current working copy or url of the repository
 		@param branch			'tags' or 'branches'
+		@param localPath		True to use 'urlOrPath' as a local path and not as a working copy
 		@return a list containing all tag or branch available at urlOrPath location."""
 
 	# assert
 	checkBranch(branch)
 
 	#
-	if svnIsVersioned(urlOrPath):
-		branches = SvnListFile()( urlOrPath, pysvn.depth.files, '*.{0}'.format(branch) )
+	if localPath:
+		assert( not isUrl(urlOrPath) )
+		branchingPath = join(urlOrPath, 'branching')
+		branches = [basename(elt) for elt in glob.iglob( '{0}/*.{1}'.format(branchingPath, branch) )]
 		return branches
 	else:
-		return []
+		branchingUrl = urlJoin( urlOrPath, 'branches' )
+		if svnIsVersioned(branchingUrl):
+			branches = SvnListFile()( branchingUrl, pysvn.depth.files, '*.{0}'.format(branch) )
+			return branches
+		else:
+			return []
 
-def printSbfBranch( projectName, urlOrPath, branch ):
+def printSbfBranch( projectName, urlOrPath, branch, localPath = False ):
 	"""	@param projectName		name of the project in urlOrPath
 		@param urlOrPath		path of the current working copy or url of the repository
 		@param branch			'tags' or 'branches'
-		@return a list containing all tag or branch available at urlOrPath location."""
+		@param localPath		True to use 'urlOrPath' as a local path and not as a working copy
+		@return a list containing all tags or branches available at urlOrPath location."""
 
-	branches = listSbfBranch(urlOrPath, branch)
-	print ( "List of {0} for project '{1}':".format(branch, projectName) )
+	branches = listSbfBranch(urlOrPath, branch, localPath)
+	if localPath:
+		print ( "List of local {0} for project '{1}':".format(branch, projectName) )
+	else:
+		print ( "List of {0} for project '{1}':".format(branch, projectName) )
 	if len(branches) > 0:
 		for elt in branches:
 			print (' - {0}'.format(elt))
 	else:
 		print ( ' * No {0}'.format(branch) )
 	return branches
-

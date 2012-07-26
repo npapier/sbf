@@ -132,7 +132,7 @@ from src.sbfUses	import uses
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-from src.sbfSubversion import anonymizeUrl, branches2branch, printSbfBranch # @todo add into abstract interface
+from src.sbfSubversion import anonymizeUrl, branches2branch, listSbfBranch, printSbfBranch, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl
 
 
 ###### Action function for sbfCheck target #######
@@ -341,24 +341,74 @@ if len(buildTargetsSet & sbf.mySvnTargets) > 0:
 	Alias( 'svnupdate',		Command('dummySvnUpdate.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 
 
-# svnMkTag, svnRmTag, svnMkBranch and svnRmBranch
+# svnMkTag and svnRemoteMkBranch
 hasBranchOrTagTarget = len(buildTargetsSet & sbf.mySvnBranchOrTagTargets) > 0
 if hasBranchOrTagTarget:
 	# branch or tag targets ?
-	if len( set(['svnmktag', 'svnrmtag']) & buildTargetsSet ) > 0:
+	if len( set(['svnmktag']) & buildTargetsSet ) > 0:
 		env['myBranchesOrTags'] = 'tags'
 	else:
 		env['myBranchesOrTags'] = 'branches'
 	env['myBranchOrTag'] = branches2branch(env['myBranchesOrTags'])
 
-	# Lists available tag/branch for the launching project
-	printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], env['myBranchesOrTags'] )
+	# svnMkTag
+	if 'svnmktag' in buildTargetsSet:
+		printSeparator('Creating a tag')
+		print('Tag is created locally and used revision from working copy. But any local modifications are ignored.\n')
 
-	env['myBranch'] = ask( "\nGives the name of {0} without the extension '.{0}'".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
-	Alias( 'svnmktag',		Command('dummySvnMkTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-	Alias( 'svnrmtag',		Command('dummySvnRmTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
-	Alias( 'svnmkbranch',	Command('dummySvnMkBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
-	Alias( 'svnrmbranch',	Command('dummySvnRmBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+		# Lists available tags for the launching project
+		printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], env['myBranchesOrTags'], True )
+
+		# 
+		env['myBranch'] = ask( "\nGives the name of the {0} without the extension '.{0}'".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
+	# svnRemoteMkBranch
+	elif 'svnremotemkbranch' in buildTargetsSet:
+		printSeparator('Creating a branch from a tag')
+		print('Local tag file is used to created a branch directly on the repository.\n')
+
+		# Lists available tags for the launching project
+		branchChoicesList = printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], 'tags', True )
+		if len(branchChoicesList)==0:	exit(1)
+
+		# Chooses one tag
+		branchChoicesListWithoutExtension = [ os.path.splitext(elt)[0] for elt in branchChoicesList ]
+		desiredTag = askQuestion( "Choose one tag among the following ", branchChoicesListWithoutExtension )
+		print
+
+		# Retrieves informations about the desired tag
+		tagFile = join(env['sbf_projectPathName'], 'branching', desiredTag + '.tags')
+		tagSbfConfigFileDict = {}
+		execfile( tagFile, globals(), tagSbfConfigFileDict )
+
+		# for each project
+		tagSvnUrls = tagSbfConfigFileDict.get( 'svnUrls', {} )
+		vcs = Subversion( svnUrls=tagSvnUrls )
+		for project in tagSvnUrls.keys():
+			projectTagSvnUrl = tagSvnUrls[project] 
+			baseSvnUrl = removeTrunkOrTagsOrBranches(projectTagSvnUrl)
+			projectBranchSvnUrl = '{0}/branches/{1}'.format( baseSvnUrl, desiredTag )
+
+			print stringFormatter( env, 'project {0}'.format(project) )
+
+			# Checks if branch already created in repository ?
+			if svnIsVersioned(projectBranchSvnUrl):
+				# branch already created
+				print ("branch '{0}' already in repository of project {1}\n".format(desiredTag, project) )
+				continue
+			else:
+				answer = askQuestion(	"Do you want to create a vcs branch named '{0}' for {1}".format(desiredTag, project),
+										['(n)o', '(y)es'] )
+				if answer == 'yes':
+					# Created the branch
+					logMessage = "Created branch '{0}' for {1}".format( desiredTag, project )
+					(projectTagSvnUrl, projectTagSvnRevision) = splitSvnUrl(projectTagSvnUrl)
+					vcs.copy( project, projectTagSvnUrl, projectTagSvnRevision, projectBranchSvnUrl, logMessage )
+				#else nothing to do
+			print
+	else:
+		assert( False )
+	Alias( 'svnmktag',			Command('dummySvnMkTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
+	Alias( 'svnremotemkbranch',	Command('dummySvnRemoteMkBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 
 
 # Builds the root project (i.e. launchDir).
@@ -369,10 +419,10 @@ env = sbf.getRootProjectEnv()
 # Creates (if needed) the file named branchName.tags|branches
 if len(sbf.myBranchSvnUrls)>0:
 	# Checks target
-	target = join( env['sbf_projectPathName'], '{0}.{1}'.format(env['myBranch'], env['myBranchesOrTags']) )
-#	if os.path.exists(target):
-#		overwrite = askQuestion( 'Overwrite previous file named {0}'.format(target), ['(n)o', '(y)es'] )
-#		if overwrite == 'yes':	os.remove( target )
+	target = join( env['sbf_projectPathName'], 'branching', '{0}.{1}'.format(env['myBranch'], env['myBranchesOrTags']) )
+	#if os.path.exists(target):
+	#	overwrite = askQuestion( 'Overwrite previous file named {0}'.format(target), ['(n)o', '(y)es'] )
+	#	if overwrite == 'yes':	os.remove( target )
 
 	# Adds informations about SConsBuildFramework project used into self.myBranchSvnUrls
 	(url, revision ) = sbf.myVcs.getUrlAndRevision(sbf.mySCONS_BUILD_FRAMEWORK)
@@ -401,7 +451,7 @@ if len(sbf.myBranchSvnUrls)>0:
 	#
 	textFile = env.Textfile( target = target, source = source )
 	Alias( 'svnmktag', textFile )
-	Alias( 'svnmkbranch', textFile )
+	#Alias( 'svnmkbranch', textFile )
 
 #
 if env.GetOption('verbosity'):
