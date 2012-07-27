@@ -770,7 +770,7 @@ class SConsBuildFramework :
 		# Tests which target is given
 		# 	User wants a vcs checkout or update ?
 		self.tryVcsCheckout = 'svncheckout' in self.myBuildTargets
-		if self.tryVcsCheckout and len(self.mySvnUrls) == 0:
+		if self.tryVcsCheckout and len(self.myEnv['svnUrls']) == 0:
 			# Checks validity of 'svnUrls' option.
 			raise SCons.Errors.UserError("Unable to do any svn checkout, because option 'svnUrls' is empty.")
 		#
