@@ -1142,7 +1142,7 @@ class Subversion( IVersionControlSystem ):
 
 		revisionNumber = svnCopy( sourceUrlOrPath, sourceRevision, destinationUrlOrPath, logMessage )
 
-		print message
+		print logMessage
 
 		# Print revision and statistics
 		self.__printRevision( project, revisionNumber )

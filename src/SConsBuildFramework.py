@@ -1712,8 +1712,9 @@ SConsBuildFramework options:
 				elif self.tryVcsMkTag:
 					self.vcsMkTagOrBranch( lenv )
 				# tryVcsRemoteMkBranch
-#				elif self.tryVcsRemoteMkBranch:
-#					self.vcsRemoteMkBranch( lenv )
+				elif self.tryVcsRemoteMkBranch:
+					pass
+					#self.vcsRemoteMkBranch( lenv )
 				else:
 					assert( False )
 					#else nothing to do
