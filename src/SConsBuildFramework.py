@@ -1710,7 +1710,7 @@ SConsBuildFramework options:
 					self.vcsRelocate( lenv )
 				# vcsMkTag
 				elif self.tryVcsMkTag:
-					self.vcsMkTagOrBranch( lenv )
+					self.vcsMkTag( lenv )
 				# tryVcsRemoteMkBranch
 				elif self.tryVcsRemoteMkBranch:
 					pass
@@ -1805,25 +1805,10 @@ SConsBuildFramework options:
 	def vcsRelocate( self, lenv ):
 		return self.vcsOperation( lenv, self.myVcs.relocate, 'relocate' )
 
-	def vcsMkTagOrBranch( self, lenv ):
-
-		def updateMyBranchSvnUrls( sbf, projectPathName, branchAndBranchName = None ):
-			projectName = basename(projectPathName)
-			# Adds vcs url of the project to self.myBranchSvnUrls
-			if branchAndBranchName:
-				url = sbf.myVcs.getUrl( projectPathName )
-				url = removeTrunkOrTagsOrBranches( anonymizeUrl(url) )
-				sbf.myBranchSvnUrls[ projectName ] = url + '/' + branchAndBranchName
-			else:
-				(url, revision ) = sbf.myVcs.getUrlAndRevision( projectPathName )
-				sbf.myBranchSvnUrls[ projectName ] = '{0}@{1}'.format(anonymizeUrl(url), revision)
-
+	def vcsMkTag( self, lenv ):
 		print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
-		updateMyBranchSvnUrls( self, self.myProjectPathName )
-
-
-
-
+		(url, revision ) = self.myVcs.getUrlAndRevision( self.myProjectPathName )
+		self.myBranchSvnUrls[ self.myProject ] = '{0}@{1}'.format(anonymizeUrl(url), revision)
 
 
 

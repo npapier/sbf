@@ -132,7 +132,7 @@ from src.sbfUses	import uses
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-from src.sbfSubversion import anonymizeUrl, branches2branch, listSbfBranch, printSbfBranch, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl
+from src.sbfSubversion import anonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
 
 
 ###### Action function for sbfCheck target #######
@@ -357,36 +357,38 @@ if hasBranchOrTagTarget:
 		print('Tag is created locally and used revision from working copy. But any local modifications are ignored.\n')
 
 		# Lists available tags for the launching project
-		printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], env['myBranchesOrTags'], True )
+		tags = localListSbfTags( env['sbf_projectPathName'] )
+		printSbfBranch( env['sbf_project'], env['myBranchesOrTags'], tags, True )
 
 		# 
-		env['myBranch'] = ask( "\nGives the name of the {0} without the extension '.{0}'".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
+		env['myBranch'] = ask( "\nGives the name of the {0}".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
 	# svnRemoteMkBranch
 	elif 'svnremotemkbranch' in buildTargetsSet:
 		printSeparator('Creating a branch from a tag')
 		print('Local tag file is used to created a branch directly on the repository.\n')
 
 		# Lists available tags for the launching project
-		branchChoicesList = printSbfBranch( env['sbf_project'], env['sbf_projectPathName'], 'tags', True )
+		branchChoicesList = localListSbfTags( env['sbf_projectPathName'] )
+		printSbfBranch( env['sbf_project'], env['myBranchesOrTags'], branchChoicesList, True )
 		if len(branchChoicesList)==0:	exit(1)
 
 		# Chooses one tag
-		branchChoicesListWithoutExtension = [ os.path.splitext(elt)[0] for elt in branchChoicesList ]
-		desiredTag = askQuestion( "Choose one tag among the following ", branchChoicesListWithoutExtension )
+		desiredTag = askQuestion( "Choose one tag among the following ", branchChoicesList )
+		env['myBranch'] = desiredTag
 		print
 
 		# Retrieves informations about the desired tag
-		tagFile = join(env['sbf_projectPathName'], 'branching', desiredTag + '.tags')
+		tagContents = getLocalTagContents( env['sbf_projectPathName'], desiredTag )
 		tagSbfConfigFileDict = {}
-		execfile( tagFile, globals(), tagSbfConfigFileDict )
+		exec( tagContents, globals(), tagSbfConfigFileDict )
 
 		# for each project
 		tagSvnUrls = tagSbfConfigFileDict.get( 'svnUrls', {} )
 		vcs = Subversion( svnUrls=tagSvnUrls )
 		for project in tagSvnUrls.keys():
-			projectTagSvnUrl = tagSvnUrls[project] 
-			baseSvnUrl = removeTrunkOrTagsOrBranches(projectTagSvnUrl)
-			projectBranchSvnUrl = '{0}/branches/{1}'.format( baseSvnUrl, desiredTag )
+			(projectTagSvnUrl, projectTagSvnRevision) = splitSvnUrl( tagSvnUrls[project] )
+			projectBaseSvnUrl = removeTrunkOrTagsOrBranches(projectTagSvnUrl)
+			projectBranchSvnUrl = '{0}/branches/{1}'.format( projectBaseSvnUrl, desiredTag )
 
 			print stringFormatter( env, 'project {0}'.format(project) )
 
@@ -394,6 +396,8 @@ if hasBranchOrTagTarget:
 			if svnIsVersioned(projectBranchSvnUrl):
 				# branch already created
 				print ("branch '{0}' already in repository of project {1}\n".format(desiredTag, project) )
+				# Updated myBranchSvnUrls for project
+				sbf.myBranchSvnUrls[ project ] = projectBranchSvnUrl
 				continue
 			else:
 				answer = askQuestion(	"Do you want to create a vcs branch named '{0}' for {1}".format(desiredTag, project),
@@ -401,9 +405,12 @@ if hasBranchOrTagTarget:
 				if answer == 'yes':
 					# Created the branch
 					logMessage = "Created branch '{0}' for {1}".format( desiredTag, project )
-					(projectTagSvnUrl, projectTagSvnRevision) = splitSvnUrl(projectTagSvnUrl)
 					vcs.copy( project, projectTagSvnUrl, projectTagSvnRevision, projectBranchSvnUrl, logMessage )
-				#else nothing to do
+					# Updated myBranchSvnUrls for project
+					sbf.myBranchSvnUrls[ project ] = projectBranchSvnUrl
+				else:
+					# Updated myBranchSvnUrls for project
+					sbf.myBranchSvnUrls[ project ] =  joinSvnUrl( projectTagSvnUrl, projectTagSvnRevision )
 			print
 	else:
 		assert( False )
@@ -451,7 +458,7 @@ if len(sbf.myBranchSvnUrls)>0:
 	#
 	textFile = env.Textfile( target = target, source = source )
 	Alias( 'svnmktag', textFile )
-	#Alias( 'svnmkbranch', textFile )
+	Alias( 'svnremotemkbranch', textFile )
 
 #
 if env.GetOption('verbosity'):

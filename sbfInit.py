@@ -42,7 +42,7 @@ from src.sbfAllVcs import *
 from src.sbfConfiguration import sbfConfigure, sbfUnconfigure
 from src.sbfEnvironment import Environment
 from src.sbfPaths import Paths
-from src.sbfSubversion import SvnCat, locateProject, branches2branch, listSbfBranch, splitSvnUrl, anonymizeUrl, removeTrunkOrTagsOrBranches
+from src.sbfSubversion import SvnCat, locateProject, branches2branch, remoteListSbfTags, remoteListSbfBranches, remoteGetTagContents, remoteGetBranchContents, splitSvnUrl, anonymizeUrl, removeTrunkOrTagsOrBranches
 from src.sbfUtils import getDictPythonCode, printSeparator
 from src.sbfUI import *
 from src.SConsBuildFramework import getSConsBuildFrameworkOptionsFileLocation
@@ -115,8 +115,10 @@ def createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfigur
 		pakPaths = newConfiguration.get('pakPaths', oldConfiguration.get('pakPaths', []))
 		newConfigFile.write( 'pakPaths				= {0}\n'.format(pakPaths) )
 
+		newConfigFile.write('\n')
 		for line in getDictPythonCode(newConfiguration['svnUrls'], 'svnUrls', orderedDict = True, eol=True):
 			newConfigFile.write( line )
+		newConfigFile.write('\n')
 
 		newConfigFile.write( 'projectExclude		= []\n' )
 		newConfigFile.write( "weakLocalExtExclude	= ['sofa']\n" )
@@ -135,6 +137,11 @@ def createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfigur
 
 		if 'generateDebugInfoInRelease' in newConfiguration:
 			newConfigFile.write( 'generateDebugInfoInRelease		= {0}\n'.format(newConfiguration['generateDebugInfoInRelease']) )
+
+		newConfigFile.write('\n')
+		if 'usesAlias' in newConfiguration:
+			for line in getDictPythonCode(newConfiguration['usesAlias'], 'usesAlias', orderedDict = True, eol=True, addImport=False):
+				newConfigFile.write( '#' + line )
 	print
 
 
@@ -223,20 +230,28 @@ def main( options, args, sbf, vcs ):
 		print
 	else:
 		# tags or branches
-		branchChoicesList = listSbfBranch(projectSvnUrl+'/trunk', branch)
+		if branch == 'tags':
+			branchChoicesList = remoteListSbfTags(projectSvnUrl)
+		else:
+			branchChoicesList = remoteListSbfBranches(projectSvnUrl)
+
 		if len(branchChoicesList)==0:
 			print ('No {0} available.'.format(branches2branch(branch)))
 			exit(1)
 
-		branchChoicesListWithoutExtension = [ os.path.splitext(elt)[0] for elt in branchChoicesList ]
-
 		# Chooses one branch
-		desiredBranch = askQuestion( "Choose one {branch} among the following ".format(branch=branch), branchChoicesListWithoutExtension )
-		desiredBranch += '.{0}'.format( branch )
+		desiredBranch = askQuestion( "Choose one {branch} among the following ".format(branch=branch), branchChoicesList )
 		print
 
 		# Retrieves informations about the desired branch
-		branchConfiguration = SvnCat()( projectSvnUrl + '/trunk/' + desiredBranch )
+		if branch == 'tags':
+			branchConfiguration = remoteGetTagContents( projectSvnUrl, desiredBranch )
+		else:
+			branchConfiguration = remoteGetBranchContents( projectSvnUrl, desiredBranch )
+
+		if len(branchConfiguration)==0:
+			print ( 'Empty or unable to read file {0}.{1}'.format(desiredBranch, branch) )
+			exit(1)
 
 		# Retrieves new configuration (at least 'svnUrls')
 		newSbfConfigFileDict = {}
