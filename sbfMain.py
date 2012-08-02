@@ -132,7 +132,7 @@ from src.sbfUses	import uses
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-from src.sbfSubversion import anonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
+from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
 
 
 ###### Action function for sbfCheck target #######
@@ -387,7 +387,7 @@ if hasBranchOrTagTarget:
 		vcs = Subversion( svnUrls=tagSvnUrls )
 		for project in tagSvnUrls.keys():
 			(projectTagSvnUrl, projectTagSvnRevision) = splitSvnUrl( tagSvnUrls[project] )
-			projectBaseSvnUrl = removeTrunkOrTagsOrBranches(projectTagSvnUrl)
+			projectBaseSvnUrl = unanonymizeUrl( removeTrunkOrTagsOrBranches(projectTagSvnUrl) )
 			projectBranchSvnUrl = '{0}/branches/{1}'.format( projectBaseSvnUrl, desiredTag )
 
 			print stringFormatter( env, 'project {0}'.format(project) )

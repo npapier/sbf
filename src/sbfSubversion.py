@@ -1427,6 +1427,15 @@ def anonymizeUrl( url ):
 		url = 'svn://{0}'.format( match.group(1) )
 	return url
 
+def unanonymizeUrl( url ):
+	"""Returns 'https://' instead of 'http://' or 'svn+ssh://' instead of 'svn://'"""
+	# 'https://' instead of 'http://'
+	url = url.replace('http://', 'https://', 1)
+	# 'svn+ssh://' instead of 'svn://'
+	url = url.replace('svn://', 'svn+ssh://', 1)
+	return url
+
+
 def removeTrunkOrTagsOrBranches( url ):
 	"""Returns	'.../svn/projectName for '.../svn/projectName/trunk'
 				'.../svn/projectName for '.../svn/projectName/tags/0.2'
