@@ -387,7 +387,7 @@ if hasBranchOrTagTarget:
 		vcs = Subversion( svnUrls=tagSvnUrls )
 		for project in tagSvnUrls.keys():
 			(projectTagSvnUrl, projectTagSvnRevision) = splitSvnUrl( tagSvnUrls[project] )
-			projectBaseSvnUrl = unanonymizeUrl( removeTrunkOrTagsOrBranches(projectTagSvnUrl) )
+			projectBaseSvnUrl = removeTrunkOrTagsOrBranches(projectTagSvnUrl)
 			projectBranchSvnUrl = '{0}/branches/{1}'.format( projectBaseSvnUrl, desiredTag )
 
 			print stringFormatter( env, 'project {0}'.format(project) )
@@ -405,7 +405,7 @@ if hasBranchOrTagTarget:
 				if answer == 'yes':
 					# Created the branch
 					logMessage = "Created branch '{0}' for {1}".format( desiredTag, project )
-					vcs.copy( project, projectTagSvnUrl, projectTagSvnRevision, projectBranchSvnUrl, logMessage )
+					vcs.copy( project, unanonymizeUrl(projectTagSvnUrl), projectTagSvnRevision, unanonymizeUrl(projectBranchSvnUrl), logMessage )
 					# Updated myBranchSvnUrls for project
 					sbf.myBranchSvnUrls[ project ] = projectBranchSvnUrl
 				else:
