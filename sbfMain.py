@@ -432,14 +432,21 @@ env = sbf.getRootProjectEnv()
 if len(sbf.myBranchSvnUrls)>0:
 	# Checks target
 	target = join( env['sbf_projectPathName'], 'branching', '{0}.{1}'.format(env['myBranch'], env['myBranchesOrTags']) )
-	#if os.path.exists(target):
-	#	overwrite = askQuestion( 'Overwrite previous file named {0}'.format(target), ['(n)o', '(y)es'] )
-	#	if overwrite == 'yes':	os.remove( target )
 
 	# Filling source
 
+	#	Adds creation time
+	source = ['# Created on {0}\n'.format(sbf.myDateTimeForUI)]
+
+	#	Adds log message
+	emptyLogMessage = 'no log message'
+	logMessage = ask( "\nGives the log message to add in the {0}.{1} file.".format( env['myBranch'], env['myBranchesOrTags'] ), emptyLogMessage )
+
+	if len(logMessage)>0 and (logMessage is not emptyLogMessage):
+		source.append( '# log message: {0}\n'.format(logMessage) )
+
 	#	Constructs the 'svnUrls'
-	source = getDictPythonCode( sbf.myBranchSvnUrls, 'svnUrls', orderedDict=True )
+	source.extend( getDictPythonCode( sbf.myBranchSvnUrls, 'svnUrls', orderedDict=True ) )
 
 	#	clVersion
 	source.append( "\nclVersion	= '{0}'\n".format(env['clVersion']) )
