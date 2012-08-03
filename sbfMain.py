@@ -360,8 +360,13 @@ if hasBranchOrTagTarget:
 		tags = localListSbfTags( env['sbf_projectPathName'] )
 		printSbfBranch( env['sbf_project'], env['myBranchesOrTags'], tags, True )
 
-		# 
+		#
 		env['myBranch'] = ask( "\nGives the name of the {0}".format(env['myBranchOrTag'] ), env['svnDefaultBranch'] )
+
+		# Adds informations about SConsBuildFramework project used into self.myBranchSvnUrls
+		(url, revision ) = sbf.myVcs.getUrlAndRevision(sbf.mySCONS_BUILD_FRAMEWORK)
+		url = anonymizeUrl(url)
+		sbf.myBranchSvnUrls[ 'SConsBuildFramework' ] = '{0}@{1}'.format(url, revision)
 	# svnRemoteMkBranch
 	elif 'svnremotemkbranch' in buildTargetsSet:
 		printSeparator('Creating a branch from a tag')
@@ -369,7 +374,7 @@ if hasBranchOrTagTarget:
 
 		# Lists available tags for the launching project
 		branchChoicesList = localListSbfTags( env['sbf_projectPathName'] )
-		printSbfBranch( env['sbf_project'], env['myBranchesOrTags'], branchChoicesList, True )
+		printSbfBranch( env['sbf_project'], 'tags', branchChoicesList, True )
 		if len(branchChoicesList)==0:	exit(1)
 
 		# Chooses one tag
@@ -430,11 +435,6 @@ if len(sbf.myBranchSvnUrls)>0:
 	#if os.path.exists(target):
 	#	overwrite = askQuestion( 'Overwrite previous file named {0}'.format(target), ['(n)o', '(y)es'] )
 	#	if overwrite == 'yes':	os.remove( target )
-
-	# Adds informations about SConsBuildFramework project used into self.myBranchSvnUrls
-	(url, revision ) = sbf.myVcs.getUrlAndRevision(sbf.mySCONS_BUILD_FRAMEWORK)
-	url = anonymizeUrl(url)
-	sbf.myBranchSvnUrls[ 'SConsBuildFramework' ] = '{0}@{1}'.format(url, revision)
 
 	# Filling source
 
