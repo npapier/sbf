@@ -883,6 +883,39 @@ class Use_qt( IUse ):
 		return 'Normal'
 
 
+class Use_qt3support( IUse ):
+	cppModules = ['Qt3Support']
+	linkModules = ['Qt3Support']
+	linkVersionPostfix = '4'
+
+	def getName( self ):
+		return 'qt3support'
+
+	def getVersions( self ):
+		return ['4-8-1']
+
+	def getCPPDEFINES( self, version ):
+		cppDefines = [ 'QT_QT3SUPPORT_LIB', 'QT3_SUPPORT' ]
+		return cppDefines
+
+	def getCPPPATH( self, version ):
+		return self.cppModules
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
+			else:
+				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
+
+	def getPackageType( self ):
+		return 'NoneAndNormal'
+
+
 class Use_scintilla( IUse ):
 	def getName( self ):
 		return 'scintilla'
@@ -954,7 +987,7 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine' , 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
-						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
+						, 'sofahelper', 'sofagui', 'sofaguiqt', 'sofasimulation', 'sofatree' ]
 
 			# optional plugins (sofa-dt)
 			libsBoth += self.getPluginsList()
@@ -1188,7 +1221,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_scintilla(),
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(), Use_scintilla(),
 					Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
