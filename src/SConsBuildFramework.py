@@ -293,6 +293,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 		# 'stdlibs'
 		for project in allDeps:
 			localEnv = sbf.getEnv( project )
+			# stdlibs
 			stdlibs = getStdlibs( localEnv, baseSearchPathList )
 			if len(stdlibs)>0:
 				print stdlibs
@@ -965,7 +966,6 @@ informations related target
 build related targets
  'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
- 'scons deps'
  'scons clean' to clean intermediate files (see buildPath option).
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
@@ -1430,7 +1430,7 @@ SConsBuildFramework options:
 
 			if self.myIsExpressEdition:
 				# at least for rc.exe
-				lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
+				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
 				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
@@ -1459,7 +1459,7 @@ SConsBuildFramework options:
 
 			if self.myIsExpressEdition:
 				# at least for rc.exe
-				lenv.AppendENVPath( 'PATH', 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
 				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
@@ -2161,12 +2161,15 @@ SConsBuildFramework options:
 
 
 		### DEPS 'BUILD' ###
-		# depsFiles
+		# depsFiles, depsLicensesFiles
+		# 'deps' only for launch project and if needed
 		if isLaunchProject(lenv) and len(self.myBuildTargets & self.myTargetsWhoNeedDeps) > 0:
-			depsFiles, licensesFiles = getDepsFiles( lenv, self.myLibInstallExtPaths, isLaunchProject(lenv) )
+			depsFiles, depsLicensesFiles = getDepsFiles( lenv, self.myLibInstallExtPaths, isLaunchProject(lenv) )
 		else:
 			depsFiles = []
-			licensesFiles = []
+			depsLicensesFiles = []
+
+		licensesFiles = self.getFiles( 'license', lenv )
 
 
 
@@ -2196,7 +2199,7 @@ SConsBuildFramework options:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
 
-		# install dependencies in 'bin' and 'license' (from depsFiles)
+		# install dependencies in 'bin' (from depsFiles)
 		# depsTarget
 		depsTarget = []
 
@@ -2205,12 +2208,20 @@ SConsBuildFramework options:
 				for (absFile, relFile) in depsFiles:
 					depsTarget += lenv.InstallAs( join(installDir, relFile), absFile )
 
-		if len(licensesFiles) >0:
-			licenseDir = join(installDir, 'license')
+		# install licenses files in 'license' (from depsFiles and getFiles())
+		if len(depsLicensesFiles) > 0:
 			for installDir in self.myDepsInstallDirectories:
-				for (licenseTarget, licenseSource) in licensesFiles:
-					print licenseTarget, licenseSource
+				licenseDir = join(installDir, 'license')
+				for (licenseTarget, licenseSource) in depsLicensesFiles:
 					depsTarget += lenv.InstallAs( join(licenseDir, licenseTarget), licenseSource )
+
+		if len(licensesFiles) > 0:
+			for installDir in self.myDepsInstallDirectories:
+				licenseDir = join(installDir, 'license')
+				for relFile in licensesFiles:
+					target = relFile.replace('license', join(licenseDir, self.myProject), 1)
+					source = join(self.myProjectPathName, relFile)
+					depsTarget += lenv.InstallAs( target, source )
 
 		# install in 'share' (from filesFromShare, filesFromShareBuilt and lenv['sbf_info'])
 		for installDir in self.myInstallDirectories:
@@ -2278,21 +2289,47 @@ SConsBuildFramework options:
 					Clean( self.myProject + '_mrproper', join(shareProjectInstallDirectory, self.myVersion) )
 			# else : nothing to do, no share/myProject directory
 
+		# clean 'include'
+		#for installDir in self.myInstallDirectories:
+		#	Clean( self.myProject + '_mrproper', join(installDir, 'include', self.myProject) )
 		# @todo Improves mrproper (local/doc/myProject directory ?)
 
+# @todo lenv['sbf_*'] used by vcproj target
 		### Configures lenv
 		lenv['sbf_bin']						= []
 		lenv['sbf_include']					= installInIncludeTarget
 
+# @todo unify lenv['sbf_share'] and lenv['sbf_shareBuilt'] in lenv['sbf_share']
 		lenv['sbf_share']						= filesFromShare
+#		lenv['sbf_shareBuilt']					= filesFromShareBuilt
 
 		lenv['sbf_src']							= filesFromSrc
+#		lenv['sbf_lib_object']					= []
+#		lenv['sbf_lib_object_for_developer']	= []
+
+		#lenv['sbf_bin_debuginfo'] = lenv['PDB']
+		#lenv['sbf_lib_debuginfo'] = lenv['PDB']
 
 		lenv['sbf_files']						= glob.glob( join(self.myProjectPathName, '*.options') )
 		lenv['sbf_files'].append( join(self.myProjectPathName, 'sconstruct') )
+		#lenv['sbf_info']
+		#lenv['sbf_rc']
+		# @todo configures sbf_... for msvc/eclipse ?
 
-		for elt in installInBinTarget :
+		for elt in installInBinTarget:
 			lenv['sbf_bin'].append( elt.abspath )
+
+# @todo lazy
+#		# @todo not very platform independent
+#		for elt in installInLibTarget:
+#			# @todo must be optimize
+#			absPathFilename	= elt.abspath
+#			filename		= os.path.split(absPathFilename)[1]
+#			filenameExt		= os.path.splitext(filename)[1]
+#			if filenameExt == '.lib':
+#				lenv['sbf_lib_object_for_developer'].append( absPathFilename )
+#			else :
+#				lenv['sbf_lib_object'].append( absPathFilename )
 
 		###### special targets: build install deps all clean mrproper ######
 		Alias( 'build',		aliasProjectBuild		)
@@ -2332,7 +2369,7 @@ SConsBuildFramework options:
 	###### Helpers ######
 
 	def getFiles( self, what, lenv ):
-		"""what		select what to collect. It could be 'src', 'include', 'share'
+		"""what		select what to collect. It could be 'src', 'include', 'share' and 'license'
 		"""
 
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
@@ -2359,6 +2396,8 @@ SConsBuildFramework options:
 						files.append( file )
 			else:
 				files = filesNotFiltered
+		elif what == 'license':
+			searchFiles( 'license', files, ['.svn'], r"^.*" )
 		else:
 			raise SCons.Errors.UserError("Internal sbf error in getFiles().")
 
