@@ -886,6 +886,8 @@ class Use_qt( IUse ):
 class Use_qt3support( IUse ):
 	cppModules = ['Qt3Support']
 	linkModules = ['Qt3Support']
+	# Adding libraries needed by Sofa version of Qt3Support
+	linkModules += ['QtSQL', 'QtXml', 'QtNetwork', 'QtSvg', 'QtOpenGL']
 	linkVersionPostfix = '4'
 
 	def getName( self ):
@@ -983,11 +985,14 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = ['glew32', 'glut32']
 
-			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_base_animation_loop', 'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
-						, 'sofa_boundary_condition', 'sofa_component', 'sofa_component_advanced', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general', 'sofa_component_misc', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_dense_solver', 'sofa_engine' , 'sofa_eulerian_fluid', 'sofa_explicit_ode_solver'
-						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_engine', 'sofa_misc', 'sofa_misc_fem', 'sofa_misc_mapping', 'sofa_misc_topology', 'sofa_misc_solver'
-						, 'sofa_non_uniform_fem', 'sofa_object_interaction', 'sofa_opengl_visual', 'sofa_preconditioner', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_validation', 'sofa_volumetric_data'
-						, 'sofahelper', 'sofagui', 'sofaguiqt', 'sofasimulation', 'sofatree', 'sofa_exporter', 'sofa_misc_forcefield', 'qwt', 'QGLViewer' ]
+			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint',  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
+						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
+						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
+						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
+						, 'sofahelper', 'sofagui', 'sofaguiqt', 'sofasimulation', 'sofatree' ]
+
+			# Adds sofa libraries needed by qt
+			libsBoth += [ 'sofa_base_animation_loop', 'sofa_component', 'sofa_component_advanced', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_misc_engine', 'sofa_misc', 'sofa_misc_fem', 'sofa_misc_topology', 'sofa_misc_solver', 'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_preconditioner', 'sofa_validation', 'sofa_exporter', 'sofa_misc_forcefield', 'qwt', 'QGLViewer' ]
 
 			# optional plugins (sofa-dt)
 			libsBoth += self.getPluginsList()
