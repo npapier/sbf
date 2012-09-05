@@ -39,14 +39,31 @@ class Statistics:
 		self.reset()
 
 	def reset( self ):
-		# dict[type] = count
-		self.details	= {}
+		# details[type] = count
+		self.details			= {}
+		# addFileCounter[fileType] = count
+		self.addFileCounter		= {}
+		# copyFileCounter[fileType] = count
+		self.copyFileCounter	= {}
+		# deleteFileCounter[fileType] = count
+		self.deleteFileCounter	= {}
 		#
 		self.conflicted	= []
 		self.merged		= []
 
 	def increments( self, type ):
 		self.details[type] = self.details.get(type, 0) + 1
+
+
+	def incrementsAddFile( self, type ):
+		self.addFileCounter[type] = self.addFileCounter.get(type, 0) + 1
+
+	def incrementsCopyFile( self, type ):
+		self.copyFileCounter[type] = self.copyFileCounter.get(type, 0) + 1
+
+	def incrementsDeleteFile( self, type ):
+		self.deleteFileCounter[type] = self.deleteFileCounter.get(type, 0) + 1
+
 
 	def addConflicted( self, projectPath, pathFilename ):
 		self.conflicted.append( (projectPath, pathFilename) )
@@ -63,6 +80,23 @@ class Statistics:
 		if len(self.details) > 0:
 			print
 
+		def report( dict, text ):
+			report = ''
+			for (k,v) in dict.iteritems():
+				report += '%s:%i ' % (k,v)
+			if len(report) > 0:
+				print '{0}: {1}'.format(text, report)
+
+		# add
+		report( self.addFileCounter, 'add' )
+
+		# copy
+		report( self.copyFileCounter, 'copy' )
+
+		# delete
+		report( self.deleteFileCounter, 'delete' )
+
+		#
 		if len(self.conflicted) > 0:
 			print 'conflicted:'
 			for (projectPath, pathFilename) in self.conflicted:
@@ -140,7 +174,7 @@ def svnCallback_get_login( realm, username, may_save ):
 
 	givenPassword = raw_input("Password for '%s':" % givenUsername)
 
-	return (len(givenUsername) != 0) and (len(givenPassword) != 0), givenUsername, givenPassword, may_save
+	return (len(givenUsername) != 0) and (len(givenPassword) != 0), givenUsername, givenPassword, True
 
 
 class CallbackNotifyWrapper:
@@ -224,6 +258,12 @@ class CallbackNotifyWrapper:
 			# Updates statistics
 			for statistics in self.statisticsObservers:
 				statistics.increments( lookupAction )
+				#
+				extension = os.path.splitext(basename(path))[1]
+				# add
+				if lookupAction is 'A': statistics.incrementsAddFile( extension )
+				if lookupAction is 'c': statistics.incrementsCopyFile( extension )
+				if lookupAction is 'D': statistics.incrementsDeleteFile( extension )
 
 			print lookupAction, "\t",
 			if len(self.rootPath) > 0:
@@ -1415,6 +1455,7 @@ def urlJoin( path1, path2 ):
 			return '{0}/{1}'.format(path1, path2)
 	else:
 		return join(path1,path2)
+
 
 def anonymizeUrl( url ):
 	"""Returns 'http://' instead of 'https://' or 'svn://' instead of 'svn+ssh://username@'"""
