@@ -34,7 +34,8 @@ except ImportError as e:
 ### Helpers ####
 
 def installAs( lenv, dirDest, dirSource, pruneDirectoriesPatterns = ['.svn'] ):
-	"""Copy the directory tree from dirSource in dirDest using lenv.InstallAs(). pruneDirectoriesPatterns is used to exclude several sources directories."""
+	"""	@brief Copy the directory tree from dirSource in dirDest using lenv.InstallAs(). pruneDirectoriesPatterns is used to exclude several sources directories.
+		@return [ lenv.InstallAs(), ... ]"""
 	files = []
 	searchFiles( dirSource, files, pruneDirectoriesPatterns )
 
@@ -189,12 +190,24 @@ def generateNSISMainScript( target, source, env ):
 	targetName = str(target[0])
 	sbf = env.sbf
 
+	# Checks unknown option in 'nsis'
+	nsisKeys = set(env['nsis'].keys())
+	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'uninstallVarDirectory'])
+	unknowOptions = nsisKeys - allowedNsisKeys
+	if len(unknowOptions)>0:
+		raise SCons.Errors.UserError( "Unknown key(s) ({0}) in 'nsis' option".format(list(unknowOptions)) )
+
+	# Retrieving 'nsis' options
+	nsisAutoUninstall = env['nsis'].get('autoUninstall', True)
+	nsisInstallDirFromRegKey = env['nsis'].get('installDirFromRegKey', True)
+	nsisUninstallVarDirectory = env['nsis'].get('uninstallVarDirectory', False)
+
 	# Open output file
 	with open( targetName, 'w' ) as file:
 		# Retrieves informations (all executables, ...)
 		rootProject = env['sbf_project']
 
-		mainProject = ''
+		mainProject = ''	# first project of type 'exec'
 		products	= []
 		executables	= []
 		for (projectName, lenv) in env.sbf.myParsedProjects.iteritems():
@@ -209,6 +222,7 @@ def generateNSISMainScript( target, source, env ):
 		PRODUCTNAME = ''
 		for (i, product) in enumerate(products):
 			PRODUCTNAME += "!define PRODUCTNAME{0}	\"{1}\"\n".format(i, product)
+#		PRODUCTNAME += '!define PRODUCTNAME		"${PRODUCTNAME0}"\n'
 
 		# Generates PRODUCTEXE, SHORTCUT, DESKTOPSHORTCUT, QUICKLAUNCHSHORTCUT, UNINSTALL_SHORTCUT, UNINSTALL_DESKTOPSHORTCUT and UNINSTALL_QUICKLAUNCHSHORTCUT
 		PRODUCTEXE						= ''
@@ -247,7 +261,9 @@ def generateNSISMainScript( target, source, env ):
 			installationDirectorySection = """
 ; standalone or none project
 InstallDir "$PROGRAMFILES\${SBFPROJECTVENDOR}\${SBFPRODUCTNAME}${SBFPROJECTCONFIG}\${SBFPROJECTVERSION}"
-
+"""
+			if nsisInstallDirFromRegKey:
+				installationDirectorySection += """
 ; Registry key to check for directory (so if you install again, it will overwrite the old one automatically)
 InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 """
@@ -267,26 +283,25 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 
 			# Test version
 			assert( operator == '>=' )
-
 			testVersionPrecond = """
 			; prepare version numbers
 			${{VersionConvert}} $1 "" $5
 			${{VersionConvert}} ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}} "" $6
-			;MessageBox MB_OK "$1 >= ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}} => $5 >= $6"				; debug
 
 			; test version
 			${{VersionCompare}} $5 $6 $7
 
-			;MessageBox MB_OK "VersionCompare=$7"														; debug
-
 			; >=
 			${{If}} $7 == 2
 				; test failed (<)
-				MessageBox MB_ICONSTOP|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}."
+				MessageBox MB_ICONSTOP|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}." /SD IDOK
+				;LogText "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}."
 				Abort
 			${{EndIf}}
 
 			; test passed
+			;MessageBox MB_ICONINFORMATION|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})." /SD IDOK
+			;LogText "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})."
 """.format()
 
 			installationDirectorySection = """
@@ -305,16 +320,19 @@ Function initInstallDir
 	; Test if standalone is installed
 	${{If}} $0 == ''
 		; never installed, abort
-		MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
+		MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
+		;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 		Abort
 	${{Else}} ;$0 != ''
 		${{If}} $1 == ''
 			; already installed, but not now => abort
-			MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
+			MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
+			;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 			Abort
 		${{Else}} ; $0 != '' & $1 != ''
 			; debug message
-			MessageBox MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0."
+			;MessageBox MB_ICONINFORMATION|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0." /SD IDOK
+			;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0."
 
 			; test version precondition
 			{testVersionPrecond}
@@ -322,13 +340,76 @@ Function initInstallDir
 			StrCpy $INSTDIR "$0\packages\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
 
 			; debug message
-			MessageBox MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR"
+			MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR. ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0." /SD IDOK
+			;LogText MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR"
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
 """.format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version, testVersionPrecond = testVersionPrecond )
 
-			onInitInstallationDirectory = ' ; Initialize $INSTDIR\n Call initInstallDir'
+			onInitInstallationDirectory = """; Initialize $INSTDIR
+ Call initInstallDir
+"""
+
+		# onInitUninstallCurrentVersion
+		if nsisAutoUninstall:
+			onInitUninstallCurrentVersion = """
+ ; Uninstall before starting new installation
+ ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${SBFPROJECTNAME}" "UninstallString"
+ ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${SBFPROJECTNAME}" "UninstallDir"
+ ${If} $0 == ''
+   ; Nothing to uninstall before new installation
+   MessageBox MB_ICONINFORMATION|MB_OK "No previous version to uninstall" /SD IDOK
+   ;LogText
+ ${Else}
+   MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to uninstall previous version of ${SBFPROJECTNAME} ?" /SD IDYES IDYES 0 IDNO endUninstallOnInit
+   ;LogText
+   ; Execute uninstall before new installation
+   ClearErrors
+   IfSilent 0 +3
+     ; silent uninstall
+     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently ${SBFPROJECTNAME}" /SD IDOK
+     ;LogText
+     ExecWait '$0 /S _?=$1'
+     Goto +2
+
+     ; non silent uninstall
+     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall ${SBFPROJECTNAME}" /SD IDOK
+     ;LogText
+     ExecWait '$0 _?=$1'
+
+   ; result
+   ${If} ${Errors}
+     ; error(s)
+     MessageBox MB_ICONSTOP|MB_OK "Error during uninstallation of ${SBFPROJECTNAME}" /SD IDOK
+     ;LogText
+     Abort
+   ${Else}
+     ; no errors, continue
+     ;  Remove uninstaller
+     Delete $1\uninstall.exe
+     ;  Remove installation directory
+     RmDir $1
+   ${Endif}
+ ${Endif}
+   endUninstallOnInit:
+"""
+		else: 
+			onInitUninstallCurrentVersion = ""
+
+		# uninstallVarDirectorySection
+		if nsisUninstallVarDirectory:
+			uninstallVarDirectorySection = """
+  ${If} ${FileExists} "$INSTDIR\\var"
+    MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDYES 0 IDNO +2
+    RMDir /r "$INSTDIR\\var"
+    Nop
+  ${Endif}
+"""
+		else:
+			uninstallVarDirectorySection = """
+  ; no
+"""
 
 		# Generates ICON
 		# icon from the project launching sbf ?
@@ -346,13 +427,17 @@ FunctionEnd
 ; sbfNSISTemplate.nsi
 ;
 ; This script :
+; - Uninstall previous version before installing the new one (see nsis['autoUninstall'] option)
+; - allow removing 'var' directory during uninstall stage (see nsis['uninstallVarDirectory'] option).
 ; - It will install files into a "PROGRAMFILES\SBFPROJECTVENDOR\SBFPROJECTNAME SBFPROJECTCONFIG\SBFPROJECTVERSION" or a directory that the user selects for 'standalone' or 'none' project
 ; - or in a directory found in registry for 'embedded' project
-; - checks if deploymentPrecond is true (for embedded project) @TODO all operators
-; - remember the installation directory (so if you install again, it will overwrite the old one automatically) and version.
+; - checks if deploymentPrecond is true (for embedded project)
+; - remember the installation directory (see nsis['installDirFromRegKey'] option). So if you install again, it will overwrite the old one automatically.
+; - remember the installed version.
 ; - creates a 'var' directory with full access for 'Users' and backups 'var' directory if already present.
 ; - icon of setup program comes from the launching project (if it contains an icon in rc/project.ico), otherwise from the first executable project (if any and if it contains an icon), else no icon at all.
 ; - ProductName, CompanyName, LegalCopyright, FileDescription, FileVersion and ProductVersion fields in the version tab of the File Properties are filled.
+; - install in registry Software/SBFPROJECTVENDOR/SBFPROJECTNAME/InstallDir
 ; - install in registry Software/SBFPROJECTVENDOR/SBFPROJECTNAME/Version
 ; - run as admin and installation occurs for all users
 ; - components chooser
@@ -362,14 +447,12 @@ FunctionEnd
 ; - (optionally) installs desktop menu shortcut for the main executable.
 ; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
 ; - prevent running multiple instances of the installer
+; - silent installation is supported (especially MessageBox())
 
-; @todo write access on several directories
-; @todo section with redistributable
 
 ; @todo mui
 ; @todo quicklaunch
 ; @todo repair/modify
-; @todo LogSet on
 
 
 ;--------------------------------
@@ -378,8 +461,8 @@ FunctionEnd
 !include "LogicLib.nsh"
 !include "WordFunc.nsh"
 
-
-SetCompressor lzma
+;SetCompress off
+SetCompressor /FINAL /SOLID lzma
 XPStyle on
 
 !define SBFPROJECTNAME				"{projectName}"
@@ -388,6 +471,7 @@ XPStyle on
 !define SBFPROJECTCONFIG			"{projectConfig}"
 !define SBFPROJECTVENDOR			"{projectVendor}"
 !define SBFDATE						"{date}"
+; defined EMBEDDED_DEPLOYMENTTYPE if project option deploymentType is equal to embedded
 {embedded_deploymentType}
 
 
@@ -413,10 +497,14 @@ Function .onInit
  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
  Pop $R0
  StrCmp $R0 0 +3
- MessageBox MB_OK|MB_ICONSTOP "The installer is already running."
+ MessageBox MB_OK|MB_ICONSTOP "The installer is already running." /SD IDOK
+ ;LogText MB_OK|MB_ICONSTOP "The installer is already running."
  Abort
 
- {onInitInstallationDirectory}
+ {onInitUninstallCurrentVersion}
+
+ {onInitInstallationDirectory} ; for embedded project
+ 
 FunctionEnd
 
 ;--------------------------------
@@ -500,12 +588,14 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   ; Write the version into the registry
   WriteRegStr HKLM "${{REGKEYROOT}}" "Version" "${{SBFPROJECTVERSION}}"
 
+
   ; Write the uninstall keys for Windows
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayIcon" '"$INSTDIR\\bin\\${{PRODUCTEXE}}"'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayName" "${{SBFPROJECTVENDOR}} ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayVersion" "${{SBFPROJECTVERSION}}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "Publisher" "${{SBFPROJECTVENDOR}}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "UninstallString" '"$INSTDIR\\uninstall.exe"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "UninstallDir" '$INSTDIR'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
@@ -515,6 +605,7 @@ SectionEnd
 
 
 !ifndef EMBEDDED_DEPLOYMENTTYPE
+
 Section "Start Menu Shortcuts"
   SectionIn RO
 
@@ -532,7 +623,8 @@ Section "Shortcut on desktop"
 {desktopShortcuts}
 
 SectionEnd
-!endif
+
+!endif ; !ifndef EMBEDDED_DEPLOYMENTTYPE
 
 
 ;--------------------------------
@@ -542,16 +634,21 @@ Section "Uninstall"
 
   SetShellVarContext all
 
+  SetOutPath $TEMP
+
   ; Remove files
   !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
 
   ; Remove redistributable
   !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
+  ; Remove 'var' directory ?
+  {uninstallVarDirectorySection}
+
   ; Remove registry keys
   ;DeleteRegKey HKLM "${{REGKEYROOT}}"			; containing 'Install_Dir' and 'Version'
   DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
-  
+
   DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
 
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}"
@@ -587,6 +684,8 @@ SectionEnd
 			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
 			installationDirectorySection=installationDirectorySection,
 			onInitInstallationDirectory=onInitInstallationDirectory,
+			onInitUninstallCurrentVersion=onInitUninstallCurrentVersion,
+			uninstallVarDirectorySection=uninstallVarDirectorySection,
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
 			desktopShortcuts=DESKTOPSHORTCUT,

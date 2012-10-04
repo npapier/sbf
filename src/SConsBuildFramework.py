@@ -1379,6 +1379,11 @@ SConsBuildFramework options:
 
 			(	'deploymentPrecond', '', ''	)
 
+			(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' to uninstall automatically previous version (if present) before installing the new one. Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'uninstallVarDirectory' to allow removing 'var' directory during uninstall stage.",
+				{	'autoUninstall'			: True,
+					'installDirFromRegKey'	: True,
+ 					'uninstallVarDirectory'	: False
+				} )
 		)
 
 		return myOptions

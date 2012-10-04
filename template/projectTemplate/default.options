@@ -22,4 +22,8 @@ type				= 'shared'	# exec, static, shared, none
 #console			= True
 #runParams			= []
 #deploymentType		= 'none'
-#requirements		= ''
+#deploymentPrecond	= 'standalone >= 1.0'
+#nsis				= {	'autoUninstall'			: True,
+						'installDirFromRegKey'	: True,
+						'uninstallVarDirectory'	: False
+						}
