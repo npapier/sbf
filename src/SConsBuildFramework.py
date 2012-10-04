@@ -1377,7 +1377,7 @@ SConsBuildFramework options:
 			EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
 							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
 
-			(	'deploymentPrecond', '', ''	)
+			(	'deploymentPrecond', '', ''	),
 
 			(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' to uninstall automatically previous version (if present) before installing the new one. Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'uninstallVarDirectory' to allow removing 'var' directory during uninstall stage.",
 				{	'autoUninstall'			: True,
