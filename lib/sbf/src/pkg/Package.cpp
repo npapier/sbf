@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/property_tree/xml_parser.hpp>
 
 #ifdef WIN32
   #include <windows.h>
@@ -87,10 +88,9 @@ struct module_has
 Package::PackageContainer	Package::m_packages;
 
 
-Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & path, const boost::weak_ptr< Package > parent )
-:	Component( name, version, parent ),
-	m_path( path ),
-	m_enabled( !boost::filesystem::exists(path/toString(VarPath)/"disabled") )
+Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & rootPath, const boost::weak_ptr< Package > parent )
+:	Component( name, version, rootPath, parent ),
+	m_enabled( m_constData.get("component.enabled", true) )
 {}
 
 
@@ -192,27 +192,6 @@ const std::vector< std::string > Package::getPlugablesByTag( const std::string &
 }
 
 
-const boost::filesystem::path & Package::getPath() const
-{
-	return m_path;
-}
-
-
-const boost::filesystem::path Package::getPath( const PathType & type ) const
-{
-	return m_path / toString(type);
-}
-
-
-const boost::filesystem::path Package::getPathSafe( const PathType & type ) const
-{
-	const boost::filesystem::path	path = getPath( type );
-
-	boost::filesystem::create_directories(path);
-	return path;
-}
-
-
 const bool Package::isEnabled() const
 {
 	return m_enabled;
@@ -287,7 +266,7 @@ void Package::initModules( const PathType & pathType )
 
 	// Get the base path for the module discovery.
 	// And checks that the path exists or stop processing.
-	const bfs::path	basePath = getPath(pathType);
+	const bfs::path	basePath = m_rootPath/toString(pathType);
 
 	if( !bfs::exists(basePath) )
 	{
@@ -330,23 +309,28 @@ const boost::shared_ptr< Module > Package::initModule( const PathType & pathType
 {
 	namespace bfs = boost::filesystem;
 
-	const_module_iterator		found		= std::find_if( m_modules.begin(), m_modules.end(), module_has(name, version) );
-	const bfs::path				modulePath	= getPathSafe(pathType) / name / version;
-	
-	// If the module exists, then we return that instance.
-	// Else if the module path is valid, we create an instance of module or pluggable.
-	// Else if the module version has properly been specified, we create a module instance.
+	// If the module name and version match the package onces, then we got the package's private data.
+	if( name == m_name && version == m_version )
+	{
+		return boost::shared_ptr< Module >();
+	}
+
+	// Look for an existing module and return it if found.
+	const_module_iterator	found = std::find_if( m_modules.begin(), m_modules.end(), module_has(name, version) );
 	if( found != m_modules.end() )
 	{
 		return *found;
 	}
-	else if( bfs::is_directory(modulePath) )
+	
+	// If the module path is valid, we create an instance of module or pluggable.
+	const bfs::path	modulePath = m_rootPath / toString(pathType) / name / version;
+	if( bfs::is_directory(modulePath) )
 	{
 		const bool	isPluggable = bfs::is_regular(modulePath/"module.xml");
 
 		if( isPluggable )
 		{
-			const boost::shared_ptr< Pluggable>	pluggable( new Pluggable(shared_from_this(), name, version) );
+			const boost::shared_ptr< Pluggable>	pluggable( new Pluggable(name, version, m_rootPath, shared_from_this()) );
 
 			m_modules.push_back( pluggable );
 			m_pluggables.push_back( pluggable );
@@ -354,23 +338,24 @@ const boost::shared_ptr< Module > Package::initModule( const PathType & pathType
 		}
 		else
 		{
-			boost::shared_ptr< Module >	module( new Module(shared_from_this(), name, version) );
+			boost::shared_ptr< Module >	module( new Module(name, version, m_rootPath, shared_from_this()) );
 
 			m_modules.push_back( module );
 			return module;
 		}
 	}
-	else if( !version.empty() )
+	
+	// If the module version has properly been specified, we create a module instance.
+	if( !version.empty() )
 	{
-		boost::shared_ptr< Module >	module( new Module(shared_from_this(), name, version) );
+		boost::shared_ptr< Module >	module( new Module(name, version, m_rootPath, shared_from_this()) );
 
 		m_modules.push_back( module );
 		return module;
 	}
-	else
-	{
-		return boost::shared_ptr< Module >();
-	}
+	
+	// We could not find any relevant solution.
+	return boost::shared_ptr< Module >();
 }
 
 
@@ -459,26 +444,14 @@ void Package::setEnabled( const bool enabled )
 	// It is not allowed to change this configuration aspect on the root package.
 	assert( m_parent.lock() != 0 );
 
-	const boost::filesystem::path	disableFilename		= getPathSafe(VarPath)/"disabled";
-	const bool						disableFileExists	= boost::filesystem::exists( disableFilename );
-
-	if( enabled && disableFileExists )
-	{
-		boost::filesystem::remove(disableFilename);
-	}
-	else if( !enabled && !disableFileExists )
-	{
-		std::ofstream( disableFilename.string().c_str() );
-	}
+	m_editableData.put("component.enabled", enabled);
+	saveData();
 }
 
 
 const bool Package::willBeEnabled() const
 {
-	const boost::filesystem::path	disableFilename		= getPath(VarPath)/"disabled";
-	const bool						disableFileExists	= boost::filesystem::exists( disableFilename );
-
-	return !disableFileExists;
+	return m_editableData.get("component.enabled", true);
 }
 
 

@@ -54,7 +54,6 @@ struct SBF_API Module : public Component
 	 */
 	//@{
 	const std::string getInfoFromFile() const;								///< Loads defailed informations from file.
-	const boost::filesystem::path getPath( const PathType & type ) const;	///< Retrieves the path owned by the component for the given type.
 	const bool hasInfoFile() const;											///< Tells if the module has detailed information file.
 	//@}
 
@@ -63,7 +62,11 @@ protected:
 	/**
 	 * @brief	Constructor
 	 */
-	Module( const boost::weak_ptr< Package > parent, const std::string & name, const std::string & version );
+	Module( 
+		const std::string & name,
+		const std::string & version,
+		const boost::filesystem::path& rootPath,
+		const boost::weak_ptr< Package > parent );
 };
 
 

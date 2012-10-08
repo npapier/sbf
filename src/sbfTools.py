@@ -117,6 +117,7 @@ def locateProgramUsingRegistry( programName ):
 def locateProgramUsingPATH( programName ):
 	"""Searches programName in PATH environment variable"""
 	#location = WhereIs( programName, os.getenv('PATH') )
+	if programName in ['graphviz', 'doxygen'] : return ''
 	location = WhereIs( programName )
 	if location:
 		return os.path.dirname(location)

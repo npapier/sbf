@@ -14,8 +14,8 @@ namespace pkg
 {
 
 
-Module::Module( const boost::weak_ptr< Package > parent, const std::string & name, const std::string & version )
-:	Component( name, version, parent )
+Module::Module( const std::string & name, const std::string & version, const boost::filesystem::path& rootPath, const boost::weak_ptr< Package > parent )
+:	Component( name, version, rootPath, parent )
 {}
 
 
@@ -26,18 +26,6 @@ Module::~Module()
 boost::shared_ptr< Module > Module::get( const std::string & name, const std::string & version )
 {
 	return Package::current()->findModule( name, version );
-}
-
-
-const boost::filesystem::path Module::getPath( const PathType & type ) const
-{
-	boost::filesystem::path	result;
-	
-	result  = getParent()->getPath(type);
-	result /= m_name;
-	result /= m_version;
-
-	return result;
 }
 
 

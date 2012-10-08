@@ -12,6 +12,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include "sbf/sbf.hpp"
 #include "sbf/pkg/types.hpp"
@@ -58,15 +59,6 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >, publi
 	static const boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
 	static iterator end();									///< Retrieves the iterator on the end of the package collection.
 	static const PackageContainer findDuplicates();			///< Retrieves the first packages having the same name but a different version.
-	//@}
-
-	/**
-	 * @name	Properties
-	 */
-	//@{
-	const boost::filesystem::path & getPath() const;							///< Retrieves the root directory of the package.
-	const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the given path in the package tree.
-	const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the given path in the package tree, and also ensures that the path exists.
 	//@}
 
 	/**
@@ -171,33 +163,33 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >, publi
 
 private:
 
-	static PackageContainer		m_packages;	///< The collection of packages found on the system.
+	static PackageContainer		m_packages;		///< The collection of packages found on the system.
 
-	const boost::filesystem::path	m_path;			///< The package root's path.
-	const bool						m_enabled;		///< Tells if the package is enable.
-	mutable ModuleContainer			m_modules;		///< The collection of modules available in the package.
-	PluggableContainer				m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
+	const bool					m_enabled;		///< Tells if the package is enable.
+	mutable ModuleContainer		m_modules;		///< The collection of modules available in the package.
+	PluggableContainer			m_pluggables;	///< The collection of pluggable modules available in the package (references modules stored in m_modules).
+	boost::property_tree::ptree	m_settings;		///< Holds settings for the package.
 	
 	/**
 	 * @brief	Constructor
 	 *
-	 * @param	name	a string containing the name of the package
-	 * @param	version	a string containing the version of the package
-	 * @param	root	a path to the root directory of the package
-	 * @param	parent	an optional reference to the parent package (default is none)
+	 * @param	name		a string containing the name of the package
+	 * @param	version		a string containing the version of the package
+	 * @param	rootPath	a path to the root directory of the package
+	 * @param	parent		an optional reference to the parent package (default is none)
 	 */
 	Package( 
 		const std::string & name, 
 		const std::string & version, 
-		const boost::filesystem::path & root, 
+		const boost::filesystem::path & rootPath, 
 		const boost::weak_ptr< Package > parent = boost::weak_ptr< Package >() );
 
 	/** 
 	 * @name	Helpers
 	 */
 	//@{
-	static void init();									///< Initializes the whole system.
-	void initModules( const PathType & pathType );		///< Initializes modules and pluggable modules of the package, looking into the given path.
+	static void init();								///< Initializes the whole system.
+	void initModules( const PathType & pathType );	///< Initializes modules and pluggable modules of the package, looking into the given path.
 	const boost::shared_ptr< Module > initModule( const PathType & pathType, const std::string & name, const std::string & version );	///< Initializes a module using the given path type, module name and version.
 	//@}
 };
