@@ -14,6 +14,7 @@ try:
 except ImportError as e:
 	pass
 
+from sbfSubversion import SvnGetRevision
 from sbfTools import *
 from sbfUtils import getPathFromEnv, getFromEnv, convertToList
 from sbfVersion import splitUsesName
@@ -40,6 +41,7 @@ class pythonConfig:
 
 class sofaConfig:
 	__basePath = None
+	__svnRevision = None
 	__pluginsList = []
 
 	@classmethod
@@ -51,6 +53,8 @@ class sofaConfig:
 		if cls.__basePath is None or len(cls.__basePath)==0:
 			raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
 
+		# Retrieves svn revision
+		cls.__svnRevision = str(SvnGetRevision()( cls.__basePath ))
 
 		# Retrieves SOFA_PLUGINS
 		sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
@@ -64,6 +68,12 @@ class sofaConfig:
 		if cls.__basePath is None:
 			cls.__initialize()
 		return cls.__basePath
+
+	@classmethod
+	def getVersion( cls ):
+		if cls.__basePath is None:
+			cls.__initialize()
+		return cls.__svnRevision
 
 	@classmethod
 	def getPluginsList( cls ):
@@ -938,25 +948,21 @@ class Use_scintilla( IUse ):
 				return libs, libs
 
 
-# @todo getSvnRevision()
-# @todo SOFA_PATH documentation
-# TODO: packages sofa into a localExt and adapts the following code to be more sbf friendly
+# @todo SOFA_PATH, SOFA_PLUGINS documentation
+# @todo packages sofa into a localExt and adapts the following code to be more sbf friendly
 class Use_sofa( IUse, sofaConfig ):
 
 	def getName( self ):
 		return 'sofa'
 
+	def getVersions( self ):
+		return [self.getVersion()]
+
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
-		
-		pluginsDefine = ''
-		for plugin in self.getPluginsList():
-			if len(pluginsDefine)>0:
-				pluginsDefine += ':' + plugin
-			else:
-				pluginsDefine += plugin
 
-		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefine)]
+		pluginsDefines = string.join(self.getPluginsList(), ':')
+		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
 
 		return definesList
 
@@ -989,31 +995,31 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
-						, 'sofahelper', 'sofagui', 'sofaguiqt', 'sofasimulation', 'sofatree' ]
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
-			# Adds sofa libraries needed by qt
-			libsBoth += [ 'sofa_base_animation_loop', 'sofa_component', 'sofa_component_advanced', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_misc_engine', 'sofa_misc', 'sofa_misc_fem', 'sofa_misc_topology', 'sofa_misc_solver', 'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_preconditioner', 'sofa_validation', 'sofa_exporter', 'sofa_misc_forcefield', 'qwt', 'QGLViewer' ]
+			if version > 11877:
+				libsBoth += [	'sofa_base_animation_loop', 'sofa_component', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general',
+								'sofa_component_advanced', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_exporter',
+								'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_misc', 'sofa_misc_engine', 'sofa_misc_fem', 'sofa_misc_forcefield', 'sofa_misc_solver', 'sofa_misc_topology', 
+								'sofa_preconditioner', 'sofa_validation' ]
 
 			# optional plugins (sofa-dt)
 			libsBoth += self.getPluginsList()
 
-			# shared library
-			#libsBoth += [ 'sofa_eigen2_solver' ]
-
+			#
 			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
 
-			sofaVersion = '_1_0'
+			if self.config == 'release':
+				sofaVersion = '_1_0'
+			else:
+				sofaVersion = '_1_0d'
+
 			libsBoth = [ lib + sofaVersion for lib in libsBoth ]
 			staticLibs = [ lib + sofaVersion for lib in staticLibs ]
 
-			if self.config == 'release' :
-				libs += libsBoth + staticLibs
-				pakLibs += libsBoth
-			else:
-				libsBothDebug = [ lib + 'd' for lib in libsBoth ]
-				staticLibsDebug = [ lib + 'd' for lib in staticLibs ]
-				libs += libsBothDebug + staticLibsDebug
-				pakLibs += libsBothDebug
+			#
+			libs += libsBoth + staticLibs
+			pakLibs += libsBoth
 			return libs, pakLibs
 		elif self.platform == 'posix' :
 			libs = ['xml2', 'z']
@@ -1025,34 +1031,8 @@ class Use_sofa( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		libPath = []
-		pakLibPath = []
-
-		if self.platform == 'win32':
-			if self.config == 'release' :
-				if self.cc == 'cl':
-					path = os.path.join( self.getBasePath(), 'lib' )
-				libPath.append( path )
-				pakLibPath.append( path )
-			else:
-				if self.cc == 'cl':
-					path = os.path.join( self.getBasePath(), 'lib' )
-				libPath.append( path )
-				pakLibPath.append( path )
-			#
-			#commonPath = os.path.join( self.getBasePath(), 'lib/win32/Common' )
-			#libPath.append( commonPath )
-			#
-		#	pluginsPath = os.path.join( self.getBasePath(), 'lib/sofa-plugins' )
-		#	libPath.append( pluginsPath )
-		#	pakLibPath.append( pluginsPath )
-			return libPath, pakLibPath
-
-		elif self.platform == 'posix' :
-			path = os.path.join( self.getBasePath(), 'lib')
-			libPath.append( path )
-			pakLibPath.append( path )
-			return libPath, pakLibPath
+		path = os.path.join( self.getBasePath(), 'lib' )
+		return [path], [path]
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
@@ -1078,6 +1058,47 @@ class Use_sofa( IUse, sofaConfig ):
 			licenses.append( join(pluginsDir, plugin, plugin + '.txt') )
 		return licenses
 
+
+class Use_sofaQt( IUse, sofaConfig ):
+
+	def getName( self ):
+		return 'sofaqt'
+
+	def getVersions( self ):
+		return [self.getVersion()]
+
+	def getCPPDEFINES( self, version ):
+		return ['SOFA_QT4']
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32' :
+			libs = []
+			pakLibs = []
+
+			# Adds sofa libraries needed by qt
+			libsBoth = [ 'qwt', 'QGLViewer', 'sofaguiqt' ]
+
+			if self.config == 'release':
+				sofaVersion = '_1_0'
+			else:
+				sofaVersion = '_1_0d'
+
+			libsBoth = [ lib + sofaVersion for lib in libsBoth ]
+
+			#
+			libs += libsBoth
+			pakLibs += libsBoth
+			return libs, pakLibs
+		elif self.platform == 'posix':
+			assert( False )
+			return libs, pakLibs
+
+	def getLIBPATH( self, version ):
+		path = os.path.join( self.getBasePath(), 'lib' )
+		return [path], [path]
+
+	def getPackageType( self ):
+		return 'NoneAndNormal'
 
 
 def getPathsForSofa( debugAndRelease = False ):
@@ -1227,7 +1248,7 @@ class UseRepository :
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(), Use_scintilla(),
-					Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
