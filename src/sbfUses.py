@@ -997,7 +997,7 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
 						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
-			if version > 11877:
+			if int(version) > 11877:
 				libsBoth += [	'sofa_base_animation_loop', 'sofa_component', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general',
 								'sofa_component_advanced', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_exporter',
 								'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_misc', 'sofa_misc_engine', 'sofa_misc_fem', 'sofa_misc_forcefield', 'sofa_misc_solver', 'sofa_misc_topology', 
