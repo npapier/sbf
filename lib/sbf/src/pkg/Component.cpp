@@ -72,7 +72,7 @@ Component::Component( const std::string & name, const std::string & version, con
 
 	// Loads editable meta data.
 	{
-		const bfs::path	filename = getPathSafe(VarPath) / "component.xml";
+		const bfs::path	filename = getPath(VarPath) / "component.xml";
 		if( bfs::exists(filename) )
 		{
 			try
