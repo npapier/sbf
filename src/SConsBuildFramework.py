@@ -1649,6 +1649,7 @@ SConsBuildFramework options:
 
 		# Adds to command-line several defines with version number informations.
 		lenv.Append( CPPDEFINES = [
+						("COMPANY_NAME",	"\\\"%s\\\"" % self.myCompanyName ),
 						("MODULE_NAME",		"\\\"%s\\\"" % self.myProject ),
 						("MODULE_VERSION",	"\\\"%s\\\"" % self.myVersion ),
 						("MODULE_MAJOR_VER",	"%s" % self.myVersionMajor ),
