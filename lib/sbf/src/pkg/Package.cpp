@@ -90,7 +90,7 @@ Package::PackageContainer	Package::m_packages;
 
 Package::Package( const std::string & name, const std::string & version, const boost::filesystem::path & rootPath, const boost::weak_ptr< Package > parent )
 :	Component( name, version, rootPath, parent ),
-	m_enabled( m_constData.get("component.enabled", true) )
+	m_enabled( m_editableData.get("component.enabled", m_constData.get("component.enabled", true)) )
 {}
 
 
