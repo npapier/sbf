@@ -5,15 +5,15 @@
 
 from os.path import join, splitext
 
-from src.sbfArchives import extractArchive, isExtractionSupported
-from src.sbfFiles	import *
-from src.sbfRsync import createRsyncAction
-from src.sbfSevenZip import create7ZipCompressAction
-from src.sbfTools	import locateProgram
-from src.sbfUses	import UseRepository
-from src.sbfUtils	import capitalize
-from src.sbfUI		import askQuestion
-from src.sbfVersion import splitUsesName, splitDeploymentPrecond
+from src.sbfArchives	import extractArchive, isExtractionSupported
+from src.sbfFiles		import *
+from src.sbfRsync		import createRsyncAction
+from src.sbfSevenZip	import create7ZipCompressAction
+from src.sbfTools		import locateProgram
+from src.sbfUses		import UseRepository
+from src.sbfUtils		import capitalize
+from src.sbfUI			import askQuestion
+from src.sbfVersion		import splitUsesName, splitDeploymentPrecond
 from src.SConsBuildFramework import stringFormatter, nopAction
 
 # To be able to use this file without SCons
@@ -192,7 +192,7 @@ def generateNSISMainScript( target, source, env ):
 
 	# Checks unknown option in 'nsis'
 	nsisKeys = set(env['nsis'].keys())
-	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'uninstallVarDirectory'])
+	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory'])
 	unknowOptions = nsisKeys - allowedNsisKeys
 	if len(unknowOptions)>0:
 		raise SCons.Errors.UserError( "Unknown key(s) ({0}) in 'nsis' option".format(list(unknowOptions)) )
@@ -200,7 +200,13 @@ def generateNSISMainScript( target, source, env ):
 	# Retrieving 'nsis' options
 	nsisAutoUninstall = env['nsis'].get('autoUninstall', True)
 	nsisInstallDirFromRegKey = env['nsis'].get('installDirFromRegKey', True)
+	nsisEnsureNewInstallDir = env['nsis'].get('ensureNewInstallDir', False)
 	nsisUninstallVarDirectory = env['nsis'].get('uninstallVarDirectory', False)
+
+	#
+	definesSection = ''
+	if nsisAutoUninstall:			definesSection += "!define AUTO_UNINSTALL\n"
+	if nsisEnsureNewInstallDir:		definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
 
 	# Open output file
 	with open( targetName, 'w' ) as file:
@@ -254,7 +260,7 @@ def generateNSISMainScript( target, source, env ):
 
 		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
 
-		# installationDirectorySection and onInitInstallationDirectory
+		# installationDirectorySection
 		if env['deploymentType'] in ['none', 'standalone']:
 			### standalone|none project
 			embedded_deploymentType = ''
@@ -265,9 +271,8 @@ InstallDir "$PROGRAMFILES\${SBFPROJECTVENDOR}\${SBFPRODUCTNAME}${SBFPROJECTCONFI
 			if nsisInstallDirFromRegKey:
 				installationDirectorySection += """
 ; Registry key to check for directory (so if you install again, it will overwrite the old one automatically)
-InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
+InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 """
-			onInitInstallationDirectory = '; standalone/none project initializes the installation directory in global section and not here.'
 		else:
 			### embedded project
 			assert( env['deploymentType'] == 'embedded' )
@@ -294,14 +299,13 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 			; >=
 			${{If}} $7 == 2
 				; test failed (<)
-				MessageBox MB_ICONSTOP|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}." /SD IDOK
-				;LogText "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}."
+				MessageBox MB_ICONSTOP|MB_OK "Version of $3 currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}." /SD IDOK
+				;LogText
 				Abort
 			${{EndIf}}
 
 			; test passed
-			;MessageBox MB_ICONINFORMATION|MB_OK "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})." /SD IDOK
-			;LogText "Version of ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})."
+			;LogText "Version of $3 currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})."
 """.format()
 
 			installationDirectorySection = """
@@ -314,88 +318,33 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "Install_Dir"
 
 Function initInstallDir
 
-	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{DEPLOYMENTPRECOND_STANDALONE_NAME}}" "Install_Dir"
-	ReadRegStr $1 HKLM "Software\${{SBFPROJECTVENDOR}}\${{DEPLOYMENTPRECOND_STANDALONE_NAME}}" "Version"
+	!insertmacro GetInfos "${{DEPLOYMENTPRECOND_STANDALONE_NAME}}"
 
 	; Test if standalone is installed
 	${{If}} $0 == ''
 		; never installed, abort
 		MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
-		;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
+		;LogText
 		Abort
 	${{Else}} ;$0 != ''
-		${{If}} $1 == ''
+		${{If}} $4 != 'installed'
 			; already installed, but not now => abort
-			MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
-			;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
+			MessageBox MB_ICONSTOP|MB_OK "$3 have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
+			;LogText
 			Abort
-		${{Else}} ; $0 != '' & $1 != ''
-			; debug message
-			;MessageBox MB_ICONINFORMATION|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0." /SD IDOK
-			;LogText "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0."
-
+		${{Else}} ; $0 != '' & $4 != 'installed'
 			; test version precondition
 			{testVersionPrecond}
 
 			StrCpy $INSTDIR "$0\packages\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
 
 			; debug message
-			MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR. ${{DEPLOYMENTPRECOND_STANDALONE_NAME}} v$1 is installed in the system in $0." /SD IDOK
-			;LogText MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR"
+			MessageBox MB_ICONINFORMATION|MB_OK "$3 $1 is installed in the system in $0." /SD IDOK
+			;LogText
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
 """.format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version, testVersionPrecond = testVersionPrecond )
-
-			onInitInstallationDirectory = """; Initialize $INSTDIR
- Call initInstallDir
-"""
-
-		# onInitUninstallCurrentVersion
-		if nsisAutoUninstall:
-			onInitUninstallCurrentVersion = """
- ; Uninstall before starting new installation
- ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${SBFPROJECTNAME}" "UninstallString"
- ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${SBFPROJECTNAME}" "UninstallDir"
- ${If} $0 == ''
-   ; Nothing to uninstall before new installation
-   MessageBox MB_ICONINFORMATION|MB_OK "No previous version to uninstall" /SD IDOK
-   ;LogText
- ${Else}
-   MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to uninstall previous version of ${SBFPROJECTNAME} ?" /SD IDYES IDYES 0 IDNO endUninstallOnInit
-   ;LogText
-   ; Execute uninstall before new installation
-   ClearErrors
-   IfSilent 0 +3
-     ; silent uninstall
-     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently ${SBFPROJECTNAME}" /SD IDOK
-     ;LogText
-     ExecWait '$0 /S _?=$1'
-     Goto +2
-
-     ; non silent uninstall
-     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall ${SBFPROJECTNAME}" /SD IDOK
-     ;LogText
-     ExecWait '$0 _?=$1'
-
-   ; result
-   ${If} ${Errors}
-     ; error(s)
-     MessageBox MB_ICONSTOP|MB_OK "Error during uninstallation of ${SBFPROJECTNAME}" /SD IDOK
-     ;LogText
-     Abort
-   ${Else}
-     ; no errors, continue
-     ;  Remove uninstaller
-     Delete $1\uninstall.exe
-     ;  Remove installation directory
-     RmDir $1
-   ${Endif}
- ${Endif}
-   endUninstallOnInit:
-"""
-		else: 
-			onInitUninstallCurrentVersion = ""
 
 		# uninstallVarDirectorySection
 		if nsisUninstallVarDirectory:
@@ -448,6 +397,7 @@ FunctionEnd
 ; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
 ; - prevent running multiple instances of the installer
 ; - silent installation is supported (especially MessageBox())
+; -support simultaneous installation/uninstallation of several versions of a project.
 
 
 ; @todo mui
@@ -474,13 +424,18 @@ XPStyle on
 ; defined EMBEDDED_DEPLOYMENTTYPE if project option deploymentType is equal to embedded
 {embedded_deploymentType}
 
+{definesSection}
 
 ; SETUPFILE
 !define SETUPFILE "${{SBFPRODUCTNAME}}_${{SBFPROJECTVERSION}}${{SBFPROJECTCONFIG}}_${{SBFDATE}}_setup.exe"
 
 ;
-!define REGKEYROOT		"Software\${{SBFPROJECTVENDOR}}\${{SBFPROJECTNAME}}"
-!define STARTMENUROOT	"$SMPROGRAMS\${{SBFPROJECTVENDOR}}\${{SBFPRODUCTNAME}}"
+!define REGKEYROOT				"Software\${{SBFPROJECTVENDOR}}\${{SBFPROJECTNAME}}"
+!define REGKEYROOTVER			"Software\${{SBFPROJECTVENDOR}}\${{SBFPROJECTNAME}}\${{SBFPROJECTVERSION}}"
+!define REGKEYUNINSTALLROOT		"Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}"
+!define REGKEYUNINSTALLROOTVER	"Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}"
+
+!define STARTMENUROOT		"$SMPROGRAMS\${{SBFPROJECTVENDOR}}\${{SBFPRODUCTNAME}}\${{SBFPROJECTVERSION}}"
 
 ; PRODUCTNAME section
 {productNameSection}
@@ -488,12 +443,124 @@ XPStyle on
 ; PRODUCTEXE
 {productExe}
 
+; Macros
+
+; --- writeRegInstall deleteRegInstall GetInstallDir GetInstallDirAndVersion GetInfos ---
+!macro writeRegInstall path
+  ; Write the installation path into the registry
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "InstallDir" "${{path}}"			; don't remove in uninstall stage
+
+  ; Write product name into the registry
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "ProductName" "${{SBFPRODUCTNAME}}"
+
+  ; Write deploymentType into the registry
+!ifndef EMBEDDED_DEPLOYMENTTYPE
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "DeploymentType"								"standalone"
+!else
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "DeploymentType"								"embedded"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "DeploymentPrecond_standalone_name"				"${{DEPLOYMENTPRECOND_STANDALONE_NAME}}"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "DeploymentPrecond_standalone_compareOperator"	"${{DEPLOYMENTPRECOND_STANDALONE_COMPAREOPERATOR}}"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "DeploymentPrecond_standalone_version"			"${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}"
+!endif
+
+  ; Write the installation date and time into the registry
+  ${{GetTime}} "" "L" $2 $1 $0 $6 $3 $4 $5
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "InstallDate" "$0-$1-$2"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "InstallTime" "$3-$4-$5"
+
+  ; Write status into the registry
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "Status" "installed"
+!macroend
+
+!macro deleteRegInstall
+  ; Write the uninstallation date and time into the registry
+  ${{GetTime}} "" "L" $2 $1 $0 $6 $3 $4 $5
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallDate" "$0-$1-$2"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallTime" "$3-$4-$5"
+
+  ; Write status into the registry
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "Status" "uninstalled"
+!macroend
+
+!macro GetInstallDir projectName
+	; $0 InstallDir
+	Push $1
+	ReadRegStr $1 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}"		"Version"
+	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"InstallDir"
+	Pop $1
+!macroend
+
+!macro GetInstallDirAndVersion projectName
+	; $0 InstallDir, $1 Version
+	ReadRegStr $1 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}"		"Version"
+	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"InstallDir"
+!macroend
+
+!macro GetInfos projectName
+	; $0 InstallDir, $1 Version, $2 DeploymentType, $3 ProductName, $4 Status
+	!insertmacro GetInstallDirAndVersion "${{projectName}}"
+	ReadRegStr $2 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"DeploymentType"
+	ReadRegStr $3 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"ProductName"
+	ReadRegStr $4 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"Status"
+!macroend
+
+
+; --- ---
+!macro writeRegCurrent path version
+  ; Write the installation path into the registry
+; WriteRegStr HKLM "${{REGKEYROOT}}" "InstallDir" ${{path}}		; todo remove
+
+  ; Write the version into the registry
+  WriteRegStr HKLM "${{REGKEYROOT}}" "Version" ${{version}}
+!macroend
+
+!macro deleteRegCurrent path version
+  ReadRegStr $0 HKLM "${{REGKEYROOT}}" "Version"
+  ${{If}} $0 == ${{version}}
+;    DeleteRegValue HKLM "${{REGKEYROOT}}" "InstallDir"		; todo remove
+    DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
+  ${{Else}}
+    ; Uninstall version != current version
+    ; do nothing
+    Nop
+  ${{EndIf}}
+!macroend
+
+
+!macro writeRegUninstall0 regRoot installDir productExe
+  WriteRegStr HKLM "${{regRoot}}"	"DisplayIcon"		'"${{installDir}}\\bin\\${{productExe}}"'
+  WriteRegStr HKLM "${{regRoot}}"	"UninstallString"	'"${{installDir}}\\uninstall.exe"'
+
+  WriteRegStr HKLM "${{regRoot}}"	"InstallDir"		'${{installDir}}'
+!macroend
+
+!macro writeRegUninstall regRoot installDir productExe sbfProjectVendor sbfProductName sbfProjectVersion
+  ; Write the uninstall keys for Windows
+  WriteRegStr HKLM "${{regRoot}}"		"DisplayName"		"${{sbfProjectVendor}} - ${{sbfProductName}} ${{sbfProjectVersion}}"
+  WriteRegStr HKLM "${{regRoot}}"		"DisplayVersion"	"${{sbfProjectVersion}}"
+  WriteRegStr HKLM "${{regRoot}}"		"Publisher"			"${{sbfProjectVendor}}"
+  ${{GetSize}} "${{installDir}}" "/S=0K" $0 $1 $2
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD HKLM "${{regRoot}}"		"EstimatedSize"		"$0"
+
+  WriteRegDWORD HKLM "${{regRoot}}"		"NoModify"			1
+  WriteRegDWORD HKLM "${{regRoot}}"		"NoRepair"			1
+
+  !insertmacro writeRegUninstall0 "${{regRoot}}" "$INSTDIR" "${{productExe}}"
+!macroend
+
+!macro deleteRegUninstall regRoot
+  DeleteRegKey HKLM "${{regRoot}}"
+!macroend
+
 ;--------------------------------
 ; The installation directory
 {installationDirectorySection}
 
+; --- onInit ---
 Function .onInit
- ; Abort installation process if installer is already running
+
+ ; --- Abort installation process if installer is already running ---
  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
  Pop $R0
  StrCmp $R0 0 +3
@@ -501,10 +568,75 @@ Function .onInit
  ;LogText MB_OK|MB_ICONSTOP "The installer is already running."
  Abort
 
- {onInitUninstallCurrentVersion}
+ ; --- Uninstall current version (before installing the new one) ---
+!ifdef AUTO_UNINSTALL
+ !insertmacro GetInfos "${{SBFPROJECTNAME}}"
+ ReadRegStr $9 HKLM "${{REGKEYUNINSTALLROOT}}_$1" "UninstallString"
+ ${{If}} $9 == ''
+   ; Nothing to uninstall
+   MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK		; todo remove me when log
+   ;LogText
+ ${{Else}}
+   MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version $1 of $3 ?" /SD IDYES IDYES 0 IDNO endAutoUninstall
+   ;LogText
+   ; Execute uninstall before new installation
+   ClearErrors
+   ${{If}} ${{Silent}}
+     ; silent uninstall
+     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently $3" /SD IDOK
+     ;LogText
+     ExecWait '$9 /S _?=$0'
+   ${{Else}}
+     ; non silent uninstall
+     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall $3" /SD IDOK
+     ;LogText
+     ExecWait '$9 _?=$0'
+   ${{Endif}}
 
- {onInitInstallationDirectory} ; for embedded project
- 
+   ; result
+   ${{If}} ${{Errors}}
+     ; error(s)
+     MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3" /SD IDOK
+     ;LogText
+     Abort
+   ${{Else}}
+     ; no errors, continue
+     ;  Remove uninstaller
+     Delete $0\uninstall.exe
+     ;  Remove installation directory
+     RmDir $0
+   ${{Endif}}
+ ${{Endif}} ; $9 == ''
+   endAutoUninstall:
+!endif	; AUTO_UNINSTALL
+
+
+ ; --- Initializing installation directory ---
+!ifdef EMBEDDED_DEPLOYMENTTYPE
+  ; Initialize $INSTDIR
+  Call initInstallDir
+!else
+  ; standalone/none project initializes the installation directory in global section and not here.
+!endif
+
+
+!ifdef ENSURE_NEW_INSTALLDIR
+ ; --- installation directory have to be a new directory ---
+ ${{If}} ${{FileExists}} "$INSTDIR"
+  ; choose a new directory
+  StrCpy $0 0
+  ${{DoWhile}} ${{FileExists}} "$INSTDIR_$0"
+    ;Log "$INSTDIR_$0 exists"
+    IntOp $0 $0 + 1
+  ${{Loop}}
+  StrCpy $INSTDIR "$INSTDIR_$0"
+ ${{EndIf}}
+; Log "Installation directory choosed '$INSTDIR'"
+!endif
+
+MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR." /SD IDOK
+;Log
+
 FunctionEnd
 
 ;--------------------------------
@@ -513,12 +645,19 @@ FunctionEnd
 Name "${{SBFPRODUCTNAME}}${{SBFPROJECTCONFIG}} v${{SBFPROJECTVERSION}}"
 
 ; Version information
-VIAddVersionKey "ProductName" "${{SBFPRODUCTNAME}}"
-VIAddVersionKey "CompanyName" "${{SBFPROJECTVENDOR}}"
-VIAddVersionKey "LegalCopyright" "(C) ${{SBFPROJECTVENDOR}}"
-VIAddVersionKey "FileDescription" "{projectDescription}"
-VIAddVersionKey "FileVersion" "{productVersion}"
-VIAddVersionKey "ProductVersion" "{productVersion}"
+VIAddVersionKey "ProductName"		"${{SBFPRODUCTNAME}}"
+!ifndef EMBEDDED_DEPLOYMENTTYPE
+VIAddVersionKey "deploymentType"	"standalone"
+VIAddVersionKey /LANG=${{LANG_ENGLISH}} "Comments"			"standalone"
+!else
+VIAddVersionKey "deploymentType"	"embedded"
+VIAddVersionKey /LANG=${{LANG_ENGLISH}} "Comments"			"embedded"
+!endif
+VIAddVersionKey "CompanyName"		"${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "LegalCopyright"	"(C) ${{SBFPROJECTVENDOR}}"
+VIAddVersionKey "FileDescription"	"{projectDescription}"
+VIAddVersionKey "FileVersion"		"{projectVersion}"
+VIAddVersionKey "ProductVersion"	"{projectVersion}"
 
 VIProductVersion "{productVersion}"
 
@@ -538,7 +677,8 @@ RequestExecutionLevel admin
 
 Page components
 
-!ifndef EMBEDDED_DEPLOYMENTTYPE
+!ifdef EMBEDDED_DEPLOYMENTTYPE | ENSURE_NEW_INSTALLDIR
+!else
  Page directory
 !endif
 
@@ -582,23 +722,16 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   ; Redistributable
   !include "${{SBFPROJECTNAME}}_install_redist.nsi"
 
-  ; Write the installation path into the registry
-  WriteRegStr HKLM "${{REGKEYROOT}}" "Install_Dir" "$INSTDIR"
+  ; registry
+  !insertmacro writeRegInstall $INSTDIR
 
-  ; Write the version into the registry
-  WriteRegStr HKLM "${{REGKEYROOT}}" "Version" "${{SBFPROJECTVERSION}}"
+  !insertmacro writeRegUninstall ${{REGKEYUNINSTALLROOTVER}} "$INSTDIR" "${{PRODUCTEXE}}" "${{SBFPROJECTVENDOR}}" "${{SBFPRODUCTNAME}}" "${{SBFPROJECTVERSION}}"
 
-
-  ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayIcon" '"$INSTDIR\\bin\\${{PRODUCTEXE}}"'
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayName" "${{SBFPROJECTVENDOR}} ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "DisplayVersion" "${{SBFPROJECTVERSION}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "Publisher" "${{SBFPROJECTVENDOR}}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "UninstallString" '"$INSTDIR\\uninstall.exe"'
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "UninstallDir" '$INSTDIR'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}" "NoRepair" 1
+  ;
   WriteUninstaller "uninstall.exe"
+
+  ; registry last part
+  !insertmacro writeRegCurrent $INSTDIR "${{SBFPROJECTVERSION}}"
 
 SectionEnd
 
@@ -646,12 +779,14 @@ Section "Uninstall"
   {uninstallVarDirectorySection}
 
   ; Remove registry keys
-  ;DeleteRegKey HKLM "${{REGKEYROOT}}"			; containing 'Install_Dir' and 'Version'
-  DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
+  !insertmacro deleteRegInstall
+
+  !insertmacro deleteRegUninstall ${{REGKEYUNINSTALLROOTVER}}
+
+  ; Registry last part
+  !insertmacro deleteRegCurrent $INSTDIR "${{SBFPROJECTVERSION}}"
 
   DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
-
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${{SBFPROJECTNAME}}"
 
   ; Remove uninstaller
   Delete $INSTDIR\uninstall.exe
@@ -659,6 +794,8 @@ Section "Uninstall"
   ; Remove installation directory
   RmDir $INSTDIR
 
+
+  ; ------ Section "Start Menu Shortcuts" ------
   ; Remove shortcuts, if any
 {removeStartMenuShortcuts}
   Delete "${{STARTMENUROOT}}\*.*"
@@ -666,11 +803,14 @@ Section "Uninstall"
   RMDir "${{STARTMENUROOT}}"
   ; Remove root directory if empty
   RMDir "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
- 
+
+
+  ; ------ Section "Shortcut on desktop" ------
   {removeDesktopShortcuts}
  
 SectionEnd
-""".format(	projectName=env['sbf_project'],
+""".format(	definesSection = definesSection,
+			projectName=env['sbf_project'],
 			productName=env['productName'],
 			projectNameCapitalized=capitalize(env['sbf_project']),
 			projectVersion=env['version'],
@@ -683,8 +823,6 @@ SectionEnd
 			productExe=PRODUCTEXE,
 			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
 			installationDirectorySection=installationDirectorySection,
-			onInitInstallationDirectory=onInitInstallationDirectory,
-			onInitUninstallCurrentVersion=onInitUninstallCurrentVersion,
 			uninstallVarDirectorySection=uninstallVarDirectorySection,
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
