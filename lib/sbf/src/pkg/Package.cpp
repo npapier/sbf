@@ -50,17 +50,29 @@ const boost::filesystem::path getRoot()
  */
 const std::pair< std::string, std::string > getPackageNameAndVersion( const boost::filesystem::path & path )
 {
-	const std::string				filename		= path.filename().string();
-	const std::string::size_type	delimiterPos	= filename.find('_');
-	std::string						name;
-	std::string						version;
+	const std::string		filename = path.filename().string();
+	std::string::size_type	delimiterPos;
+	std::string				name;
+	std::string				version;
 
+	// Splits the name and the version.
+	// For example "basicSkills_2-0-0_whatever" will become "basicSkills" and "2-0-0_whatever".
+	delimiterPos = filename.find('_');
 	if( delimiterPos != std::string::npos )
 	{
 		name	= filename.substr( 0, delimiterPos );
 		version	= filename.substr( delimiterPos+1 );
 	}
 
+	// Remove possible trailing information from the version string.
+	// For example "2-0-0_whatever" will become "2-0-0".
+	delimiterPos = version.find('_');
+	if( delimiterPos != std::string::npos )
+	{
+		version = version.substr( 0, delimiterPos );
+	}
+
+	// Job's done.
 	return std::make_pair( name, version );
 }
 
