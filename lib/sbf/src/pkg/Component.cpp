@@ -28,7 +28,7 @@ Component::Component( const std::string & name, const std::string & version, con
 
 	// Support for module.xml files.
 	// These files should be converted into component.xml.
-	const bfs::path	oldFilename = getPathSafe(SharePath) / "module.xml";
+	const bfs::path	oldFilename = getPath(SharePath) / "module.xml";
 	if( bfs::exists(oldFilename) )
 	{
 		try
@@ -55,7 +55,7 @@ Component::Component( const std::string & name, const std::string & version, con
 	
 	// Loads constant meta data.
 	{
-		const bfs::path	filename = getPathSafe(SharePath) / "component.xml";
+		const bfs::path	filename = getPath(SharePath) / "component.xml";
 		if( bfs::exists(filename) )
 		{
 			try
@@ -235,13 +235,16 @@ const boost::filesystem::path Component::getPathSafe( const PathType & type ) co
 {
 	const boost::filesystem::path	result = getPath(type);
 
-	try
+	if( type == VarPath )
 	{
-		boost::filesystem::create_directories( result );
-	}
-	catch( const std::exception & e )
-	{
-		std::cerr << "Error while creating directories. " << e.what() << std::endl;
+		try
+		{
+			boost::filesystem::create_directories( result );
+		}
+		catch( const std::exception & e )
+		{
+			std::cerr << "Error while creating directories. " << e.what() << std::endl;
+		}
 	}
 	return result;
 }
