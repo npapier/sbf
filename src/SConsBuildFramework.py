@@ -1379,11 +1379,12 @@ SConsBuildFramework options:
 
 			(	'deploymentPrecond', '', ''	),
 
-			(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' to uninstall automatically previous version (if present) before installing the new one. Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'ensureNewInstallDir' to ensure that the installation directory is always a newly created directory (by appending a number if needed to the chosen directory name). Key 'uninstallVarDirectory' to allow removing 'var' directory during uninstall stage.",
-				{	'autoUninstall'			: True,
-					'installDirFromRegKey'	: True,
-					'ensureNewInstallDir'	: False,
- 					'uninstallVarDirectory'	: False
+			(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' to uninstall automatically previous version (only if needed). Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'ensureNewInstallDir' to ensure that the installation directory is always a newly created directory (by appending a number if needed to the chosen directory name). Key 'uninstallVarDirectory' to allow removing 'var' directory during uninstall stage. Key 'customPointInstallationValidation' to add nsis code after the copying of all files during installation and before migration of var/packages directories, autoUninstall and registry updating. The variable $installationValidation have to be used to validate (==0) to invalidate (!=0) the installation. Invalidate an installation to abort the installation, nevertheless uninstall.exe is created to be able to clean installed files.",
+				{	'autoUninstall'						: True,
+					'installDirFromRegKey'				: True,
+					'ensureNewInstallDir'				: False,
+ 					'uninstallVarDirectory'				: False,
+					'customPointInstallationValidation'	: ''
 				} )
 		)
 

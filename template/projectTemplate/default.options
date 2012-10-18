@@ -23,8 +23,9 @@ type				= 'shared'	# exec, static, shared, none
 #runParams			= []
 #deploymentType		= 'none'
 #deploymentPrecond	= 'standalone >= 1.0'
-#nsis				= {	'autoUninstall'			: True,
-						'installDirFromRegKey'	: True,
-						'ensureNewInstallDir'	: False,
-						'uninstallVarDirectory'	: False
+#nsis				= {	'autoUninstall'						: True,
+						'installDirFromRegKey'				: True,
+						'ensureNewInstallDir'				: False,
+						'uninstallVarDirectory'				: False,
+						'customPointInstallationValidation'	: ''
 						}

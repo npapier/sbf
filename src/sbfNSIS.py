@@ -192,7 +192,7 @@ def generateNSISMainScript( target, source, env ):
 
 	# Checks unknown option in 'nsis'
 	nsisKeys = set(env['nsis'].keys())
-	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory'])
+	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory', 'customPointInstallationValidation'])
 	unknowOptions = nsisKeys - allowedNsisKeys
 	if len(unknowOptions)>0:
 		raise SCons.Errors.UserError( "Unknown key(s) ({0}) in 'nsis' option".format(list(unknowOptions)) )
@@ -202,9 +202,19 @@ def generateNSISMainScript( target, source, env ):
 	nsisInstallDirFromRegKey = env['nsis'].get('installDirFromRegKey', True)
 	nsisEnsureNewInstallDir = env['nsis'].get('ensureNewInstallDir', False)
 	nsisUninstallVarDirectory = env['nsis'].get('uninstallVarDirectory', False)
+	nsisCustomPointInstallationValidation = env['nsis'].get('customPointInstallationValidation', '')
 
 	#
 	definesSection = ''
+	if env['deploymentType'] == 'standalone':
+		definesSection += "!define STANDALONE_DEPLOYMENTTYPE\n"
+	elif env['deploymentType'] == 'embedded':
+		definesSection += "!define EMBEDDED_DEPLOYMENTTYPE\n"
+	elif env['deploymentType'] == 'none':
+		definesSection += "!define NONE_DEPLOYMENTTYPE\n"
+	else:
+		assert( False )
+
 	if nsisAutoUninstall:			definesSection += "!define AUTO_UNINSTALL\n"
 	if nsisEnsureNewInstallDir:		definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
 
@@ -263,7 +273,6 @@ def generateNSISMainScript( target, source, env ):
 		# installationDirectorySection
 		if env['deploymentType'] in ['none', 'standalone']:
 			### standalone|none project
-			embedded_deploymentType = ''
 			installationDirectorySection = """
 ; standalone or none project
 InstallDir "$PROGRAMFILES\${SBFPROJECTVENDOR}\${SBFPRODUCTNAME}${SBFPROJECTCONFIG}\${SBFPROJECTVERSION}"
@@ -276,8 +285,6 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 		else:
 			### embedded project
 			assert( env['deploymentType'] == 'embedded' )
-
-			embedded_deploymentType = '!define EMBEDDED_DEPLOYMENTTYPE'
 
 			if len(env['deploymentPrecond'])==0:
 				print ('sbfError: deploymentPrecond have to be defined for {0} project.'.format(env['sbf_project']))
@@ -399,7 +406,6 @@ FunctionEnd
 ; - silent installation is supported (especially MessageBox())
 ; -support simultaneous installation/uninstallation of several versions of a project.
 
-
 ; @todo mui
 ; @todo quicklaunch
 ; @todo repair/modify
@@ -407,12 +413,17 @@ FunctionEnd
 
 ;--------------------------------
 
-!include "FileFunc.nsh"
+!include "FileFunc.nsh"		; for GetSize and GetTime
 !include "LogicLib.nsh"
-!include "WordFunc.nsh"
+!include "StrFunc.nsh"		; for StrTok
+!include "WordFunc.nsh"		; for VersionCompare and VersionConvert
+
+# Declare used functions
+${{StrTok}}
 
 ;SetCompress off
 SetCompressor /FINAL /SOLID lzma
+
 XPStyle on
 
 !define SBFPROJECTNAME				"{projectName}"
@@ -421,8 +432,6 @@ XPStyle on
 !define SBFPROJECTCONFIG			"{projectConfig}"
 !define SBFPROJECTVENDOR			"{projectVendor}"
 !define SBFDATE						"{date}"
-; defined EMBEDDED_DEPLOYMENTTYPE if project option deploymentType is equal to embedded
-{embedded_deploymentType}
 
 {definesSection}
 
@@ -504,6 +513,10 @@ XPStyle on
 	ReadRegStr $4 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$1"		"Status"
 !macroend
 
+!macro GetVersionAndStatus projectName resultVersion resultStatus
+	ReadRegStr "${{resultVersion}}"	HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}"						"Version"
+	ReadRegStr "${{resultStatus}}"	HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\${{resultVersion}}"	"Status"
+!macroend
 
 ; --- ---
 !macro writeRegCurrent path version
@@ -532,6 +545,7 @@ XPStyle on
   WriteRegStr HKLM "${{regRoot}}"	"UninstallString"	'"${{installDir}}\\uninstall.exe"'
 
   WriteRegStr HKLM "${{regRoot}}"	"InstallDir"		'${{installDir}}'
+  WriteRegStr HKLM "${{regRoot}}"	"ProductExe"		'${{productExe}}'
 !macroend
 
 !macro writeRegUninstall regRoot installDir productExe sbfProjectVendor sbfProductName sbfProjectVersion
@@ -549,13 +563,176 @@ XPStyle on
   !insertmacro writeRegUninstall0 "${{regRoot}}" "$INSTDIR" "${{productExe}}"
 !macroend
 
+!macro getRegUninstallProductExe regRoot ResultProductExe
+  ReadRegStr "${{ResultProductExe}}" HKLM "${{regRoot}}"	"ProductExe"
+!macroend
+
 !macro deleteRegUninstall regRoot
   DeleteRegKey HKLM "${{regRoot}}"
 !macroend
 
+
+;--- Functions ---
+
+
+
+
+Var Uninstall_InstallDir
+Var Uninstall_ProductName
+Var Uninstall_UninstallString
+
+Function Uninstall_ask
+ ; Ask if current version of SBFPROJECTNAME has to be removed (if already installed of course)
+ ; remarks $0 InstallDir, $3 ProductName and $9 UninstallString of current SBFPROJECTNAME
+ ; Variables Uninstall_InstallDir = $0, Uninstall_ProductName = $3 and Uninstall_UninstallString = $9 if uninstallation stage is desired
+
+ !insertmacro GetInfos "${{SBFPROJECTNAME}}"
+ ReadRegStr $9 HKLM "${{REGKEYUNINSTALLROOT}}_$1" "UninstallString"
+
+ StrCpy $Uninstall_InstallDir		''
+ StrCpy $Uninstall_ProductName		''
+ StrCpy $Uninstall_UninstallString	''
+
+ ${{If}} $9 == ''
+	; Nothing to uninstall
+	MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK		; todo remove me when log
+	;LogText
+ ${{Else}}
+	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version $1 of $3 ?" /SD IDYES IDYES doUninstall IDNO skipUninstall
+	doUninstall:
+	StrCpy $Uninstall_InstallDir		$0
+	StrCpy $Uninstall_ProductName		$3
+	StrCpy $Uninstall_UninstallString	$9
+ ${{Endif}}
+ skipUninstall:
+FunctionEnd
+
+
+Function migratePackagesAndVar
+	!define migratePackagesAndVar '!insertmacro migratePackagesAndVarCall'
+
+	!macro migratePackagesAndVarCall source destination
+	Push ${{destination}}
+	Push ${{source}}
+	Call migratePackagesAndVar
+	!macroend
+
+	; $0 source and $1 destination
+	Exch $0
+	Exch
+	Exch $1
+	Exch
+
+	MessageBox MB_OK "packages and var directories have to be migrated from $0 into $1."
+	;LogText
+
+	; --- migrate var ---
+	${{If}} ${{FileExists}} "$0\\var"
+		Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
+	${{Endif}}
+
+	; --- migrate packages ---
+	ClearErrors
+	FindFirst $8 $9 "$0\\packages\\*.*"
+	${{DoUntil}} ${{Errors}}
+		${{If}} $9 != "."
+		${{AndIf}} $9 != ".."
+
+			;MessageBox MB_OK "Found $9"
+
+			; for myPackageName_2-1 => $6 myPackageName, $7 2-1
+			${{StrTok}} $6 "$9" "_" "0" "1"
+			${{StrTok}} $7 "$9" "_" "1" "1"
+
+			; $R0 version, $R1 status
+			!insertmacro GetVersionAndStatus "$6" $R0 $R1
+			;MessageBox MB_OK "$R0 $R1"
+			${{If}} $R0 == $7				; package found in registry and in filesystem have the same version
+			${{AndIf}} $R1 == "installed"	; and the package in registry is installed
+				;MessageBox MB_OK "$6:$7: is an installed package"
+				StrCpy $R2 "Software\Microsoft\Windows\CurrentVersion\Uninstall\$6_$7"
+				;MessageBox MB_OK "$R2"
+				;MessageBox MB_OK "$1\\packages\\$6_$7"
+				!insertmacro getRegUninstallProductExe "$R2" $R3
+				;MessageBox MB_OK "$R3"
+				!insertmacro writeRegUninstall0 "$R2" "$1\\packages\\$6_$7" "$R3"
+				; In 'install section' of registry, 'InstallDir' is not modified by migration
+				; todo add migrationDate/Time/DirDest in registry
+			${{Else}}
+				;MessageBox MB_OK "$6:$7: is not an installed package"
+				Nop
+			${{Endif}}
+		${{Endif}}
+		FindNext $8 $9
+	${{Loop}}
+	FindClose $8
+
+	;	move 'packages' directory
+	${{If}} ${{FileExists}} "$0\\packages"
+		;MessageBox MB_OK "Rename $0\\packages into $1\\packages"
+		Rename /REBOOTOK "$0\\packages" "$1\\packages"
+	${{Else}}
+		;MessageBox MB_OK "No package directory in $0."
+	${{Endif}}
+
+	; restore
+	Pop $0
+	Pop $1
+FunctionEnd
+
+
+Function UninstallFunction
+	; Remove program using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
+
+	StrCpy $0 $Uninstall_InstallDir
+	StrCpy $3 $Uninstall_ProductName
+	StrCpy $9 $Uninstall_UninstallString
+	${{If}} $9 == ""
+		; LogText nothing to uninstall
+	${{Else}}
+		; LogText Uninstall $3 $1
+		ClearErrors
+		${{If}} ${{Silent}}
+			; silent uninstall
+			;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently $3" /SD IDOK
+			;LogText
+			ExecWait '$9 /S _?=$0'
+		${{Else}}
+			; non silent uninstall
+			;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall $3" /SD IDOK
+			;LogText
+			ExecWait '$9 _?=$0'
+		${{Endif}}
+
+		; result
+		${{If}} ${{Errors}}
+			; error(s)
+			MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3" /SD IDOK
+			;LogText
+			Abort
+		${{Else}}
+			; no errors, continue
+			;  Remove uninstaller
+			Delete "$0\uninstall.exe"
+			;  Remove installation directory
+			RmDir "$0"
+		${{Endif}}
+	${{Endif}} ; $9 == ''
+FunctionEnd
+
+
+Function writeRegistryInstallAndUninstallFunction
+	!define writeRegistryInstallAndUninstall 'Call writeRegistryInstallAndUninstallFunction'
+
+ !insertmacro writeRegInstall $INSTDIR
+ !insertmacro writeRegUninstall ${{REGKEYUNINSTALLROOTVER}} "$INSTDIR" "${{PRODUCTEXE}}" "${{SBFPROJECTVENDOR}}" "${{SBFPRODUCTNAME}}" "${{SBFPROJECTVERSION}}"
+FunctionEnd
+
+
 ;--------------------------------
 ; The installation directory
 {installationDirectorySection}
+
 
 ; --- onInit ---
 Function .onInit
@@ -567,48 +744,6 @@ Function .onInit
  MessageBox MB_OK|MB_ICONSTOP "The installer is already running." /SD IDOK
  ;LogText MB_OK|MB_ICONSTOP "The installer is already running."
  Abort
-
- ; --- Uninstall current version (before installing the new one) ---
-!ifdef AUTO_UNINSTALL
- !insertmacro GetInfos "${{SBFPROJECTNAME}}"
- ReadRegStr $9 HKLM "${{REGKEYUNINSTALLROOT}}_$1" "UninstallString"
- ${{If}} $9 == ''
-   ; Nothing to uninstall
-   MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK		; todo remove me when log
-   ;LogText
- ${{Else}}
-   MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version $1 of $3 ?" /SD IDYES IDYES 0 IDNO endAutoUninstall
-   ;LogText
-   ; Execute uninstall before new installation
-   ClearErrors
-   ${{If}} ${{Silent}}
-     ; silent uninstall
-     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently $3" /SD IDOK
-     ;LogText
-     ExecWait '$9 /S _?=$0'
-   ${{Else}}
-     ; non silent uninstall
-     ;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall $3" /SD IDOK
-     ;LogText
-     ExecWait '$9 _?=$0'
-   ${{Endif}}
-
-   ; result
-   ${{If}} ${{Errors}}
-     ; error(s)
-     MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3" /SD IDOK
-     ;LogText
-     Abort
-   ${{Else}}
-     ; no errors, continue
-     ;  Remove uninstaller
-     Delete $0\uninstall.exe
-     ;  Remove installation directory
-     RmDir $0
-   ${{Endif}}
- ${{Endif}} ; $9 == ''
-   endAutoUninstall:
-!endif	; AUTO_UNINSTALL
 
 
  ; --- Initializing installation directory ---
@@ -634,10 +769,15 @@ Function .onInit
 ; Log "Installation directory choosed '$INSTDIR'"
 !endif
 
-MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR." /SD IDOK
-;Log
+ MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR." /SD IDOK
+ ;Log
+
+
+ ; --- Ask uninstall previous version --
+ Call Uninstall_ask
 
 FunctionEnd
+
 
 ;--------------------------------
 
@@ -646,12 +786,11 @@ Name "${{SBFPRODUCTNAME}}${{SBFPROJECTCONFIG}} v${{SBFPROJECTVERSION}}"
 
 ; Version information
 VIAddVersionKey "ProductName"		"${{SBFPRODUCTNAME}}"
+VIAddVersionKey "InternalName"		"${{SBFPROJECTNAME}}"
 !ifndef EMBEDDED_DEPLOYMENTTYPE
 VIAddVersionKey "deploymentType"	"standalone"
-VIAddVersionKey /LANG=${{LANG_ENGLISH}} "Comments"			"standalone"
 !else
 VIAddVersionKey "deploymentType"	"embedded"
-VIAddVersionKey /LANG=${{LANG_ENGLISH}} "Comments"			"embedded"
 !endif
 VIAddVersionKey "CompanyName"		"${{SBFPROJECTVENDOR}}"
 VIAddVersionKey "LegalCopyright"	"(C) ${{SBFPROJECTVENDOR}}"
@@ -690,6 +829,9 @@ UninstPage instfiles
 ;--------------------------------
 
 ; The stuff to install
+
+Var installationValidation		; 0 valid, != 0 invalid
+
 Section "${{SBFPRODUCTNAME}} core (required)"
   SectionIn RO
 
@@ -722,15 +864,43 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   ; Redistributable
   !include "${{SBFPROJECTNAME}}_install_redist.nsi"
 
-  ; registry
-  !insertmacro writeRegInstall $INSTDIR
 
-  !insertmacro writeRegUninstall ${{REGKEYUNINSTALLROOTVER}} "$INSTDIR" "${{PRODUCTEXE}}" "${{SBFPROJECTVENDOR}}" "${{SBFPRODUCTNAME}}" "${{SBFPROJECTVERSION}}"
+  ; --- customPointInstallationValidation ---
+  ;	by default, installation is validated
+  StrCpy $installationValidation 0
 
-  ;
+  {nsisCustomPointInstallationValidation}
+
+  ; - Post customPointInstallationValidation -
+  ${{If}} $installationValidation <> 0
+	${{writeRegistryInstallAndUninstall}}
+	WriteUninstaller "uninstall.exe"
+	; todo status = error
+	Abort
+  ${{Endif}}
+
+
+  ; --- Migration var and packages ---
+  !ifdef STANDALONE_DEPLOYMENTTYPE
+	${{If}} $Uninstall_UninstallString != ''
+		${{migratePackagesAndVar}} "$Uninstall_InstallDir" "$INSTDIR"
+	${{Endif}}
+  !endif
+
+
+  ; --- Uninstall previous version ---
+!ifdef AUTO_UNINSTALL
+  Call UninstallFunction
+!endif	; AUTO_UNINSTALL
+
+
+  ; --- Registry ---
+  ${{writeRegistryInstallAndUninstall}}
+
+  ; --- uninstall.exe ---
   WriteUninstaller "uninstall.exe"
 
-  ; registry last part
+  ; --- Registry last part (version switch) ---
   !insertmacro writeRegCurrent $INSTDIR "${{SBFPROJECTVERSION}}"
 
 SectionEnd
@@ -778,6 +948,11 @@ Section "Uninstall"
   ; Remove 'var' directory ?
   {uninstallVarDirectorySection}
 
+  ; Remove 'packages' directory ?
+  !ifdef STANDALONE_DEPLOYMENTTYPE
+  RmDir "$INSTDIR\packages"
+  !endif
+
   ; Remove registry keys
   !insertmacro deleteRegInstall
 
@@ -789,10 +964,10 @@ Section "Uninstall"
   DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
 
   ; Remove uninstaller
-  Delete $INSTDIR\uninstall.exe
+  Delete "$INSTDIR\uninstall.exe"
 
   ; Remove installation directory
-  RmDir $INSTDIR
+  RmDir "$INSTDIR"
 
 
   ; ------ Section "Start Menu Shortcuts" ------
@@ -818,12 +993,12 @@ SectionEnd
 			projectVendor=env.sbf.myCompanyName,
 			projectDescription=env['description'],
 			date=lenv.sbf.myTimePostFix,
-			embedded_deploymentType=embedded_deploymentType,
 			productNameSection=PRODUCTNAME,
 			productExe=PRODUCTEXE,
 			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
 			installationDirectorySection=installationDirectorySection,
 			uninstallVarDirectorySection=uninstallVarDirectorySection,
+			nsisCustomPointInstallationValidation=nsisCustomPointInstallationValidation,
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
 			desktopShortcuts=DESKTOPSHORTCUT,
