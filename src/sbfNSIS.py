@@ -166,11 +166,11 @@ def generateNSISUninstallFiles( target, source, env ):
 	with open( targetName, 'w' ) as outputFile:
 		# Removes files
 		for file in encounteredFiles:
-			outputFile.write( 'Delete \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
+			outputFile.write( 'Delete /REBOOTOK \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
 
 		# Removes directories
 		for directory in encounteredDirectories:
-			outputFile.write( 'RmDir \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( 'RmDir /REBOOTOK \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
 
 
 ### project.nsi generator ###
@@ -217,6 +217,7 @@ def generateNSISMainScript( target, source, env ):
 
 	if nsisAutoUninstall:			definesSection += "!define AUTO_UNINSTALL\n"
 	if nsisEnsureNewInstallDir:		definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
+	if nsisUninstallVarDirectory:	definesSection += "!define UNINSTALL_VAR_DIRECTORY\n"
 
 	# Open output file
 	with open( targetName, 'w' ) as file:
@@ -265,8 +266,8 @@ def generateNSISMainScript( target, source, env ):
 				DESKTOPSHORTCUT					+=	'  CreateShortCut \"$DESKTOP\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
 				QUICKLAUNCHSHORTCUT				=	'  SetOutPath \"$INSTDIR\\bin\"\n'
 				QUICKLAUNCHSHORTCUT				+=	'  CreateShortCut \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" \"\" \"$INSTDIR\\bin\\${PRODUCTEXE0}\" 0\n'
-				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
-				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
+				UNINSTALL_DESKTOPSHORTCUT		=	'  Delete /REBOOTOK \"$DESKTOP\\${PRODUCTNAME0}.lnk\"\n'
+				UNINSTALL_QUICKLAUNCHSHORTCUT	=	'  Delete /REBOOTOK \"$QUICKLAUNCH\\${PRODUCTNAME0}.lnk\"\n'
 
 		PRODUCTEXE += "!define PRODUCTEXE	${PRODUCTEXE0}\n"
 
@@ -326,7 +327,7 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 Function initInstallDir
 
 	!insertmacro GetInfos "${{DEPLOYMENTPRECOND_STANDALONE_NAME}}"
-
+	;MessageBox MB_OK "$0$\\n$1$\\n$2$\\n$3$\\n$4"
 	; Test if standalone is installed
 	${{If}} $0 == ''
 		; never installed, abort
@@ -352,20 +353,6 @@ Function initInstallDir
 	${{EndIf}}
 FunctionEnd
 """.format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version, testVersionPrecond = testVersionPrecond )
-
-		# uninstallVarDirectorySection
-		if nsisUninstallVarDirectory:
-			uninstallVarDirectorySection = """
-  ${If} ${FileExists} "$INSTDIR\\var"
-    MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDYES 0 IDNO +2
-    RMDir /r "$INSTDIR\\var"
-    Nop
-  ${Endif}
-"""
-		else:
-			uninstallVarDirectorySection = """
-  ; no
-"""
 
 		# Generates ICON
 		# icon from the project launching sbf ?
@@ -573,6 +560,9 @@ XPStyle on
 
 
 ;--- Functions ---
+Function .onInstFailed
+  MessageBox MB_OK "Installation failed." /SD IDOK
+FunctionEnd
 
 
 
@@ -623,7 +613,7 @@ Function migratePackagesAndVar
 	Exch $1
 	Exch
 
-	MessageBox MB_OK "packages and var directories have to be migrated from $0 into $1."
+	MessageBox MB_OK "Directories 'packages' and 'var' have to be migrated from $0 into $1." /SD IDOK
 	;LogText
 
 	; --- migrate var ---
@@ -713,9 +703,9 @@ Function UninstallFunction
 		${{Else}}
 			; no errors, continue
 			;  Remove uninstaller
-			Delete "$0\uninstall.exe"
+			Delete /REBOOTOK "$0\uninstall.exe"
 			;  Remove installation directory
-			RmDir "$0"
+			RmDir /REBOOTOK "$0"
 		${{Endif}}
 	${{Endif}} ; $9 == ''
 FunctionEnd
@@ -876,7 +866,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
 	${{writeRegistryInstallAndUninstall}}
 	WriteUninstaller "uninstall.exe"
 	; todo status = error
-	Abort
+	Abort "Can't validate installation."
   ${{Endif}}
 
 
@@ -946,11 +936,17 @@ Section "Uninstall"
   !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
   ; Remove 'var' directory ?
-  {uninstallVarDirectorySection}
+  !ifdef UNINSTALL_VAR_DIRECTORY
+  ${{If}} ${{FileExists}} "$INSTDIR\\var"
+    MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO +2
+    RMDir /REBOOTOK /r "$INSTDIR\\var"
+    Nop
+  ${{Endif}}
+  !endif
 
   ; Remove 'packages' directory ?
   !ifdef STANDALONE_DEPLOYMENTTYPE
-  RmDir "$INSTDIR\packages"
+  RmDir /REBOOTOK "$INSTDIR\packages"
   !endif
 
   ; Remove registry keys
@@ -964,20 +960,20 @@ Section "Uninstall"
   DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
 
   ; Remove uninstaller
-  Delete "$INSTDIR\uninstall.exe"
+  Delete /REBOOTOK "$INSTDIR\uninstall.exe"
 
   ; Remove installation directory
-  RmDir "$INSTDIR"
+  RmDir /REBOOTOK "$INSTDIR"
 
 
   ; ------ Section "Start Menu Shortcuts" ------
   ; Remove shortcuts, if any
 {removeStartMenuShortcuts}
-  Delete "${{STARTMENUROOT}}\*.*"
+  Delete /REBOOTOK "${{STARTMENUROOT}}\*.*"
   ; Remove directories used
-  RMDir "${{STARTMENUROOT}}"
+  RMDir /REBOOTOK "${{STARTMENUROOT}}"
   ; Remove root directory if empty
-  RMDir "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
+  RMDir /REBOOTOK "$SMPROGRAMS\${{SBFPROJECTVENDOR}}"
 
 
   ; ------ Section "Shortcut on desktop" ------
@@ -997,7 +993,6 @@ SectionEnd
 			productExe=PRODUCTEXE,
 			productVersion='{0}.{1}.{2}.0'.format( env['sbf_version_major'], env['sbf_version_minor'], env['sbf_version_maintenance'] ),
 			installationDirectorySection=installationDirectorySection,
-			uninstallVarDirectorySection=uninstallVarDirectorySection,
 			nsisCustomPointInstallationValidation=nsisCustomPointInstallationValidation,
 			icon=ICON,
 			startMenuShortcuts=SHORTCUT,
