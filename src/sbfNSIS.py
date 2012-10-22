@@ -141,10 +141,12 @@ def generateNSISInstallFiles( target, source, env ):
 		# Creates directories
 		for directory in encounteredDirectories:
 			outputFile.write( 'CreateDirectory \"$OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( 'LogEx::Write \"$OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
 
 		# Copies files
 		for file in encounteredFiles:
 			outputFile.write( 'File \"/oname=$OUTDIR\{0}\" \"{1}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
+			outputFile.write( 'LogEx::Write \"/oname=$OUTDIR\{0}\" \"{1}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
 
 
 ### project_uninstall_files.nsi generator ###
@@ -308,7 +310,7 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 			${{If}} $7 == 2
 				; test failed (<)
 				MessageBox MB_ICONSTOP|MB_OK "Version of $3 currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}." /SD IDOK
-				;LogText
+				LogEx::Write "Version of $3 currently installed in the system is $1. But it have to be at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}}."
 				Abort
 			${{EndIf}}
 
@@ -327,18 +329,17 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 Function initInstallDir
 
 	!insertmacro GetInfos "${{DEPLOYMENTPRECOND_STANDALONE_NAME}}"
-	;MessageBox MB_OK "$0$\\n$1$\\n$2$\\n$3$\\n$4"
 	; Test if standalone is installed
 	${{If}} $0 == ''
 		; never installed, abort
 		MessageBox MB_ICONSTOP|MB_OK "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
-		;LogText
+		LogEx::Write "${{DEPLOYMENTPRECOND_STANDALONE_NAME}} have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 		Abort
 	${{Else}} ;$0 != ''
 		${{If}} $4 != 'installed'
 			; already installed, but not now => abort
 			MessageBox MB_ICONSTOP|MB_OK "$3 have to be installed in the system before installing '${{SBFPRODUCTNAME}}'." /SD IDOK
-			;LogText
+			LogEx::Write "$3 have to be installed in the system before installing '${{SBFPRODUCTNAME}}'."
 			Abort
 		${{Else}} ; $0 != '' & $4 != 'installed'
 			; test version precondition
@@ -348,7 +349,7 @@ Function initInstallDir
 
 			; debug message
 			MessageBox MB_ICONINFORMATION|MB_OK "$3 $1 is installed in the system in $0." /SD IDOK
-			;LogText
+			LogEx::Write "$3 $1 is installed in the system in $0."
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
@@ -391,7 +392,8 @@ FunctionEnd
 ; @todo Uses UAC to - and (optionally) installs quicklaunch menu shortcuts for the main executable.
 ; - prevent running multiple instances of the installer
 ; - silent installation is supported (especially MessageBox())
-; -support simultaneous installation/uninstallation of several versions of a project.
+; - support simultaneous installation/uninstallation of several versions of a project.
+; - logging installation into $EXEDIR/$EXEFILE.replace('.exe', '_log.txt')
 
 ; @todo mui
 ; @todo quicklaunch
@@ -406,6 +408,7 @@ FunctionEnd
 !include "WordFunc.nsh"		; for VersionCompare and VersionConvert
 
 # Declare used functions
+${{StrRep}}
 ${{StrTok}}
 
 ;SetCompress off
@@ -561,10 +564,34 @@ XPStyle on
 
 ;--- Functions ---
 Function .onInstFailed
+  ;
   MessageBox MB_OK "Installation failed." /SD IDOK
+  LogEx::Write "Installation failed."
+
+  ; Logging
+  LogEx::Close
 FunctionEnd
 
 
+Function .onInstSuccess
+
+  ;
+  MessageBox MB_OK "Installation was successful." /SD IDOK
+  LogEx::Write "Installation was successful."
+
+;    MessageBox MB_YESNO "Congrats, it worked. View readme?" IDNO NoReadme
+;      Exec notepad.exe ; view readme or whatever, if you want.
+;    NoReadme:
+
+  ; Logging
+  LogEx::Close
+FunctionEnd
+
+
+Function .onRebootFailed
+  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
+  LogEx::Write "Reboot failed. Please reboot manually."
+FunctionEnd
 
 
 Var Uninstall_InstallDir
@@ -585,14 +612,15 @@ Function Uninstall_ask
 
  ${{If}} $9 == ''
 	; Nothing to uninstall
-	MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK		; todo remove me when log
-	;LogText
+	;MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK
+	LogEx::Write "No previous version of ${{SBFPRODUCTNAME}} to remove."
  ${{Else}}
 	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version $1 of $3 ?" /SD IDYES IDYES doUninstall IDNO skipUninstall
 	doUninstall:
 	StrCpy $Uninstall_InstallDir		$0
 	StrCpy $Uninstall_ProductName		$3
 	StrCpy $Uninstall_UninstallString	$9
+	LogEx::Write "Uninstall previous version $1 of $3 using '$9'"
  ${{Endif}}
  skipUninstall:
 FunctionEnd
@@ -614,11 +642,14 @@ Function migratePackagesAndVar
 	Exch
 
 	MessageBox MB_OK "Directories 'packages' and 'var' have to be migrated from $0 into $1." /SD IDOK
-	;LogText
+	LogEx::Write "Directories 'packages' and 'var' have to be migrated from $0 into $1."
 
 	; --- migrate var ---
 	${{If}} ${{FileExists}} "$0\\var"
 		Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
+		LogEx::Write 'Rename "$0\\var" into "$1\\varPrevious.'
+	${{Else}}
+		LogEx::Write 'No var directory in $0'
 	${{Endif}}
 
 	; --- migrate packages ---
@@ -640,17 +671,15 @@ Function migratePackagesAndVar
 			${{If}} $R0 == $7				; package found in registry and in filesystem have the same version
 			${{AndIf}} $R1 == "installed"	; and the package in registry is installed
 				;MessageBox MB_OK "$6:$7: is an installed package"
+				LogEx::Write "$6:$7: is an installed package"
 				StrCpy $R2 "Software\Microsoft\Windows\CurrentVersion\Uninstall\$6_$7"
-				;MessageBox MB_OK "$R2"
-				;MessageBox MB_OK "$1\\packages\\$6_$7"
 				!insertmacro getRegUninstallProductExe "$R2" $R3
-				;MessageBox MB_OK "$R3"
 				!insertmacro writeRegUninstall0 "$R2" "$1\\packages\\$6_$7" "$R3"
 				; In 'install section' of registry, 'InstallDir' is not modified by migration
 				; todo add migrationDate/Time/DirDest in registry
 			${{Else}}
 				;MessageBox MB_OK "$6:$7: is not an installed package"
-				Nop
+				LogEx::Write "$6:$7: is not an installed package"
 			${{Endif}}
 		${{Endif}}
 		FindNext $8 $9
@@ -660,9 +689,11 @@ Function migratePackagesAndVar
 	;	move 'packages' directory
 	${{If}} ${{FileExists}} "$0\\packages"
 		;MessageBox MB_OK "Rename $0\\packages into $1\\packages"
+		LogEx::Write "Rename $0\\packages into $1\\packages"
 		Rename /REBOOTOK "$0\\packages" "$1\\packages"
 	${{Else}}
 		;MessageBox MB_OK "No package directory in $0."
+		LogEx::Write "No package directory in $0."
 	${{Endif}}
 
 	; restore
@@ -678,19 +709,17 @@ Function UninstallFunction
 	StrCpy $3 $Uninstall_ProductName
 	StrCpy $9 $Uninstall_UninstallString
 	${{If}} $9 == ""
-		; LogText nothing to uninstall
+		LogEx::Write "Nothing to uninstall"
 	${{Else}}
-		; LogText Uninstall $3 $1
 		ClearErrors
 		${{If}} ${{Silent}}
 			; silent uninstall
-			;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall silently $3" /SD IDOK
-			;LogText
+			LogEx::Write "Uninstall silently $3"
 			ExecWait '$9 /S _?=$0'
 		${{Else}}
 			; non silent uninstall
 			;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall $3" /SD IDOK
-			;LogText
+			LogEx::Write "Uninstall $3"
 			ExecWait '$9 _?=$0'
 		${{Endif}}
 
@@ -698,10 +727,11 @@ Function UninstallFunction
 		${{If}} ${{Errors}}
 			; error(s)
 			MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3" /SD IDOK
-			;LogText
+			LogEx::Write "Error during removing of $3"
 			Abort
 		${{Else}}
 			; no errors, continue
+			LogEx::Write "no errors during removing of $3, continue"
 			;  Remove uninstaller
 			Delete /REBOOTOK "$0\uninstall.exe"
 			;  Remove installation directory
@@ -725,16 +755,24 @@ FunctionEnd
 
 
 ; --- onInit ---
+Var logex_logname
+
 Function .onInit
+
+ ; Logging
+ ${{StrRep}} $logex_logname "$EXEFILE" ".exe" "_log.txt"
+ LogEx::Init "$EXEDIR\\$logex_logname"
+ LogEx::Write ""
+
 
  ; --- Abort installation process if installer is already running ---
  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
  Pop $R0
- StrCmp $R0 0 +3
+ StrCmp $R0 0 notAlreadyRunning
  MessageBox MB_OK|MB_ICONSTOP "The installer is already running." /SD IDOK
- ;LogText MB_OK|MB_ICONSTOP "The installer is already running."
+ LogEx::Write "The installer is already running."
  Abort
-
+notAlreadyRunning:
 
  ; --- Initializing installation directory ---
 !ifdef EMBEDDED_DEPLOYMENTTYPE
@@ -756,12 +794,12 @@ Function .onInit
   ${{Loop}}
   StrCpy $INSTDIR "$INSTDIR_$0"
  ${{EndIf}}
-; Log "Installation directory choosed '$INSTDIR'"
+ LogEx::Write "Installation directory choosed '$INSTDIR'"
 !endif
 
- MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} in $INSTDIR." /SD IDOK
- ;Log
-
+ MessageBox MB_ICONINFORMATION|MB_OK "Installing ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}} in $INSTDIR." /SD IDOK
+ LogEx::Write "Installing ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}} in $INSTDIR."
+ 
 
  ; --- Ask uninstall previous version --
  Call Uninstall_ask
@@ -836,6 +874,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   RmDir /r "$INSTDIR\\var"
 
   ; Put files there
+  LogEx::Write "Install all files of ${{SBFPROJECTNAME}}"
   !include "${{SBFPROJECTNAME}}_install_files.nsi"
  
   ; 'var' directory is created by SBFPROJECTNAME_install_files.nsi
@@ -852,6 +891,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
 ;AccessControl::EnableFileInheritance "$INSTDIR\\var"
 
   ; Redistributable
+  LogEx::Write "Install Redistributable files of ${{SBFPROJECTNAME}}"
   !include "${{SBFPROJECTNAME}}_install_redist.nsi"
 
 
@@ -938,15 +978,19 @@ Section "Uninstall"
   ; Remove 'var' directory ?
   !ifdef UNINSTALL_VAR_DIRECTORY
   ${{If}} ${{FileExists}} "$INSTDIR\\var"
-    MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO +2
-    RMDir /REBOOTOK /r "$INSTDIR\\var"
-    Nop
+	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO dontRemoveVar
+	RMDir /REBOOTOK /r "$INSTDIR\\var"
+	LogEx::Write "Remove $INSTDIR\\var directory"
+	dontRemoveVar:
   ${{Endif}}
   !endif
 
   ; Remove 'packages' directory ?
   !ifdef STANDALONE_DEPLOYMENTTYPE
-  RmDir /REBOOTOK "$INSTDIR\packages"
+  ${{If}} ${{FileExists}} "$INSTDIR\packages"
+	RmDir /REBOOTOK "$INSTDIR\packages"
+	LogEx::Write "Remove $INSTDIR\packages"
+  ${{EndIf}}
   !endif
 
   ; Remove registry keys
