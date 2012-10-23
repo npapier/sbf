@@ -194,7 +194,8 @@ def generateNSISMainScript( target, source, env ):
 
 	# Checks unknown option in 'nsis'
 	nsisKeys = set(env['nsis'].keys())
-	allowedNsisKeys = set(['autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory', 'customPointInstallationValidation'])
+	allowedNsisKeys = set([	'autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory',
+							'moveLogFileIntoVarDirectory', 'copySetupFileIntoVarDirectory', 'customPointInstallationValidation'])
 	unknowOptions = nsisKeys - allowedNsisKeys
 	if len(unknowOptions)>0:
 		raise SCons.Errors.UserError( "Unknown key(s) ({0}) in 'nsis' option".format(list(unknowOptions)) )
@@ -204,6 +205,8 @@ def generateNSISMainScript( target, source, env ):
 	nsisInstallDirFromRegKey = env['nsis'].get('installDirFromRegKey', True)
 	nsisEnsureNewInstallDir = env['nsis'].get('ensureNewInstallDir', False)
 	nsisUninstallVarDirectory = env['nsis'].get('uninstallVarDirectory', False)
+	nsisMoveLogFileIntoVarDirectory = env['nsis'].get('moveLogFileIntoVarDirectory', False)
+	nsisCopySetupFileIntoVarDirectory = env['nsis'].get('copySetupFileIntoVarDirectory', False)
 	nsisCustomPointInstallationValidation = env['nsis'].get('customPointInstallationValidation', '')
 
 	#
@@ -217,9 +220,12 @@ def generateNSISMainScript( target, source, env ):
 	else:
 		assert( False )
 
-	if nsisAutoUninstall:			definesSection += "!define AUTO_UNINSTALL\n"
-	if nsisEnsureNewInstallDir:		definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
-	if nsisUninstallVarDirectory:	definesSection += "!define UNINSTALL_VAR_DIRECTORY\n"
+	if nsisAutoUninstall:					definesSection += "!define AUTO_UNINSTALL\n"
+	if nsisEnsureNewInstallDir:				definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
+	if nsisUninstallVarDirectory:			definesSection += "!define UNINSTALL_VAR_DIRECTORY\n"
+	if nsisMoveLogFileIntoVarDirectory:		definesSection += "!define MOVE_LOGFILE_INTO_VARDIRECTORY\n"
+	if nsisCopySetupFileIntoVarDirectory:	definesSection += "!define COPY_SETUPFILE_INTO_VARDIRECTORY\n"
+
 
 	# Open output file
 	with open( targetName, 'w' ) as file:
@@ -394,6 +400,8 @@ FunctionEnd
 ; - silent installation is supported (especially MessageBox())
 ; - support simultaneous installation/uninstallation of several versions of a project.
 ; - logging installation into $EXEDIR/$EXEFILE.replace('.exe', '_log.txt')
+; - log file could be move into 'var' directory using nsis['moveLogFileIntoVarDirectory']
+; - installer file could be copy into 'var' directory using nsis['copySetupFileIntoVarDirectory']
 
 ; @todo mui
 ; @todo quicklaunch
@@ -441,6 +449,10 @@ XPStyle on
 
 ; PRODUCTEXE
 {productExe}
+
+;
+Var logex_dirname
+Var logex_logname
 
 ; Macros
 
@@ -563,37 +575,6 @@ XPStyle on
 
 
 ;--- Functions ---
-Function .onInstFailed
-  ;
-  MessageBox MB_OK "Installation failed." /SD IDOK
-  LogEx::Write "Installation failed."
-
-  ; Logging
-  LogEx::Close
-FunctionEnd
-
-
-Function .onInstSuccess
-
-  ;
-  MessageBox MB_OK "Installation was successful." /SD IDOK
-  LogEx::Write "Installation was successful."
-
-;    MessageBox MB_YESNO "Congrats, it worked. View readme?" IDNO NoReadme
-;      Exec notepad.exe ; view readme or whatever, if you want.
-;    NoReadme:
-
-  ; Logging
-  LogEx::Close
-FunctionEnd
-
-
-Function .onRebootFailed
-  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
-  LogEx::Write "Reboot failed. Please reboot manually."
-FunctionEnd
-
-
 Var Uninstall_InstallDir
 Var Uninstall_ProductName
 Var Uninstall_UninstallString
@@ -749,19 +730,69 @@ Function writeRegistryInstallAndUninstallFunction
 FunctionEnd
 
 
+Function moveLogFileIntoVarDirectoryFunction
+	!define moveLogFileIntoVarDirectory 'Call moveLogFileIntoVarDirectoryFunction'
+
+ CopyFiles /SILENT "$logex_dirname\\$logex_logname" "$INSTDIR\\var"
+ Delete /REBOOTOK "$logex_dirname\\$logex_logname"
+ ;Rename /REBOOTOK "$logex_dirname\\$logex_logname" "$INSTDIR\\var\\$logex_logname"
+ ;LogEx::Write "Moving $logex_dirname\\$logex_logname into $INSTDIR\\var\\$logex_logname"
+
+FunctionEnd
+
+
+Function copySetupFileIntoVarDirectoryFunction
+	!define copySetupFileIntoVarDirectory 'Call copySetupFileIntoVarDirectoryFunction'
+
+ CopyFiles /SILENT "$EXEPATH" "$INSTDIR\\var"
+ LogEx::Write "Copying $EXEPATH into $INSTDIR\\var"
+ 
+FunctionEnd
+
+
+Function .onInstFailed
+  ;
+  MessageBox MB_OK "Installation failed." /SD IDOK
+  LogEx::Write "Installation failed."
+
+  ; Logging
+  LogEx::Close
+FunctionEnd
+
+
+Function .onInstSuccess
+
+  ; Copying installation program in 'var'
+  !ifdef COPY_SETUPFILE_INTO_VARDIRECTORY
+	${{copySetupFileIntoVarDirectory}}
+  !endif
+
+  ;
+  MessageBox MB_OK "Installation was successful." /SD IDOK
+  LogEx::Write "Installation was successful."
+
+  ; Logging
+  LogEx::Close
+  !ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
+	${{moveLogFileIntoVarDirectory}}
+  !endif
+
+FunctionEnd
+
+
+
 ;--------------------------------
 ; The installation directory
 {installationDirectorySection}
 
 
 ; --- onInit ---
-Var logex_logname
-
 Function .onInit
 
  ; Logging
+ StrCpy $logex_dirname $EXEDIR
  ${{StrRep}} $logex_logname "$EXEFILE" ".exe" "_log.txt"
- LogEx::Init "$EXEDIR\\$logex_logname"
+ LogEx::Init "$logex_dirname\\$logex_logname"
  LogEx::Write ""
 
 

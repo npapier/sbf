@@ -27,5 +27,7 @@ type				= 'shared'	# exec, static, shared, none
 						'installDirFromRegKey'				: True,
 						'ensureNewInstallDir'				: False,
 						'uninstallVarDirectory'				: False,
+						'moveLogFileIntoVarDirectory'		: False,
+						'copySetupFileIntoVarDirectory'		: False,
 						'customPointInstallationValidation'	: ''
 						}
