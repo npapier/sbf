@@ -1,4 +1,4 @@
-; SConsBuildFramework - Copyright (C) 2009, 2010, Nicolas Papier.
+; SConsBuildFramework - Copyright (C) 2009, 2010, 2012, Nicolas Papier.
 ; Distributed under the terms of the GNU General Public License (GPL)
 ; as published by the Free Software Foundation.
 ; Author Nicolas Papier
@@ -17,8 +17,8 @@
 
 ; Delete redist file in INSTDIR/Redistributable
 !macro RmRedistributable file
-	Delete "$INSTDIR\Redistributable\${file}"
-	RmDir "$INSTDIR\Redistributable"
+	Delete /REBOOTOK "$INSTDIR\Redistributable\${file}"
+	RmDir /REBOOTOK "$INSTDIR\Redistributable"
 !macroend
 
 

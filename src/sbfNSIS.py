@@ -715,8 +715,9 @@ Function migratePackagesAndVar
 
 	; --- migrate var ---
 	${{If}} ${{FileExists}} "$0\\var"
-		Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
-		LogEx::Write 'Rename "$0\\var" into "$1\\varPrevious.'
+		LogEx::Write 'Directory "$0\\var" is not moved into "$1\\varPrevious". This feature is disabled.'
+		;Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
+		;LogEx::Write 'Rename "$0\\var" into "$1\\varPrevious.'
 	${{Else}}
 		LogEx::Write 'No var directory in $0'
 	${{Endif}}
