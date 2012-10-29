@@ -141,12 +141,12 @@ def generateNSISInstallFiles( target, source, env ):
 		# Creates directories
 		for directory in encounteredDirectories:
 			outputFile.write( 'CreateDirectory \"$OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
-			outputFile.write( 'LogEx::Write \"$OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( 'LogEx::Write \"Install $OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
 
 		# Copies files
 		for file in encounteredFiles:
 			outputFile.write( 'File \"/oname=$OUTDIR\{0}\" \"{1}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
-			outputFile.write( 'LogEx::Write \"/oname=$OUTDIR\{0}\" \"{1}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
+			outputFile.write( 'LogEx::Write \"Install $OUTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file), file) )
 
 
 ### project_uninstall_files.nsi generator ###
@@ -168,11 +168,24 @@ def generateNSISUninstallFiles( target, source, env ):
 	with open( targetName, 'w' ) as outputFile:
 		# Removes files
 		for file in encounteredFiles:
+			outputFile.write( 'LogEx::Write \"Remove $INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
+			outputFile.write( 'ClearErrors\n' )
 			outputFile.write( 'Delete /REBOOTOK \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
+			outputFile.write( '${If} ${Errors}\n' )
+			outputFile.write( '	LogEx::Write \"Error during removing $INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, file)) )
+			outputFile.write( '	ClearErrors\n' )
+			outputFile.write( '${Endif}\n' )
 
 		# Removes directories
 		for directory in encounteredDirectories:
+			outputFile.write( 'LogEx::Write \"Remove $INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( 'ClearErrors\n' )
 			outputFile.write( 'RmDir /REBOOTOK \"$INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( '${If} ${Errors}\n' )
+			outputFile.write( '	LogEx::Write \"Error during removing $INSTDIR\{0}\"\n'.format(convertPathAbsToRel(sourceName, directory)) )
+			outputFile.write( '	ClearErrors\n' )
+			outputFile.write( '${Endif}\n' )
+
 
 
 ### project.nsi generator ###
@@ -324,13 +337,15 @@ InstallDirRegKey HKLM "${REGKEYROOT}" "InstallDir"
 			;LogText "Version of $3 currently installed in the system is $1 (req. at least ${{DEPLOYMENTPRECOND_STANDALONE_VERSION}})."
 """.format()
 
-			installationDirectorySection = """
-; embedded project
-
+			definesSection += """
 ; deploymentPrecond = 'projectName >= 2-0-beta15'
 !define DEPLOYMENTPRECOND_STANDALONE_NAME				"{deploymentPrecond_standalone_name}"
 !define DEPLOYMENTPRECOND_STANDALONE_COMPAREOPERATOR	"{deploymentPrecond_standalone_compareOperator}"
 !define DEPLOYMENTPRECOND_STANDALONE_VERSION			"{deploymentPrecond_standalone_version}"
+""".format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version )
+
+			installationDirectorySection = """
+; embedded project
 
 Function initInstallDir
 
@@ -359,7 +374,7 @@ Function initInstallDir
 		${{EndIf}}
 	${{EndIf}}
 FunctionEnd
-""".format( deploymentPrecond_standalone_name=name, deploymentPrecond_standalone_compareOperator=operator, deploymentPrecond_standalone_version=version, testVersionPrecond = testVersionPrecond )
+""".format(testVersionPrecond = testVersionPrecond)
 
 		# Generates ICON
 		# icon from the project launching sbf ?
@@ -400,8 +415,11 @@ FunctionEnd
 ; - silent installation is supported (especially MessageBox())
 ; - support simultaneous installation/uninstallation of several versions of a project.
 ; - logging installation into $EXEDIR/$EXEFILE.replace('.exe', '_log.txt')
+; - logging uninstallation.
+; - installer command line parameters /logpath and /logname (example /logpath="e:\tmp" /logname="log.txt").
 ; - log file could be move into 'var' directory using nsis['moveLogFileIntoVarDirectory']
 ; - installer file could be copy into 'var' directory using nsis['copySetupFileIntoVarDirectory']
+
 
 ; @todo mui
 ; @todo quicklaunch
@@ -418,6 +436,7 @@ FunctionEnd
 # Declare used functions
 ${{StrRep}}
 ${{StrTok}}
+${{UnStrRep}}
 
 ;SetCompress off
 SetCompressor /FINAL /SOLID lzma
@@ -450,11 +469,21 @@ XPStyle on
 ; PRODUCTEXE
 {productExe}
 
-;
+
+
+; --- Variables ---
 Var logex_dirname
 Var logex_logname
 
-; Macros
+Var installationValidation		; 0 valid, != 0 invalid
+
+Var Uninstall_InstallDir
+Var Uninstall_ProductName
+Var Uninstall_UninstallString
+
+
+
+; --- Macros ---
 
 ; --- writeRegInstall deleteRegInstall GetInstallDir GetInstallDirAndVersion GetInfos ---
 !macro writeRegInstall path
@@ -574,10 +603,62 @@ Var logex_logname
 !macroend
 
 
-;--- Functions ---
-Var Uninstall_InstallDir
-Var Uninstall_ProductName
-Var Uninstall_UninstallString
+; --- Command line parameters ---
+!macro GetLogPathAndName logPath logName
+ ; Analyse command line parameters
+ ; @return $logPath contains /logpath=value or $EXEDIR
+ ; @return $logName contains /logname=value or $EXEFILE.replace('.exe', '_log.txt')
+
+ Push $0
+
+ ${{GetParameters}} $0
+
+ ${{GetOptions}} $0 "/logpath=" ${{logPath}}
+ ${{GetOptions}} $0 "/logname=" ${{logName}}
+
+ ${{If}} ${{logPath}} == ''
+  ; no /logPath specified
+  StrCpy ${{logPath}} "$EXEDIR"
+ ${{Endif}}
+
+ ${{If}} ${{logName}} == ''
+   ; no /logName specified
+   ${{StrRep}} ${{logName}} "$EXEFILE" ".exe" "_log.txt"
+ ${{Endif}}
+
+ Pop $0
+!macroend
+!define GetLogPathAndName '!insertmacro GetLogPathAndName'
+
+
+!macro unGetLogPathAndName logPath logName
+ ; Analyse command line parameters
+ ; @return $logPath contains /logpath=value or $TEMP
+ ; @return $logName contains /logname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_uninstall_log.txt
+
+ Push $0
+
+ ${{GetParameters}} $0
+
+ ${{GetOptions}} $0 "/logpath=" ${{logPath}}
+ ${{GetOptions}} $0 "/logname=" ${{logName}}
+
+ ${{If}} ${{logPath}} == ''
+  ; no /logPath specified
+  StrCpy ${{logPath}} $TEMP
+ ${{Endif}}
+
+ ${{If}} ${{logName}} == ''
+   ; no /logName specified
+   StrCpy ${{logName}} "${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_uninstall_log.txt"
+ ${{Endif}}
+
+ Pop $0
+!macroend
+!define unGetLogPathAndName '!insertmacro unGetLogPathAndName'
+
+
+; --- Functions ---
 
 Function Uninstall_ask
  ; Ask if current version of SBFPROJECTNAME has to be removed (if already installed of course)
@@ -585,11 +666,18 @@ Function Uninstall_ask
  ; Variables Uninstall_InstallDir = $0, Uninstall_ProductName = $3 and Uninstall_UninstallString = $9 if uninstallation stage is desired
 
  !insertmacro GetInfos "${{SBFPROJECTNAME}}"
+ LogEx::Write "GetInfos(${{SBFPROJECTNAME}}):$0:$1:$2:$3:$4"
  ReadRegStr $9 HKLM "${{REGKEYUNINSTALLROOT}}_$1" "UninstallString"
+ LogEx::Write "UninstallString:$9"
 
  StrCpy $Uninstall_InstallDir		''
  StrCpy $Uninstall_ProductName		''
  StrCpy $Uninstall_UninstallString	''
+
+ ${{IfNot}} ${{FileExists}} "$0"
+	LogEx::Write "Non existing '$0'. Unable to remove ${{SBFPRODUCTNAME}}."
+	goto skipUninstall
+ ${{Endif}}
 
  ${{If}} $9 == ''
 	; Nothing to uninstall
@@ -601,7 +689,7 @@ Function Uninstall_ask
 	StrCpy $Uninstall_InstallDir		$0
 	StrCpy $Uninstall_ProductName		$3
 	StrCpy $Uninstall_UninstallString	$9
-	LogEx::Write "Uninstall previous version $1 of $3 using '$9'"
+	LogEx::Write "Uninstall previous version $1 of $3 using '$9' in directory $0"
  ${{Endif}}
  skipUninstall:
 FunctionEnd
@@ -695,28 +783,35 @@ Function UninstallFunction
 		ClearErrors
 		${{If}} ${{Silent}}
 			; silent uninstall
-			LogEx::Write "Uninstall silently $3"
-			ExecWait '$9 /S _?=$0'
+			StrCpy $1 '$9 /S /logpath="$logex_dirname" /logname="$logex_logname" _?=$0' 
+			LogEx::Write 'Uninstall silently $3 using "$1"'
+			LogEx::Close
+				ExecWait "$1" $2
+			LogEx::Init "$logex_dirname\\$logex_logname"
 		${{Else}}
 			; non silent uninstall
-			;MessageBox MB_ICONINFORMATION|MB_OK "Uninstall $3" /SD IDOK
-			LogEx::Write "Uninstall $3"
-			ExecWait '$9 _?=$0'
+			StrCpy $1 '$9 /logpath="$logex_dirname" /logname="$logex_logname" _?=$0'
+			LogEx::Write 'Uninstall $3 using "$1"'
+			LogEx::Close
+				ExecWait "$1" $2
+			LogEx::Init "$logex_dirname\\$logex_logname"
 		${{Endif}}
 
 		; result
 		${{If}} ${{Errors}}
 			; error(s)
-			MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3" /SD IDOK
-			LogEx::Write "Error during removing of $3"
-			Abort
+			MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3." /SD IDOK
+			LogEx::Write "Error during removing of $3. Error level is $2."
 		${{Else}}
 			; no errors, continue
-			LogEx::Write "no errors during removing of $3, continue"
+			LogEx::Write "no errors during removing of $3."
 			;  Remove uninstaller
 			Delete /REBOOTOK "$0\uninstall.exe"
+			LogEx::Write 'Remove "$0\uninstall.exe"'
 			;  Remove installation directory
 			RmDir /REBOOTOK "$0"
+			LogEx::Write 'Remove installation directory "$0"'
+			LogEx::Write '$3 removed.'
 		${{Endif}}
 	${{Endif}} ; $9 == ''
 FunctionEnd
@@ -737,7 +832,6 @@ Function moveLogFileIntoVarDirectoryFunction
  Delete /REBOOTOK "$logex_dirname\\$logex_logname"
  ;Rename /REBOOTOK "$logex_dirname\\$logex_logname" "$INSTDIR\\var\\$logex_logname"
  ;LogEx::Write "Moving $logex_dirname\\$logex_logname into $INSTDIR\\var\\$logex_logname"
-
 FunctionEnd
 
 
@@ -746,11 +840,32 @@ Function copySetupFileIntoVarDirectoryFunction
 
  CopyFiles /SILENT "$EXEPATH" "$INSTDIR\\var"
  LogEx::Write "Copying $EXEPATH into $INSTDIR\\var"
- 
 FunctionEnd
 
 
+Function LogRebootFlagFunction
+  !define LogRebootFlag 'Call LogRebootFlagFunction'
+  ; Reboot flags ?
+  ${{If}} ${{RebootFlag}}
+	LogEx::Write "Reboot flag is set"
+  ${{Else}}
+	LogEx::Write "Reboot flag is not set"
+  ${{EndIf}}
+FunctionEnd
+
+
+; --- The installation directory ---
+{installationDirectorySection}
+
+
+
+; --- Callbacks ---
+
+; onInstFailed
 Function .onInstFailed
+
+  ${{LogRebootFlag}}
+
   ;
   MessageBox MB_OK "Installation failed." /SD IDOK
   LogEx::Write "Installation failed."
@@ -759,8 +874,21 @@ Function .onInstFailed
   LogEx::Close
 FunctionEnd
 
+Function un.onInstFailed
 
+  ;
+  MessageBox MB_OK "Uninstallation failed." /SD IDOK
+  LogEx::Write "Uninstallation failed."
+
+  ; Logging
+  LogEx::Close
+FunctionEnd
+
+
+; onInstSuccess
 Function .onInstSuccess
+
+  ${{LogRebootFlag}}
 
   ; Copying installation program in 'var'
   !ifdef COPY_SETUPFILE_INTO_VARDIRECTORY
@@ -779,19 +907,45 @@ Function .onInstSuccess
 
 FunctionEnd
 
+Function un.onInstSuccess
+
+  ;
+  MessageBox MB_OK "Uninstallation was successful." /SD IDOK
+  LogEx::Write "Uninstallation was successful."
+
+  ; Logging
+  LogEx::Close
+
+FunctionEnd
 
 
-;--------------------------------
-; The installation directory
-{installationDirectorySection}
+; onRebootFailed
+Function .onRebootFailed
+  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
+  LogEx::Write "Reboot failed. Please reboot manually."
+FunctionEnd
+
+Function un.onRebootFailed
+  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
+  LogEx::Write "Reboot failed. Please reboot manually."
+FunctionEnd
 
 
-; --- onInit ---
+; onUserAbort
+Function .onUserAbort
+  LogEx::Write 'User hits "cancel" button during installation.'
+FunctionEnd
+
+Function un.onUserAbort
+  LogEx::Write 'User hits "cancel" button during installation.'
+FunctionEnd
+
+
+; onInit
 Function .onInit
 
  ; Logging
- StrCpy $logex_dirname $EXEDIR
- ${{StrRep}} $logex_logname "$EXEFILE" ".exe" "_log.txt"
+ ${{GetLogPathAndName}} $logex_dirname $logex_logname
  LogEx::Init "$logex_dirname\\$logex_logname"
  LogEx::Write ""
 
@@ -834,6 +988,16 @@ notAlreadyRunning:
 
  ; --- Ask uninstall previous version --
  Call Uninstall_ask
+
+FunctionEnd
+
+
+Function un.onInit
+
+ ; Logging
+ ${{unGetLogPathAndName}} $logex_dirname $logex_logname
+ LogEx::Init "$logex_dirname\\$logex_logname"
+ LogEx::Write ""
 
 FunctionEnd
 
@@ -889,8 +1053,6 @@ UninstPage instfiles
 
 ; The stuff to install
 
-Var installationValidation		; 0 valid, != 0 invalid
-
 Section "${{SBFPRODUCTNAME}} core (required)"
   SectionIn RO
 
@@ -905,7 +1067,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   RmDir /r "$INSTDIR\\var"
 
   ; Put files there
-  LogEx::Write "Install all files of ${{SBFPROJECTNAME}}"
+  LogEx::Write "Install all files of ${{SBFPROJECTNAME}}:"
   !include "${{SBFPROJECTNAME}}_install_files.nsi"
  
   ; 'var' directory is created by SBFPROJECTNAME_install_files.nsi
@@ -1001,9 +1163,11 @@ Section "Uninstall"
   SetOutPath $TEMP
 
   ; Remove files
+  LogEx::Write "Uninstall all files of ${{SBFPROJECTNAME}}:"
   !include "${{SBFPROJECTNAME}}_uninstall_files.nsi"
 
   ; Remove redistributable
+  LogEx::Write "Uninstall Redistributable files of ${{SBFPROJECTNAME}}"
   !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
   ; Remove 'var' directory ?
@@ -1012,7 +1176,10 @@ Section "Uninstall"
 	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO dontRemoveVar
 	RMDir /REBOOTOK /r "$INSTDIR\\var"
 	LogEx::Write "Remove $INSTDIR\\var directory"
-	dontRemoveVar:
+	goto endRemoveVar
+   dontRemoveVar:
+	LogEx::Write "Don't remove $INSTDIR\\var directory"
+   endRemoveVar:
   ${{Endif}}
   !endif
 
