@@ -530,6 +530,13 @@ Var Uninstall_UninstallString
 	Pop $1
 !macroend
 
+!macro SetInstallDir projectName installDir
+	Push $0
+	ReadRegStr $0 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}"		"Version"
+	WriteRegStr HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\$0"		"InstallDir"	${{installDir}}
+	Pop $0
+!macroend
+
 !macro GetInstallDirAndVersion projectName
 	; $0 InstallDir, $1 Version
 	ReadRegStr $1 HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}"		"Version"
@@ -737,15 +744,22 @@ Function migratePackagesAndVar
 
 			; $R0 version, $R1 status
 			!insertmacro GetVersionAndStatus "$6" $R0 $R1
-			;MessageBox MB_OK "$R0 $R1"
+			LogEx::Write "GetVersionAndStatus('$6') returns '$R0' '$R1'"
+
 			${{If}} $R0 == $7				; package found in registry and in filesystem have the same version
 			${{AndIf}} $R1 == "installed"	; and the package in registry is installed
-				;MessageBox MB_OK "$6:$7: is an installed package"
 				LogEx::Write "$6:$7: is an installed package"
+
+				; Get ProductExe
 				StrCpy $R2 "Software\Microsoft\Windows\CurrentVersion\Uninstall\$6_$7"
 				!insertmacro getRegUninstallProductExe "$R2" $R3
+				LogEx::Write "getRegUninstallProductExe '$R2' returns '$R3'"
+
 				!insertmacro writeRegUninstall0 "$R2" "$1\\packages\\$6_$7" "$R3"
-				; In 'install section' of registry, 'InstallDir' is not modified by migration
+
+				; In 'install section' of registry, 'InstallDir' have to be modified by migration
+				!insertmacro SetInstallDir $6 "$1\\packages\\$6_$7"
+
 				; todo add migrationDate/Time/DirDest in registry
 			${{Else}}
 				;MessageBox MB_OK "$6:$7: is not an installed package"
