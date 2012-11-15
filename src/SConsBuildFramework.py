@@ -1532,14 +1532,14 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
 			#lenv.Append( CXXFLAGS = ['/GL'] )
 			if lenv['generateDebugInfoInRelease']:
-				lenv['CCPDBFLAGS'] = ['${(PDB and "/Zi /Fd%s" % File(PDB)) or ""}']
+				lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
 		else:
 			lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
 			# /Od : Disable (Debug)
 			lenv.Append( CXXFLAGS = ['/MDd', '/Od'] )
 			# Enable Function-Level Linking
 			lenv.Append( CXXFLAGS = ['/Gy'] )
-			lenv['CCPDBFLAGS'] = ['${(PDB and "/Zi /Fd%s" % File(PDB)) or ""}']
+			lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
 
 			# /Yd is deprecated in Visual C++ 2005; Visual C++ now supports multiple objects writing to a single .pdb file,
 			# use /Zi instead (Microsoft Visual Studio 2008/.NET Framework 3.5).
