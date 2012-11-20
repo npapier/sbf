@@ -10,7 +10,7 @@
 
 # configuration
 versionMajor = 1
-versionMinor = 50
+versionMinor = 52
 versionMaintenance = 0
 
 def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
@@ -19,7 +19,8 @@ def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
 if platform == 'win32':
 	builds_cl = {	8  : 'bjam --toolset=msvc-8.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
 					9  : 'bjam --toolset=msvc-9.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
-					10 : 'bjam --toolset=msvc-10.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage' }
+					10 : 'bjam --toolset=msvc-10.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage',
+					11 : 'bjam --toolset=msvc-11.0express --build-type=minimal threading=multi link=shared runtime-link=shared stage' }
 
 	build = [ myVCCmd('bootstrap'), myVCCmd(builds_cl[CCVersionNumber]) ]
 	lib = ['stage/lib/*.lib', 'stage/lib/*.dll']
@@ -42,6 +43,3 @@ descriptor = {
  'lib'			: lib
 }
 
-# @todo pprint()
-# info boost1-45-0_win32_cl9-0Exp.zip mt-gd-1_45
-# info boost1-45-0_win32_cl9-0Exp.zip mt-1_45
