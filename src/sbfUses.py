@@ -303,7 +303,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-49-0', '1-52-0', '1-51-0', '1-50-0', '1-48-0', '1-47-0', '1-46-1' ]
+		return [ '1-48-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
