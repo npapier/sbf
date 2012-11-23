@@ -9,10 +9,12 @@
 
 # requirement: qmake
 
+# http://www.scintilla.org/
+
 descriptorName = 'scintilla'
 versionMajor = 3
 versionMinor = 2
-versionMaintenance = 0
+versionMaintenance = 3
 descriptorVersion = '{major}{minor}{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
 descriptorDotVersion = '{major}.{minor}.{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
 descriptorDashVersion = '{major}-{minor}-{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
