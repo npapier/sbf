@@ -771,8 +771,23 @@ class Use_gtest( IUse ):
 			return libs, []
 
 
+class Use_openassetimport( IUse ):
+	def getName( self ):
+		return 'openassetimport'
+
+	def getVersions( self ):
+		return ['3-0']
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			if self.config == 'release':
+				return ['assimp', 'assimp']
+			else:
+				return ['assimpD', 'assimpD']
+
+
 class Use_opencollada( IUse ):
-	def getName(self ):
+	def getName( self ):
 		return "opencollada"
 
 	def getVersions( self ):
@@ -1256,8 +1271,8 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(), Use_scintilla(),
-					Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
+					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
