@@ -7,6 +7,7 @@ import glob
 import os
 import string
 import sys
+import __builtin__
 
 # To be able to use sbfUses.py without SCons
 try:
@@ -51,10 +52,17 @@ class sofaConfig:
 
 		# Post-conditions for SOFA_PATH
 		if cls.__basePath is None or len(cls.__basePath)==0:
-			raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
+			if hasattr(__builtin__, 'SConsBuildFrameworkLazzyInitialization'):
+				print ('Unable to configure sofa.\nSOFA_PATH environment variable must be defined.')
+			else:
+				raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
 
 		# Retrieves svn revision
-		cls.__svnRevision = str(SvnGetRevision()( cls.__basePath ))
+		if hasattr(__builtin__, 'SConsBuildFrameworkLazzyInitialization'):
+			# dummy __svnRevision is lazzy initialization
+			cls.__svnRevision = str(0)
+		else:
+			cls.__svnRevision = str(SvnGetRevision()( cls.__basePath ))
 
 		# Retrieves SOFA_PLUGINS
 		sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
@@ -690,7 +698,7 @@ class Use_glew( IUse ):
 		return "glew"
 
 	def getVersions( self ):
-		return ['1-5-1']
+		return ['1-9-0', '1-5-1']
 
 	def getLIBS( self, version ):
 		libs = ['glew32']
@@ -983,7 +991,11 @@ class Use_sofa( IUse, sofaConfig ):
 		return [self.getVersion()]
 
 	def getCPPDEFINES( self, version ):
-		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS']
+		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
+		
+		if int(version) < 11877:
+			# sofa public revision number (used in trunk)
+			definesList += ['SOFA_HAVE_GLEW']
 
 		pluginsDefines = string.join(self.getPluginsList(), ':')
 		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
@@ -998,6 +1010,8 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getCPPPATH( self, version ):
 		cppPath = [	os.path.join(self.getBasePath(), 'applications'),
+					os.path.join(self.getBasePath(), 'applications-dev'),
+					os.path.join(self.getBasePath(), 'applications-dev/plugins/SofaAdvancedInteraction'),
 					os.path.join(self.getBasePath(), 'modules'),
 					os.path.join(self.getBasePath(), 'framework'),
 					os.path.join(self.getBasePath(), 'include'),
@@ -1014,14 +1028,22 @@ class Use_sofa( IUse, sofaConfig ):
 		if self.platform == 'win32' :
 			libs = []
 			pakLibs = ['glew32', 'glut32']
-
-			libsBoth = [  'sofa_advanced_interaction', 'sofa_advanced_constraint',  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
+			
+			libsBoth = [  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual', 'sofabgl'
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
-						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_collision_dev', 'sofa_misc_mapping'
+						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping'
 						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
 						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
-			if int(version) > 11877:
+			if int(version) > 11876:
+				# sofa_dev revision number (used in branch)
+				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev' ]
+			else:
+				# sofa public revision number (used in trunk)
+				libsBoth += [  'SofaAdvancedInteraction', 'SofaAdvancedConstraint', 'SofaMiscCollisionDev' ]
+						
+			if int(version) < 11877:
+				# sofa public revision number (used in trunk)
 				libsBoth += [	'sofa_base_animation_loop', 'sofa_component', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general',
 								'sofa_component_advanced', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_exporter',
 								'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_misc', 'sofa_misc_engine', 'sofa_misc_fem', 'sofa_misc_forcefield', 'sofa_misc_solver', 'sofa_misc_topology', 
