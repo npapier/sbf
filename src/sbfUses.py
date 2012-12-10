@@ -1107,7 +1107,7 @@ class Use_sofa( IUse, sofaConfig ):
 					licenses.append( license )
 					break
 			else:
-				print("sbfError: License file not found for sofa plugin named '{0}'.".format( plugin )
+				print("sbfError: License file not found for sofa plugin named '{0}'.".format( plugin ))
 		return licenses
 
 
