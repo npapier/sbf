@@ -789,9 +789,9 @@ class Use_openassetimport( IUse ):
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
 			if self.config == 'release':
-				return ['assimp', 'assimp']
+				return ['assimp'], ['assimp']
 			else:
-				return ['assimpD', 'assimpD']
+				return ['assimpD'], ['assimpD']
 
 
 class Use_opencollada( IUse ):
