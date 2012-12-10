@@ -1084,7 +1084,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return 'NoneAndNormal'
 
 	def getDbg( self, version ):
-		path = os.path.join( self.getBasePath(), 'lib' )
+		path = join( self.getBasePath(), 'lib' )
 		dbgFiles = glob.glob( join(path,'*.pdb') )
 		dbgFilesD = glob.glob( join(path,'*_[0-9]_[0-9]d.pdb') )
 		dbgFilesR = glob.glob( join(path,'*_[0-9]_[0-9].pdb') )
@@ -1097,11 +1097,17 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getLicenses( self, version ):
 		# sofa framework license
-		licenses = [ os.path.join( self.getBasePath(), 'LICENCE.txt' ) ]
+		licenses = [ join( self.getBasePath(), 'LICENCE.txt' ) ]
 		# plugins licenses
-		pluginsDir = os.path.join( self.getBasePath(), 'applications', 'plugins' )
+		pluginsDirs = [ join( self.getBasePath(), 'applications', 'plugins' ), join( self.getBasePath(), 'applications-dev', 'plugins' ) ]
 		for plugin in self.getPluginsList():
-			licenses.append( join(pluginsDir, plugin, plugin + '.txt') )
+			for pluginDir in pluginsDirs:
+				license = join( pluginDir, plugin, plugin + '.txt' )
+				if os.path.lexists(license):
+					licenses.append( license )
+					break
+			else:
+				print("sbfError: License file not found for sofa plugin named '{0}'.".format( plugin )
 		return licenses
 
 
