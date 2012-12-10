@@ -52,13 +52,13 @@ class sofaConfig:
 
 		# Post-conditions for SOFA_PATH
 		if cls.__basePath is None or len(cls.__basePath)==0:
-			if hasattr(__builtin__, 'SConsBuildFrameworkLazzyInitialization'):
+			if hasattr(__builtin__, 'sofaConfigLazyInitialization'):
 				print ('Unable to configure sofa.\nSOFA_PATH environment variable must be defined.')
 			else:
 				raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
 
 		# Retrieves svn revision
-		if hasattr(__builtin__, 'SConsBuildFrameworkLazzyInitialization'):
+		if hasattr(__builtin__, 'sofaConfigLazyInitialization'):
 			# dummy __svnRevision is lazzy initialization
 			cls.__svnRevision = str(0)
 		else:
