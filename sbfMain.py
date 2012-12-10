@@ -109,6 +109,7 @@
 #import datetime
 #sbfMainBeginTime = datetime.datetime.now()
 
+import __builtin__
 import collections, os, string, sys
 
 # To be able to catch wrong SCons version or missing SCons
@@ -128,7 +129,7 @@ from src.sbfTools	import locateProgram
 if sys.platform == 'win32':
 	from src.sbfTools import winGetInstallPath
 from src.sbfUI		import ask, askQuestion
-from src.sbfUses	import uses
+from src.sbfUses	import uses, UseRepository
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
@@ -333,6 +334,10 @@ env['sbf_launchProject'		]	= env['sbf_project']
 ### special targets about svn ###
 # svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate
 if len(buildTargetsSet & sbf.mySvnTargets) > 0:
+	# For svn targets, allow lazy initialization of sofaConfig class
+	__builtin__.sofaConfigLazyInitialization = True
+
+	#
 	Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
@@ -421,6 +426,12 @@ if hasBranchOrTagTarget:
 		assert( False )
 	Alias( 'svnmktag',			Command('dummySvnMkTag.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnremotemkbranch',	Command('dummySvnRemoteMkBranch.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
+
+
+# Initializes 'uses' repository
+if UseRepository.isInitialized() == False :
+	UseRepository.initialize( sbf )
+	UseRepository.add( UseRepository.getAll() )
 
 
 # Builds the root project (i.e. launchDir).

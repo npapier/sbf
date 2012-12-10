@@ -919,11 +919,6 @@ class SConsBuildFramework :
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( self.myEnv )
 
-		# Initializes 'uses' repository
-		if UseRepository.isInitialized() == False :
-			UseRepository.initialize( self )
-			UseRepository.add( UseRepository.getAll() )
-
 		# Updates PATH
 		toAppend = getPathsForTools()
 		#toPrepend = getPathsForSofa(False) + getPathsForRuntime(self)
