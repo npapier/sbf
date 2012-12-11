@@ -1053,7 +1053,12 @@ class Use_sofa( IUse, sofaConfig ):
 			libsBoth += self.getPluginsList()
 
 			#
-			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt', 'tinyxml']
+			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt']
+			if int(version) < 11877:
+				# sofa public revision number (used in trunk)
+				libsBoth += ['tinyxml']
+			else:
+				staticLibs += ['tinyxml']
 
 			if self.config == 'release':
 				sofaVersion = '_1_0'
