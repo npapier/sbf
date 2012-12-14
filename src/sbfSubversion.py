@@ -1120,7 +1120,8 @@ class Subversion( IVersionControlSystem ):
 				break
 		else:
 			print ( "{project} working copy from {url}".format( project=myProject, url=urlWC ) )
-			print ("sbfError: Unable to found a matching url in 'svnUrls' option.")
+			print ("sbfError: Unable to found a matching url in 'svnUrls' option of 'SConsBuildFramework.options'")
+			print ("Execute the following command to resolve the problem: 'scons svnRelocate'.")
 			exit(1)
 
 		# Found a matching url
