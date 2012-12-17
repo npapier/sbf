@@ -736,11 +736,12 @@ Function migratePackagesAndVar
 		${{If}} $9 != "."
 		${{AndIf}} $9 != ".."
 
-			;MessageBox MB_OK "Found $9"
-
-			; for myPackageName_2-1 => $6 myPackageName, $7 2-1
+			; $9 myPackageName_2-1_X
+			; for myPackageName_2-1_X => $6 myPackageName, $7 2-1
 			${{StrTok}} $6 "$9" "_" "0" "1"
 			${{StrTok}} $7 "$9" "_" "1" "1"
+
+			LogEx::Write "Found package '$6' version '$7' in '$9'"
 
 			; $R0 version, $R1 status
 			!insertmacro GetVersionAndStatus "$6" $R0 $R1
@@ -748,22 +749,22 @@ Function migratePackagesAndVar
 
 			${{If}} $R0 == $7				; package found in registry and in filesystem have the same version
 			${{AndIf}} $R1 == "installed"	; and the package in registry is installed
-				LogEx::Write "$6:$7: is an installed package"
+				LogEx::Write "package $6 is an installed package"
 
 				; Get ProductExe
 				StrCpy $R2 "Software\Microsoft\Windows\CurrentVersion\Uninstall\$6_$7"
 				!insertmacro getRegUninstallProductExe "$R2" $R3
 				LogEx::Write "getRegUninstallProductExe '$R2' returns '$R3'"
 
-				!insertmacro writeRegUninstall0 "$R2" "$1\\packages\\$6_$7" "$R3"
+				!insertmacro writeRegUninstall0 "$R2" "$1\\packages\\$9" "$R3"
 
 				; In 'install section' of registry, 'InstallDir' have to be modified by migration
-				!insertmacro SetInstallDir $6 "$1\\packages\\$6_$7"
+				!insertmacro SetInstallDir $6 "$1\\packages\\$9"
 
 				; todo add migrationDate/Time/DirDest in registry
 			${{Else}}
 				;MessageBox MB_OK "$6:$7: is not an installed package"
-				LogEx::Write "$6:$7: is not an installed package"
+				LogEx::Write "package $6 is not an installed package"
 			${{Endif}}
 		${{Endif}}
 		FindNext $8 $9
