@@ -6,13 +6,16 @@
 # Author Nicolas Papier
 
 # ok for clx.y
+version = '0.9.3.4'
+versionDash = version.replace('.', '-')
+
 descriptor = {
- 'urls'			: ['http://sourceforge.net/projects/ogl-math/files/glm-0.9.3.3/glm-0.9.3.3.zip'],
+ 'urls'			: ['http://sourceforge.net/projects/ogl-math/files/glm-{version}/glm-{version}.zip'.format(version=version)],
 
  'name'			: 'glm',
- 'version'		: '0-9-3-3',
+ 'version'		: versionDash,
 
- 'rootDir'		: 'glm-0.9.3.3',
+ 'rootDir'		: 'glm-{version}'.format(version=version),
  'license'		: ['copying.txt'],
- 'include'		: [('glm/', 'glm/')],
+ 'include'		: [('glm/', 'glm/')]
 }
