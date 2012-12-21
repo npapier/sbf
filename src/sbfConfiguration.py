@@ -84,6 +84,6 @@ def sbfConfigureTools( sbf ):
 	_sbfConfigure( [], toAppend )
 
 
-def sbfUnconfigureTools( sbf ):
+def sbfUnconfigureTools( sbf, verbose = True ):
 	toRemove = getPathsForTools()
-	_sbfUnconfigure( toRemove )
+	_sbfUnconfigure( toRemove, verbose )
