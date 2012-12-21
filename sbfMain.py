@@ -299,30 +299,6 @@ print ( "Configuration: {0}\n".format(env['config']) )
 #print env.Dump()
 
 
-# target sbfCheck sbfPak sbfConfigure sbfUnconfigure sbfConfigureTools and sbfUnconfigureTools
-hasSbfTargets = len( buildTargetsSet & sbf.mySbfTargets ) > 0
-if hasSbfTargets:
-	# target sbfcheck
-	if 'sbfcheck' in buildTargetsSet:
-		sbfCheck( env )
-	# target 'sbfPak'
-	elif 'sbfpak' in buildTargetsSet:
-		import src.sbfPackagingSystem
-		src.sbfPackagingSystem.runSbfPakCmd(sbf)
-	# all sbf*configure* targets
-	elif 'sbfconfigure' in buildTargetsSet:
-		sbfConfigure( sbf )
-	elif 'sbfunconfigure' in buildTargetsSet:
-		sbfUnconfigure( sbf )
-	elif 'sbfconfiguretools' in buildTargetsSet:
-		sbfConfigureTools( sbf )
-	elif 'sbfunconfiguretools' in buildTargetsSet:
-		sbfUnconfigureTools( sbf )
-	else:
-		raise SCons.Errors.UserError("Internal sbf error.")
-	Exit(0)
-
-
 # build project from launch directory (and all dependencies recursively)
 env['sbf_launchDir'			]	= getNormalizedPathname( os.getcwd() )
 env['sbf_projectPathName'	]	= env['sbf_launchDir']
@@ -432,6 +408,30 @@ if hasBranchOrTagTarget:
 if UseRepository.isInitialized() == False :
 	UseRepository.initialize( sbf )
 	UseRepository.add( UseRepository.getAll() )
+
+
+# target sbfCheck sbfPak sbfConfigure sbfUnconfigure sbfConfigureTools and sbfUnconfigureTools
+hasSbfTargets = len( buildTargetsSet & sbf.mySbfTargets ) > 0
+if hasSbfTargets:
+	# target sbfcheck
+	if 'sbfcheck' in buildTargetsSet:
+		sbfCheck( env )
+	# target 'sbfPak'
+	elif 'sbfpak' in buildTargetsSet:
+		import src.sbfPackagingSystem
+		src.sbfPackagingSystem.runSbfPakCmd(sbf)
+	# all sbf*configure* targets
+	elif 'sbfconfigure' in buildTargetsSet:
+		sbfConfigure( sbf )
+	elif 'sbfunconfigure' in buildTargetsSet:
+		sbfUnconfigure( sbf )
+	elif 'sbfconfiguretools' in buildTargetsSet:
+		sbfConfigureTools( sbf )
+	elif 'sbfunconfiguretools' in buildTargetsSet:
+		sbfUnconfigureTools( sbf )
+	else:
+		raise SCons.Errors.UserError("Internal sbf error.")
+	Exit(0)
 
 
 # Builds the root project (i.e. launchDir).
