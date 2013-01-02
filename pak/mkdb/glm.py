@@ -6,7 +6,7 @@
 # Author Nicolas Papier
 
 # ok for clx.y
-version = '0.9.3.4'
+version = '0.9.4.1'
 versionDash = version.replace('.', '-')
 
 descriptor = {
@@ -15,7 +15,7 @@ descriptor = {
  'name'			: 'glm',
  'version'		: versionDash,
 
- 'rootDir'		: 'glm-{version}'.format(version=version),
+# 'rootDir'		: 'glm-{version}'.format(version=version),
  'license'		: ['copying.txt'],
  'include'		: [('glm/', 'glm/')]
 }
