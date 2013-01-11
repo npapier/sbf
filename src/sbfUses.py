@@ -784,7 +784,7 @@ class Use_openassetimport( IUse ):
 		return 'openassetimport'
 
 	def getVersions( self ):
-		return ['3-0']
+		return ['3-0-1', '3-0']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
