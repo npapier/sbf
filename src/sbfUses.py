@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -988,7 +988,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return 'sofa'
 
 	def getVersions( self ):
-		return [self.getVersion()]
+		return [sofaConfig.getVersion()]
 
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
@@ -1122,7 +1122,7 @@ class Use_sofaQt( IUse, sofaConfig ):
 		return 'sofaqt'
 
 	def getVersions( self ):
-		return [self.getVersion()]
+		return [sofaConfig.getVersion()]
 
 	def getCPPDEFINES( self, version ):
 		return ['SOFA_QT4']
