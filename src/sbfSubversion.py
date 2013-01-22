@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -13,7 +13,7 @@ except ImportError as e:
 	raise e
 
 import os
-from os.path import basename, dirname, isfile, isdir, join, normpath, relpath
+from os.path import basename, dirname, exists, isfile, isdir, join, normpath, relpath
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
 
@@ -488,7 +488,7 @@ class SvnListFile( SvnList ):
 		return retVal
 
 
-# SvnGetWorkingAndRepositoryRevision, SvnGetWorkingAndRepositoryLastChangedRevision, SvnUpdateAvailable
+# SvnGetWorkingAndRepositoryRevision, SvnGetWorkingAndRepositoryLastChangedRevision, SvnGetWorkingAndRepositoryRevisionAndLastChangedRevision, SvnUpdateAvailable
 class SvnGetWorkingAndRepositoryRevision( SvnGetInfo ):
 	"""SvnGetWorkingAndRepositoryRevision()( workingCopyPath )
 		@param workingCopyPath	path to the current working copy
@@ -515,6 +515,19 @@ class SvnGetWorkingAndRepositoryLastChangedRevision( SvnGetInfo ):
 				return (workingInfo['last_changed_rev'].number, repositoryInfo['last_changed_rev'].number)
 
 
+class SvnGetWorkingAndRepositoryRevisionAndLastChangedRevision( SvnGetInfo ):
+	"""SvnGetWorkingAndRepositoryRevisionAndLastChangedRevision()( workingCopyPath )
+		@param workingCopyPath	path to the current working copy
+		@return None if not under vcs, otherwise returns (workingRevisionNumber, repositoryRevisionNumber, workingLastChangedRevisionNumber, repositoryLastChangedRevisionNumber)"""
+
+	def doSvnOperation( self, *args ):
+		workingInfo = SvnGetInfo.doSvnOperation( self, *args )
+		if workingInfo:
+			repositoryInfo = SvnGetInfo.doSvnOperation( self, workingInfo['URL'] )
+			if repositoryInfo:
+				return (workingInfo['rev'].number, repositoryInfo['rev'].number, workingInfo['last_changed_rev'].number, repositoryInfo['last_changed_rev'].number)
+
+
 # @todo Improves SvnUpdateAvailable() => retVal = SvnStatus(), checks len(retVal) and retVal contents
 class SvnUpdateAvailable( SvnGetWorkingAndRepositoryRevision ):
 	"""SvnUpdateAvailable()( workingCopyPath )
@@ -528,6 +541,62 @@ class SvnUpdateAvailable( SvnGetWorkingAndRepositoryRevision ):
 			repositoryRev = retVal[1]
 			return workingRev < repositoryRev
 
+
+# svnIsUpdateAvailable
+def svnIsUpdateAvailable( path, desiredRevisionNumber, verbose = True, veryVerbose = False, callExitOnError = True ):
+	"""	@param path						the path to the project to test
+		@param desiredRevisionNumber	a revision number or None for latest revision"""
+
+	if desiredRevisionNumber:	desiredRevisionNumber = int(desiredRevisionNumber)
+
+	project = basename(path)
+	if exists(path):
+		# existing path
+		if svnIsVersioned(path):
+			(workingRevisionNumber, repositoryRevisionNumber, workingLastChangedRevisionNumber, repositoryLastChangedRevisionNumber) = SvnGetWorkingAndRepositoryRevisionAndLastChangedRevision()( path )
+			if veryVerbose:
+				print ("Last changed of working copy at revision {0} for {1}, last changed of remote version at revision {2}.".format(workingLastChangedRevisionNumber, project, repositoryLastChangedRevisionNumber))
+				print ("Working copy of {0} at revision {1}, remote version at revision {2}.".format(project, workingRevisionNumber, repositoryRevisionNumber))
+			if desiredRevisionNumber:
+				# update to revision
+				if workingLastChangedRevisionNumber < desiredRevisionNumber:
+					if desiredRevisionNumber > repositoryRevisionNumber:
+						print ('WARNING:Unable to update {0} to revision {1}. Latest revision available is {2}.'.format(project, desiredRevisionNumber, repositoryRevisionNumber))
+						if callExitOnError:
+							exit(1)
+						else:
+							return False
+					# else nothing to do
+					if verbose:	print ('REVISION {revisionNumber} IS AVAILABLE FOR {project}.'.format( revisionNumber=desiredRevisionNumber, project=project.upper() ) )
+					return True
+				elif workingLastChangedRevisionNumber == desiredRevisionNumber:
+					if verbose:	print ( '{project} at revision {revision}.'.format( project=project, revision=desiredRevisionNumber ) )
+					if veryVerbose:	print ( '{project} is up-to-date.'.format(project=project) )
+					return False
+				else:
+					assert( workingLastChangedRevisionNumber > desiredRevisionNumber )
+					if verbose:	print ('{project} is newer than the desired revision {revision}.'.format(project=project, revision=desiredRevisionNumber) )
+					return True
+			else:
+				# update to latest
+				if workingLastChangedRevisionNumber < repositoryLastChangedRevisionNumber:
+					if verbose:	print ('REVISION {revisionNumber} IS AVAILABLE FOR {project}.'.format( revisionNumber=repositoryLastChangedRevisionNumber, project=project.upper() ) )
+					return True
+				else:
+					assert( workingLastChangedRevisionNumber == repositoryLastChangedRevisionNumber )
+					if verbose:	print ( '{project} at revision {revision}.'.format( project=project, revision=workingLastChangedRevisionNumber ) )
+					if veryVerbose:	print ( '{project} is up-to-date.'.format(project=project) )
+					return False
+		else:
+			if verbose:	print ('{project} is not under vcs.'.format(project=project))
+			if callExitOnError:
+				exit(1)
+			else:
+				return False
+	else:
+		# path is not an existing path, an update is available (first checkout).
+		if verbose:	print ('{project} not found. REVISION {revisionNumber} IS AVAILABLE FOR {project}'.format( revisionNumber=repositoryLastChangedRevisionNumber, project=project.upper() ) )
+		return True
 
 # svnIsUnversioned, svnIsVersioned
 def svnIsUnversioned( urlOrPath ):

@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -133,8 +133,7 @@ from src.sbfUses	import uses, UseRepository
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
-
+from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, SvnCat, locateProject, removeTrunkOrTagsOrBranches, svnIsUpdateAvailable, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
 
 ###### Action function for sbfCheck target #######
 def checkTool( env, toolName, toolCmdArgs ):
@@ -656,18 +655,47 @@ if (	('dox_build' in sbf.myBuildTargets) or
 #from src.sbfNSIS import configureZipAndNSISTargets
 #configureZipAndNSISTargets( env )
 
-# Tests if SConsBuildFramework is up-to-date
-# @todo Updates SConsBuildFramework
+# SConsBuildFramework auto-update
+def runSbfAutoUpdater():
+	# Create directory 'sbfAutoUpdater'
+	sandboxPath = join(sbf.mySCONS_BUILD_FRAMEWORK, 'sbfAutoUpdater')
+	if not exists(sandboxPath):	os.makedirs(sandboxPath)
+
+	# Copy files in directory 'sbfAutoUpdater'
+	for file in ['sbfFiles.py', 'sbfIVersionControlSystem.py', 'sbfSubversion.py']:
+		shutil.copy( join(sbf.mySCONS_BUILD_FRAMEWORK, 'src', file), sandboxPath )
+
+	# Create autoUpdater.py
+	autoUpdater = join(sandboxPath, 'autoUpdater.py')
+	with open( autoUpdater, 'w' ) as f:
+		autoUpdaterCode = """import os
+from sbfSubversion import Subversion
+
+SCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
+svnUrls = {svnUrls}
+
+vcs = Subversion( svnUrls=svnUrls )
+
+vcs.update( SCONS_BUILD_FRAMEWORK, "SConsBuildFramework" )
+"""
+		f.write( autoUpdaterCode.format( svnUrls=str(sbf.mySvnUrls) ) )
+
+	# Replace current process with autoUpdater.py
+	if sbf.myPlatform == 'win32':
+		autoUpdater = autoUpdater.replace('\\', '\\\\')
+		print 'Asynchronous update of SConsBuildFramework'
+	os.execlp( 'python', 'python', '"{0}"'.format(autoUpdater) )
+
+# Test if SConsBuildFramework needs to update itself. Takes care of 'svnUrls' values.
 if 'svnupdate' in buildTargetsSet:
-	from src.sbfSubversion import SvnUpdateAvailable
-	print stringFormatter( env, "Tests if project {project} in {projectPath} is up-to-date".format( project=os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK), projectPath=os.path.dirname(sbf.mySCONS_BUILD_FRAMEWORK)) )
-	updateAvailable = SvnUpdateAvailable()( sbf.mySCONS_BUILD_FRAMEWORK )
-	if updateAvailable:
-		print ('AN UPDATE IS AVAILABLE FOR SCONSBUILDFRAMEWORK')
-	else:
-		print ('SConsBuildFramework is up-to-date')
+	# test if update has to be done
+	print stringFormatter( env, 'vcs update project {0} in {1}'.format(basename(sbf.mySCONS_BUILD_FRAMEWORK), sbf.mySCONS_BUILD_FRAMEWORK) )
+
+	(svnUrl, desiredRevision) = sbf.myVcs.locateProject('SConsBuildFramework')
+
+	isAnUpdateAvailable = svnIsUpdateAvailable( sbf.mySCONS_BUILD_FRAMEWORK, desiredRevision, True, env.GetOption('verbosity'), True )
+	if isAnUpdateAvailable:
+		runSbfAutoUpdater()
 	print
-	#print stringFormatter( env, "vcs %s project %s in %s" % ('update', os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK), os.path.dirname(sbf.mySCONS_BUILD_FRAMEWORK)) )
-	#sbf.myVcs.update( sbf.mySCONS_BUILD_FRAMEWORK, os.path.basename(sbf.mySCONS_BUILD_FRAMEWORK) )
 
 #print (datetime.datetime.now() - sbfMainBeginTime).microseconds/1000
