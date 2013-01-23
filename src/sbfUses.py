@@ -70,7 +70,6 @@ class sofaConfig:
 			cls.__pluginsList = sofaPlugins.split(':')
 			print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
 
-
 	@classmethod
 	def getBasePath( cls ):
 		if cls.__basePath is None:
@@ -997,7 +996,7 @@ class Use_sofa( IUse, sofaConfig ):
 			# sofa public revision number (used in trunk)
 			definesList += ['SOFA_HAVE_GLEW']
 
-		pluginsDefines = string.join(self.getPluginsList(), ':')
+		pluginsDefines = string.join(sofaConfig.getPluginsList(), ':')
 		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
 
 		return definesList
@@ -1009,15 +1008,15 @@ class Use_sofa( IUse, sofaConfig ):
 			return []
 
 	def getCPPPATH( self, version ):
-		cppPath = [	os.path.join(self.getBasePath(), 'applications'),
-					os.path.join(self.getBasePath(), 'applications-dev'),
-					os.path.join(self.getBasePath(), 'applications-dev/plugins/SofaAdvancedInteraction'),
-					os.path.join(self.getBasePath(), 'modules'),
-					os.path.join(self.getBasePath(), 'framework'),
-					os.path.join(self.getBasePath(), 'include'),
-					os.path.join(self.getBasePath(), 'extlibs/taucs_mt/src'),
-					os.path.join(self.getBasePath(), 'extlibs/tinyxml'),
-					os.path.join(self.getBasePath(), 'extlibs/miniFlowVR/include') ]
+		cppPath = [	os.path.join(sofaConfig.getBasePath(), 'applications'),
+					os.path.join(sofaConfig.getBasePath(), 'applications-dev'),
+					os.path.join(sofaConfig.getBasePath(), 'applications-dev/plugins/SofaAdvancedInteraction'),
+					os.path.join(sofaConfig.getBasePath(), 'modules'),
+					os.path.join(sofaConfig.getBasePath(), 'framework'),
+					os.path.join(sofaConfig.getBasePath(), 'include'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/taucs_mt/src'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/tinyxml'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
 		if self.platform == 'posix':
 			cppPath += ['/usr/include/libxml2']
@@ -1050,7 +1049,7 @@ class Use_sofa( IUse, sofaConfig ):
 								'sofa_preconditioner', 'sofa_validation' ]
 
 			# optional plugins (sofa-dt)
-			libsBoth += self.getPluginsList()
+			libsBoth += sofaConfig.getPluginsList()
 
 			#
 			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt']
@@ -1082,14 +1081,14 @@ class Use_sofa( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		path = os.path.join( self.getBasePath(), 'lib' )
+		path = os.path.join( sofaConfig.getBasePath(), 'lib' )
 		return [path], [path]
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
 
 	def getDbg( self, version ):
-		path = join( self.getBasePath(), 'lib' )
+		path = join( sofaConfig.getBasePath(), 'lib' )
 		dbgFiles = glob.glob( join(path,'*.pdb') )
 		dbgFilesD = glob.glob( join(path,'*_[0-9]_[0-9]d.pdb') )
 		dbgFilesR = glob.glob( join(path,'*_[0-9]_[0-9].pdb') )
@@ -1102,10 +1101,10 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getLicenses( self, version ):
 		# sofa framework license
-		licenses = [ join( self.getBasePath(), 'LICENCE.txt' ) ]
+		licenses = [ join( sofaConfig.getBasePath(), 'LICENCE.txt' ) ]
 		# plugins licenses
-		pluginsDirs = [ join( self.getBasePath(), 'applications', 'plugins' ), join( self.getBasePath(), 'applications-dev', 'plugins' ) ]
-		for plugin in self.getPluginsList():
+		pluginsDirs = [ join( sofaConfig.getBasePath(), 'applications', 'plugins' ), join( sofaConfig.getBasePath(), 'applications-dev', 'plugins' ) ]
+		for plugin in sofaConfig.getPluginsList():
 			for pluginDir in pluginsDirs:
 				license = join( pluginDir, plugin, plugin + '.txt' )
 				if os.path.lexists(license):
@@ -1151,7 +1150,7 @@ class Use_sofaQt( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		path = os.path.join( self.getBasePath(), 'lib' )
+		path = os.path.join( sofaConfig.getBasePath(), 'lib' )
 		return [path], [path]
 
 	def getPackageType( self ):
