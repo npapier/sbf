@@ -651,10 +651,6 @@ if (	('dox_build' in sbf.myBuildTargets) or
 	env.Alias( 'dox_mrproper', 'dox_clean' )
 	env.Clean( 'dox_mrproper', doxInstallPath )
 
-### special zip related targets : zipRuntime, zipDeps, zipPortable, zipDev, zipSrc and zip ###
-#from src.sbfNSIS import configureZipAndNSISTargets
-#configureZipAndNSISTargets( env )
-
 # SConsBuildFramework auto-update
 def runSbfAutoUpdater():
 	# Create directory 'sbfAutoUpdater'
