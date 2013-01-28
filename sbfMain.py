@@ -666,6 +666,7 @@ def runSbfAutoUpdater():
 	with open( autoUpdater, 'w' ) as f:
 		autoUpdaterCode = """import os
 from sbfSubversion import Subversion
+from collections import OrderedDict
 
 SCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
 svnUrls = {svnUrls}
