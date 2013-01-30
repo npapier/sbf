@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -207,7 +207,7 @@ def generateNSISMainScript( target, source, env ):
 
 	# Checks unknown option in 'nsis'
 	nsisKeys = set(env['nsis'].keys())
-	allowedNsisKeys = set([	'autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'uninstallVarDirectory',
+	allowedNsisKeys = set([	'autoUninstall', 'installDirFromRegKey', 'ensureNewInstallDir', 'actionOnVarDirectory',
 							'moveLogFileIntoVarDirectory', 'copySetupFileIntoVarDirectory', 'customPointInstallationValidation'])
 	unknowOptions = nsisKeys - allowedNsisKeys
 	if len(unknowOptions)>0:
@@ -217,7 +217,7 @@ def generateNSISMainScript( target, source, env ):
 	nsisAutoUninstall = env['nsis'].get('autoUninstall', True)
 	nsisInstallDirFromRegKey = env['nsis'].get('installDirFromRegKey', True)
 	nsisEnsureNewInstallDir = env['nsis'].get('ensureNewInstallDir', False)
-	nsisUninstallVarDirectory = env['nsis'].get('uninstallVarDirectory', False)
+	nsisActionOnVarDirectory = env['nsis'].get('actionOnVarDirectory', 'leave')
 	nsisMoveLogFileIntoVarDirectory = env['nsis'].get('moveLogFileIntoVarDirectory', False)
 	nsisCopySetupFileIntoVarDirectory = env['nsis'].get('copySetupFileIntoVarDirectory', False)
 	nsisCustomPointInstallationValidation = env['nsis'].get('customPointInstallationValidation', '')
@@ -235,10 +235,18 @@ def generateNSISMainScript( target, source, env ):
 
 	if nsisAutoUninstall:					definesSection += "!define AUTO_UNINSTALL\n"
 	if nsisEnsureNewInstallDir:				definesSection += "!define ENSURE_NEW_INSTALLDIR\n"
-	if nsisUninstallVarDirectory:			definesSection += "!define UNINSTALL_VAR_DIRECTORY\n"
+	if nsisActionOnVarDirectory == 'leave':
+		definesSection += "!define LEAVE_VAR_DIRECTORY\n"
+	elif nsisActionOnVarDirectory == 'remove':
+		definesSection += "!define REMOVE_VAR_DIRECTORY\n"
+	elif nsisActionOnVarDirectory == 'autoMigration':
+		definesSection += "!define AUTOMIGRATION_VAR_DIRECTORY\n"
+	elif nsisActionOnVarDirectory == 'manualMigration':
+		definesSection += "!define MANUALMIGRATION_VAR_DIRECTORY\n"
+	else:
+		raise SCons.Errors.UserError( "Unknown value '{0}' for key 'actionOnVarDirectory' in 'nsis' option".format( nsisActionOnVarDirectory ) )
 	if nsisMoveLogFileIntoVarDirectory:		definesSection += "!define MOVE_LOGFILE_INTO_VARDIRECTORY\n"
 	if nsisCopySetupFileIntoVarDirectory:	definesSection += "!define COPY_SETUPFILE_INTO_VARDIRECTORY\n"
-
 
 	# Open output file
 	with open( targetName, 'w' ) as file:
@@ -473,7 +481,10 @@ XPStyle on
 
 ; --- Variables ---
 Var logex_dirname
-Var logex_logname
+Var logex_basename
+
+Var feedback_dirname
+Var feedback_basename
 
 Var installationValidation		; 0 valid, != 0 invalid
 
@@ -611,17 +622,20 @@ Var Uninstall_UninstallString
 
 
 ; --- Command line parameters ---
-!macro GetLogPathAndName logPath logName
+!macro ProcessCommandLine logPath logName feedbackPath feedbackName
  ; Analyse command line parameters
  ; @return $logPath contains /logpath=value or $EXEDIR
  ; @return $logName contains /logname=value or $EXEFILE.replace('.exe', '_log.txt')
-
+ ; @return $feedbackPath contains /feedback=value or $EXEDIR
+ ; @return $feedbackName contains /feedback=value or $EXEFILE.replace('.exe', '_feedback.txt')
  Push $0
 
  ${{GetParameters}} $0
 
  ${{GetOptions}} $0 "/logpath=" ${{logPath}}
  ${{GetOptions}} $0 "/logname=" ${{logName}}
+ ${{GetOptions}} $0 "/feedbackpath=" ${{feedbackPath}}
+ ${{GetOptions}} $0 "/feedbackname=" ${{feedbackName}}
 
  ${{If}} ${{logPath}} == ''
   ; no /logPath specified
@@ -633,15 +647,27 @@ Var Uninstall_UninstallString
    ${{StrRep}} ${{logName}} "$EXEFILE" ".exe" "_log.txt"
  ${{Endif}}
 
+ ${{If}} ${{feedbackPath}} == ''
+  ; no /feedbackPath specified
+  StrCpy ${{feedbackPath}} "$EXEDIR"
+ ${{Endif}}
+
+ ${{If}} ${{feedbackName}} == ''
+   ; no /feedbackName specified
+   ${{StrRep}} ${{feedbackName}} "$EXEFILE" ".exe" "_feedback.txt"
+ ${{Endif}}
+
  Pop $0
 !macroend
-!define GetLogPathAndName '!insertmacro GetLogPathAndName'
+!define ProcessCommandLine '!insertmacro ProcessCommandLine'
 
 
-!macro unGetLogPathAndName logPath logName
+!macro unProcessCommandLine logPath logName feedbackPath feedbackName
  ; Analyse command line parameters
  ; @return $logPath contains /logpath=value or $TEMP
  ; @return $logName contains /logname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_uninstall_log.txt
+ ; @return $logPath contains /logpath=value or $TEMP
+ ; @return $logName contains /logname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt
 
  Push $0
 
@@ -649,6 +675,8 @@ Var Uninstall_UninstallString
 
  ${{GetOptions}} $0 "/logpath=" ${{logPath}}
  ${{GetOptions}} $0 "/logname=" ${{logName}}
+ ${{GetOptions}} $0 "/feedbackpath=" ${{feedbackPath}}
+ ${{GetOptions}} $0 "/feedbackname=" ${{feedbackName}}
 
  ${{If}} ${{logPath}} == ''
   ; no /logPath specified
@@ -660,9 +688,19 @@ Var Uninstall_UninstallString
    StrCpy ${{logName}} "${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_uninstall_log.txt"
  ${{Endif}}
 
+ ${{If}} ${{feedbackPath}} == ''
+  ; no /feedback specified
+  StrCpy ${{feedbackPath}} $TEMP
+ ${{Endif}}
+
+ ${{If}} ${{feedbackName}} == ''
+   ; no /feedbackName specified
+   StrCpy ${{feedbackName}} "${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt"
+ ${{Endif}}
+
  Pop $0
 !macroend
-!define unGetLogPathAndName '!insertmacro unGetLogPathAndName'
+!define unProcessCommandLine '!insertmacro unProcessCommandLine'
 
 
 ; --- Functions ---
@@ -702,13 +740,13 @@ Function Uninstall_ask
 FunctionEnd
 
 
-Function migratePackagesAndVar
-	!define migratePackagesAndVar '!insertmacro migratePackagesAndVarCall'
+Function migratePackagesFun
+	!define migratePackages '!insertmacro migratePackagesCall'
 
-	!macro migratePackagesAndVarCall source destination
+	!macro migratePackagesCall source destination
 	Push ${{destination}}
 	Push ${{source}}
-	Call migratePackagesAndVar
+	Call migratePackagesFun
 	!macroend
 
 	; $0 source and $1 destination
@@ -717,17 +755,8 @@ Function migratePackagesAndVar
 	Exch $1
 	Exch
 
-	MessageBox MB_OK "Directories 'packages' and 'var' have to be migrated from $0 into $1." /SD IDOK
-	LogEx::Write "Directories 'packages' and 'var' have to be migrated from $0 into $1."
-
-	; --- migrate var ---
-	${{If}} ${{FileExists}} "$0\\var"
-		LogEx::Write 'Directory "$0\\var" is not moved into "$1\\varPrevious". This feature is disabled.'
-		;Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
-		;LogEx::Write 'Rename "$0\\var" into "$1\\varPrevious.'
-	${{Else}}
-		LogEx::Write 'No var directory in $0'
-	${{Endif}}
+	MessageBox MB_OK "Directory 'packages' has to be migrated from $0 into $1." /SD IDOK
+	LogEx::Write "Directories 'packages' has to be migrated from $0 into $1."
 
 	; --- migrate packages ---
 	ClearErrors
@@ -787,8 +816,47 @@ Function migratePackagesAndVar
 FunctionEnd
 
 
+Function migrateVarFun
+	!define migrateVar '!insertmacro migrateVarCall'
+
+	!macro migrateVarCall source destination
+	Push ${{destination}}
+	Push ${{source}}
+	Call migrateVarFun
+	!macroend
+
+	; $0 source and $1 destination
+	Exch $0
+	Exch
+	Exch $1
+	Exch
+
+	${{If}} ${{FileExists}} "$0\\var"
+		!ifdef LEAVE_VAR_DIRECTORY
+			MessageBox MB_OK "Leave directory 'var' untouched in $0." /SD IDOK
+			LogEx::Write "Leave directory 'var' untouched in $0."
+		!else ifdef REMOVE_VAR_DIRECTORY
+			LogEx::Write 'Directory "$0\\var" will be removed during uninstallation'
+		!else ifdef AUTOMIGRATION_VAR_DIRECTORY
+			Rename /REBOOTOK "$0\\var" "$1\\varPrevious"
+			LogEx::Write 'Rename "$0\\var" into "$1\\varPrevious.'
+		!else ifdef MANUALMIGRATION_VAR_DIRECTORY
+			LogEx::Write "Write 'varDirectory=$0\\var' in 'Import' section of $feedback_dirname\$feedback_basename."
+			WriteINIStr "$feedback_dirname\$feedback_basename" "Import" "varDirectory" "$0\\var"
+		!endif
+	${{Else}}
+		LogEx::Write 'No var directory in $0'
+	${{Endif}}
+
+	; restore
+	Pop $0
+	Pop $1
+FunctionEnd
+
+
 Function UninstallFunction
-	; Remove program using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
+	; if AUTO_UNINSTALL is defined, then remove program using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
+	; if AUTO_UNINSTALL is not defined, then write 'uninstall=commandLine' using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
 
 	StrCpy $0 $Uninstall_InstallDir
 	StrCpy $3 $Uninstall_ProductName
@@ -797,38 +865,54 @@ Function UninstallFunction
 		LogEx::Write "Nothing to uninstall"
 	${{Else}}
 		ClearErrors
+
+		; Construct command line to uninstall (in $1)
 		${{If}} ${{Silent}}
 			; silent uninstall
-			StrCpy $1 '$9 /S /logpath="$logex_dirname" /logname="$logex_logname" _?=$0' 
-			LogEx::Write 'Uninstall silently $3 using "$1"'
-			LogEx::Close
-				ExecWait "$1" $2
-			LogEx::Init "$logex_dirname\\$logex_logname"
+			StrCpy $1 '$9 /S'
 		${{Else}}
 			; non silent uninstall
-			StrCpy $1 '$9 /logpath="$logex_dirname" /logname="$logex_logname" _?=$0'
+			StrCpy $1 '$9'
+		${{Endif}}
+
+		!ifdef AUTO_UNINSTALL
+			StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$0'
+		!else
+			!ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
+				StrCpy $1 '$1 /logpath="$INSTDIR\\var" /logname="$logex_basename" _?=$0'
+			!else
+				StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$0'
+			!endif
+		!endif
+
+
+		!ifdef AUTO_UNINSTALL
 			LogEx::Write 'Uninstall $3 using "$1"'
 			LogEx::Close
 				ExecWait "$1" $2
-			LogEx::Init "$logex_dirname\\$logex_logname"
-		${{Endif}}
+			LogEx::Init "$logex_dirname\\$logex_basename"
 
-		; result
-		${{If}} ${{Errors}}
-			; error(s)
-			MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3." /SD IDOK
-			LogEx::Write "Error during removing of $3. Error level is $2."
-		${{Else}}
-			; no errors, continue
-			LogEx::Write "no errors during removing of $3."
-			;  Remove uninstaller
-			Delete /REBOOTOK "$0\uninstall.exe"
-			LogEx::Write 'Remove "$0\uninstall.exe"'
-			;  Remove installation directory
-			RmDir /REBOOTOK "$0"
-			LogEx::Write 'Remove installation directory "$0"'
-			LogEx::Write '$3 removed.'
-		${{Endif}}
+			; result
+			${{If}} ${{Errors}}
+				; error(s)
+				MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3." /SD IDOK
+				LogEx::Write "Error during removing of $3. Error level is $2."
+			${{Else}}
+				; no errors, continue
+				LogEx::Write "no errors during removing of $3."
+				;  Remove uninstaller
+				Delete /REBOOTOK "$0\uninstall.exe"
+				LogEx::Write 'Remove "$0\uninstall.exe"'
+				;  Remove installation directory
+				RmDir /REBOOTOK "$0"
+				LogEx::Write 'Remove installation directory "$0"'
+				LogEx::Write '$3 removed.'
+			${{Endif}}
+		!else
+			LogEx::Write 'Schedule uninstall $3 using "$1"'
+			WriteINIStr '$feedback_dirname\$feedback_basename' 'Uninstall' 'launch' '$1'
+		!endif
+
 	${{Endif}} ; $9 == ''
 FunctionEnd
 
@@ -844,10 +928,10 @@ FunctionEnd
 Function moveLogFileIntoVarDirectoryFunction
 	!define moveLogFileIntoVarDirectory 'Call moveLogFileIntoVarDirectoryFunction'
 
- CopyFiles /SILENT "$logex_dirname\\$logex_logname" "$INSTDIR\\var"
- Delete /REBOOTOK "$logex_dirname\\$logex_logname"
- ;Rename /REBOOTOK "$logex_dirname\\$logex_logname" "$INSTDIR\\var\\$logex_logname"
- ;LogEx::Write "Moving $logex_dirname\\$logex_logname into $INSTDIR\\var\\$logex_logname"
+ CopyFiles /SILENT "$logex_dirname\\$logex_basename" "$INSTDIR\\var"
+ Delete /REBOOTOK "$logex_dirname\\$logex_basename"
+ ;Rename /REBOOTOK "$logex_dirname\\$logex_basename" "$INSTDIR\\var\\$logex_basename"
+ ;LogEx::Write "Moving $logex_dirname\\$logex_basename into $INSTDIR\\var\\$logex_basename"
 FunctionEnd
 
 
@@ -859,16 +943,17 @@ Function copySetupFileIntoVarDirectoryFunction
 FunctionEnd
 
 
-Function LogRebootFlagFunction
-  !define LogRebootFlag 'Call LogRebootFlagFunction'
+Function ProcessRebootFlagFunction
+  !define ProcessRebootFlag 'Call ProcessRebootFlagFunction'
   ; Reboot flags ?
   ${{If}} ${{RebootFlag}}
 	LogEx::Write "Reboot flag is set"
+	WriteINIStr '$feedback_dirname\$feedback_basename' 'Reboot' 'isNeeded' 'true'
   ${{Else}}
 	LogEx::Write "Reboot flag is not set"
+	WriteINIStr '$feedback_dirname\$feedback_basename' 'Reboot' 'isNeeded' 'false'
   ${{EndIf}}
 FunctionEnd
-
 
 ; --- The installation directory ---
 {installationDirectorySection}
@@ -880,7 +965,7 @@ FunctionEnd
 ; onInstFailed
 Function .onInstFailed
 
-  ${{LogRebootFlag}}
+  ${{ProcessRebootFlag}}
 
   ;
   MessageBox MB_OK "Installation failed." /SD IDOK
@@ -904,7 +989,7 @@ FunctionEnd
 ; onInstSuccess
 Function .onInstSuccess
 
-  ${{LogRebootFlag}}
+  ${{ProcessRebootFlag}}
 
   ; Copying installation program in 'var'
   !ifdef COPY_SETUPFILE_INTO_VARDIRECTORY
@@ -961,8 +1046,8 @@ FunctionEnd
 Function .onInit
 
  ; Logging
- ${{GetLogPathAndName}} $logex_dirname $logex_logname
- LogEx::Init "$logex_dirname\\$logex_logname"
+ ${{ProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
+ LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
 
 
@@ -1011,8 +1096,8 @@ FunctionEnd
 Function un.onInit
 
  ; Logging
- ${{unGetLogPathAndName}} $logex_dirname $logex_logname
- LogEx::Init "$logex_dirname\\$logex_logname"
+ ${{unProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
+ LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
 
 FunctionEnd
@@ -1119,18 +1204,22 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   ${{Endif}}
 
 
-  ; --- Migration var and packages ---
+  ; --- Migration of packages ---
   !ifdef STANDALONE_DEPLOYMENTTYPE
 	${{If}} $Uninstall_UninstallString != ''
-		${{migratePackagesAndVar}} "$Uninstall_InstallDir" "$INSTDIR"
+		${{migratePackages}} "$Uninstall_InstallDir" "$INSTDIR"
 	${{Endif}}
   !endif
 
 
-  ; --- Uninstall previous version ---
-!ifdef AUTO_UNINSTALL
+  ; --- Migration var ---
+  ${{If}} $Uninstall_UninstallString != ''
+	${{migrateVar}} "$Uninstall_InstallDir" "$INSTDIR"
+  ${{Endif}}
+
+
+  ; --- Uninstall or schedule uninstall previous version ---
   Call UninstallFunction
-!endif	; AUTO_UNINSTALL
 
 
   ; --- Registry ---
