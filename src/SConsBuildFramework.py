@@ -1421,7 +1421,14 @@ SConsBuildFramework options:
 			TMP = envStrings.get('TMP')
 			print 'TMP={0}'.format(TMP)
 			print 'TMP(from lenv)={0}'.format(lenv['ENV'].get('TMP'))
-
+			# temp
+			temp = envStrings.get('temp')
+			print 'temp={0}'.format(temp)
+			print 'temp(from lenv)={0}'.format(lenv['ENV'].get('temp'))
+			# TEMP
+			TEMP = envStrings.get('TEMP')
+			print 'TEMP={0}'.format(TEMP)
+			print 'TEMP(from lenv)={0}'.format(lenv['ENV'].get('TEMP'))
 		# Useful for cygwin 1.7
 		# The Microsoft linker requires that the environment variable TMP is set.
 		if not os.getenv('TMP'):
