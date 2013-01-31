@@ -26,7 +26,7 @@ type				= 'shared'	# exec, static, shared, none
 #nsis				= {	'autoUninstall'						: True,
 						'installDirFromRegKey'				: True,
 						'ensureNewInstallDir'				: False,
-						'uninstallVarDirectory'				: False,
+						'actionOnVarDirectory'				: 'leave' | 'remove' | 'autoMigration' | 'manualMigration'
 						'moveLogFileIntoVarDirectory'		: False,
 						'copySetupFileIntoVarDirectory'		: False,
 						'customPointInstallationValidation'	: ''
