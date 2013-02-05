@@ -1008,6 +1008,12 @@ Function .onInit
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
 
+ ; Remove feedback file (if exists)
+ ${{If}} ${{FileExists}} "$feedback_dirname\\$feedback_basename"
+	Delete "$feedback_dirname\\$feedback_basename"
+	LogEx::Write "Remove '$feedback_dirname\\$feedback_basename'"
+ ${{Endif}}
+
  ; --- Abort installation process if installer is already running ---
  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
  Pop $R0
@@ -1055,6 +1061,14 @@ Function un.onInit
 
  ; Logging
  ${{unProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
+
+ ; Remove feedback file (if exists)
+ ${{If}} ${{FileExists}} "$feedback_dirname\\$feedback_basename"
+	Delete "$feedback_dirname\\$feedback_basename"
+	LogEx::Write "Remove '$feedback_dirname\\$feedback_basename'"
+ ${{Endif}}
+
+ ;
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
 FunctionEnd
