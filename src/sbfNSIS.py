@@ -496,7 +496,7 @@ Var Uninstall_UninstallString
 
 ; --- Macros ---
 
-; --- writeRegInstall deleteRegInstall GetInstallDir GetInstallDirAndVersion GetInfos ---
+; --- writeRegInstall deleteRegInstall GetInstallDir SetInstallDir GetInstallDirAndVersion GetInfos GetVersionAndStatus GetStatus ---
 !macro writeRegInstall path
   ; Write the installation path into the registry
   WriteRegStr HKLM "${{REGKEYROOTVER}}" "InstallDir" "${{path}}"			; don't remove in uninstall stage
@@ -530,7 +530,12 @@ Var Uninstall_UninstallString
   WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallTime" "$3-$4-$5"
 
   ; Write status into the registry
-  WriteRegStr HKLM "${{REGKEYROOTVER}}" "Status" "uninstalled"
+  ReadRegStr $0 HKLM "${{REGKEYROOTVER}}" "InstallDir"
+  ${{If}} $INSTDIR == $0
+	WriteRegStr HKLM "${{REGKEYROOTVER}}" "Status" "uninstalled"
+  ${{Else}}
+	; nothing to do
+  ${{Endif}}
 !macroend
 
 !macro GetInstallDir projectName
@@ -567,25 +572,24 @@ Var Uninstall_UninstallString
 	ReadRegStr "${{resultStatus}}"	HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\${{resultVersion}}"	"Status"
 !macroend
 
-; --- ---
-!macro writeRegCurrent path version
-  ; Write the installation path into the registry
-; WriteRegStr HKLM "${{REGKEYROOT}}" "InstallDir" ${{path}}		; todo remove
+!macro GetStatus projectName version resultStatus
+	ReadRegStr "${{resultStatus}}"	HKLM "Software\${{SBFPROJECTVENDOR}}\${{projectName}}\${{version}}"	"Status"
+!macroend
 
+
+; --- writeRegCurrent deleteRegCurrent writeRegUninstall0 writeRegUninstall getRegUninstallProductExe deleteRegUninstall ---
+!macro writeRegCurrent version
   ; Write the version into the registry
   WriteRegStr HKLM "${{REGKEYROOT}}" "Version" ${{version}}
 !macroend
 
-!macro deleteRegCurrent path version
-  ReadRegStr $0 HKLM "${{REGKEYROOT}}" "Version"
-  ${{If}} $0 == ${{version}}
-;    DeleteRegValue HKLM "${{REGKEYROOT}}" "InstallDir"		; todo remove
-    DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
+!macro deleteRegCurrent projectName version
+  !insertmacro GetStatus "${{projectName}}" "${{version}}" $0
+  ${{If}} $0 == "uninstalled"
+	DeleteRegValue HKLM "${{REGKEYROOT}}" "Version"
   ${{Else}}
-    ; Uninstall version != current version
-    ; do nothing
-    Nop
-  ${{EndIf}}
+	; nothing to do
+  ${{Endif}}
 !macroend
 
 
@@ -626,8 +630,8 @@ Var Uninstall_UninstallString
  ; Analyse command line parameters
  ; @return $logPath contains /logpath=value or $EXEDIR
  ; @return $logName contains /logname=value or $EXEFILE.replace('.exe', '_log.txt')
- ; @return $feedbackPath contains /feedback=value or $EXEDIR
- ; @return $feedbackName contains /feedback=value or $EXEFILE.replace('.exe', '_feedback.txt')
+ ; @return $feedbackPath contains /feedbackpath=value or $EXEDIR
+ ; @return $feedbackName contains /feedbackname=value or $EXEFILE.replace('.exe', '_feedback.txt')
  Push $0
 
  ${{GetParameters}} $0
@@ -666,8 +670,8 @@ Var Uninstall_UninstallString
  ; Analyse command line parameters
  ; @return $logPath contains /logpath=value or $TEMP
  ; @return $logName contains /logname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_uninstall_log.txt
- ; @return $logPath contains /logpath=value or $TEMP
- ; @return $logName contains /logname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt
+ ; @return $feedbackPath contains /feedbackpath=value or $TEMP
+ ; @return $feedbackName contains /feedbackname=value or ${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt
 
  Push $0
 
@@ -705,10 +709,9 @@ Var Uninstall_UninstallString
 
 ; --- Functions ---
 
-Function Uninstall_ask
- ; Ask if current version of SBFPROJECTNAME has to be removed (if already installed of course)
+Function PreUninstall
+ ; Computes Variables Uninstall_InstallDir = $0, Uninstall_ProductName = $3 and Uninstall_UninstallString = $9 if uninstallation stage is feasible
  ; remarks $0 InstallDir, $3 ProductName and $9 UninstallString of current SBFPROJECTNAME
- ; Variables Uninstall_InstallDir = $0, Uninstall_ProductName = $3 and Uninstall_UninstallString = $9 if uninstallation stage is desired
 
  !insertmacro GetInfos "${{SBFPROJECTNAME}}"
  LogEx::Write "GetInfos(${{SBFPROJECTNAME}}):$0:$1:$2:$3:$4"
@@ -721,7 +724,7 @@ Function Uninstall_ask
 
  ${{IfNot}} ${{FileExists}} "$0"
 	LogEx::Write "Non existing '$0'. Unable to remove ${{SBFPRODUCTNAME}}."
-	goto skipUninstall
+	goto skipPreUninstall
  ${{Endif}}
 
  ${{If}} $9 == ''
@@ -729,14 +732,12 @@ Function Uninstall_ask
 	;MessageBox MB_ICONINFORMATION|MB_OK "No previous version of ${{SBFPRODUCTNAME}} to remove." /SD IDOK
 	LogEx::Write "No previous version of ${{SBFPRODUCTNAME}} to remove."
  ${{Else}}
-	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version $1 of $3 ?" /SD IDYES IDYES doUninstall IDNO skipUninstall
-	doUninstall:
 	StrCpy $Uninstall_InstallDir		$0
 	StrCpy $Uninstall_ProductName		$3
 	StrCpy $Uninstall_UninstallString	$9
 	LogEx::Write "Uninstall previous version $1 of $3 using '$9' in directory $0"
  ${{Endif}}
- skipUninstall:
+ skipPreUninstall:
 FunctionEnd
 
 
@@ -855,39 +856,50 @@ FunctionEnd
 
 
 Function UninstallFunction
-	; if AUTO_UNINSTALL is defined, then remove program using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
-	; if AUTO_UNINSTALL is not defined, then write 'uninstall=commandLine' using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
+	; remove program using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
+	; shedule program removing by writing 'uninstall=commandLine' using 'var Uninstall_UninstallString' (if not empty), 'var Uninstall_InstallDir' and 'var Uninstall_ProductName'
 
-	StrCpy $0 $Uninstall_InstallDir
-	StrCpy $3 $Uninstall_ProductName
-	StrCpy $9 $Uninstall_UninstallString
-	${{If}} $9 == ""
+	; 3 actions allowed: do nothing (nop), (launch) uninstall, (schedule) uninstall
+	;						${{Silent}}		!${{Silent}}
+	; AUTO_UNINSTALL		launch			ask => launch | nop
+	; !AUTO_UNINSTALL		schedule		ask => launch | nop
+
+	${{If}} $Uninstall_UninstallString == ""
 		LogEx::Write "Nothing to uninstall"
 	${{Else}}
 		ClearErrors
 
+		; compute $0 = nop | launch | schedule
+		${{If}} ${{Silent}}
+			!ifdef AUTO_UNINSTALL
+				StrCpy $0 'launch'
+			!else
+				StrCpy $0 'schedule'
+			!endif
+		${{Else}}
+			MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove previous version of $Uninstall_ProductName ?" IDNO doNop
+			StrCpy $0 'launch'
+			goto endAskUninstall
+			doNop:
+			StrCpy $0 'nop'
+			endAskUninstall:
+		${{EndIf}}
+
 		; Construct command line to uninstall (in $1)
 		${{If}} ${{Silent}}
 			; silent uninstall
-			StrCpy $1 '$9 /S'
+			StrCpy $1 '$Uninstall_UninstallString /S'
 		${{Else}}
 			; non silent uninstall
-			StrCpy $1 '$9'
+			StrCpy $1 '$Uninstall_UninstallString'
 		${{Endif}}
 
-		!ifdef AUTO_UNINSTALL
-			StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$0'
-		!else
-			!ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
-				StrCpy $1 '$1 /logpath="$INSTDIR\\var" /logname="$logex_basename" _?=$0'
-			!else
-				StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$0'
-			!endif
-		!endif
+		; do the action $0
+		${{If}} $0 == 'nop'
+		${{ElseIf}} $0 == 'launch'
+			StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$Uninstall_InstallDir'
 
-
-		!ifdef AUTO_UNINSTALL
-			LogEx::Write 'Uninstall $3 using "$1"'
+			LogEx::Write 'Uninstall $Uninstall_ProductName using "$1"'
 			LogEx::Close
 				ExecWait "$1" $2
 			LogEx::Init "$logex_dirname\\$logex_basename"
@@ -895,25 +907,37 @@ Function UninstallFunction
 			; result
 			${{If}} ${{Errors}}
 				; error(s)
-				MessageBox MB_ICONSTOP|MB_OK "Error during removing of $3." /SD IDOK
-				LogEx::Write "Error during removing of $3. Error level is $2."
+				MessageBox MB_ICONSTOP|MB_OK "Error during removing of $Uninstall_ProductName." /SD IDOK
+				LogEx::Write "Error during removing of $Uninstall_ProductName. Error level is $2."
 			${{Else}}
 				; no errors, continue
-				LogEx::Write "no errors during removing of $3."
-				;  Remove uninstaller
-				Delete /REBOOTOK "$0\uninstall.exe"
-				LogEx::Write 'Remove "$0\uninstall.exe"'
-				;  Remove installation directory
-				RmDir /REBOOTOK "$0"
-				LogEx::Write 'Remove installation directory "$0"'
-				LogEx::Write '$3 removed.'
-			${{Endif}}
-		!else
-			LogEx::Write 'Schedule uninstall $3 using "$1"'
-			WriteINIStr '$feedback_dirname\$feedback_basename' 'Uninstall' 'launch' '$1'
-		!endif
+				LogEx::Write "no errors during removing of $Uninstall_ProductName."
 
-	${{Endif}} ; $9 == ''
+				; Retrieve uninstall feedback
+				ReadINIStr $0 '$TEMP\\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt' 'Reboot' 'isNeeded'
+				LogEx::Write "Retrieve uninstall feedback: reboot.isNeeded '$0' from '$TEMP\\${{SBFPROJECTNAME}}_${{SBFPROJECTVERSION}}_feedback.txt'"
+				WriteINIStr '$feedback_dirname\$feedback_basename' 'Reboot' 'isNeededForUninstall' $0
+
+				;  Remove uninstaller
+				Delete /REBOOTOK "$Uninstall_InstallDir\uninstall.exe"
+				LogEx::Write 'Remove "$Uninstall_InstallDir\uninstall.exe"'
+				;  Remove installation directory
+				RmDir /REBOOTOK "$Uninstall_InstallDir"
+				LogEx::Write 'Remove installation directory "$Uninstall_InstallDir"'
+				LogEx::Write '$Uninstall_ProductName removed.'
+				LogEx::Write ''
+			${{Endif}}
+		${{Else}} ; $0 == 'schedule'
+			!ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
+				StrCpy $1 '$1 /logpath="$INSTDIR\\var" /logname="$logex_basename" _?=$Uninstall_InstallDir'
+			!else
+				StrCpy $1 '$1 /logpath="$logex_dirname" /logname="$logex_basename" _?=$Uninstall_InstallDir'
+			!endif
+
+			LogEx::Write 'Schedule uninstall $Uninstall_ProductName using "$1"'
+			WriteINIStr '$feedback_dirname\$feedback_basename' 'Uninstall' 'launch' '$1'
+		${{EndIf}}
+	${{Endif}} ; $Uninstall_UninstallString == ''
 FunctionEnd
 
 
@@ -955,92 +979,26 @@ Function ProcessRebootFlagFunction
   ${{EndIf}}
 FunctionEnd
 
+
+Function un.ProcessRebootFlagFunction
+  !define unProcessRebootFlag 'Call un.ProcessRebootFlagFunction'
+  ; Reboot flags ?
+  ${{If}} ${{RebootFlag}}
+	LogEx::Write "Reboot flag is set"
+	WriteINIStr '$feedback_dirname\$feedback_basename' 'Reboot' 'isNeeded' 'true'
+  ${{Else}}
+	LogEx::Write "Reboot flag is not set"
+	WriteINIStr '$feedback_dirname\$feedback_basename' 'Reboot' 'isNeeded' 'false'
+  ${{EndIf}}
+FunctionEnd
+
+
 ; --- The installation directory ---
 {installationDirectorySection}
 
 
 
 ; --- Callbacks ---
-
-; onInstFailed
-Function .onInstFailed
-
-  ${{ProcessRebootFlag}}
-
-  ;
-  MessageBox MB_OK "Installation failed." /SD IDOK
-  LogEx::Write "Installation failed."
-
-  ; Logging
-  LogEx::Close
-FunctionEnd
-
-Function un.onInstFailed
-
-  ;
-  MessageBox MB_OK "Uninstallation failed." /SD IDOK
-  LogEx::Write "Uninstallation failed."
-
-  ; Logging
-  LogEx::Close
-FunctionEnd
-
-
-; onInstSuccess
-Function .onInstSuccess
-
-  ${{ProcessRebootFlag}}
-
-  ; Copying installation program in 'var'
-  !ifdef COPY_SETUPFILE_INTO_VARDIRECTORY
-	${{copySetupFileIntoVarDirectory}}
-  !endif
-
-  ;
-  MessageBox MB_OK "Installation was successful." /SD IDOK
-  LogEx::Write "Installation was successful."
-
-  ; Logging
-  LogEx::Close
-  !ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
-	${{moveLogFileIntoVarDirectory}}
-  !endif
-
-FunctionEnd
-
-Function un.onInstSuccess
-
-  ;
-  MessageBox MB_OK "Uninstallation was successful." /SD IDOK
-  LogEx::Write "Uninstallation was successful."
-
-  ; Logging
-  LogEx::Close
-
-FunctionEnd
-
-
-; onRebootFailed
-Function .onRebootFailed
-  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
-  LogEx::Write "Reboot failed. Please reboot manually."
-FunctionEnd
-
-Function un.onRebootFailed
-  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
-  LogEx::Write "Reboot failed. Please reboot manually."
-FunctionEnd
-
-
-; onUserAbort
-Function .onUserAbort
-  LogEx::Write 'User hits "cancel" button during installation.'
-FunctionEnd
-
-Function un.onUserAbort
-  LogEx::Write 'User hits "cancel" button during installation.'
-FunctionEnd
-
 
 ; onInit
 Function .onInit
@@ -1049,7 +1007,6 @@ Function .onInit
  ${{ProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
-
 
  ; --- Abort installation process if installer is already running ---
  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "${{SETUPFILE}}") i .r1 ?e'
@@ -1087,19 +1044,111 @@ notAlreadyRunning:
  LogEx::Write "Installing ${{SBFPRODUCTNAME}} ${{SBFPROJECTVERSION}} in $INSTDIR."
  
 
- ; --- Ask uninstall previous version --
- Call Uninstall_ask
+ ; --- Computing several values to uninstall previous version ---
+ Call PreUninstall
 
 FunctionEnd
 
 
+; un.onInit
 Function un.onInit
 
  ; Logging
  ${{unProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
+FunctionEnd
 
+
+; onInstFailed
+Function .onInstFailed
+
+  ${{ProcessRebootFlag}}
+
+  ;
+  MessageBox MB_OK "Installation failed." /SD IDOK
+  LogEx::Write "Installation failed."
+
+  ; Logging
+  LogEx::Close
+FunctionEnd
+
+
+; un.onUninstFailed
+Function un.onUninstFailed
+
+  ${{unProcessRebootFlag}}
+
+  ;
+  MessageBox MB_OK "Uninstallation failed." /SD IDOK
+  LogEx::Write "Uninstallation failed."
+
+  ; Logging
+  LogEx::Close
+FunctionEnd
+
+
+; onInstSuccess
+Function .onInstSuccess
+
+  ${{ProcessRebootFlag}}
+
+  ; Copying installation program in 'var'
+  !ifdef COPY_SETUPFILE_INTO_VARDIRECTORY
+	${{copySetupFileIntoVarDirectory}}
+  !endif
+
+  ;
+  MessageBox MB_OK "Installation was successful." /SD IDOK
+  LogEx::Write "Installation was successful."
+
+  ; Logging
+  LogEx::Close
+  !ifdef MOVE_LOGFILE_INTO_VARDIRECTORY
+	${{moveLogFileIntoVarDirectory}}
+  !endif
+
+FunctionEnd
+
+
+; un.onUninstSuccess
+Function un.onUninstSuccess
+
+  ${{unProcessRebootFlag}}
+
+  ;
+  MessageBox MB_OK "Uninstallation was successful." /SD IDOK
+  LogEx::Write "Uninstallation was successful."
+
+  ; Logging
+  LogEx::Close
+
+FunctionEnd
+
+
+; onRebootFailed
+Function .onRebootFailed
+  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
+  LogEx::Write "Reboot failed. Please reboot manually."
+FunctionEnd
+
+
+; un.onRebootFailed
+Function un.onRebootFailed
+  MessageBox MB_OK|MB_ICONSTOP "Reboot failed. Please reboot manually." /SD IDOK
+  LogEx::Write "Reboot failed. Please reboot manually."
+FunctionEnd
+
+
+; onUserAbort
+Function .onUserAbort
+  LogEx::Write 'User hits "cancel" button during installation.'
+FunctionEnd
+
+
+; un.onUserAbort
+Function un.onUserAbort
+  LogEx::Write 'User hits "cancel" button during installation.'
 FunctionEnd
 
 
@@ -1229,7 +1278,7 @@ Section "${{SBFPRODUCTNAME}} core (required)"
   WriteUninstaller "uninstall.exe"
 
   ; --- Registry last part (version switch) ---
-  !insertmacro writeRegCurrent $INSTDIR "${{SBFPROJECTVERSION}}"
+  !insertmacro writeRegCurrent "${{SBFPROJECTVERSION}}"
 
 SectionEnd
 
@@ -1276,17 +1325,20 @@ Section "Uninstall"
   !include "${{SBFPROJECTNAME}}_uninstall_redist.nsi"
 
   ; Remove 'var' directory ?
-  !ifdef UNINSTALL_VAR_DIRECTORY
   ${{If}} ${{FileExists}} "$INSTDIR\\var"
-	MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO dontRemoveVar
-	RMDir /REBOOTOK /r "$INSTDIR\\var"
-	LogEx::Write "Remove $INSTDIR\\var directory"
-	goto endRemoveVar
-   dontRemoveVar:
-	LogEx::Write "Don't remove $INSTDIR\\var directory"
-   endRemoveVar:
+    !ifdef REMOVE_VAR_DIRECTORY
+		RMDir /REBOOTOK /r "$INSTDIR\\var"
+		LogEx::Write "Remove $INSTDIR\\var directory"
+	!else ifdef MANUALMIGRATION_VAR_DIRECTORY
+		MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO dontRemoveVar
+		RMDir /REBOOTOK /r "$INSTDIR\\var"
+		LogEx::Write "Remove $INSTDIR\\var directory"
+		goto endRemoveVar
+		dontRemoveVar:
+		LogEx::Write "Don't remove $INSTDIR\\var directory"
+		endRemoveVar:
+	!endif
   ${{Endif}}
-  !endif
 
   ; Remove 'packages' directory ?
   !ifdef STANDALONE_DEPLOYMENTTYPE
@@ -1302,7 +1354,7 @@ Section "Uninstall"
   !insertmacro deleteRegUninstall ${{REGKEYUNINSTALLROOTVER}}
 
   ; Registry last part
-  !insertmacro deleteRegCurrent $INSTDIR "${{SBFPROJECTVERSION}}"
+  !insertmacro deleteRegCurrent "${{SBFPROJECTNAME}}" "${{SBFPROJECTVERSION}}"
 
   DeleteRegKey /ifempty HKLM "Software\${{SBFPROJECTVENDOR}}"
 
