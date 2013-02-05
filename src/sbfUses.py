@@ -310,7 +310,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-48-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1' ]
+		return [ '1-48-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -350,14 +350,21 @@ class Use_boost( IUse ):
 			genPakLibs2 = [	'boost_chrono-{vc}-{conf}-{ver}' ]
 			genPakLibs3 = [	'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
 			genPakLibs4 = [	'boost_context-{vc}-{conf}-{ver}' ]
+			genPakLibs5 = [	'boost_atomic-{vc}-{conf}-{ver}' ]
 
 			versionToVer = {	'1-48-0'	: '1_48',
 								'1-49-0'	: '1_49',
 								'1-50-0'	: '1_50',
 								'1-51-0'	: '1_51',
-								'1-52-0'	: '1_52' }
+								'1-52-0'	: '1_52',
+								'1-53-0'	: '1_53' }
 
-			if version in ['1-52-0', '1-51-0']:
+			if version in ['1-53-0']:
+				# autolinking, so nothing to do.
+				ver = versionToVer[version]
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 + genPakLibs5 ]
+				return [], pakLibs
+			elif version in ['1-52-0', '1-51-0']:
 				# autolinking, so nothing to do.
 				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 ]
