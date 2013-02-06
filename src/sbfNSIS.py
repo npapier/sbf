@@ -526,8 +526,9 @@ Var Uninstall_UninstallString
 !macro deleteRegInstall
   ; Write the uninstallation date and time into the registry
   ${{GetTime}} "" "L" $2 $1 $0 $6 $3 $4 $5
-  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallDate" "$0-$1-$2"
-  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallTime" "$3-$4-$5"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallDate"	"$0-$1-$2"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallTime"	"$3-$4-$5"
+  WriteRegStr HKLM "${{REGKEYROOTVER}}" "UninstallDir"	"$INSTDIR"
 
   ; Write status into the registry
   ReadRegStr $0 HKLM "${{REGKEYROOTVER}}" "InstallDir"
@@ -1005,8 +1006,16 @@ Function .onInit
 
  ; Logging
  ${{ProcessCommandLine}} $logex_dirname $logex_basename $feedback_dirname $feedback_basename
+
+ ;
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
+
+ ; Log command-line
+ LogEx::Write "INSTALL"
+ LogEx::Write "-------"
+ ${{GetParameters}} $0
+ LogEx::Write "Starting $EXEPATH $0"
 
  ; Remove feedback file (if exists)
  ${{If}} ${{FileExists}} "$feedback_dirname\\$feedback_basename"
@@ -1071,6 +1080,13 @@ Function un.onInit
  ;
  LogEx::Init "$logex_dirname\\$logex_basename"
  LogEx::Write ""
+
+ ; Log command-line
+ ${{GetParameters}} $0
+ LogEx::Write "UNINSTALL"
+ LogEx::Write "---------"
+ LogEx::Write "Starting $EXEPATH $0"
+
 FunctionEnd
 
 
