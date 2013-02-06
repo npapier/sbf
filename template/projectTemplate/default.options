@@ -24,10 +24,10 @@ type				= 'shared'	# exec, static, shared, none
 #deploymentType		= 'none'
 #deploymentPrecond	= 'standalone >= 1.0'
 #nsis				= {	'autoUninstall'						: True,
-						'installDirFromRegKey'				: True,
-						'ensureNewInstallDir'				: False,
-						'actionOnVarDirectory'				: 'leave' | 'remove' | 'autoMigration' | 'manualMigration'
-						'moveLogFileIntoVarDirectory'		: False,
-						'copySetupFileIntoVarDirectory'		: False,
-						'customPointInstallationValidation'	: ''
-						}
+#						'installDirFromRegKey'				: True,
+#						'ensureNewInstallDir'				: False,
+#						'actionOnVarDirectory'				: 'leave' | 'remove' | 'autoMigration' | 'manualMigration'
+#						'moveLogFileIntoVarDirectory'		: False,
+#						'copySetupFileIntoVarDirectory'		: False,
+#						'customPointInstallationValidation'	: ''
+#						}
