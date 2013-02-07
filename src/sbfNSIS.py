@@ -1360,7 +1360,7 @@ Section "Uninstall"
 		RMDir /REBOOTOK /r "$INSTDIR\\var"
 		LogEx::Write "Remove $INSTDIR\\var directory"
 	!else ifdef MANUALMIGRATION_VAR_DIRECTORY
-		MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDYES IDNO dontRemoveVar
+		MessageBox MB_ICONQUESTION|MB_YESNO "Do you want to remove the 'var' directory ?" /SD IDNO IDNO dontRemoveVar
 		RMDir /REBOOTOK /r "$INSTDIR\\var"
 		LogEx::Write "Remove $INSTDIR\\var directory"
 		goto endRemoveVar
