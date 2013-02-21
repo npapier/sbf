@@ -1043,7 +1043,7 @@ class Use_sofa( IUse, sofaConfig ):
 
 			if int(version) > 11876:
 				# sofa_dev revision number (used in branch)
-				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev' ]
+				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev', 'sofabgl' ]
 			else:
 				# sofa public revision number (used in trunk)
 				libsBoth += [  'SofaAdvancedInteraction', 'SofaAdvancedConstraint', 'SofaMiscCollisionDev' ]
