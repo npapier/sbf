@@ -1061,8 +1061,11 @@ SConsBuildFramework options:
 
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
-		for element in lenv['installPaths'] :
-			self.myInstallPaths += [ getNormalizedPathname( element ) ]
+		if isinstance(lenv['installPaths'], list):
+			for element in lenv['installPaths'] :
+				self.myInstallPaths += [ getNormalizedPathname( element ) ]
+		else:
+			self.myInstallPaths = [ getNormalizedPathname( lenv['installPaths'] ) ]
 
 		self.myInstallExtPaths = []
 		for element in self.myInstallPaths :
@@ -1282,7 +1285,7 @@ SConsBuildFramework options:
 									'2010'		: '10.0'
 									} ),
 
-			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', []),
+			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', ''),
 
 			('postfixTimeFormat', "A string controlling the format of the date/time postfix (used by 'nsis' and 'zip' targets). Default time format is '%Y-%m-%d' producing for example the date 2012-04-12. Adds '%Hh%Mm%Ss' to append for example 10h40m21s. See python documentation on time.strftime() for additionnal informations.", '%Y-%m-%d' ),
 
