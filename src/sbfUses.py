@@ -460,6 +460,22 @@ class Use_cairo( IUse ):
 # @todo cairomm
 
 
+class Use_cityhash( IUse ):
+	def getName( self ):
+		return 'cityhash'
+		
+	def getVersions( self ):
+		return ['1-1-0']
+
+	def getLIBS( self, version ):		
+		lib = '{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion)
+		if self.config == 'release':
+			return [lib], []
+		else:
+			return [lib+'_D'], []
+
+
+
 class Use_colladadom( IUse ):
 	def getName( self ):
 		return "colladadom"
@@ -1309,7 +1325,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
 					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
