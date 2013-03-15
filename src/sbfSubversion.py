@@ -595,7 +595,7 @@ def svnIsUpdateAvailable( path, desiredRevisionNumber, verbose = True, veryVerbo
 				return False
 	else:
 		# path is not an existing path, an update is available (first checkout).
-		if verbose:	print ('{project} not found. REVISION {revisionNumber} IS AVAILABLE FOR {project}'.format( revisionNumber=repositoryLastChangedRevisionNumber, project=project.upper() ) )
+		if verbose:	print ( '{project} not found.'.format(project=project.upper()) )
 		return True
 
 # svnIsUnversioned, svnIsVersioned
