@@ -1725,7 +1725,7 @@ SConsBuildFramework options:
 
 				if self.tryVcsCheckout:
 					projectURL = self.myVcs.getUrl( self.myProjectPathName )
-					if projectURL > 0:
+					if projectURL:
 						print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
 						if lenv.GetOption('verbosity'):
 							print "sbfInfo: Already checkout from %s using svn." % projectURL
