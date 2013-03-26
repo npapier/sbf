@@ -920,7 +920,7 @@ class SConsBuildFramework :
 		self.configureCxxFlagsAndLinkFlags( self.myEnv )
 
 		# Updates PATH
-		toAppend = getPathsForTools()
+		toAppend = getPathsForTools(self.myEnv.GetOption('verbosity'))
 		#toPrepend = getPathsForSofa(False) + getPathsForRuntime(self)
 
 		print

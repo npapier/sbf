@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -14,7 +14,7 @@ except ImportError as e:
 
 import logging
 import os, sys
-from os.path import join
+from os.path import join, exists
 #from sbfFiles import getNormalizedPathname
 
 isPyWin32Available = False
@@ -116,10 +116,10 @@ def locateProgramUsingRegistry( programName ):
 
 def locateProgramUsingPATH( programName ):
 	"""Searches programName in PATH environment variable"""
-	#location = WhereIs( programName, os.getenv('PATH') )
-	location = WhereIs( programName )
-	if location:
-		return os.path.dirname(location)
+	# The following code is similar to location = WhereIs( programName, os.getenv('PATH') )
+	for path in os.getenv('PATH').split(os.pathsep):
+		if exists( join(path, programName) ):
+			return path
 	return ''
 
 
@@ -138,12 +138,20 @@ def locateProgram( programName ):
 	return ''
 
 
-def getPathsForTools():
+def getPathsForTools( verbose = False ):
 	"""	Returns a list containing path for cygwin binaries (rsync and ssh) @todo posix,
 		7z (for zip* targets),
 		nsis (for nsis target),
 		graphviz and doxygen (for doxygen target)
 	"""
+
+	def _append( paths, program, verbose ):
+		location = locateProgram(program)
+		if location:
+			paths.append( location )
+		else:
+			if verbose:
+				print ('sbfWarning: unable to locate {0}'.format(program))
 
 	paths = []
 
@@ -154,11 +162,11 @@ def getPathsForTools():
 
 	# TortoiseMerge is append to the PATH by installation program
 
-	paths.append( locateProgram('7z') )
-	paths.append( locateProgram('nsis') )
+	_append(paths, '7z', verbose )
+	_append(paths, 'nsis', verbose )
 
-	paths.append( locateProgram('graphviz') )
-	paths.append( locateProgram('doxygen') )
+	_append(paths, 'graphviz', verbose )
+	_append(paths, 'doxygen', verbose )
 
 	# paths.append( locateProgram('svn') ) not needed
 

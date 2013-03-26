@@ -155,7 +155,7 @@ def sbfCheck( env ):
 
 	checkTool( env, 'python', ['python', '--version'] )
 
-	sconsLocation = locateProgram( 'scons' )
+	sconsLocation = locateProgram( 'scons.bat' )
 	if sconsLocation :
 		print 'scons found at', sconsLocation
 		print 'scons version :', SCons.__version__
