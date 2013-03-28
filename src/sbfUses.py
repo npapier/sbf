@@ -861,25 +861,25 @@ class Use_opencollada( IUse ):
 
 
 # @todo package python into a localExt
-class Use_python( IUse, pythonConfig ):
+class Use_python( IUse):#, pythonConfig ):
 
 	def getName( self ):
 		return 'python'
 
 	def getCPPPATH( self, version ):
-		cppPath = [	os.path.join(self.getBasePath(), 'include') ]
-
+		#cppPath = [	os.path.join(self.getBasePath(), 'include') ]
+		cppPath = ['Python']
 		return cppPath
 
 	def getVersions( self ):
-		return [ '2-6' ]
+		return [ '2-7' ]
 
 	def getLIBS( self, version ):
-		return [], []
+		return ['python27'], []
 
-	def getLIBPATH( self, version ):
-		path = [ os.path.join( self.getBasePath(), 'libs' ) ]
-		return path, []
+	#def getLIBPATH( self, version ):
+	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
+	#	return path, []
 
 	def getLicenses( self, version ):
 		return []
