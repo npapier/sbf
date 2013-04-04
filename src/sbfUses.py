@@ -872,10 +872,10 @@ class Use_python( IUse):#, pythonConfig ):
 		return cppPath
 
 	def getVersions( self ):
-		return [ '2-7' ]
+		return [ '2-7-2' ]
 
 	def getLIBS( self, version ):
-		return ['python27'], []
+		return ['python27'], ['python27']
 
 	#def getLIBPATH( self, version ):
 	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
