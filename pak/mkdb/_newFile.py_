@@ -1,0 +1,27 @@
+# SConsBuildFramework - Copyright (C) 2013, Nicolas Papier.
+# Distributed under the terms of the GNU General Public License (GPL)
+# as published by the Free Software Foundation.
+# Author Nicolas Papier
+
+# pre-defined variables
+config				# 'debug' or 'release'						(see SConsBuildFramework.myConfig)
+platform			# 'win32' | 'cygwin' | 'posix' | 'darwin'	(see SConsBuildFramework.myPlatform)
+CC					# 'cl', 'gcc'								(see SConsBuildFramework.myCC)
+CCVersionNumber		# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1(see SConsBuildFramework.myCCVersionNumber)
+CCVersion			# 'cl8-0Exp'								(see SConsBuildFramework.myCCVersion)
+MSVSIDE				# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE). See SConsBuildFramework.myMSVSIDE
+MSVCVARS32			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
+MSVC				# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+
+UseRepository		# from sbfUses import UseRepository
+execCmdInVCCmdPrompt# contains getLambdaForExecuteCommandInVCCommandPrompt(MSVCVARS32)
+
+buildDirectory		# see sbfPackagingSystem.__mkPakGetBuildDirectory()
+localExtDirectory	#
+
+# @todo doc for several typical tasks
+
+# CMake
+#from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCmdBuildRelease
+
+# @todo doc for pakDescriptor

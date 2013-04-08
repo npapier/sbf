@@ -21,7 +21,7 @@ from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile, sea
 from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
-from sbfUtils import removePathHead
+from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt
 from sbfVersion import splitPackageName, joinPackageName
 
 
@@ -182,7 +182,7 @@ class PackagingSystem:
 	def __init__( self, sbf, verbose = None ):
 		self.__SCONS_BUILD_FRAMEWORK	= sbf.mySCONS_BUILD_FRAMEWORK
 
-		if verbose:
+		if verbose != None:
 			self.__verbose = verbose
 		else:
 			self.__verbose				= sbf.myEnv.GetOption('verbosity')
@@ -197,9 +197,11 @@ class PackagingSystem:
 		self.__myConfig					= sbf.myConfig
 		self.__myPlatform				= sbf.myPlatform
 		self.__myCC						= sbf.myCC
-		self.__myCCVersion				= sbf.myCCVersion
 		self.__myCCVersionNumber		= sbf.myCCVersionNumber
+		self.__myCCVersion				= sbf.myCCVersion
 		self.__myMSVSIDE				= sbf.myMSVSIDE
+		self.__myMSVCVARS32				= sbf.myMSVCVARS32
+		self.__myMSVC					= sbf.myMSVC
 
 		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
 		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
@@ -208,15 +210,15 @@ class PackagingSystem:
 		# Tests existance of localExt directory
 		print
 		if os.path.isdir( self.__localExtPath ) :
-			print ("Found localExt in %s\n" % self.__localExtPath)
+			if self.__verbose: print ("Found localExt in %s\n" % self.__localExtPath)
 		else :
-			print ("localExt not found in %s" % self.__localExtPath)
+			if self.__verbose: print ("localExt not found in %s" % self.__localExtPath)
 			createDirectory(self.__localExtPath)
 
 		# Tests existance of pakPaths directory
 		for path in self.__pakPaths :
 			if os.path.isdir( path ) :
-				print ("Found package repository in %s" % path)
+				if self.__verbose: print ("Found package repository in %s" % path)
 			else :
 				print ("WARNING: Package repository not found in %s" % path)
 		print
@@ -252,13 +254,17 @@ class PackagingSystem:
 		envDict	= {	'config'			: self.__myConfig,
 					'platform'			: self.__myPlatform,
 					'CC'				: self.__myCC,
-					'CCVersion'			: self.__myCCVersion,
 					'CCVersionNumber'	: self.__myCCVersionNumber,
+					'CCVersion'			: self.__myCCVersion,
 					'MSVSIDE'			: self.__myMSVSIDE,
+					'MSVCVARS32'		: self.__myMSVCVARS32,
+					'MSVC'				: self.__myMSVC,
 
-					'UseRepository'		: UseRepository,
+					'UseRepository'				: UseRepository,
+					'execCmdInVCCmdPrompt'		: getLambdaForExecuteCommandInVCCommandPrompt(self.__myMSVCVARS32),
 
-					'buildDirectory'	: self.__mkPakGetBuildDirectory()
+					'buildDirectory'	: self.__mkPakGetBuildDirectory(),
+					'localExtDirectory' : self.__localExtPath
 					}
 		return envDict
 
@@ -269,12 +275,10 @@ class PackagingSystem:
 		return [ os.path.basename(elt) for elt in db ]
 
 
-
 	def mkdbGetDescriptor( self, pakName ):
 		"""Retrieves the dictionary named 'descriptor' from the mkdb database for the desired package"""
-		globalsFileDict = {}
 		localsFileDict = self.__getEnvironmentDict()
-		execfile( join(self.__mkdbGetDirectory(), pakName), globalsFileDict, localsFileDict )
+		execfile( join(self.__mkdbGetDirectory(), pakName), globals(), localsFileDict )
 
 		return localsFileDict['descriptor']
 
@@ -292,14 +296,24 @@ class PackagingSystem:
 		createDirectory( join(self.__mkPakGetDirectory(), 'cache' ) )
 		createDirectory( join(self.__mkPakGetDirectory(), 'build' ) )
 
-		# moves to sandbox
+		# Moves to sandbox
 		backupCWD = os.getcwd()
 		os.chdir( join(self.__mkPakGetDirectory() ) )
 
-		# URLS (download and extract)
+		# Computes directories
 		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
-		removeDirectoryTree( extractionDirectory )
+		if self.__myConfig == 'debug':
+			configPostfix = '_D'
+		else:
+			configPostfix = ''
+		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + configPostfix + '/' # '/' is needed to specify directory to copy()
 
+		# Removes old directories
+		removeDirectoryTree( extractionDirectory )
+		removeDirectoryTree( pakDirectory )
+		print
+
+		# URLS (download and extract)
 		# SVNURL (export svn)
 		if 'svnUrl' in pakDescriptor:
 			svnUrl = pakDescriptor['svnUrl']
@@ -384,22 +398,12 @@ class PackagingSystem:
 			os.chdir( buildBackupCWD )
 
 		# CREATES PAK
-		if self.__myConfig == 'debug':
-			configPostfix = '_D'
-		else:
-			configPostfix = ''
-
-		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + configPostfix + '/' # '/' is needed to specify directory to copy()
 		sourceDir = join( extractionDirectory, pakDescriptor.get('rootDir','') )
 		if not exists( sourceDir ):
 			print ('{0} does not exist'.format( sourceDir) )
 			exit(1)
 
 		print ('* Creates package {0}'.format(pakDirectory[:-1]) )
-
-		# Removes old directory
-		removeDirectoryTree( pakDirectory )
-		print
 
 		# Creates directories
 		createDirectory( pakDirectory )
