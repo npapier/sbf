@@ -875,14 +875,15 @@ class Use_python( IUse):#, pythonConfig ):
 		return [ '2-7-2' ]
 
 	def getLIBS( self, version ):
-		return ['python27'], ['python27']
+		libs = ['python27']
+		return libs, libs
 
 	#def getLIBPATH( self, version ):
 	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
 	#	return path, []
 
-	def getLicenses( self, version ):
-		return []
+	def getPackageType( self ):
+		return 'Full'			# @todo temporary hack for deployment
 
 
 class Use_physfs( IUse ):
