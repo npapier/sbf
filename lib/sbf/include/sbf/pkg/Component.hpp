@@ -54,6 +54,7 @@ struct SBF_API Component
 	const boost::property_tree::ptree getDataAsTree( const std::string & key ) const;	///< Retrieves a data tree for the given key.
 	const std::string getDataAsString( const std::string & key ) const;					///< Retrieves a data string for the given key.
 	void setData( const std::string & key, const std::string & value );					///< Set a string in the data for the given key.
+	const bool hasMetaData() const;														///< Tells if the component has loaded a meta data file.
 	//@}
 
 protected:

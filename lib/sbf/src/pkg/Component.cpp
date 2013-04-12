@@ -277,7 +277,10 @@ void Component::setData( const std::string & key, const std::string & data )
 	saveData();
 }
 
-
+const bool Component::hasMetaData() const
+{
+	return !m_constData.empty();
+}
 
 
 

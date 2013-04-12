@@ -256,6 +256,8 @@ void Package::init()
 				const std::pair< std::string, std::string >	nameAndVersion	= getPackageNameAndVersion( path );
 				const boost::shared_ptr< Package >			package( new Package(nameAndVersion.first, nameAndVersion.second, path, rootPackage) );
 			
+				if ( !package->hasMetaData() )
+					continue;
 				m_packages.push_back( package );
 				if( package->isEnabled() )
 				{
