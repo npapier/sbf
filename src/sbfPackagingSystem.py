@@ -208,7 +208,7 @@ class PackagingSystem:
 		self.__shLibSuffix				= sbf.myEnv['SHLIBSUFFIX']
 
 		# Tests existance of localExt directory
-		print
+		if self.__verbose:	print
 		if os.path.isdir( self.__localExtPath ) :
 			if self.__verbose: print ("Found localExt in %s\n" % self.__localExtPath)
 		else :
@@ -221,7 +221,7 @@ class PackagingSystem:
 				if self.__verbose: print ("Found package repository in %s" % path)
 			else :
 				print ("WARNING: Package repository not found in %s" % path)
-		print
+		if self.__verbose:	print
 
 		# Creates localExt directory
 		createDirectory( self.getLocalExtSbfPakDBPath() )
