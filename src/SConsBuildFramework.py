@@ -566,7 +566,7 @@ class SConsBuildFramework :
 	myBuiltProjects					= OrderedDict()
 
 	# Used by mktag
-	myBranchSvnUrls				= OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
+	myBranchSvnUrls = OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
 	#lenv['myBranchesOrTags']	= 'tags' or 'branches' or None
 	#lenv['myBranchOrTag']		= 'tag' or 'branch' or None
 	#lenv['myBranch']			= None or env['svnDefaultBranch'] or '2.0' for example.
@@ -589,7 +589,7 @@ class SConsBuildFramework :
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions, tools=[] )
 
-		myTools = ['textfile']
+		myTools = ['textfile', 'swig']
 		if tmpEnv['PLATFORM'] == 'win32':
 			myTools += ['msvc', 'mslib', 'mslink', 'mssdk']
 
@@ -1062,8 +1062,8 @@ SConsBuildFramework options:
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
 		if isinstance(lenv['installPaths'], list):
-			for element in lenv['installPaths'] :
-				self.myInstallPaths += [ getNormalizedPathname( element ) ]
+		for element in lenv['installPaths'] :
+			self.myInstallPaths += [ getNormalizedPathname( element ) ]
 		else:
 			self.myInstallPaths = [ getNormalizedPathname( lenv['installPaths'] ) ]
 
@@ -1724,15 +1724,15 @@ SConsBuildFramework options:
 					return
 
 				if self.tryVcsCheckout:
-					projectURL = self.myVcs.getUrl( self.myProjectPathName )
+						projectURL = self.myVcs.getUrl( self.myProjectPathName )
 					if projectURL:
 						print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
 						if lenv.GetOption('verbosity'):
 							print "sbfInfo: Already checkout from %s using svn." % projectURL
 							print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
-						print
-					else:
-						self.vcsCheckout( lenv )
+							print
+						else:
+							self.vcsCheckout( lenv )
 				elif self.tryVcsStatus:
 					self.vcsStatus( lenv )
 				elif self.tryVcsRelocate:
@@ -1746,7 +1746,7 @@ SConsBuildFramework options:
 					#self.vcsRemoteMkBranch( lenv )
 				else:
 					assert( False )
-					#else nothing to do
+			#else nothing to do
 			else:
 				raise SCons.Errors.UserError("Unable to find 'default.options' file for project {0} in directory {1}.".format(self.myProject, self.myProjectPath) )
 
@@ -1754,11 +1754,11 @@ SConsBuildFramework options:
 	def doVcsUpdate( self, lenv ):
 		# User wants a vcs update ?
 		if self.tryVcsUpdate:
-			if lenv['vcsUse'] == 'yes':
+			if lenv['vcsUse'] == 'yes' :
 				self.vcsUpdate( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
 			else:
-				if lenv.GetOption('verbosity'):
+				if lenv.GetOption('verbosity') :
 					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
 		# else nothing to do.
 
@@ -1766,7 +1766,7 @@ SConsBuildFramework options:
 	def doVcsCleanOrAdd( self, lenv ):
 		# a vcs cleanup ?
 		if self.tryVcsClean:
-			if lenv['vcsUse'] == 'yes':
+			if lenv['vcsUse'] == 'yes' :
 				self.vcsClean( lenv )
 			else:
 				if lenv.GetOption('verbosity'):
@@ -1775,7 +1775,7 @@ SConsBuildFramework options:
 		# a vcs add ?
 		if self.tryVcsAdd:
 			if lenv['vcsUse'] == 'yes':
-				self.vcsAdd( lenv )
+			self.vcsAdd( lenv )
 			else:
 				if lenv.GetOption('verbosity'):
 					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
@@ -1791,9 +1791,9 @@ SConsBuildFramework options:
 			successful = vcsOperation( self.myProjectPathName, self.myProject )
 
 			if successful:
-				print
-				return successful
-			else:
+			print
+			return successful
+		else:
 				self.myFailedVcsProjects.add( self.myProject )
 				print ( "sbfWarning: Unable to do vcs operation in directory {0}\n".format( self.myProjectPathName ) )
 				return successful
@@ -2101,6 +2101,7 @@ SConsBuildFramework options:
 		## Build source files
 		# setup 'pseudo BuildDir' (with OBJPREFIX)
 		# @todo use VariantDir()
+
 		filesFromInclude = self.getFiles( 'include', lenv )
 		filesFromSrc = self.getFiles( 'src', lenv )
 
@@ -2114,6 +2115,64 @@ SConsBuildFramework options:
 				moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
 			# else nothing to do
 		# else nothing to do
+
+		# Swig
+		def extractModuleName( file ):
+			# '%module moduleName' detection
+			moduleNameRe = re.compile(r'^\s*%module\s+([A-Za-z0-9_-]+)\s*') 
+			with open(file, 'r') as file:
+				for line in file:
+					matchObject = moduleNameRe.match( line )
+					if matchObject:
+						return matchObject.group(1)
+
+		def printSwigCommand(target, source, env ):
+			print ('Build {0}'.format(source[0]))
+
+		swigFiles = self.getFiles( 'swig', lenv )
+		swigPyFiles = []
+		swigPydFiles = []
+		swigTarget = []
+		if swigFiles:
+			swigEnv = lenv.Clone()
+
+			swigOutDir = join(self.myProjectBuildPathExpanded, 'swig')
+
+			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-I{0}'.format(self.myIncludesInstallPaths[0]), '-I{0}'.format(self.myIncludesInstallExtPaths[0]) ]
+
+			# @todo SWIGCOMSTR
+			swigCppFiles = []
+			for file in swigFiles:
+				moduleName = extractModuleName(file)
+				if not moduleName:
+					raise SCons.Errors.UserError( "Unable to extract module name of swig file {0}.".format(join(self.myProjectPathName, file)) )
+
+				swigPyFile = join(swigOutDir, moduleName+'.py')
+				swigPyFiles.append( swigPyFile )
+
+				output = join(self.myProjectBuildPathExpanded, splitext(file)[0]+'_swig_cpp_wrap.cpp')
+				swigCppFiles.append( output )
+
+				swigPydFiles.append( join(swigOutDir, '_{0}.pyd'.format(moduleName)) )
+
+				tmp = swigEnv.Command( output, join(self.myProjectPathName, file), Action('$SWIG -o $TARGET ${_SWIGOUTDIR} ${_SWIGINCFLAGS} $SWIGFLAGS $SOURCES', printSwigCommand) )
+				swigTarget += tmp
+				swigEnv.SideEffect( swigPyFile, tmp )
+				Clean( self.myProject + '_build', swigPyFile )
+
+			# Creates shared library
+			output = '{outdir}{sep}_{moduleName}'.format( outdir = swigOutDir, sep=os.sep, moduleName=moduleName )
+			swigEnv.Append( LIBS = objProject )
+			swigTarget += swigEnv.SharedLibrary( output, swigCppFiles, SHLIBSUFFIX='.pyd' )
+		else:
+			swigTarget = None
+
+		#
+		for file in swigPyFiles + swigPydFiles:
+			installInBinTarget.append( File(file) )
+
+		#
+		filesFromSrc = self.getFiles( 'src', lenv )
 
 		if self.myType in ['exec', 'static']:
 			# Compiles source files
@@ -2138,7 +2197,7 @@ SConsBuildFramework options:
 
 			if self.myPlatform == 'win32':
 				# filter *.exp file
-				filteredProjectTarget = []				# @todo uses conprehension list
+				filteredProjectTarget = []				# @todo uses comprehension list
 				for elt in projectTarget:
 					if os.path.splitext(elt.name)[1] != '.exp':
 						filteredProjectTarget.append(elt)
@@ -2174,6 +2233,11 @@ SConsBuildFramework options:
 		aliasProjectBuild = Alias( self.myProject + '_build', lenv.Command('dummy_build_print_' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
 		Alias( self.myProject + '_build', self.myProject + '_resource.rc_generation' )
 		Alias( self.myProject + '_build', projectTarget )
+
+		# swig
+		if swigTarget:
+			Alias( self.myProject + '_build', swigTarget )
+			
 		Clean( self.myProject + '_build', self.myProjectBuildPathExpanded )
 
 
@@ -2240,7 +2304,7 @@ SConsBuildFramework options:
 		# install licenses files in 'license' (from depsFiles and getFiles())
 		if len(depsLicensesFiles) > 0:
 			for installDir in self.myDepsInstallDirectories:
-				licenseDir = join(installDir, 'license')
+			licenseDir = join(installDir, 'license')
 				for (licenseTarget, licenseSource) in depsLicensesFiles:
 					depsTarget += lenv.InstallAs( join(licenseDir, licenseTarget), licenseSource )
 
@@ -2268,6 +2332,12 @@ SConsBuildFramework options:
 		# installInIncludeTarget
 		installInIncludeTarget = filesFromInclude
 
+		#	install swig files
+		for swigFile in swigFiles:
+			src = join( self.myProjectPathName, swigFile )
+			dst = join( self.myInstallDirectory, 'include', swigFile.replace('swig', self.myProject, 1) )
+			installTarget += lenv.InstallAs( dst, src )
+			
 		# install in 'include'
 		if 'mrproper' in self.myBuildTargets:
 			removeAllFilesRO( join(self.myInstallDirectory, 'include') )
@@ -2345,7 +2415,7 @@ SConsBuildFramework options:
 		#lenv['sbf_rc']
 		# @todo configures sbf_... for msvc/eclipse ?
 
-		for elt in installInBinTarget:
+		for elt in installInBinTarget :
 			lenv['sbf_bin'].append( elt.abspath )
 
 # @todo lazy
@@ -2398,8 +2468,7 @@ SConsBuildFramework options:
 	###### Helpers ######
 
 	def getFiles( self, what, lenv ):
-		"""what		select what to collect. It could be 'src', 'include', 'share' and 'license'
-		"""
+		"""what		select what to collect. It could be 'src', 'include', 'share', 'license' and 'swig'"""
 
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
 
@@ -2427,6 +2496,8 @@ SConsBuildFramework options:
 				files = filesNotFiltered
 		elif what == 'license':
 			searchFiles( 'license', files, ['.svn'], r"^.*" )
+		elif what == 'swig':
+			searchFiles( 'swig', files, ['.svn'], basenameWithDotRe + r"(?:i)$" )
 		else:
 			raise SCons.Errors.UserError("Internal sbf error in getFiles().")
 
