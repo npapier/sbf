@@ -1062,8 +1062,8 @@ SConsBuildFramework options:
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
 		if isinstance(lenv['installPaths'], list):
-		for element in lenv['installPaths'] :
-			self.myInstallPaths += [ getNormalizedPathname( element ) ]
+			for element in lenv['installPaths'] :
+				self.myInstallPaths += [ getNormalizedPathname( element ) ]
 		else:
 			self.myInstallPaths = [ getNormalizedPathname( lenv['installPaths'] ) ]
 
