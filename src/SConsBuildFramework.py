@@ -1791,7 +1791,7 @@ SConsBuildFramework options:
 			successful = vcsOperation( self.myProjectPathName, self.myProject )
 
 			if successful:
-			print
+				print
 			return successful
 		else:
 				self.myFailedVcsProjects.add( self.myProject )
