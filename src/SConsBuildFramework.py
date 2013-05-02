@@ -1792,8 +1792,8 @@ SConsBuildFramework options:
 
 			if successful:
 				print
-			return successful
-		else:
+				return successful
+			else:
 				self.myFailedVcsProjects.add( self.myProject )
 				print ( "sbfWarning: Unable to do vcs operation in directory {0}\n".format( self.myProjectPathName ) )
 				return successful
