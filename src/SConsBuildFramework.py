@@ -2312,7 +2312,7 @@ SConsBuildFramework options:
 		# install licenses files in 'license' (from depsFiles and getFiles())
 		if len(depsLicensesFiles) > 0:
 			for installDir in self.myDepsInstallDirectories:
-			licenseDir = join(installDir, 'license')
+				licenseDir = join(installDir, 'license')
 				for (licenseTarget, licenseSource) in depsLicensesFiles:
 					depsTarget += lenv.InstallAs( join(licenseDir, licenseTarget), licenseSource )
 
