@@ -1775,7 +1775,7 @@ SConsBuildFramework options:
 		# a vcs add ?
 		if self.tryVcsAdd:
 			if lenv['vcsUse'] == 'yes':
-			self.vcsAdd( lenv )
+				self.vcsAdd( lenv )
 			else:
 				if lenv.GetOption('verbosity'):
 					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
