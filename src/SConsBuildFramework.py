@@ -1062,8 +1062,8 @@ SConsBuildFramework options:
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
 		self.myInstallPaths = []
 		if isinstance(lenv['installPaths'], list):
-			for element in lenv['installPaths'] :
-				self.myInstallPaths += [ getNormalizedPathname( element ) ]
+		for element in lenv['installPaths'] :
+			self.myInstallPaths += [ getNormalizedPathname( element ) ]
 		else:
 			self.myInstallPaths = [ getNormalizedPathname( lenv['installPaths'] ) ]
 
@@ -1724,7 +1724,7 @@ SConsBuildFramework options:
 					return
 
 				if self.tryVcsCheckout:
-						projectURL = self.myVcs.getUrl( self.myProjectPathName )
+					projectURL = self.myVcs.getUrl( self.myProjectPathName )
 					if projectURL:
 						print stringFormatter( lenv, "project {0} in {1}".format(self.myProject, self.myProjectPath) )
 						if lenv.GetOption('verbosity'):
@@ -2130,9 +2130,9 @@ SConsBuildFramework options:
 			print ('Build {0}'.format(source[0]))
 
 		swigFiles = self.getFiles( 'swig', lenv )
+		swigTarget = []
 		swigPyFiles = []
 		swigPydFiles = []
-		swigTarget = []
 		if swigFiles:
 			swigEnv = lenv.Clone()
 
@@ -2291,6 +2291,14 @@ SConsBuildFramework options:
 		if len(installInBinTarget) > 0:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
+				## ????????????????????????????????????????????????????????????????????? UGLY HACK
+#				for elt in installInBinTarget:
+#					print 'installInBinTarget', elt
+#					tmp = lenv.Install( join(installDir, 'bin'), elt )
+#					if os.path.splitext(elt.abspath)[1] == '.py':	AlwaysBuild(tmp)
+#					installTarget += tmp
+				## ????????????????????????????????????????????????????????????????????? UGLY HACK
+				#installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
 
 		# install dependencies in 'bin' (from depsFiles)
 		# depsTarget
