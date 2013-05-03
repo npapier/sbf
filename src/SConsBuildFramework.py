@@ -566,7 +566,7 @@ class SConsBuildFramework :
 	myBuiltProjects					= OrderedDict()
 
 	# Used by mktag
-	myBranchSvnUrls = OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
+	myBranchSvnUrls				= OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
 	#lenv['myBranchesOrTags']	= 'tags' or 'branches' or None
 	#lenv['myBranchOrTag']		= 'tag' or 'branch' or None
 	#lenv['myBranch']			= None or env['svnDefaultBranch'] or '2.0' for example.
@@ -1730,9 +1730,9 @@ SConsBuildFramework options:
 						if lenv.GetOption('verbosity'):
 							print "sbfInfo: Already checkout from %s using svn." % projectURL
 							print "sbfInfo: Uses 'svnUpdate' to get the latest changes from the repository."
-							print
-						else:
-							self.vcsCheckout( lenv )
+						print
+					else:
+						self.vcsCheckout( lenv )
 				elif self.tryVcsStatus:
 					self.vcsStatus( lenv )
 				elif self.tryVcsRelocate:
@@ -1746,7 +1746,7 @@ SConsBuildFramework options:
 					#self.vcsRemoteMkBranch( lenv )
 				else:
 					assert( False )
-			#else nothing to do
+					#else nothing to do
 			else:
 				raise SCons.Errors.UserError("Unable to find 'default.options' file for project {0} in directory {1}.".format(self.myProject, self.myProjectPath) )
 
@@ -2291,14 +2291,6 @@ SConsBuildFramework options:
 		if len(installInBinTarget) > 0:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
-				## ????????????????????????????????????????????????????????????????????? UGLY HACK
-#				for elt in installInBinTarget:
-#					print 'installInBinTarget', elt
-#					tmp = lenv.Install( join(installDir, 'bin'), elt )
-#					if os.path.splitext(elt.abspath)[1] == '.py':	AlwaysBuild(tmp)
-#					installTarget += tmp
-				## ????????????????????????????????????????????????????????????????????? UGLY HACK
-				#installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
 
 		# install dependencies in 'bin' (from depsFiles)
 		# depsTarget
