@@ -1238,9 +1238,6 @@ SConsBuildFramework options:
 		# Configures lenv[*] with lenv['uses']
 		uses( self, lenv, lenv['uses'] )
 
-		# Configures lenv[*] with lenv['test']
-		if lenv['test'] != 'none':
-			uses( self, lenv, usesConverter(lenv['test']) )
 
 
 
