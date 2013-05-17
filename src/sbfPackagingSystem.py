@@ -226,6 +226,13 @@ class PackagingSystem:
 		# Creates localExt directory
 		createDirectory( self.getLocalExtSbfPakDBPath() )
 
+	def getDestinationDirectory( self, pakName ):
+		"""Returns local directory for any runtime package or returns localExt directory for developer package."""
+		if '-runtime' in pakName:
+			return self.__localPath
+		else:
+			return self.__localExtPath
+
 	# LocalExt
 	def getLocalExtPath( self ):
 		return self.__localExtPath
@@ -674,10 +681,13 @@ class PackagingSystem:
 		# Initializes statistics
 		self.__initializeStatistics()
 
+		# Computes destination directory (local or localExt)
+		destinationDir = self.getDestinationDirectory( pakName )
+
 		# Creates directories
 		print ('\nCreating directories...')
 		for relDir in relDirectories:
-			dir = join( self.__localExtPath, relDir )
+			dir = join( destinationDir, relDir )
 			# Creates directory if needed
 			if not exists( dir ):
 				print ( 'Creating directory {0}'.format(dir) )
@@ -690,7 +700,7 @@ class PackagingSystem:
 		print ('\nInstalling files...')
 		for absFile in absFiles:
 			relFile = removePathHead( convertPathAbsToRel(tmpDir, absFile) )
-			file = join( self.__localExtPath, relFile )
+			file = join( destinationDir, relFile )
 			if exists( file ):
 				print ( 'Overriding {0}'.format( file ) )
 				self.__numOverrideFiles += 1
@@ -735,10 +745,13 @@ class PackagingSystem:
 		# Initializes statistics
 		self.__initializeStatistics()
 
+		# Computes destination directory (local or localExt)
+		destinationDir = self.getDestinationDirectory( pakName )
+
 		# Removes files
 		print ('\nRemoving files...')
 		for relFile in oRelFiles:
-			absFile = join( self.__localExtPath, relFile )
+			absFile = join( destinationDir, relFile )
 			if exists(absFile):
 				os.remove( absFile )
 				self.__numDeletedFiles += 1
@@ -750,7 +763,7 @@ class PackagingSystem:
 		# Removes directories
 		print ('\nRemoving directories...')
 		for relDir in oRelDirectories:
-			absDir = join( self.__localExtPath, relDir )
+			absDir = join( destinationDir, relDir )
 			if exists( absDir ):
 				if len( os.listdir(absDir) ) == 0:
 					os.rmdir( absDir )
