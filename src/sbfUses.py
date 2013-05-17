@@ -777,7 +777,7 @@ class Use_python( IUse ):
 
 	def getLIBS( self, version ):
 		libs = ['python27']
-		return libs, libs
+		return libs, []
 
 	#def getLIBPATH( self, version ):
 	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
