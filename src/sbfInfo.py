@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -17,7 +17,7 @@ except ImportError as e:
 from src.sbfFiles import convertPathAbsToRel
 from src.sbfPackagingSystem import PackagingSystem
 from src.sbfUtils import stringFormatter
-from src.sbfUses import UseRepository
+from src.sbfUses import UseRepository, generateAllUseNames
 from src.sbfVersion import splitUsesName
 from src.SConsBuildFramework import printEmptyLine, stringFormatter
 
@@ -27,6 +27,30 @@ def __printGeneratingInfofile( target, source, lenv ) :
 
 def __doTargetInfoFile( target, source, env ):
 	"""Creates info.sbf file containing informations about the current project and its dependencies."""
+	def _info( pakSystem, useName, useVersion, use, hasPackage ):
+		if pakSystem.isInstalled(useName):
+			# installed
+			oPakInfo = {}
+			pakSystem.loadPackageInfo( useName, oPakInfo )
+			if hasPackage:
+				if useVersion == oPakInfo['version']:
+					#print ( '{0} {1} is installed.'.format(useName.ljust(16), useVersion.ljust(8)) )
+					return 'Yes'
+				else:
+					print ( '{0} {1} is installed, but {2} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
+					Exit(1)
+			else:
+				print ( '{0} {1} is installed, but it is no more needed.'.format(oPakInfo['name'], oPakInfo['version']) )
+				Exit(1)
+		else:
+			# not installed
+			if hasPackage:
+				print ( '{0} {1} is NOT installed.'.format(useName.ljust(16), useVersion))
+				Exit(1)
+			#else nothing to do
+
+
+
 	# Retrieves/computes additional informations
 	sbf = env.sbf
 	pakSystem = PackagingSystem(sbf)
@@ -42,7 +66,6 @@ def __doTargetInfoFile( target, source, env ):
 		file.write( 'built {0} on computer {1} by user {2}\n'.format( sbf.myDateTimeForUI, platform.node(), getpass.getuser() ) )
 		file.write( 'svn revision: {0}'.format( sbf.myVcs.getRevision(env['sbf_projectPathName']) ) )
 		file.write( '\n'*3 )
-# @todo others svn info ?
 
 		# Computes common root of projects
 		rootOfProjects = sbf.getProjectsRoot( env )
@@ -52,43 +75,27 @@ def __doTargetInfoFile( target, source, env ):
 		uses = sorted(list(sbf.getAllUses(env)))
 
 		# Prints informations about 'uses'
-		lenColPackage = env['outputLineLength'] * 25 / 100
-		lenColVersion = env['outputLineLength'] * 15 / 100
-		lenColRepo = env['outputLineLength'] * 60 / 100
+		lenColPackage = env['outputLineLength'] * 50 / 100
+		lenColVersion = env['outputLineLength'] * 20 / 100
 		file.write('{0}{1}\n'.format( 'Package'.ljust(lenColPackage), 'Version'.ljust(lenColVersion) ))
 		file.write('{0}{1}\n'.format( '-------'.ljust(lenColPackage), '-------'.ljust(lenColVersion) ))
 		for useNameVersion in uses:
 			useName, useVersion = splitUsesName( useNameVersion )
-			# Test if package useName is installed
-			if pakSystem.isInstalled(useName):
-				# installed
-				oPakInfo = {}
-				pakSystem.loadPackageInfo( useName, oPakInfo )
-				if useVersion == oPakInfo['version']:
-					pass
-				else:
-					print ( '{0} {1} is NOT installed !!!'.format(useName, useVersion) )
-					Exit(1)
-			else:
-				# not installed
-				use = UseRepository.getUse( useName )
-				if use:
-					if use.getPackageType() in ['Normal', 'Full']:
-						print ( '{0} {1} is NOT installed !!!'.format(useName, useVersion) )
-						Exit(1)
-					else:
-						assert( use.getPackageType() in ['None', 'NoneAndNormal'] )
-						# nothing to do
-				#else nothing to do
-			file.write( '{0}{1}\n'.format(useName.ljust(lenColPackage), useVersion.ljust(lenColVersion)) )
+			use = UseRepository.getUse( useName )
+			assert( use ) # raise an assertion for unknow 'uses'
+			for useName in generateAllUseNames(useName):
+				# Test package useName
+				useNameInstalled = _info( pakSystem, useName, useVersion, use, use.hasPackage(useName) )
+				if useNameInstalled:
+					file.write( '{0}{1}\n'.format(useName.ljust(lenColPackage), useVersion.ljust(lenColVersion)) )
 		else:
 			file.write('\n'*3)
 
 		# Prints informations about projects
 		outputLineLength = env['outputLineLength']
-		lenColProject = outputLineLength * 45 / 100
+		lenColProject = outputLineLength * 50 / 100
 		lenColType = max( outputLineLength * 5 / 100, 6 )
-		lenColUses = outputLineLength * 50 / 100
+		lenColUses = outputLineLength * 45 / 100
 		file.write( '{0}{1}{2}\n'.format( 'Project path '.ljust(lenColProject), 'Type'.ljust(lenColType), 'uses/stdlibs'.ljust(lenColUses) ) )
 		file.write( '{0}{1}{2}\n'.format( '-------------'.ljust(lenColProject), '----'.ljust(lenColType), '------------'.ljust(lenColUses) ) )
 

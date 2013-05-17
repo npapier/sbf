@@ -79,11 +79,11 @@ def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = Fals
 	_sbfUnconfigure( toRemove, verbose )
 
 
-def sbfConfigureTools( sbf ):
-	toAppend = getPathsForTools()
-	_sbfConfigure( [], toAppend )
+def sbfConfigureTools( sbf, verbose = True ):
+	toAppend = getPathsForTools(verbose)
+	_sbfConfigure( [], toAppend, verbose )
 
 
 def sbfUnconfigureTools( sbf, verbose = True ):
-	toRemove = getPathsForTools()
+	toRemove = getPathsForTools(verbose)
 	_sbfUnconfigure( toRemove, verbose )

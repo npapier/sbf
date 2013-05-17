@@ -20,26 +20,6 @@ from sbfTools import *
 from sbfUtils import getPathFromEnv, getFromEnv, convertToList
 from sbfVersion import splitUsesName
 
-#@todo moves to sbfConfig.py ?
-class pythonConfig:
-	__basePath = None
-
-	@classmethod
-	def __initialize( cls ):
-		# Retrieves python location
-		cls.__basePath = locateProgram('python')
-
-		# Post-conditions
-		if cls.__basePath is None or len(cls.__basePath)==0:
-			raise SCons.Errors.UserError("Unable to retrieve Python installation path.")
-
-	@classmethod
-	def getBasePath( cls ):
-		if cls.__basePath is None:
-			cls.__initialize()
-		return cls.__basePath
-
-
 class sofaConfig:
 	__basePath = None
 	__svnRevision = None
@@ -89,56 +69,8 @@ class sofaConfig:
 		return cls.__pluginsList
 
 
-class gtkmmConfig:
-	__gtkmmBasePath		= None
-
-	@classmethod
-	def __getVersion( cls ):
-		"""Returns version string like '2.22' or '' if not found"""
-		version = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\gtkmm\2.4\Version', enableLogging=False)
-		if len(version)==0:
-			version = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\Wow6432Node\gtkmm\2.4\Path', enableLogging=False)
-		return version
-
-	@classmethod
-	def __initialize( cls ):
-		if sys.platform == 'win32':
-			# Retrieves gtkmm path and version from windows registry
-			gtkmmBasePath = locateProgram('gtkmm')
-			if len(gtkmmBasePath) > 0:
-				cls.__gtkmmBasePath = gtkmmBasePath
-				# Prints message in verbose mode
-				if '--verbose' in sys.argv:
-					# Retrieves version
-					version = cls.__getVersion()
-					if len(version)==0:
-						version = '-'
-					# Prints informations about gtkmm
-					print ( 'gtkmm is installed in directory : {0}'.format(gtkmmBasePath) )
-					print ( 'Assumes gtk and gtkmm installed in the same directory.\nFound gtkmm version: {0}\n'.format(version) )
-
-		# If gtkmm has not been found, uses GTKMM_BASEPATH environment variable
-		if cls.__gtkmmBasePath is None:
-			# Retrieves GTKMM_BASEPATH
-			cls.__gtkmmBasePath	= getPathFromEnv('GTKMM_BASEPATH')
-
-		# Post-conditions
-		if cls.__gtkmmBasePath is None or len(cls.__gtkmmBasePath)==0:
-			raise SCons.Errors.UserError("Unable to configure gtkmm.")
-
-	@classmethod
-	def getBasePath( cls ):
-		if cls.__gtkmmBasePath is None:
-			cls.__initialize()
-		return cls.__gtkmmBasePath
-
-	@classmethod
-	def getGtkmmBasePath( cls ):
-		return cls.getBasePath()
-
 
 ###
-# @todo licences
 class IUse :
 	platform	= None
 	config		= None
@@ -169,6 +101,10 @@ class IUse :
 		return []
 		#raise StandardError("IUse::getVersions() not implemented")
 
+	def getRequirements( self, version ):
+		"""Returns a list of packages required (i.e. uses), by this package for the given version.
+			@remark a package is specified using same schema as 'uses' option"""
+		return []
 
 	# for compiler
 	def getCPPDEFINES( self, version ):
@@ -193,8 +129,7 @@ class IUse :
 	def getPackageType( self ):
 		"""	None			(no package, i.e. installed in the system (opengl), without files (gtkmmext), include in another package (glibmm in gtkmm))
 			NoneAndNormal	(no package (like None), but getLIBS() and getLicenses() must be redistributed. Example: sofa)
-			Normal			(indicate that this 'uses' is provided by a sbf package, that getLIBS() must be redistributed and that licenses files from package must be redistributed too.).
-			Full			(indicate that this 'uses' is provided by a sbf package and that all files in the package must be redistributed)."""
+			Normal			(indicate that this 'uses' is provided by a sbf package, that getLIBS() must be redistributed and that licenses files from package must be redistributed too.)."""
 		return 'Normal'
 
 	def getDbg( self, version ):
@@ -206,6 +141,21 @@ class IUse :
 		Returns [] to explicitly specify that there is no license file at all (provided by another 'uses', like glibmm/gtkmm).
 		Returns [...] to explicitly specify one or more license file(s)"""
 		return []
+
+	def hasDevPackage( self ):
+		"""Returns True to inform that a developpement package have to be installed, false otherwise. Used by 'pakUpdate' target."""
+		return self.getPackageType() == 'Normal'
+
+	def hasRuntimePackage( self ):
+		"""Returns True to inform that a deployment package have to be installed, false otherwise. Used by 'pakUpdate' target."""
+		return False
+
+	def hasPackage( self, useName ):
+		"""Return True if useName has a package (runtime or development), otherwise returns False."""
+		if '-runtime' in useName:
+			return self.hasRuntimePackage()
+		else:
+			return self.hasDevPackage()
 
 	def getRedist( self, version ):
 		"""Returns the redistributable to include in nsis setup program. A redistributable must be a zip file or an executable available in SCONS_BUILD_FRAMEWORK/rc/nsis/ directory"""
@@ -274,6 +224,9 @@ class IUse :
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBPATH)." % (useNameVersion, self.platform) )
 
 
+# Helpers
+def generateAllUseNames( useName ):
+	return [useName, useName + '-runtime', useName + '-runtime-release', useName + '-runtime-debug']
 
 ### Several IUse implementation ###
 
@@ -409,57 +362,6 @@ class Use_bullet( IUse ):
 
 
 
-#		lenv.AppendUnique( LIBS = ['cairo', 'fontconfig', 'freetype', 'png', 'z' ] )
-class Use_cairo( IUse ):
-
-	def getName( self ):
-		return 'cairo'
-
-	def getVersions( self ):
-		return ['1-10-0', '1-8-6', '1-7-6', '1-2-6']
-
-
-	def getCPPFLAGS( self, version ):
-		if self.platform == 'win32' :
-			return [ '/wd4250' ]
-		else:
-			return []
-
-	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
-			# Sets CPPPATH
-			gtkCppPath = [ 'include/cairo' ]
-			cppPath = []
-			for path in gtkCppPath :
-				cppPath.append( os.path.join(gtkmmConfig.getBasePath(), path) )
-			return cppPath
-		elif self.platform == 'posix' :
-			# Sets CPPPATH
-			cppPath = [	'/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
-						'/usr/include/libpng12'	]
-			return cppPath
-
-	def getLIBS( self, version ):
-		if self.platform == 'win32':
-			libs = [ 'cairo' ]
-			pakLibs = [ 'libcairo-2', 'libpangocairo-1.0-0' ]
-			return libs, pakLibs
-		elif self.platform == 'posix' :
-			libs = [ 'cairo' ]
-			return libs, libs
-
-	def getLIBPATH( self, version ):
-		if self.platform == 'win32' :
-			return [ os.path.join(gtkmmConfig.getBasePath(), 'lib') ], [ os.path.join(gtkmmConfig.getBasePath(), 'bin') ]
-		elif self.platform == 'posix' :
-			return [], []
-
-	def getPackageType( self ):
-		return 'None'
-
-# @todo cairomm
-
-
 class Use_cityhash( IUse ):
 	def getName( self ):
 		return 'cityhash'
@@ -467,7 +369,7 @@ class Use_cityhash( IUse ):
 	def getVersions( self ):
 		return ['1-1-0']
 
-	def getLIBS( self, version ):		
+	def getLIBS( self, version ):
 		lib = '{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion)
 		if self.config == 'release':
 			return [lib], []
@@ -861,18 +763,17 @@ class Use_opencollada( IUse ):
 
 
 # @todo package python into a localExt
-class Use_python( IUse):#, pythonConfig ):
-
+class Use_python( IUse ):
 	def getName( self ):
 		return 'python'
+
+	def getVersions( self ):
+		return [ '2-7-3' ]
 
 	def getCPPPATH( self, version ):
 		#cppPath = [	os.path.join(self.getBasePath(), 'include') ]
 		cppPath = ['Python']
 		return cppPath
-
-	def getVersions( self ):
-		return [ '2-7-2' ]
 
 	def getLIBS( self, version ):
 		libs = ['python27']
@@ -882,8 +783,8 @@ class Use_python( IUse):#, pythonConfig ):
 	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
 	#	return path, []
 
-	def getPackageType( self ):
-		return 'Full'			# @todo temporary hack for deployment
+	def hasRuntimePackage( self ):
+		return True
 
 
 class Use_physfs( IUse ):
@@ -1326,7 +1227,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_glibmm(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
 					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
 
@@ -1434,109 +1335,19 @@ def usesConverter( val ) :
 
 ###### use_package (see option named 'uses') ######
 
-class Use_glibmm( IUse ):
-
-	def getName( self ):
-		return 'glibmm'
-
-	def getVersions( self ):
-		return [ '2-26-0' ]
-
-
-	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
-			gtkmmCppPath = [ 'lib/glibmm-2.4/include', 'include/glibmm-2.4' ]
-
-			gtkCppPath = [ 'lib/glib-2.0/include', 'include/glib-2.0' ]
-
-			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
-			path +=	[ os.path.join(gtkmmConfig.getBasePath(), item)	for item in gtkCppPath ]
-
-			return path
-		elif self.platform == 'posix':
-			gtkmmCppPath	= [	'/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include' ]
-
-			return gtkmmCppPath
-
-
-	def getLIBS( self, version ):
-		if self.platform == 'win32':
-			libs = [ 'glib-2.0' ]
-
-			if version in ['2-26-0']:
-				if self.config == 'release' :
-					# RELEASE
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs += [	'glibmm-vc100-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glibmm-vc90-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glibmm-vc80-2_4' ]
-				else:
-					# DEBUG
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs += [	'glibmm-vc100-d-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glibmm-vc90-d-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glibmm-vc80-d-2_4' ]
-			else:
-				return
-
-			return libs, []
-
-		elif self.platform == 'posix':
-			gtkmm		= [	'glibmm-2.4', 'glib-2.0' ]
-			return gtkmm, []
-
-
-	def getLIBPATH( self, version ):
-		libPath		= []
-		pakLibPath	= []
-
-		if self.platform == 'win32' :
-			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
-			libPath.append( path )
-		#else self.platform == 'posix':
-		#	libPath += '/usr/lib64'
-
-		return libPath, pakLibPath
-
-
-	def getCPPFLAGS( self, version ):
-		# compiler options
-		if self.platform == 'win32':
-			if version in ['2-26-0']:
-				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					return ['/wd4250']
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					return ['/wd4250', '/wd4312']
-			else:
-				return ['/wd4250']
-		elif self.platform == 'posix':
-			return ['-Wl,--export-dynamic']
-
-	def getPackageType( self ):
-		return 'None'
-
-
-# TODO: GTK_BASEPATH and GTKMM_BASEPATH documentation, package gtkmm ?
-# @todo support pakLibs
-#
-# pkg-config gtkglext-1.0 --cflags --libs
-# pkg-config gtkmm-2.4 --cflags --libs
-# pkg-config gthread-2.0 --cflags --libs
-# @todo fedora != ubuntu/debian
-# @todo 64 vs 32
-
 class Use_gtkmm( IUse ):
 
 	def getName( self ):
 		return 'gtkmm'
 
 	def getVersions( self ):
-		return [ '2-22-0-2', '2-16-0', '2-14-3', '2-14-1' ]
+		return [ '2-22-0-2' ]
 
+	def getRequirements( self, version ):
+		if version == '2-22-0-2':
+			return ['cairo 1-10-0', 'sigcpp2-2-8']
+		else:
+			return []
 
 	def getCPPDEFINES( self, version ):
 		# @todo uses version api (see SConsBuildFramework.py)
@@ -1545,32 +1356,28 @@ class Use_gtkmm( IUse ):
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
-			gtkmmCppPath = [	'lib/glibmm-2.4/include', 'include/glibmm-2.4',
-								'lib/giomm-2.4/include', 'include/giomm-2.4',
-								'lib/gdkmm-2.4/include', 'include/gdkmm-2.4',
-								'lib/gtkmm-2.4/include', 'include/gtkmm-2.4',
-								'lib/libglademm-2.4/include', 'include/libglademm-2.4',
-								'lib/libxml++-2.6/include', 'include/libxml++-2.6',
-								'lib/sigc++-2.0/include', 'include/sigc++-2.0',
-								'lib/pangomm-1.4/include', 'include/pangomm-1.4',
-								'include/atkmm-1.6',
-								'include/cairomm-1.0' ]
+			gtkmmCppPath = [	'../lib/glibmm-2.4/include', 'glibmm-2.4',
+								'../lib/giomm-2.4/include', 'giomm-2.4',
+								'../lib/gdkmm-2.4/include', 'gdkmm-2.4',
+								'../lib/gtkmm-2.4/include', 'gtkmm-2.4',
+								'../lib/libglademm-2.4/include', 'libglademm-2.4',
+								'../lib/libxml++-2.6/include', 'libxml++-2.6',
+								# 'lib/sigc++-2.0/include', 'include/sigc++-2.0', see sigcpp
+								'../lib/pangomm-1.4/include', 'pangomm-1.4',
+								'atkmm-1.6',
+								'cairomm-1.0' ]
 
-			gtkCppPath = [		'include/libglade-2.0',
-								'lib/gtk-2.0/include', 'include/gtk-2.0',
-								'include/pango-1.0',
-								'include/atk-1.0',
-								'lib/glib-2.0/include', 'include/glib-2.0',
-								'include/gdk-pixbuf-2.0',
-								'include/libxml2',
-								'include/freetype2',
-								'include/cairo',
-								'include' ]
-
-			path =	[ os.path.join(gtkmmConfig.getGtkmmBasePath(), item)	for item in gtkmmCppPath ]
-			path +=	[ os.path.join(gtkmmConfig.getBasePath(), item)	for item in gtkCppPath ]
-
-			return path
+			gtkCppPath = [		'libglade-2.0',
+								'../lib/gtk-2.0/include', 'gtk-2.0',
+								'pango-1.0',
+								'atk-1.0',
+								'../lib/glib-2.0/include', 'glib-2.0',
+								'gdk-pixbuf-2.0',
+								'libxml2',
+								#'freetype2',	see cairo
+								#'cairo',		see cairo
+								]
+			return gtkmmCppPath + gtkCppPath
 		elif self.platform == 'posix':
 			gtkglextCppPath	= [	'/usr/include/gtkglext-1.0', '/usr/lib64/gtkglext-1.0/include' ]
 			gtkmmCppPath	= [	'/usr/include/gtkmm-2.4', '/usr/lib64/gtkmm-2.4/include', '/usr/include/glibmm-2.4', '/usr/lib64/glibmm-2.4/include',
@@ -1586,68 +1393,53 @@ class Use_gtkmm( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
-			libs = [ 'glade-2.0', 'gtk-win32-2.0', 'gdk-win32-2.0', 'gdk_pixbuf-2.0',
-					'pangowin32-1.0', 'pangocairo-1.0', 'pangoft2-1.0', 'pango-1.0',
-					'atk-1.0', 'cairo',
-					'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
-					'intl' ]
-			if version == '2-22-0-2':
-				libs += [ 'libxml2', 'fontconfig' ]
-			elif version in [ '2-16-0', '2-14-3', '2-14-1' ]:
-				libs += [ 'libxml2', 'iconv' ]
-			else:
-				return
+			libs = [	'glade-2.0', 'gtk-win32-2.0', 'gdk-win32-2.0', 'gdk_pixbuf-2.0',
+						'pangowin32-1.0', 'pangocairo-1.0', 'pangoft2-1.0', 'pango-1.0',
+						'atk-1.0', # 'cairo', see cairo
+						'gobject-2.0', 'gmodule-2.0', 'glib-2.0', 'gio-2.0', 'gthread-2.0',
+						'intl',
+						'libxml2' ] # 'fontconfig' see cairo
 
-			if version in ['2-22-0-2', '2-16-0', '2-14-3']:
-				if self.config == 'release' :
-					# RELEASE
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs += [	'glademm-vc100-2_4', 'gdkmm-vc100-2_4', 'pangomm-vc100-1_4',
-									'atkmm-vc100-1_6', 'cairomm-vc100-1_0',
-									'glibmm-vc100-2_4', 'giomm-vc100-2_4',
-									'xml++-vc100-2_6', 'sigc-vc100-2_0',
-									'gtkmm-vc100-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glademm-vc90-2_4', 'gdkmm-vc90-2_4', 'pangomm-vc90-1_4',
-									'atkmm-vc90-1_6', 'cairomm-vc90-1_0',
-									'glibmm-vc90-2_4', 'giomm-vc90-2_4',
-									'xml++-vc90-2_6', 'sigc-vc90-2_0',
-									'gtkmm-vc90-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glademm-vc80-2_4', 'gdkmm-vc80-2_4', 'pangomm-vc80-1_4',
-									'atkmm-vc80-1_6', 'cairomm-vc80-1_0',
-									'glibmm-vc80-2_4', 'giomm-vc80-2_4',
-									'xml++-vc80-2_6', 'sigc-vc80-2_0',
-									'gtkmm-vc80-2_4' ]
-				else:
-					# DEBUG
-					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-						libs += [	'glademm-vc100-d-2_4', 'gdkmm-vc100-d-2_4', 'pangomm-vc100-d-1_4',
-									'atkmm-vc100-d-1_6', 'cairomm-vc100-d-1_0',
-									'glibmm-vc100-d-2_4', 'giomm-vc100-d-2_4',
-									'xml++-vc100-d-2_6', 'sigc-vc100-d-2_0',
-									'gtkmm-vc100-d-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-						libs += [	'glademm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'pangomm-vc90-d-1_4',
-									'atkmm-vc90-d-1_6', 'cairomm-vc90-d-1_0',
-									'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4',
-									'xml++-vc90-d-2_6', 'sigc-vc90-d-2_0',
-									'gtkmm-vc90-d-2_4' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-						libs += [	'glademm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'pangomm-vc80-d-1_4',
-									'atkmm-vc80-d-1_6', 'cairomm-vc80-d-1_0',
-									'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4',
-									'xml++-vc80-d-2_6', 'sigc-vc80-d-2_0',
-									'gtkmm-vc80-d-2_4' ]
-			elif version == '2-14-1':
-				if self.config == 'release' :
-					libs += [	'glademm-2.4', 'xml++-2.6', 'gtkmm-2.4', 'gdkmm-2.4', 'atkmm-1.6',
-								'pangomm-1.4', 'glibmm-2.4', 'giomm-2.4', 'cairomm-1.0', 'sigc-2.0' ]
-				else:
-					libs += [	'glademm-2.4d', 'xml++-2.6d', 'gtkmm-2.4d', 'gdkmm-2.4d', 'atkmm-1.6d',
-								'pangomm-1.4d', 'glibmm-2.4d', 'giomm-2.4d', 'cairomm-1.0d', 'sigc-2.0d' ]
+			if self.config == 'release' :
+				# RELEASE
+				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+					libs += [	'glademm-vc100-2_4', 'gdkmm-vc100-2_4', 'pangomm-vc100-1_4',
+								'atkmm-vc100-1_6', 'cairomm-vc100-1_0',
+								'glibmm-vc100-2_4', 'giomm-vc100-2_4',
+								'xml++-vc100-2_6', # 'sigc-vc100-2_0', # see sigcpp
+								'gtkmm-vc100-2_4' ]
+				elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					libs += [	'glademm-vc90-2_4', 'gdkmm-vc90-2_4', 'pangomm-vc90-1_4',
+								'atkmm-vc90-1_6', 'cairomm-vc90-1_0',
+								'glibmm-vc90-2_4', 'giomm-vc90-2_4',
+								'xml++-vc90-2_6', # 'sigc-vc90-2_0', # see sigcpp
+								'gtkmm-vc90-2_4' ]
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					libs += [	'glademm-vc80-2_4', 'gdkmm-vc80-2_4', 'pangomm-vc80-1_4',
+								'atkmm-vc80-1_6', 'cairomm-vc80-1_0',
+								'glibmm-vc80-2_4', 'giomm-vc80-2_4',
+								'xml++-vc80-2_6', # 'sigc-vc80-2_0', # see sigcpp
+								'gtkmm-vc80-2_4' ]
 			else:
-				return
+				# DEBUG
+				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+					libs += [	'glademm-vc100-d-2_4', 'gdkmm-vc100-d-2_4', 'pangomm-vc100-d-1_4',
+								'atkmm-vc100-d-1_6', 'cairomm-vc100-d-1_0',
+								'glibmm-vc100-d-2_4', 'giomm-vc100-d-2_4',
+								'xml++-vc100-d-2_6', 'sigc-vc100-d-2_0', # see sigcpp
+								'gtkmm-vc100-d-2_4' ]
+				elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
+					libs += [	'glademm-vc90-d-2_4', 'gdkmm-vc90-d-2_4', 'pangomm-vc90-d-1_4',
+								'atkmm-vc90-d-1_6', 'cairomm-vc90-d-1_0',
+								'glibmm-vc90-d-2_4', 'giomm-vc90-d-2_4',
+								'xml++-vc90-d-2_6', # 'sigc-vc90-d-2_0', # see sigcpp
+								'gtkmm-vc90-d-2_4' ]
+				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+					libs += [	'glademm-vc80-d-2_4', 'gdkmm-vc80-d-2_4', 'pangomm-vc80-d-1_4',
+								'atkmm-vc80-d-1_6', 'cairomm-vc80-d-1_0',
+								'glibmm-vc80-d-2_4', 'giomm-vc80-d-2_4',
+								'xml++-vc80-d-2_6', # 'sigc-vc80-d-2_0', # see sigcpp
+								'gtkmm-vc80-d-2_4' ]
 
 			return libs, []
 
@@ -1664,70 +1456,18 @@ class Use_gtkmm( IUse ):
 			return gtkglext + gtkmm, []
 
 
-	def getLIBPATH( self, version ):
-		libPath		= []
-		pakLibPath	= []
-
-		if self.platform == 'win32' :
-			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
-			libPath.append( path )
-		#else self.platform == 'posix':
-		#	libPath += '/usr/lib64'
-
-		return libPath, pakLibPath
-
-
 	def getCPPFLAGS( self, version ):
 		# compiler options
 		if self.platform == 'win32':
-			if version in ['2-22-0-2', '2-16-0']:
-				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					return ['/wd4250']
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					return ['/wd4250', '/wd4312']
-			else:
+			if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 				return ['/wd4250']
+			elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
+				return ['/wd4250', '/wd4312']
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
-
-	def getPackageType( self ):
-		return 'Full'
-
-	def getRedist( self, version ):
-		return []
-		if self.platform == 'win32':
-			if version == '2-22-0-2':
-				if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
-					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-2_win32_cl10-0Exp.zip']
-					else:
-						return ['gtkmmRedist2-22-0-2_win32_cl10-0Exp_D.zip']
-				elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-2_win32_cl9-0Exp.zip']
-					else:
-						return ['gtkmmRedist2-22-0-2_win32_cl9-0Exp_D.zip']
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					if self.config == 'release':
-						return ['gtkmmRedist2-22-0-2_win32_cl8-0Exp.zip']
-					else:
-						return ['gtkmmRedist2-22-0-2_win32_cl8-0Exp_D.zip']
-				else:
-					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
-			elif version == '2-16-0':
-				if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
-					if self.config == 'release':
-						return ['gtkmmRedist2-16-0-4_win32_cl9-0Exp.zip']
-					else:
-						return ['gtkmmRedist2-16-0-4_win32_cl9-0Exp_D.zip']
-				elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-					if self.config == 'release':
-						return ['gtkmmRedist2-16-0-4_win32_cl8-0Exp.zip']
-					else:
-						return ['gtkmmRedist2-16-0-4_win32_cl8-0Exp_D.zip']
-				else:
-					SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+	def hasRuntimePackage( self ):
+		return True
 
 
 class Use_gtkmmext( IUse ):
@@ -1751,32 +1491,66 @@ class Use_gtkmmext( IUse ):
 		return 'None'
 
 
+
+class Use_cairo( IUse ):
+
+	def getName( self ):
+		return 'cairo'
+
+	def getVersions( self ):
+		return ['1-10-0']
+
+
+	def getCPPFLAGS( self, version ):
+		if self.platform == 'win32' :
+			return [ '/wd4250' ]
+		else:
+			return []
+
+	def getCPPPATH( self, version ):
+		if self.platform == 'win32' :
+			return [ 'cairo', 'freetype2' ] # @todo add libpng14/fontconfig ?
+		elif self.platform == 'posix' :
+			# Sets CPPPATH
+			cppPath = [	'/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
+						'/usr/include/libpng12'	]
+			return cppPath
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32':
+			libs = [ 'cairo' ] # fontconfig ? expat ?
+			# pakLibs: libpangocairo-1.0-0 ?
+			return libs, []
+		elif self.platform == 'posix' :
+			libs = [ 'cairo' ]
+			return libs, libs
+
+	def hasRuntimePackage( self ):
+		return True
+
+
+
 class Use_sigcpp( IUse ):
 
 	def getName( self ):
 		return 'sigcpp'
 
 	def getVersions( self ):
-		return [ '2-8-2' ]
+		return [ '2-2-8' ]
 
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'win32' :
-			sigcppPath = [	'lib/sigc++-2.0/include', 'include/sigc++-2.0' ]
-
-			path = [ os.path.join(gtkmmConfig.getGtkmmBasePath(), item) for item in sigcppPath ]
-
-			return path
+			return [ 'sigc++', '../lib/sigc++-2.0/include' ]
 		elif self.platform == 'posix':
 			sigcppPath = [ '/usr/include/sigc++-2.0','/usr/lib64/sigc++-2.0/include' ]
 
-			return sigcppPath
-
+		return sigcppPath
 
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
-			if version in ['2-8-2']:
+			if version == '2-2-8':
 				if self.config == 'release' :
 					# RELEASE
 					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
@@ -1802,24 +1576,12 @@ class Use_sigcpp( IUse ):
 			sigcpp = [ 'sigc-2.0' ]
 			return sigcpp, []
 
-
-	def getLIBPATH( self, version ):
-		libPath		= []
-		pakLibPath	= []
-
-		if self.platform == 'win32' :
-			path = os.path.join( gtkmmConfig.getBasePath(), 'lib' )
-			libPath.append( path )
-		#else self.platform == 'posix':
-		#	libPath += '/usr/lib64'
-
-		return libPath, pakLibPath
+	def hasRuntimePackage( self ):
+		return True
 
 
-	def getPackageType( self ):
-		return 'None'
 
-
+### @todo update or remove
 def use_physx( self, lenv, elt ) :
 	# Retrieves PHYSX_BASEPATH
 	physxBasePath = getPathFromEnv('PHYSX_BASEPATH')
@@ -1892,7 +1654,6 @@ def use_physx( self, lenv, elt ) :
 
 
 def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
-	#
 #print '%s uses: %s' % (lenv['sbf_project'], lenv['uses'])
 	for elt in uses :
 		# Converts to lower case

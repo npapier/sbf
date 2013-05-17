@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,10 +9,12 @@ import re
 from src.sbfFiles import getNormalizedPathname
 
 # To be able to use sbfVersion.py without SCons
+import __builtin__
 try:
 	from SCons.Script import *
 except ImportError as e:
-	print ('sbfWarning: unable to import SCons.Script')
+	if not hasattr(__builtin__, 'SConsBuildFrameworkQuietImport'):
+		print ('sbfWarning: unable to import SCons.Script')
 
 
 ### Helpers to retrieve/print version of SConsBuildFramework ###
@@ -50,7 +52,15 @@ def extractVersion( versionStr ):
 		raise SCons.Errors.UserError("Given version:{0}.\n{1}".format(versionStr, versionDoc) )
 
 ### Helpers to split 'uses' or 'libs' value ###
-usesNamePattern = '(?P<name>[a-zA-Z]+(?:[\d_][a-zA-Z]+|))'
+#'uses' 'libs'
+#name azerty
+#	 AzErTy
+#	 azer2ty
+#	 azer_tY
+#	 glc_gtkmm
+#	 python-runtime
+#version see extractVersion()
+usesNamePattern = '(?P<name>[a-zA-Z]+(?:[\d_][a-zA-Z]+|)(|\-runtime|\-runtime-release|\-runtime-debug))'
 usesORlibsSplitter = re.compile( r'^{0}[ \t]*{1}$'.format(usesNamePattern, versionPattern) )
 nameDoc = ''
 
@@ -100,7 +110,7 @@ def splitPackageName( packageName ):
 					'cc'		: match.group('cc'),
 					'extension'	: match.group('extension') }
 	else:
-		#print ("Unable to split package name {0}. The following schemas must be used 'nameVersion_platform_ccVersion.extension'.".format(packageName) )
+		print ("Unable to split package name {0}. The following schemas must be used 'nameVersion_platform_ccVersion.extension'.".format(packageName) )
 		return
 
 def joinPackageName( pakInfo ):

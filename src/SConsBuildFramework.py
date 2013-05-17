@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -24,8 +24,7 @@ from sbfSubversion import anonymizeUrl, removeTrunkOrTagsOrBranches
 from sbfPackagingSystem import PackagingSystem
 from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
 from sbfUI import askQuestion
-from sbfUses import getPathsForSofa
-from sbfUses import UseRepository, usesValidator, usesConverter, uses
+from sbfUses import UseRepository, generateAllUseNames, usesValidator, usesConverter, uses
 from sbfUtils import *
 from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
 
@@ -281,6 +280,24 @@ def getStdlibs( lenv, searchPathList ):
 
 
 def getDepsFiles( lenv, baseSearchPathList, forced = False ):
+	def collectDepsFilesForPackage( pakSystem, useName, useVersion, lenv, depsFiles ):
+		"""@param depsFiles		files of package (useName,useVersion) are appended to depsFiles"""
+		if pakSystem.isInstalled( useName ):
+			# installed
+			oPakInfo = {}
+			oRelDirectories = []
+			oRelFiles = []
+			pakSystem.loadPackageInfo( useName, oPakInfo, oRelDirectories, oRelFiles )
+			if oPakInfo['version'] != useVersion:
+				raise SCons.Errors.UserError( '{0} {1} is installed, but {2} is needed.'.format(useName, oPakInfo['version'], useVersion))
+			if lenv.GetOption('verbosity'):	print ( 'Collecting all files found in installed package {0} {1}'.format(oPakInfo['name'], oPakInfo['version']) )
+			for relFile in oRelFiles:
+				absFile = join( lenv.sbf.myInstallPaths[0], relFile )
+				depsFiles.append( (absFile, relFile) )
+		else:
+			# not installed
+			raise SCons.Errors.UserError( '{0} {1} is NOT installed.'.format(useName, useVersion))
+
 	depsFiles = []
 	licensesFiles = []
 	sbf = lenv.sbf
@@ -299,6 +316,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 				print stdlibs
 				assert(False) # not yet implemented, @todo deprecated ?
 
+		pakSystem = PackagingSystem(sbf, verbose=False)
 		# Processes external dependencies (i.e. 'uses')
 		# For each external dependency, do
 		for useNameVersion in allUses:
@@ -335,22 +353,6 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 								raise SCons.Errors.UserError( "File {0} not found for uses='{1}'.".format(filename, useName) )
 					else:
 						raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
-				elif use.getPackageType() == 'Full':
-					pakSystem = PackagingSystem(lenv.sbf, verbose=False)
-					if pakSystem.isInstalled( useName ):
-						# installed
-						oPakInfo = {}
-						oRelDirectories = []
-						oRelFiles = []
-						pakSystem.loadPackageInfo( useName, oPakInfo, oRelDirectories, oRelFiles )
-						if oPakInfo['version'] != useVersion:
-							raise SCons.Errors.UserError( '{0} {1} is installed, but {2} is needed.'.format(useName, oPakInfo['version'], useVersion))
-						if lenv.GetOption('verbosity'):	print ( 'Collecting all files found in installed package {0} {1}'.format(oPakInfo['name'], oPakInfo['version']) )
-						for relFile in oRelFiles:
-							absFile = join( sbf.myInstallExtPaths[0], relFile )
-							depsFiles.append( (absFile, relFile) )
-					else:
-						raise SCons.Errors.UserError( '{0} {1} is NOT installed.'.format(useName, useVersion))
 				else:
 					# getPackageType() returns an unexpected value
 					assert( False )
@@ -367,7 +369,6 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 						licensesFiles.append( (licenseTarget, licenseSource) )
 				elif use.getPackageType() == 'Normal':
 					# Retrieves license files of incoming dependency from package
-					pakSystem = PackagingSystem(lenv.sbf, verbose=False)
 					if pakSystem.isInstalled( useName ):
 						# installed
 						oPakInfo = {}
@@ -384,12 +385,20 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 								licensesFiles.append( (os.path.basename(relFile), join(sbf.myInstallExtPaths[0], relFile) ) )
 					else:
 						raise SCons.Errors.UserError( '{0} {1} is NOT installed.'.format(useName, useVersion))
-				elif use.getPackageType() == 'Full':
-					# nothing to do
-					pass
 				else:
 					# getPackageType() returns an unexpected value
 					assert( False )
+
+				### RUNTIME PACKAGE ###
+				if use.hasRuntimePackage():
+					allUseNames = [useName + '-runtime']
+					if lenv['config'] == 'release':
+						allUseNames.append( useName + '-runtime-release' )
+					else:
+						allUseNames.append( useName + '-runtime-debug' )
+					for useName in allUseNames:
+						collectDepsFilesForPackage( pakSystem, useName, useVersion, lenv, depsFiles )
+				#else nothing to do
 			else:
 				raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
 	# do nothing for 'none' project
@@ -428,6 +437,7 @@ class SConsBuildFramework :
 	myZipTargets					= set( ['portable', 'zipportable', 'dbg', 'zipdbg', 'nsis'] )
 
 	myTargetsWhoNeedDeps			= set( ['deps', 'portable', 'zipportable', 'nsis'] )
+	myTargetsAllowingWeakReading	= set( ['svncheckout', 'svnupdate'] )
 
 	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
 
@@ -767,6 +777,8 @@ class SConsBuildFramework :
 		Alias( tmp )
 		Alias( list(self.myCurrentCmdLineOptions), tmp )
 		Default('all')
+
+		self.myProjectOptionsWeakReading = len(self.myBuildTargets - self.myTargetsAllowingWeakReading) == 0
 
 		# Tests which target is given
 		# 	User wants a vcs checkout or update ?
@@ -1321,73 +1333,83 @@ SConsBuildFramework options:
 
 
 	###### Reads a configuration file for a project ######
-	# @todo
-	def readProjectOptions( self, file ) :
+	def readProjectOptions( self, file, weakReading = False ):
+		"""@param weakReading		True to read the minimum number of variables (only 'vcsUse' and 'deps')"""
 
 		myOptions = Variables( file )
 		myOptions.AddVariables(
-			('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
-			('productName', 'Name of the product to be presented to users. This information is used by nsis installation program. Default value (i.e. empty string) means that project name is used instead.', ''),
-
 			EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
 							allowed_values=('yes', 'no'),
 							map={}, ignorecase=1 ),
-
-			('defines', 'The list of preprocessor definitions given to the compiler at each invocation (same effect as #define xxx).', ''),
-			EnumVariable(	'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
-							'none',
-							allowed_values=('exec', 'static','shared','none'),
-							map={}, ignorecase=1 ),
-
-			('version', "Sets the project version. The following version schemas must be used : major-minor-[postfix] or major-minor-maintenance[-postfix]. For example '1-0', '1-0-RC1', '1-0-1' or '0-99-technoPreview'", '0-0'),
-			('postfix', 'Adds a postfix to the target name.', ''),
-			BoolVariable('generateInfoFile', 'Sets to true enabled the generation of info.sbf file, false to disable it.', False ),
-
-			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
-
-			(	'uses',
-				'Specifies a list of packages to configure for compilation and link stages.\nAvailable packages:%s\nAlias: %s' %
-				(convertToString(UseRepository.getAllowedValues()), convertDictToString(UseRepository.getAlias())),
-				[],
-				usesValidator,
-				usesConverter ),
-
-			('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
-			('stdlibs', 'The list of standard libraries used during the link stage.', []),
-			EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
-							allowed_values=('none', 'gtest'), ignorecase=1 ),
-
-			('shareExclude', "The list of Unix shell-style wildcards to exclude files from 'share' directory", []),
-			('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
-
-			('customBuild',	"A dictionnary containing { target : pyScript, ... } to specify a python script for a target. Python script is executed during 'thinking stage' of SConsBuildFramework if its associated target have to be built. Script has access to SCONS_BUILD_FRAMEWORK environment variable and lenv, the SCons environment for the project. Python 'sys.path' is adjusted to allow direct 'import' of python script from the root directory of the project.",
-							{}),
-
-			BoolVariable(	'console',
-							'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
-							True ),
-
-			(	'runParams',
-				"The list of parameters given to executable by targets 'run' and 'onlyRun'. To specify multiple parameters at command-line uses a comma-separated list of parameters, which will get translated into a space-separated list for passing to the launching command.",
-				[],
-				passthruValidator, passthruConverter ),
-
-			EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
-							'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
-
-			(	'deploymentPrecond', '', ''	),
-
-
-			(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' sets to True to uninstall automatically previous version if needed, otherwise it writes 'launch=commandLine' in 'Uninstall' section of the feedback file. Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'ensureNewInstallDir' to ensure that the installation directory is always a newly created directory (by appending a number if needed to the chosen directory name). Key 'actionOnVarDirectory' to allow 'leave' untouch the 'var' directory, to 'remove' the 'var' directory during the uninstall stage, 'autoMigration' to move the 'var' directory during installation and 'manualMigration' to write 'varDirectory=pathOfVar' in 'Import' section of the feedback file. Key 'moveLogFileIntoVarDirectory' to move log file into 'var' directory. Key 'copySetupFileIntoVarDirectory' to copy installation program file into 'var' directory. Key 'customPointInstallationValidation' to add nsis code after the copying of all files during installation and before migration of var/packages directories, autoUninstall and registry updating. The variable $installationValidation have to be used to validate (==0) to invalidate (!=0) the installation. Invalidate an installation to abort the installation, nevertheless uninstall.exe is created to be able to clean installed files.",
-				{	'autoUninstall'						: True,
-					'installDirFromRegKey'				: True,
-					'ensureNewInstallDir'				: False,
-					'actionOnVarDirectory'				: 'leave',
-					'moveLogFileIntoVarDirectory'		: False,
-					'copySetupFileIntoVarDirectory'		: False,
-					'customPointInstallationValidation'	: ''
-				} )
+			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', [])
 		)
+
+		if not weakReading:
+			myOptions.AddVariables(
+				('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
+	# @todo use product name elsewhere ?
+				('productName', 'Name of the product to be presented to users. This information is used by nsis installation program. Default value (i.e. empty string) means that project name is used instead.', ''),
+
+				#EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
+				#				allowed_values=('yes', 'no'),
+				#				map={}, ignorecase=1 ),
+
+				('defines', 'The list of preprocessor definitions given to the compiler at each invocation (same effect as #define xxx).', ''),
+				EnumVariable(	'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
+								'none',
+								allowed_values=('exec', 'static','shared','none'),
+								map={}, ignorecase=1 ),
+
+				('version', "Sets the project version. The following version schemas must be used : major-minor-[postfix] or major-minor-maintenance[-postfix]. For example '1-0', '1-0-RC1', '1-0-1' or '0-99-technoPreview'", '0-0'),
+				('postfix', 'Adds a postfix to the target name.', ''),
+				BoolVariable('generateInfoFile', 'Sets to true enabled the generation of info.sbf file, false to disable it.', False ),
+
+				#('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
+
+				(	'uses',
+					'Specifies a list of packages to configure for compilation and link stages.\nAvailable packages:%s\nAlias: %s' %
+					(convertToString(UseRepository.getAllowedValues()), convertDictToString(UseRepository.getAlias())),
+					[],
+					usesValidator,
+					usesConverter ),
+
+				('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
+				('stdlibs', 'The list of standard libraries used during the link stage.', []),
+				EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
+								allowed_values=('none', 'gtest'), ignorecase=1 ),
+
+
+				('shareExclude', "The list of Unix shell-style wildcards to exclude files from 'share' directory", []),
+				('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
+
+				('customBuild',	"A dictionnary containing { target : pyScript, ... } to specify a python script for a target. Python script is executed during 'thinking stage' of SConsBuildFramework if its associated target have to be built. Script has access to SCONS_BUILD_FRAMEWORK environment variable and lenv, the SCons environment for the project. Python 'sys.path' is adjusted to allow direct 'import' of python script from the root directory of the project.",
+								{}),
+
+				BoolVariable(	'console',
+								'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
+								True ),
+
+				(	'runParams',
+					"The list of parameters given to executable by targets 'run' and 'onlyRun'. To specify multiple parameters at command-line uses a comma-separated list of parameters, which will get translated into a space-separated list for passing to the launching command.",
+					[],
+					passthruValidator, passthruConverter ),
+
+				EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
+								'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
+
+				(	'deploymentPrecond', '', ''	),
+
+
+				(	'nsis', "A dictionnary to customize generated nsis installation program. Key 'autoUninstall' sets to True to uninstall automatically previous version if needed, otherwise it writes 'launch=commandLine' in 'Uninstall' section of the feedback file. Key 'installDirFromRegKey' set to true to tell the installer to check a string in the registry and use it for the install dir if that string is valid, false to do nothing (only for standalone). Key 'ensureNewInstallDir' to ensure that the installation directory is always a newly created directory (by appending a number if needed to the chosen directory name). Key 'actionOnVarDirectory' to allow 'leave' untouch the 'var' directory, to 'remove' the 'var' directory during the uninstall stage, 'autoMigration' to move the 'var' directory during installation and 'manualMigration' to write 'varDirectory=pathOfVar' in 'Import' section of the feedback file. Key 'moveLogFileIntoVarDirectory' to move log file into 'var' directory. Key 'copySetupFileIntoVarDirectory' to copy installation program file into 'var' directory. Key 'customPointInstallationValidation' to add nsis code after the copying of all files during installation and before migration of var/packages directories, autoUninstall and registry updating. The variable $installationValidation have to be used to validate (==0) to invalidate (!=0) the installation. Invalidate an installation to abort the installation, nevertheless uninstall.exe is created to be able to clean installed files.",
+					{	'autoUninstall'						: True,
+						'installDirFromRegKey'				: True,
+						'ensureNewInstallDir'				: False,
+						'actionOnVarDirectory'				: 'leave',
+						'moveLogFileIntoVarDirectory'		: False,
+						'copySetupFileIntoVarDirectory'		: False,
+						'customPointInstallationValidation'	: ''
+					} )
+			)
 
 		return myOptions
 
@@ -1395,13 +1417,60 @@ SConsBuildFramework options:
 	###### Reads a configuration file for a project ######
 	###### Updates environment (self.myProjectOptions and lenv are modified).
 	# Returns true if config file exists, false otherwise.
-	def readProjectOptionsAndUpdateEnv( self, lenv, configDotOptionsFile = 'default.options' ) :
-		configDotOptionsPathFile = self.myProjectPathName + os.sep + configDotOptionsFile
+	def readProjectOptionsAndUpdateEnv( self, lenv, configDotOptionsFile = 'default.options' ):
+		configDotOptionsPathFile = join(self.myProjectPathName, configDotOptionsFile)
 		retVal = os.path.isfile(configDotOptionsPathFile)
 		if retVal :
 			# update lenv with config.options
-			self.myProjectOptions = self.readProjectOptions( configDotOptionsPathFile )
-			self.myProjectOptions.Update( lenv )
+			self.myProjectOptions = self.readProjectOptions( configDotOptionsPathFile, self.myProjectOptionsWeakReading )
+			if self.myProjectOptionsWeakReading:
+				self.myProjectOptions.Update( lenv )
+				projectOptionsVariables = OrderedDict([
+					('description'	, ''),
+					('productName'	, ''),
+					('defines'		, ''),
+					('type'			, 'none'),
+					('version'		, '0-0'),
+					('postfix'		, ''),
+					('generateInfoFile'	, False),
+					('uses'			, []),
+					('libs'			, []),
+					('stdlibs'		, []),
+					('test'			, 'none'),
+					('shareExclude'	, []),
+					('shareBuild'	, ([],('','',''))),
+					('customBuild'	, {}),
+					('console'		, True),
+					('runParams'		, []),
+					('deploymentType', 'none'),
+					('deploymentPrecond'	, ''),
+					('nsis'			, {}) ])
+				for (key,val) in projectOptionsVariables.items():
+					lenv[key] = val
+			else:
+				self.myProjectOptions.Update( lenv )
+
+			# Adding requirements for each element of 'uses'
+			usesToProcess = lenv['uses'][:]
+			for useNameVersion in usesToProcess:
+				useName, useVersion = splitUsesName( useNameVersion )			# @todo cache split in lenv['usesNameVersion'] = (useName, useVersion, use)
+
+				# Retrieves use object for incoming dependency
+				use = UseRepository.getUse( useName )
+				if use:
+					requirements = use.getRequirements( useVersion )
+					if requirements:
+						for requirement in requirements:
+							reqName, reqVersion = splitUsesName( requirement )
+							requirement = reqName + reqVersion
+							if requirement not in lenv['uses']:
+								lenv['uses'].append(requirement)
+								usesToProcess.append(requirement)
+							#else do nothing
+					# else nothing to do
+				else:
+					raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, self.myPlatform) )
+
 		return retVal
 
 
@@ -1488,7 +1557,7 @@ SConsBuildFramework options:
 			if self.myIsExpressEdition:
 				# at least for rc.exe
 				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
-				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
+				#lenv.AppendENVPath( 'PATH', 'D:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
 
 				if lenv.GetOption('weak_localext'):
 					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
@@ -1943,6 +2012,7 @@ SConsBuildFramework options:
 		# Built project dependencies (i.e. 'deps')
 		for dependency in lenv['deps']:
 			# Checks dependency path
+			# dependency is an absolute path
 			if os.path.isabs( dependency ): raise SCons.Errors.UserError("Absolute path is forbidden in 'deps' project option.")
 
 			# dependency is a path relative to the directory containing default.options
@@ -2618,7 +2688,7 @@ SConsBuildFramework options:
 		"""Computes the set of all 'uses' for the project described by lenv and all its dependencies."""
 
 		# The return value containing all 'uses'
-		retValUses = set( set(lenv['uses']) )
+		retValUses = set( lenv['uses'] )
 
 		# Retrieves all dependencies
 		dependencies = self.getAllDependencies(lenv)

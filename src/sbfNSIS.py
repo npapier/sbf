@@ -1452,7 +1452,21 @@ def getTmpNSISPath( lenv ):
 
 def __getProjectSubdir( lenv ):
 	sbf = lenv.sbf
-	return lenv['sbf_project'] + '_' + lenv['version'] + sbf.my_Platform_myCCVersion + sbf.my_FullPostfix
+	# vgsdkViewerGtk_0-5_win32_cl10-0Exp_postfix_D
+	# or
+	# vgsdkViewerGtk_0-5_win32_cl10-0Exp_D
+	if len(lenv['postfix'])==0:
+		return '{project}_{version}{platform_CCVersion}{config}'.format(
+			project = lenv['sbf_project'], version = lenv['version'],
+			platform_CCVersion = sbf.my_Platform_myCCVersion,
+			config = sbf.my_PostfixLinkedToMyConfig )
+	else:
+		return '{project}_{version}{platform_CCVersion}_{postfix}{config}'.format(
+			project = lenv['sbf_project'], version = lenv['version'],
+			platform_CCVersion = sbf.my_Platform_myCCVersion,
+			postfix = lenv['postfix'],
+			config = sbf.my_PostfixLinkedToMyConfig )
+
 
 def getTmpNSISPortablePath( lenv ):
 	return join( getTmpNSISPath(lenv), __getProjectSubdir(lenv) + '_portable_' + lenv.sbf.myTimePostFix )
@@ -1625,6 +1639,4 @@ def configureZipAndNSISTargets( lenv ):
 			Alias( 'nsis', lenv.Command('nsis_build.out', 'dummy.in', Action(nopAction, __printGenerateNSISSetupProgram) ) )
 			Alias( 'nsis', nsisBuildAction )
 			if lenv['publishOn']: createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
-
-
 

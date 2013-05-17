@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,7 +9,7 @@ import os
 import re
 import shutil
 
-from os.path import basename, dirname, join, splitext
+from os.path import basename, dirname, exists, isfile, isdir, join, splitext
 
 ####################################
 ###### Path related functions ######
@@ -54,53 +54,187 @@ def removeDirectoryTree( directory, verbose = True ):
 	if os.path.exists( directory ):
 		if verbose:
 			print ( 'Removes directory tree {0}'.format(directory) )
-		shutil.rmtree( directory ) #, ignore_errors, onerror)
+		shutil.rmtree( directory, True )
 		#os.rmdir(pakDirectory)
 
 
-###################################
+##########################################
 ###### Copy/remove related function ######
-###################################
+##########################################
 
-def copy( source, destination, sourceDirectory = None, destinationDirectory = None ):
-	"""Copies source to destination.
-	Prepend sourceDirectory to source (resp destinationDirectory to destination.
-	If source is a file, then destination could be a file or a directory
-	If source is a directory, then destination must be a directory
-	If source is a glob, then destination must be a directory
-	If destination is a directory, it must be ended by a '/'
-	@todo improves errors handling (exception instead of exit()).
-	@todo verbose = True parameter"""
+class GlobRegEx:
+	def __splitPathname__( self, pathname ):
+		match = re.match('^(?P<path>(?:[\w .-]+/)*)(?P<pattern>.*)$', pathname)
+		if match:
+			return match.group('path'), match.group('pattern'),
+		else:
+			raise AssertionError("Unable to split pathname '{0}'".format(pathname))
+
+	def __init__( self, pathname = '.*', patternFlags = 0, pruneDirs = None, pruneFiles = None, ignoreDirs = False, ignoreFiles = False, recursive = False ):
+		"""	@param pathname			path specification containing regular expression (see see re.compile()) to select matching files/directories
+			@param patternFlags		see re.compile()
+			@param pruneDirs		regular expression used to prune directories
+			@param pruneFiles		regular expression used to prune files
+			@param ignoreDirs		True to ignore all directories, False to look at directories
+			@param ignoreFiles		True to ignore all file, False to look at files
+			@param recursive		True to traverse the filesystem tree (top-down), False to stay at the top level of the tree
+		"""
+
+		(self.path, self.pattern) = self.__splitPathname__( pathname )
+		self.patternFlags		= patternFlags
+		self.reAccept			= re.compile( self.pattern, self.patternFlags )
+
+		if pruneDirs:
+			self.rePruneDirs	= re.compile( pruneDirs )
+		else:
+			self.rePruneDirs	= None
+
+		if pruneFiles:
+			self.rePruneFiles	= re.compile( pruneFiles )
+		else:
+			self.rePruneFiles	= None
+
+		self.ignoreDirs			= ignoreDirs
+		self.ignoreFiles		= ignoreFiles
+
+		self.recursive			= recursive
+
+
+	def __apply__( self, subdir ):
+		# Collect all files and directories in subdir
+		files = []
+		dirs = []
+		rootPath = join(self.path, subdir)
+		for entry in os.listdir( rootPath ):
+			absEntry = join(rootPath, entry)
+			if isfile(absEntry):
+				files.append(entry)
+			else:
+				dirs.append(entry)
+
+		# Filter using match pattern and not matching pattern
+		def applyFilter( container, reAccept, reReject, path ):
+			if reReject:
+				return [ join(path, elt) for elt in container if reAccept.match(elt) and (not reReject.match(elt)) ]
+			else:
+				return [ join(path, elt) for elt in container if reAccept.match(elt) ]
+
+		# Applying filtering and taking care of ignoreDirs and ignoreFiles
+		if self.ignoreDirs:
+			dirs = []
+		else:
+			dirs = applyFilter( dirs, self.reAccept, self.rePruneDirs, subdir )
+
+		if self.ignoreFiles:
+			files = []
+		else:
+			files = applyFilter( files, self.reAccept, self.rePruneFiles, subdir )
+		return dirs, files
+
+
+	def apply( self, path = None ):
+		"""@param path		allow to override path given in the constructor"""
+
+		# Results
+		self.dirs	= []
+		self.files	= []
+
+		# Initial value
+		if path:
+			self.path = path
+
+		dirsToProcess = ['']
+
+		# Collect files/directories
+		for dir in dirsToProcess:
+			(dirs, files) = self.__apply__( dir )
+			self.dirs.extend( dirs )
+			self.files.extend( files )
+
+			if self.recursive:
+				dirsToProcess.extend( dirs )
+
+
+	def list( self ):
+		return self.dirs + self.files
+
+	def listFiles( self ):
+		return self.files
+
+	def listDirs( self ):
+		return self.dirs
+
+
+
+def copy( source, destination, sourceDirectory = None, destinationDirectory = None, verbose = True ):
+	"""Copies source to destination. Prepend sourceDirectory to source (resp. destinationDirectory to destination).
+	If source is a file, then destination could be a file or a directory.
+	If source is a directory, then destination must be a non existing directory.
+		If source == destination, then sourceDirectory/dirname is copying in destinationDirectory/dirname with dirname = source = destination.
+		If source != destination, then sourceDirectory/source is copying in destinationDirectory/destination.
+	If source is a glob, then destination must be a directory (existing or not)
+	If source is an enhanced version of glob created using GlobRegEx(), then destination must be a directory (existing or not)
+
+	@remark If destination is a directory, it must be ended by a '/'
+	@todo improves errors handling (exception instead of exit())."""
 
 	# Prepares the copy
-	if sourceDirectory != None:
-		source = join( sourceDirectory, source )
-	if destinationDirectory != None:
+	if destinationDirectory:
 		destination = join( destinationDirectory, destination )
 
-	#if not os.path.exists(source):
-	#	print ('{0} does not exist'.format(source))
-	#	exit(1)
+	# Regular expression in source
+	if isinstance(source, GlobRegEx):
+		# source is a regular expression and destination must be a directory (existing or not)
+		if destination[-1:] != '/':																		# @todo remove / ?
+			# destination is not a directory
+			print ('Destination {0} is not a directory.'.format(destination))
+			exit(1)
+
+		# Creates destination if needed
+		createDirectory(destination, verbose)
+
+		# Collecting files to copy
+		source.apply( join(sourceDirectory, source.path) )
+		entries = source.list()
+		if len(entries) == 0:
+			print ("No files/directories matching '{0}'".format(source.pattern) )
+			exit(1)
+		else:
+			# Directories
+			if source.recursive:
+				for dir in source.listDirs():
+					createDirectory( join(destination, dir), verbose )
+			else:
+				for dir in source.listDirs():
+					if verbose:	print ( 'Copying tree {0} in {1}'.format(dir, destination) )
+					shutil.copytree( join(source.path, dir), join(destination, dir) )
+
+			# Files
+			for file in source.listFiles():
+				if verbose:	print ( 'Install {0} in {1}'.format(file, join(destination, file)) )
+				shutil.copyfile( join(source.path, file), join(destination, file) )
+		return
+	else:
+		# Prepares the copy
+		if sourceDirectory != None:
+			source = join( sourceDirectory, source )
 
 	# Copies a file
 	if os.path.isfile(source):
 		# Creates directory if needed
 		if destination[-1:] == '/':
 			# destination is a directory
-			if not os.path.isdir(destination):
-				print( 'Creates {0}'.format(destination) )
-				os.makedirs( destination )
+			createDirectory(destination, verbose)
 		else:
 			# destination is not a directory
 			newDir = dirname(destination)
-			if not os.path.isdir(newDir):
-				print( 'Creates {0}'.format(newDir) )
-				os.makedirs( newDir )
+			createDirectory(newDir, verbose)
 		shutil.copy( source, destination )
-		if os.path.isfile(destination):
-			print ( 'Install {0}'.format(destination) )
-		else:
-			print ( 'Install {0}'.format( join(destination,basename(source)) ) )
+		if verbose:
+			if os.path.isfile(destination):
+				print ( 'Install {0}'.format(destination) )
+			else:
+				print ( 'Install {0}'.format( join(destination,basename(source)) ) )
 	# Copies a directory
 	elif os.path.isdir(source):
 		if destination[-1:] != '/':
@@ -117,19 +251,21 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 			exit(1)
 
 		# Creates destination if needed
-		if not os.path.exists(destination):
-			print( 'Creates {0}'.format(destination) )
-			os.makedirs( destination )
+		createDirectory( destination, verbose )
 
-		files = glob.glob(source)
-		if len(files) == 0:
-			print ('No files for {0}'.format(source) )
+		globMatch = glob.glob(source)
+		if len(globMatch) == 0:
+			if verbose:	print ('No files or directories for {0}'.format(source) )
 			exit(1)
 		else:
-			print ( 'Populates {0} using {1}'.format(destination, source) )
-			for file in files:
-				print ( 'Install {0} in {1}'.format(file, join(destination, basename(file))) )
-				shutil.copyfile( file, join(destination, basename(file)) )
+			if verbose:	print ( 'Populates {0} using {1}'.format(destination, source) )
+			for name in globMatch:
+				if os.path.isdir(name):
+					if verbose:	print ( 'Install {0} directory in {1}'.format(name, destination) )
+					shutil.copytree( name, join(destination, basename(name)) )
+				else:
+					if verbose:	print ( 'Install {0} in {1}'.format(name, join(destination, basename(name))) )
+					shutil.copyfile( name, join(destination, basename(name)) )
 
 
 def removeFile( file, verbose = True ):
@@ -152,33 +288,6 @@ def searchFileInDirectories( filename, searchPathList ):
 		if os.path.isfile( pathFilename ):
 			return pathFilename
 
-# Prune some directories
-# Exclude/retain only a specific set of extensions for files
-def searchFiles1( searchDirectory, pruneDirectories, allowedExtensions, oFiles ) :
-	for dirpath, dirnames, filenames in os.walk( searchDirectory, topdown=True ):
-		# prune directories
-		prune = []
-		for pruneDirectory in pruneDirectories :
-			prune.extend( fnmatch.filter(dirnames, pruneDirectory) )
-		for x in prune:
-			###print 'prune', x
-			dirnames.remove( x )
-
-		for file in filenames:
-			for extension in allowedExtensions :
-				if ( splitext(file)[1] == extension ) :
-					pathfilename = join(dirpath,file)
-					oFiles += [pathfilename]
-					break
-#=======================================================================================================================
-#			fileExtension = splitext(file)[1]
-#			for extension in allowedExtensions :
-#				if fileExtension == extension :
-#					pathfilename = join(dirpath,file)
-#					oFiles += [pathfilename]
-#					break
-#=======================================================================================================================
-	###print 'oFiles=', oFiles
 
 
 ### searchdirectory				root path of the search
