@@ -53,7 +53,7 @@ class Paths:
 
 	# See prepend()
 	def prependList( self, paths, removeExisting = False ):
-		for path in paths:
+		for path in reversed(paths):
 			self.prepend( path, removeExisting )
 
 	# Appends the specified path to the end in the path list
@@ -69,7 +69,7 @@ class Paths:
 
 	# See append()
 	def appendList( self, paths, removeExisting = False ):
-		for path in paths:
+		for path in reversed(paths):
 			self.append( path, removeExisting )
 
 	# Removes all occurences of the specified path in the path list
