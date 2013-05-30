@@ -1072,16 +1072,8 @@ SConsBuildFramework options:
 		self.mySvnUpdateExclude		= lenv['svnUpdateExclude']
 
 		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
-		self.myInstallPaths = []
-		if isinstance(lenv['installPaths'], list):
-			for element in lenv['installPaths'] :
-				self.myInstallPaths += [ getNormalizedPathname( element ) ]
-		else:
-			self.myInstallPaths = [ getNormalizedPathname( lenv['installPaths'] ) ]
-
-		self.myInstallExtPaths = []
-		for element in self.myInstallPaths :
-			self.myInstallExtPaths	+= [element + 'Ext' + self.my_Platform_myCCVersion]
+		self.myInstallPaths = [ getNormalizedPathname( lenv['installPath'] ) ]
+		self.myInstallExtPaths = [self.myInstallPaths[0] + 'Ext' + self.my_Platform_myCCVersion]
 
 		if ( len(self.myInstallPaths) >= 1 ):
 			self.myInstallDirectory	= self.myInstallPaths[0]
@@ -1297,7 +1289,7 @@ SConsBuildFramework options:
 									'2010'		: '10.0'
 									} ),
 
-			('installPaths', 'The list of search paths to \'/usr/local\' like directories. The first one would be used as a destination path for target named install.', ''),
+			('installPath', "The given path would be used as a destination path for target named 'install'. This directory is similar to unix '/usr/local'. It is also the basis of localExt directory (ex: localExt_win32_cl10-0Exp ).", ''),
 
 			('postfixTimeFormat', "A string controlling the format of the date/time postfix (used by 'nsis' and 'zip' targets). Default time format is '%Y-%m-%d' producing for example the date 2012-04-12. Adds '%Hh%Mm%Ss' to append for example 10h40m21s. See python documentation on time.strftime() for additionnal informations.", '%Y-%m-%d' ),
 

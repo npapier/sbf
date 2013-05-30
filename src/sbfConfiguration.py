@@ -36,6 +36,7 @@ def _sbfUnconfigure( pathsToRemove, verbose ):
 		print ('Target sbfUnconfigure* not yet implemented on {0} platform.'.format(sys.platform))
 
 
+# see bootstrap.py
 def _getSBFRuntimePaths( sbf ):
 	prependList = []
 	appendList  = []
@@ -46,7 +47,7 @@ def _getSBFRuntimePaths( sbf ):
 	# Adds C:\PythonXY (where C:\PythonXY is the path to your python's installation directory) to your PATH environment variable.
 	# This is important to be able to run the Python executable from any directory in the command line.
 	pythonLocation = locateProgram('python')
-	appendList.append( pythonLocation )
+	prependList.append( pythonLocation )
 
 	# Adds c:\PythonXY\Scripts (for scons.bat)
 	appendList.append( join(pythonLocation, 'Scripts') )
@@ -59,17 +60,18 @@ def _getSBFRuntimePaths( sbf ):
 def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):
 	toPrepend = getPathsForRuntime(sbf)
 	if takeCareOfSofa:
-		toPrepend = getPathsForSofa(True) + toPrepend
+		toPrepend = toPrepend + getPathsForSofa(True)
 
 	sbfRuntimePaths = _getSBFRuntimePaths( sbf )
 
-	_sbfConfigure( toPrepend + sbfRuntimePaths[0], sbfRuntimePaths[1], verbose )
+	_sbfConfigure( sbfRuntimePaths[0] + toPrepend, sbfRuntimePaths[1], verbose )
 
 
 def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = False, verbose = True ):
-	toRemove = getPathsForRuntime(sbf)
+	deprecated = [join( sbf.myInstallPaths[0], 'lib' )]
+	toRemove = getPathsForRuntime(sbf) + deprecated
 	if takeCareOfSofa:
-		toRemove = getPathsForSofa(True) + toRemove
+		toRemove = toRemove + getPathsForSofa(True)
 
 	if takeCareOfSBFRuntimePaths:
 		SBFRuntimePaths = _getSBFRuntimePaths(sbf) 

@@ -13,7 +13,7 @@
 #svnCheckoutExclude			= [ '*/vgsdk*' ]
 #svnUpdateExclude			= [ '*/vgsdk*' ]
 #clVersion					= 'highest'
-#installPaths				= '' or []
+#installPath				= ''
 #postfixTimeFormat			= '%Y-%m-%d' # '%Hh%Mm%Ss'
 
 # On windows platform
