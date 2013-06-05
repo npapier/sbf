@@ -21,51 +21,42 @@ from sbfUtils import getPathFromEnv, getFromEnv, convertToList
 from sbfVersion import splitUsesName
 
 class sofaConfig:
-	__basePath = None
-	__svnRevision = None
-	__pluginsList = []
+	__basePath		= None
+	__svnRevision	= None
+	__pluginsList	= None
 
 	@classmethod
-	def __initialize( cls ):
-		# Retrieves SOFA_PATH
-		cls.__basePath = getPathFromEnv('SOFA_PATH')
-
-		# Post-conditions for SOFA_PATH
-		if cls.__basePath is None or len(cls.__basePath)==0:
-			if hasattr(__builtin__, 'sofaConfigLazyInitialization'):
-				print ('Unable to configure sofa.\nSOFA_PATH environment variable must be defined.')
-			else:
-				raise SCons.Errors.UserError("Unable to configure sofa.\nSOFA_PATH environment variable must be defined.")
-
-		# Retrieves svn revision
-		if hasattr(__builtin__, 'sofaConfigLazyInitialization'):
-			# dummy __svnRevision is lazzy initialization
-			cls.__svnRevision = str(0)
-		else:
-			cls.__svnRevision = str(SvnGetRevision()( cls.__basePath ))
-
-		# Retrieves SOFA_PLUGINS
-		sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
-		if len(sofaPlugins)>0:
-			cls.__pluginsList = sofaPlugins.split(':')
-			print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
-
-	@classmethod
-	def getBasePath( cls ):
+	def getBasePath( cls, allowLazyInitialization = False ):
 		if cls.__basePath is None:
-			cls.__initialize()
+			# Retrieves SOFA_PATH
+			cls.__basePath = getPathFromEnv('SOFA_PATH')
+
+			# Post-conditions for SOFA_PATH
+			if not allowLazyInitialization and (cls.__basePath is None or len(cls.__basePath)==0):
+				raise SCons.Errors.UserError("Unable to configure sofa (SOFA_PATH environment variable have to be defined).")
+			#else do noting
 		return cls.__basePath
 
 	@classmethod
 	def getVersion( cls ):
-		if cls.__basePath is None:
-			cls.__initialize()
+		if cls.__basePath is None or cls.__svnRevision is None:
+			# Retrieves svn revision
+			basePath = cls.getBasePath(True)
+			if basePath is None:
+				# dummy __svnRevision is lazzy initialization
+				cls.__svnRevision = str(0)
+			else:
+				cls.__svnRevision = str(SvnGetRevision()( basePath ))
 		return cls.__svnRevision
 
 	@classmethod
 	def getPluginsList( cls ):
-		if cls.__basePath is None:
-			cls.__initialize()
+		if cls.__pluginsList is None:
+			# Retrieves SOFA_PLUGINS
+			sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
+			if len(sofaPlugins)>0:
+				cls.__pluginsList = sofaPlugins.split(':')
+				print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
 		return cls.__pluginsList
 
 

@@ -308,10 +308,6 @@ env['sbf_launchProject'		]	= env['sbf_project']
 ### special targets about svn ###
 # svnAdd svnCheckout svnClean svnRelocate svnStatus svnUpdate
 if len(buildTargetsSet & sbf.mySvnTargets) > 0:
-	# For svn targets, allow lazy initialization of sofaConfig class
-	__builtin__.sofaConfigLazyInitialization = True
-
-	#
 	Alias( 'svnadd',		Command('dummySvnAdd.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svncheckout',	Command('dummySvnCheckout.main.out1',	'dummy.in', Action( nopAction, nopAction ) ) )
 	Alias( 'svnclean',		Command('dummySvnClean.main.out1',		'dummy.in', Action( nopAction, nopAction ) ) )
