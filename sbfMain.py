@@ -132,7 +132,7 @@ from src.sbfUses	import uses, UseRepository
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
 from src.SConsBuildFramework import stringFormatter
-from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagContents, locateProject, removeTrunkOrTagsOrBranches, svnIsUpdateAvailable, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
+from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagsContents, locateProject, removeTrunkOrTagsOrBranches, svnIsUpdateAvailable, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
 
 ###### Action function for sbfCheck target #######
 def checkTool( env, toolName, toolCmdArgs ):
@@ -358,7 +358,7 @@ if hasBranchOrTagTarget:
 		print
 
 		# Retrieves informations about the desired tag
-		tagContents = getLocalTagContents( env['sbf_projectPathName'], desiredTag )
+		tagContents = getLocalTagsContents( env['sbf_projectPathName'], desiredTag )
 		tagSbfConfigFileDict = {}
 		exec( tagContents, globals(), tagSbfConfigFileDict )
 
