@@ -1,12 +1,20 @@
 #!/usr/bin/env python
-# SConsBuildFramework - Copyright (C) 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+
 from optparse import OptionParser
 from os.path import join
 import os, sys
+
+
+# @todo import argparse
+# @todo publishPath = '../../publish' and publishOn	= True ?
+# @todo --srcPak => --svnExport and scons svnExport
+# @todo --project name --branch tags/0.1
+
 
 # Command line options
 usage = """Usage: sbfInit.py [Options]"""
@@ -32,6 +40,7 @@ sys.path.append( join(pythonLocation, 'Scripts') )	# to import scons in the next
 from scons import *									# to add 'C:\\Python27\\Lib\\site-packages\\scons-2.1.0' in sys.path
 
 from src.SConsBuildFramework import *
+# @todo sbf = SConsBuildFramework()
 sbf = SConsBuildFramework( initializeOptions = False )
 
 # Import several functionalities from sbf
@@ -42,7 +51,7 @@ from src.sbfAllVcs import *
 from src.sbfConfiguration import sbfConfigure, sbfUnconfigure
 from src.sbfEnvironment import Environment
 from src.sbfPaths import Paths
-from src.sbfSubversion import SvnCat, locateProject, branches2branch, remoteListSbfTags, remoteListSbfBranches, remoteGetTagContents, remoteGetBranchContents, splitSvnUrl, anonymizeUrl, removeTrunkOrTagsOrBranches
+from src.sbfSubversion import locateProject, remoteListSbfTags, remoteListSbfBranches, remoteGetTagContents, remoteGetBranchesContents, anonymizeUrl, removeTrunkOrTagsOrBranches
 from src.sbfUtils import getDictPythonCode, printSeparator
 from src.sbfUI import *
 from src.SConsBuildFramework import getSConsBuildFrameworkOptionsFileLocation
@@ -65,7 +74,7 @@ def createNewSConsBuildFramework( vcs, newSbfRoot, trunkAndHeadRevision = False 
 
 def fullyConfigureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguration, newConfiguration, verbose ):
 	assert( 'svnUrls' in newConfiguration )
-	assert( 'installPaths' in newConfiguration )
+	assert( 'installPath' in newConfiguration )
 	assert( 'buildPath' in newConfiguration )
 
 	# old configuration
@@ -99,7 +108,7 @@ def setSCONS_BUILD_FRAMEWORK( newSCONS_BUILD_FRAMEWORK, verbose ):
 # svnUrls from newConfiguration
 # projectExclude, weakLocalExtExclude svnCheckoutExclude, svnUpdateExclude
 # clVersion from newConfiguration if available, otherwise oldConfiguration, otherwise highest
-# installPaths and buildPath from newConfiguration
+# installPath and buildPath from newConfiguration
 # config from newConfiguration, otherwise do nothing
 # generateDebugInfoInRelease from newConfiguration, otherwise do nothing
 def createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfiguration, verbose):
@@ -129,7 +138,7 @@ def createSConsBuildFrameworkOptionsFile( sbfRoot, oldConfiguration, newConfigur
 		clVersion = newConfiguration.get('clVersion', oldConfiguration.get('clVersion', 'highest'))
 		newConfigFile.write( "clVersion			= '{0}'\n".format(clVersion) )
 
-		newConfigFile.write( "installPaths		= ['{0}']\n".format(newConfiguration['installPaths'].replace('\\', '\\\\')) )
+		newConfigFile.write( "installPath			= '{0}'\n".format(newConfiguration['installPath'].replace('\\', '\\\\')) )
 		newConfigFile.write( "buildPath			= '{0}'\n".format(newConfiguration['buildPath'].replace('\\', '\\\\')) )
 
 		if 'config' in newConfiguration:
@@ -180,106 +189,125 @@ if len(sbfConfigurationDict.get('svnUrls', '')) == 0:
 
 vcs = Subversion( svnUrls=sbfConfigurationDict['svnUrls'] )
 
+#
+def createNewSvnUrls( sbfConfigurationDict, branch ):
+	# Constructs a new 'svnUrls' with '/{branch}'
+	newSvnUrls = {}
+	for (project, urls) in sbfConfigurationDict['svnUrls'].iteritems():
+		if isinstance(urls, list):
+			urls = [ anonymizeUrl(removeTrunkOrTagsOrBranches(url)) + '/' + branch for url in urls ]
+		else:
+			urls = anonymizeUrl(removeTrunkOrTagsOrBranches(urls)) + '/' + branch
+		newSvnUrls[project] = urls
+	return newSvnUrls
+
+
 def main( options, args, sbf, vcs ):
 	# Asks project name ?
 	projectName = ask( 'Gives the name of the project to checkout', 'projectName' )
 	projectSvnUrl = locateProject( vcs, projectName, verbose )
 	# Asks which branch ?
 	print
-	branch = askQuestion( "Checkout project '{0}' from trunk, tags or branches".format(projectName), ['(tr)unk', '(t)ags', '(b)ranches'] )
+	#branch = askQuestion( "Checkout project '{0}' from trunk, tags or branches".format(projectName), ['(tr)unk', '(t)ags', '(b)ranches'] )
+	branch = askQuestion( "Checkout project '{0}' from trunk or branches".format(projectName), ['(tr)unk', '(b)ranches'] )
 	print
 
+	# @todo choose destination directory (binDirectory and localDirectory)
 	binDirectory = join( os.getcwd(), 'bin' )
-	localDirectory = join( os.getcwd(), 'local' )
-	buildPath = join( os.getcwd(), 'build' )
+	localDirectory = '$SCONS_BUILD_FRAMEWORK/../../local'	# <=> join( os.getcwd(), 'local' )
+	buildPath = '$SCONS_BUILD_FRAMEWORK/../../build'		# <=> join( os.getcwd(), 'build' )
 
 	projectPathName = join( binDirectory, projectName )
 	sbfProjectPathName = join(binDirectory, 'SConsBuildFramework')
 
+	newSvnUrls = None
+	tagContents = ''
+
 	if branch == 'trunk':
-		# Constructs a new 'svnUrls' with '/trunk'
-		newSvnUrls = {}
-		for (project, urls) in sbfConfigurationDict['svnUrls'].iteritems():
-			if isinstance(urls, list):
-				urls = [ anonymizeUrl(removeTrunkOrTagsOrBranches(url)) + '/trunk'	for url in urls ]
+		# trunk chosen
+		# needed to choose head or a tag file
+		tagsList = remoteListSbfTags(projectSvnUrl, branch, True)
+
+		if len(tagsList)==0:
+			# no tags, so head chosen
+			newSvnUrls = createNewSvnUrls(sbfConfigurationDict, branch)
+		else:
+			tagsList.insert(0, 'head')
+			desiredTag = askQuestion( "Choose head revision or a tag among the following", tagsList )
+			print
+			if desiredTag == 'head':
+				newSvnUrls = createNewSvnUrls(sbfConfigurationDict, branch)
 			else:
-				urls = anonymizeUrl(removeTrunkOrTagsOrBranches(urls)) + '/trunk'
-			newSvnUrls[project] = urls
-
-		# Updates vcs for newSvnUrls
-		vcs = Subversion( svnUrls=newSvnUrls )
-
-		# Checkout and configure sbf
-		printSeparator( 'Checkout SConsBuildFramework' )
-		createNewSConsBuildFramework( vcs, sbfProjectPathName )
-		print
-
-		printSeparator( 'Configuring SConsBuildFramework' )
-		newSbfConfigFileDict = {	'svnUrls'		: newSvnUrls,
-									'installPaths'	: localDirectory,
-									'buildPath'		: buildPath }
-		if 'outputLineLength' in sbfConfigurationDict:				newSbfConfigFileDict['outputLineLength'] = sbfConfigurationDict['outputLineLength']
-		if 'config' in sbfConfigurationDict:						newSbfConfigFileDict['config'] = sbfConfigurationDict['config']
-		if 'generateDebugInfoInRelease' in sbfConfigurationDict:	newSbfConfigFileDict['generateDebugInfoInRelease'] = sbfConfigurationDict['generateDebugInfoInRelease']
-		sbf = fullyConfigureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
-		print
-
-		# Checkout the root project
-		printSeparator( 'Checkout {0}'.format(projectPathName) )
-		vcs._checkout( '{0}/trunk'.format(projectSvnUrl), projectPathName )
-		print
+				tagContents = remoteGetTagContents( projectSvnUrl, branch, desiredTag )
+				if len(tagContents)==0:
+					print ( 'Empty or unable to read file {}.tags'.format(desiredTag) )
+					exit(1)
 	else:
-		# tags or branches
-		if branch == 'tags':
-			branchChoicesList = remoteListSbfTags(projectSvnUrl)
-		else:
-			branchChoicesList = remoteListSbfBranches(projectSvnUrl)
+		# branches chosen
 
-		if len(branchChoicesList)==0:
-			print ('No {0} available.'.format(branches2branch(branch)))
+		# collect *.branches from trunk/branching
+		branchesList = remoteListSbfBranches(projectSvnUrl, 'trunk')
+		if len(branchesList)==0:
+			print ('No branches available.')
 			exit(1)
-
-		# Chooses one branch
-		desiredBranch = askQuestion( "Choose one {branch} among the following ".format(branch=branch), branchChoicesList )
+		desiredBranch = askQuestion( "Choose one branch among the following", branchesList )
 		print
 
-		# Retrieves informations about the desired branch
-		if branch == 'tags':
-			branchConfiguration = remoteGetTagContents( projectSvnUrl, desiredBranch )
+		# collect branches/desiredBranch/branching/*.tags
+		tagsList = remoteListSbfTags(projectSvnUrl, 'branches/' + desiredBranch)
+
+		if len(tagsList)==0:
+			# no tags, so trunk/branching/desiredBranch.branches chosen
+			tagContents = remoteGetBranchesContents( projectSvnUrl, 'trunk', desiredBranch )
+			if len(tagContents)==0:
+				print ( 'Empty or unable to read file {}.branches'.format(desiredBranch) )
+				exit(1)
 		else:
-			branchConfiguration = remoteGetBranchContents( projectSvnUrl, desiredBranch )
+			tagsList.insert(0, 'head')
+			desiredTag = askQuestion( "Choose head revision or a tag among the following", tagsList )
+			print
+			if desiredTag == 'head':
+				# so trunk/branching/desiredBranch.branches chosen
+				tagContents = remoteGetBranchesContents( projectSvnUrl, 'trunk', desiredBranch )
+				if len(tagContents)==0:
+					print ( 'Empty or unable to read file {}.branches'.format(desiredBranch) )
+					exit(1)
+			else:
+				# so branches/desiredBranch/branching/desiredTag.tags
+				tagContents = remoteGetTagContents( projectSvnUrl, 'branches/' + desiredBranch, desiredTag )
+				if len(tagContents)==0:
+					print ( 'Empty or unable to read file {}.tags'.format(desiredTag) )
+					exit(1)
 
-		if len(branchConfiguration)==0:
-			print ( 'Empty or unable to read file {0}.{1}'.format(desiredBranch, branch) )
-			exit(1)
-
+	if newSvnUrls == None:
 		# Retrieves new configuration (at least 'svnUrls')
 		newSbfConfigFileDict = {}
-		exec( branchConfiguration, globals(), newSbfConfigFileDict )
+		exec( tagContents, globals(), newSbfConfigFileDict )
+		newSvnUrls = newSbfConfigFileDict['svnUrls']
 
-		# Updates vcs for new svnUrls
-		vcs = Subversion( svnUrls=newSbfConfigFileDict['svnUrls'] )
+	# Updates vcs for newSvnUrls
+	vcs = Subversion( svnUrls=newSvnUrls )
 
-		# Checkout and configure sbf
-		printSeparator( 'Checkout SConsBuildFramework' )
-		createNewSConsBuildFramework( vcs, sbfProjectPathName )
-		print
+	# Checkout and configure sbf
+	printSeparator( 'Checkout SConsBuildFramework' )
+	createNewSConsBuildFramework( vcs, sbfProjectPathName )
+	print
 
-		printSeparator( 'Configuring SConsBuildFramework' )
-		newSbfConfigFileDict['installPaths']	= localDirectory
-		newSbfConfigFileDict['buildPath']		= buildPath
-		if 'outputLineLength' in sbfConfigurationDict:				newSbfConfigFileDict['outputLineLength'] = sbfConfigurationDict['outputLineLength']
-		if 'config' in sbfConfigurationDict:						newSbfConfigFileDict['config'] = sbfConfigurationDict['config']
-		if 'generateDebugInfoInRelease' in sbfConfigurationDict:	newSbfConfigFileDict['generateDebugInfoInRelease'] = sbfConfigurationDict['generateDebugInfoInRelease']
+	printSeparator( 'Configuring SConsBuildFramework' )
+	newSbfConfigFileDict = {	'svnUrls'		: newSvnUrls,
+								'installPath'	: localDirectory,
+								'buildPath'		: buildPath }
+	if 'outputLineLength' in sbfConfigurationDict:				newSbfConfigFileDict['outputLineLength'] = sbfConfigurationDict['outputLineLength']
+	if 'config' in sbfConfigurationDict:						newSbfConfigFileDict['config'] = sbfConfigurationDict['config']
+	if 'generateDebugInfoInRelease' in sbfConfigurationDict:	newSbfConfigFileDict['generateDebugInfoInRelease'] = sbfConfigurationDict['generateDebugInfoInRelease']
+	sbf = fullyConfigureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
+	print
 
-		sbf = fullyConfigureSConsBuildFramework( sbf, sbf_root, sbfProjectPathName, sbfConfigurationDict, newSbfConfigFileDict, options.verbose )
-		print
-
-		# Checkout the root project
-		printSeparator( 'Checkout {0}'.format(projectPathName) )
-		(projectSvnUrl, projectRevision ) = vcs.locateProject( projectName )
-		vcs._checkout( projectSvnUrl, projectPathName, projectRevision )
-		print
+	# Checkout the root project
+	printSeparator( 'Checkout {0}'.format(projectName) )
+	(projectSvnUrl, projectRevision ) = vcs.locateProject( projectName )
+	vcs._checkout( projectSvnUrl, projectPathName, projectRevision )
+	print
 
 	printSeparator('What remains to be done')
 	print ('Restart your command prompt to take care of the new SConsBuildFramework (SCONS_BUILD_FRAMEWORK and PATH environment variables).')

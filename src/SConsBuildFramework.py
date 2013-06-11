@@ -1079,7 +1079,7 @@ SConsBuildFramework options:
 			self.myInstallDirectory	= self.myInstallPaths[0]
 			if not os.path.exists(self.myInstallDirectory):
 				print ( 'Creates directory : {0}'.format(self.myInstallDirectory) )
-				os.mkdir( self.myInstallDirectory )
+				os.makedirs( self.myInstallDirectory )
 		else:
 			print 'sbfError: empty installPaths'
 			Exit( 1 )
@@ -1265,7 +1265,7 @@ SConsBuildFramework options:
 
 			('companyName', 'Sets the name of company that produced the project. This is used on win32 platform to embedded in exe, dll or lib files additional informations.', '' ),
 
-			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPaths[0]/sbfPak'.", [] ),
+			('pakPaths', "Sets the list of paths from which packages can be obtained. No matter what is specified by this options, the first implicit path where packages are searched would be 'installPath/../sbfPak'.", [] ),
 
 			('svnUrls', 'A dictionnary... @todo doc ... The list of subversion repositories used, from first to last, until a successful checkout occurs.', {}),
 			('svnDefaultBranch', 'svnMkTag and svnRemoteMkBranch asks user the name of the tag/branch to use. This option sets the default choice suggested to user.', '1.0'),
@@ -1289,7 +1289,7 @@ SConsBuildFramework options:
 									'2010'		: '10.0'
 									} ),
 
-			('installPath', "The given path would be used as a destination path for target named 'install'. This directory is similar to unix '/usr/local'. It is also the basis of localExt directory (ex: localExt_win32_cl10-0Exp ).", ''),
+			('installPath', "The given path would be used as a destination path for target named 'install'. This directory is similar to unix '/usr/local'. It is also the basis of localExt directory (ex: localExt_win32_cl10-0Exp ).", '$SCONS_BUILD_FRAMEWORK/../local'),
 
 			('postfixTimeFormat', "A string controlling the format of the date/time postfix (used by 'nsis' and 'zip' targets). Default time format is '%Y-%m-%d' producing for example the date 2012-04-12. Adds '%Hh%Mm%Ss' to append for example 10h40m21s. See python documentation on time.strftime() for additionnal informations.", '%Y-%m-%d' ),
 
@@ -1298,7 +1298,7 @@ SConsBuildFramework options:
 
 			PathVariable(	'buildPath',
 							'The build directory in which to build all derived files. It could be an absolute path, or a relative path to the project being build)',
-							'build',
+							'$SCONS_BUILD_FRAMEWORK/../build',
 							PathVariable.PathAccept),
 			(	'SConsignFilePath',
 				'Stores signatures (.sconsign.dblite file) in the specified absolute path name. If SConsignFilePath is not defined or is equal to string \'buildPath\' (the default value), the value of \'buildPath\' option is used.',

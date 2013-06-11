@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -191,7 +191,7 @@ class PackagingSystem:
 
 		self.__localPath				= sbf.myInstallPaths[0]
 		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
-		self.__pakPaths 				= [ join( self.__mkPakGetDirectory() ) ]
+		self.__pakPaths 				= [ self.__mkPakGetDirectory(), join(self.__localPath, '..', 'sbfPak') ]
 		self.__pakPaths.extend( sbf.myEnv['pakPaths'] )
 
 		self.__myConfig					= sbf.myConfig

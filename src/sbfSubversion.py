@@ -1603,74 +1603,95 @@ def branches2branch( branch ):
 		return 'tag'
 
 
-# TAGS
-def localListSbfTags( path, removeExtension = True ):
-	"""	@param path				pathname of project where to search 'tags' files
-		@param removeExtension	True to remove extension (i.e. '.tags') in the returning list
-		@return a list containing all tags available at 'path/branching' (i.e. files matching path/branching/*.tags)."""
+# TAGS or BRANCHES
+def localListSbfTagsOrBranches( path, tagsOrBranches, removeExtension = True ):
+	"""	@param path				pathname of project where to search tags/branches files
+		@param tagsOrBranches	choose what to search 'tags' or 'branches' files
+		@param removeExtension	True to remove extension (i.e. '.tags' or 'branches') in the returning list
+		@return a list containing all tags/branches available at 'path/branching', i.e. files matching path/branching/*.tags or *.branches."""
 	assert( not isUrl(path) )
 
 	branchingPath = join(path, 'branching')
-	tags = [basename(elt) for elt in glob.iglob( '{0}/*.tags'.format(branchingPath) )]
-	tags = [ os.path.splitext(elt)[0] for elt in tags ]
+	tags = [basename(elt) for elt in glob.iglob( '{}/*.{}'.format(branchingPath, tagsOrBranches) )]
+	if removeExtension:
+		tags = [ os.path.splitext(elt)[0] for elt in tags ]
 	return tags
 
-def remoteListSbfTags( urlOrPath, removeExtension = True ):
-	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches)
-		@param removeExtension	True to remove extension (i.e. '.tags') in the returning list
-		@return a list containing all tags available at urlOrPath location."""
-	branchingUrlOrPath = urlJoin( urlOrPath, 'trunk/branching' )
+def remoteListSbfTagsOrBranches( urlOrPath, trunkOrBranches, tagsOrBranches, removeExtension = True ):
+	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches) where to search tags/branches files
+		@param trunkOrBranches	'trunk' or 'branches/myBranch'
+		@param tagsOrBranches	choose what to search 'tags' or 'branches' files
+		@param removeExtension	True to remove extension (i.e. '.tags' or 'branches') in the returning list
+		@return a list containing all tags/branches available at urlOrPath/branch location."""
+	branchingUrlOrPath = urlJoin( urlOrPath, trunkOrBranches + '/branching' )
 	if svnIsVersioned(branchingUrlOrPath):
-		branches = SvnListFile()( branchingUrlOrPath, pysvn.depth.files, '*.tags' )
-		branches = [ os.path.splitext(elt)[0] for elt in branches ]
+		branches = SvnListFile()( branchingUrlOrPath, pysvn.depth.files, '*.{}'.format(tagsOrBranches) )
+		if removeExtension:
+			branches = [ os.path.splitext(elt)[0] for elt in branches ]
 		return branches
 	else:
 		return []
 
-def getLocalTagContents( path, desiredTag ):
-	"""	@param path				pathname of project where to search 'tags' files
-		@param desiredTag		name of the file containing tag informations"""
-	tagContents = ''
-	with open( join(path, 'branching', desiredTag + '.tags') ) as file:
-		tagContents = file.read()
-	return tagContents
+def getLocalTagsOrBranchesContents( path, tagsOrBranches, desiredFile ):
+	"""	@param path				pathname of project where to search 'tags' or 'branches' files
+		@param tagsOrBranches	choose what to search 'tags' or 'branches' files
+		@param desiredFile		name of the file containing tag/branch informations"""
+	contents = ''
+	with open( join(path, 'branching', desiredFile + '.' + tagsOrBranches) ) as file:
+		contents = file.read()
+	return contents
 
-def remoteGetTagContents( urlOrPath, desiredTag ):
+def remoteGetTagOrBranchesContents( urlOrPath, branch, tagsOrBranches, desiredFile ):
 	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches)
-		@param desiredTag		name of the file containing tag informations"""
-	tagContents = SvnCat()( urlOrPath + '/trunk/branching/' + desiredTag + '.tags' )
-	return tagContents
+		@param branch			'trunk' or 'branches'
+		@param tagsOrBranches	choose what to search 'tags' or 'branches' files
+		@param desiredFile		name of the file containing tag/branch informations"""
+	contents = SvnCat()( urlOrPath + '/' + branch + '/branching/' + desiredFile + '.' + tagsOrBranches )
+	return contents
 
+# TAGS
+def localListSbfTags( path, removeExtension = True ):
+	"""	@see localListSbfTagsOrBranches()"""
+	return localListSbfTagsOrBranches(path, 'tags', removeExtension)
+
+def remoteListSbfTags( urlOrPath, trunkOrBranches, removeExtension = True ):
+	"""	@see remoteListSbfTagsOrBranches()"""
+	return remoteListSbfTagsOrBranches( urlOrPath, trunkOrBranches, 'tags', removeExtension )
+
+def getLocalTagsContents( path, desiredFile ):
+	""" @see getLocalTagsOrBranchesContents()"""
+	return getLocalTagsOrBranchesContents( path, 'tags', desiredFile )
+
+def remoteGetTagContents( urlOrPath, branch, desiredFile ):
+	return remoteGetTagOrBranchesContents( urlOrPath, branch, 'tags', desiredFile )
 
 # BRANCHES
-def remoteListSbfBranches( urlOrPath, removeExtension = True ):
-	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches)
-		@param removeExtension	True to remove extension (i.e. '.branches') in the returning list
-		@return a list containing all branches available at urlOrPath location."""
-	branchingUrlOrPath = urlJoin( urlOrPath, 'trunk/branching' )
-	if svnIsVersioned(branchingUrlOrPath):
-		branches = SvnListFile()( branchingUrlOrPath, pysvn.depth.files, '*.branches' )
-		branches = [ os.path.splitext(elt)[0] for elt in branches ]
-		return branches
-	else:
-		return []
+def localListSbfBranches( path, removeExtension = True ):
+	"""	@see localListSbfTagsOrBranches()"""
+	return localListSbfTagsOrBranches(path, 'branches', removeExtension)
 
+def remoteListSbfBranches( urlOrPath, trunkOrBranches, removeExtension = True ):
+	"""	@see remoteListSbfTagsOrBranches()"""
+	return remoteListSbfTagsOrBranches( urlOrPath, trunkOrBranches, 'branches', removeExtension )
+
+def getLocalBranchesContents( path, desiredFile ):
+	""" @see getLocalTagsOrBranchesContents()"""
+	return getLocalTagsOrBranchesContents( path, 'branches', desiredFile )
+
+def remoteGetBranchesContents( urlOrPath, branch, desiredFile ):
+	return remoteGetTagOrBranchesContents( urlOrPath, branch, 'branches', desiredFile )
+
+#
 def remoteListSvnBranches( urlOrPath, revisionNumber = None ):
 	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches)
 		@param revisionNumber	None for head or a number for a specific revision (default value is None)
-		@return a list containing all branches available at urlOrPath location."""
+		@return a list containing all branches available at urlOrPath/branches location."""
 	branchesUrlOrPath = urlJoin( urlOrPath, 'branches' )
 	if svnIsVersioned(branchesUrlOrPath):
 		branches = SvnListDirectory()( branchesUrlOrPath, pysvn.depth.immediates, revisionNumber=revisionNumber )
 		return branches
 	else:
 		return []
-
-def remoteGetBranchContents( urlOrPath, desiredTag ):
-	"""	@param urlOrPath		path of the current working copy or url of the repository (without /trunk or /tags or /branches)
-		@param desiredTag		name of the file containing branch informations"""
-	branchContents = SvnCat()( urlOrPath + '/trunk/branching/' + desiredTag + '.branches' )
-	return branchContents
 
 
 # pretty print

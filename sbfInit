@@ -1,0 +1,1 @@
+python $SCONS_BUILD_FRAMEWORK/sbfInit.py $*
