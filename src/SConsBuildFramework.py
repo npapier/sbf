@@ -1429,7 +1429,6 @@ SConsBuildFramework options:
 					('test'			, 'none'),
 					('shareExclude'	, []),
 					('shareBuild'	, ([],('','',''))),
-					('customBuild'	, {}),
 					('console'		, True),
 					('runParams'		, []),
 					('deploymentType', 'none'),
