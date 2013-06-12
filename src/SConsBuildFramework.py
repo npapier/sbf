@@ -1326,14 +1326,15 @@ SConsBuildFramework options:
 
 	###### Reads a configuration file for a project ######
 	def readProjectOptions( self, file, weakReading = False ):
-		"""@param weakReading		True to read the minimum number of variables (only 'vcsUse' and 'deps')"""
+		"""@param weakReading		True to read the minimum number of variables (only 'vcsUse', 'deps' and 'customBuild')"""
 
 		myOptions = Variables( file )
 		myOptions.AddVariables(
 			EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
 							allowed_values=('yes', 'no'),
 							map={}, ignorecase=1 ),
-			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', [])
+			('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
+			('customBuild',	"A dictionnary containing { target : pyScript, ... } to specify a python script for a target. Python script is executed during 'thinking stage' of SConsBuildFramework if its associated target have to be built. Script has access to SCONS_BUILD_FRAMEWORK environment variable and lenv, the SCons environment for the project. Python 'sys.path' is adjusted to allow direct 'import' of python script from the root directory of the project.", {})
 		)
 
 		if not weakReading:
@@ -1373,9 +1374,6 @@ SConsBuildFramework options:
 
 				('shareExclude', "The list of Unix shell-style wildcards to exclude files from 'share' directory", []),
 				('shareBuild', "Defines the build stage for files from 'share' directory. The following schemas must be used for this option : ( [filters], command ).\n@todo Explains filters and command.", ([],('','',''))),
-
-				('customBuild',	"A dictionnary containing { target : pyScript, ... } to specify a python script for a target. Python script is executed during 'thinking stage' of SConsBuildFramework if its associated target have to be built. Script has access to SCONS_BUILD_FRAMEWORK environment variable and lenv, the SCons environment for the project. Python 'sys.path' is adjusted to allow direct 'import' of python script from the root directory of the project.",
-								{}),
 
 				BoolVariable(	'console',
 								'True to enable Windows character-mode application and to allow the operating system to provide a console. False to disable the console. This option is specific to MS/Windows executable.',
