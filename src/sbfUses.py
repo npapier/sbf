@@ -912,8 +912,11 @@ class Use_sofa( IUse, sofaConfig ):
 			# sofa public revision number (used in trunk)
 			definesList += ['SOFA_HAVE_GLEW']
 
-		pluginsDefines = string.join(sofaConfig.getPluginsList(), ':')
-		definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
+		pluginsList = sofaConfig.getPluginsList()
+		if pluginsList:
+			pluginsDefines = string.join(pluginsList, ':')
+			definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
+		#else nothing to do
 
 		return definesList
 
