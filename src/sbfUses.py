@@ -39,7 +39,7 @@ class sofaConfig:
 
 	@classmethod
 	def getVersion( cls ):
-		if cls.__basePath is None or cls.__svnRevision is None:
+		if cls.__svnRevision is None:
 			# Retrieves svn revision
 			basePath = cls.getBasePath(True)
 			if basePath is None:
@@ -1242,6 +1242,12 @@ class UseRepository :
 		self.__initialized = True
 
 	@classmethod
+	def initializeRepository( cls ):
+		if len(cls.__repository) == 0:
+			# empty reposityory, so repository have to be initialized
+			cls.add( cls.getAll() )
+
+	@classmethod
 	def add(	self,
 				listOfIUseImplementation ):
 
@@ -1286,14 +1292,23 @@ class UseRepository :
 		if name in self.__repository :
 			return self.__repository[name]
 		else:
-			return None
+			# Lazy initialization ?
+			if len(self.__repository) == 0:
+				# empty reposityory, so repository have to be initialized
+				self.add( self.getAll() )
+				# Return the use or None
+				return self.__repository.get(name, None)
+			else:
+				return None
 
 	@classmethod
 	def getAllowedValues( self ):
+		self.initializeRepository()
 		return self.__allowedValues[:]
 
 	@classmethod
 	def getAlias( self ):
+		self.initializeRepository()
 		return self.__alias.copy()
 
 
