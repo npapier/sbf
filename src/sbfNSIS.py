@@ -1567,6 +1567,7 @@ def configureZipAndNSISTargets( lenv ):
 			Execute( Delete(portableZipPath) )
 			Alias( 'zipportable', ['infofile', 'install', 'deps'] )
 			create7ZipCompressAction( lenv, portableZipPath, portablePath, 'zipportable' )
+			Alias( 'zipportable', lenv.Install( join(lenv['installPath'], 'portable'), portableZipPath ) )
 			if lenv['publishOn']:	createRsyncAction( lenv, '', portableZipPath, 'zipportable' )
 
 		# 'dbg' target
@@ -1638,5 +1639,6 @@ def configureZipAndNSISTargets( lenv ):
 											"\"{0}\" $SOURCES".format(join(nsisLocation, 'makensis')) )
 			Alias( 'nsis', lenv.Command('nsis_build.out', 'dummy.in', Action(nopAction, __printGenerateNSISSetupProgram) ) )
 			Alias( 'nsis', nsisBuildAction )
+			Alias( 'nsis', lenv.Install( join(lenv['installPath'], 'setup'), join(tmpNSISSetupPath, nsisSetupFile) ) )
 			if lenv['publishOn']: createRsyncAction( lenv, '', join(tmpNSISSetupPath, nsisSetupFile), 'nsis' )
 
