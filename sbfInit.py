@@ -90,7 +90,7 @@ def fullyConfigureSConsBuildFramework( sbf, oldSbfRoot, sbfRoot, oldConfiguratio
 def unconfigureSConsBuildFramework( sbf, verbose ):
 	# Unconfiguring current SConsBuildFramework
 	print ('* Unconfiguring current SConsBuildFramework')
-	sbfUnconfigure(sbf, takeCareOfSBFRuntimePaths = True, verbose = verbose)
+	sbfUnconfigure(sbf, takeCareOfSofa=False, takeCareOfSBFRuntimePaths = True, verbose = verbose)
 	print
 
 
@@ -164,7 +164,7 @@ def configureSConsBuildFramework( SCONS_BUILD_FRAMEWORK, verbose ):
 	sbf = SConsBuildFramework( initializeOptions = False )
 
 	#
-	sbfConfigure(sbf, verbose=verbose)
+	sbfConfigure(sbf, takeCareOfSofa=False, verbose=verbose)
 
 	return sbf
 
