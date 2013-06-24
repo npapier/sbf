@@ -1097,6 +1097,14 @@ def getPathsForSofa( debugAndRelease = False ):
 	return list(paths)
 
 
+class Use_swig( IUse ):
+	def getName( self ):
+		return 'swig'
+
+	def getVersions( self ):
+		return ['2-0-10']
+
+
 class Use_usb2brd( IUse ):
 	def getName(self ):
 		return "usb2brd"
@@ -1223,7 +1231,8 @@ class UseRepository :
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
-					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_usb2brd(), Use_wxWidgets(), Use_wxWidgetsGL() ]
+					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_usb2brd(), Use_wxWidgets(),
+					Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):

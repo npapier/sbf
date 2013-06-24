@@ -575,6 +575,10 @@ class SConsBuildFramework :
 	# @todo checks usage of myBuiltProjects instead of myParsedProjects
 	myBuiltProjects					= OrderedDict()
 
+	# see getAllUses()
+	myImplicitUsesSet				= set()			# set( ['swig', 'python'] )
+	myImplicitUses					= []			# ['swigX-Y-Z', pythonX-Y-Z]
+
 	# Used by mktag
 	myBranchSvnUrls				= OrderedDict() # OrderedDict([(projectPathName, url@rev),...])
 	#lenv['myBranchesOrTags']	= 'tags' or 'branches' or None
@@ -2189,10 +2193,21 @@ SConsBuildFramework options:
 			print ('Build {0}'.format(source[0]))
 
 		swigFiles = self.getFiles( 'swig', lenv )
-		swigTarget = []
 		swigPyFiles = []
+		#swigCppFiles = []
 		swigPydFiles = []
+		swigTarget = []
 		if swigFiles:
+			# Add implicit uses for swig and python
+			if 'swig' not in self.myImplicitUsesSet:
+				assert( 'python' not in self.myImplicitUsesSet )
+				# swig
+				self.myImplicitUsesSet.add( 'swig' )
+				self.myImplicitUses.append( UseRepository.getAlias()['swig'] )
+				# python
+				self.myImplicitUsesSet.add( 'python' )
+				self.myImplicitUses.append( UseRepository.getAlias()['python'] )
+
 			swigEnv = lenv.Clone()
 
 			swigOutDir = join(self.myProjectBuildPathExpanded, 'swig')
@@ -2204,7 +2219,7 @@ SConsBuildFramework options:
 			for file in swigFiles:
 				moduleName = extractModuleName(file)
 				if not moduleName:
-					raise SCons.Errors.UserError( "Unable to extract module name of swig file {0}.".format(join(self.myProjectPathName, file)) )
+					raise SCons.Errors.UserError( "Unable to extract module name of swig file {}.".format(join(self.myProjectPathName, file)) )
 
 				swigPyFile = join(swigOutDir, moduleName+'.py')
 				swigPyFiles.append( swigPyFile )
@@ -2219,9 +2234,10 @@ SConsBuildFramework options:
 				swigEnv.SideEffect( swigPyFile, tmp )
 				Clean( self.myProject + '_build', swigPyFile )
 
-			# Creates shared library
+			# Creates shared library (_*.pyd)
 			output = '{outdir}{sep}_{moduleName}'.format( outdir = swigOutDir, sep=os.sep, moduleName=moduleName )
 			swigEnv.Append( LIBS = objProject )
+			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
 			swigTarget += swigEnv.SharedLibrary( output, swigCppFiles, SHLIBSUFFIX='.pyd' )
 		else:
 			swigTarget = None
@@ -2686,6 +2702,9 @@ SConsBuildFramework options:
 		for dependency in dependencies:
 			dependencyEnv = self.myParsedProjects[ dependency ]
 			retValUses = retValUses.union( set(dependencyEnv['uses']) )
+
+		# Adds implicit uses
+		retValUses = retValUses.union( set(self.myImplicitUses) )
 
 		# Returns the computed set
 		return retValUses
