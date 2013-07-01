@@ -937,13 +937,14 @@ class SConsBuildFramework :
 
 		# Updates PATH
 		toAppend = getPathsForTools(self.myEnv.GetOption('verbosity'))
-		#toPrepend = getPathsForSofa(False) + getPathsForRuntime(self)
+		if self.myEnv.GetOption('verbosity'):	print
+		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity') )
 
-		print
-		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity'))
-		#prependToPATH( self.myEnv, toPrepend )
-		if self.myEnv.GetOption('verbosity'):
-			print
+		if len(self.myBuildTargets & self.myRunTargets) > 0:
+			# this is a '*run*' target
+			toPrepend = getPathsForRuntime(self)
+			prependToPATH( self.myEnv, toPrepend, self.myEnv.GetOption('verbosity'))
+		if self.myEnv.GetOption('verbosity'):	print
 
 		# Generates help
 		Help("""
