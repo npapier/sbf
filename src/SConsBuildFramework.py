@@ -26,7 +26,7 @@ from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, append
 from sbfUI import askQuestion
 from sbfUses import UseRepository, generateAllUseNames, usesValidator, usesConverter, uses
 from sbfUtils import *
-from sbfVersion import printSBFVersion, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
+from sbfVersion import printSBFVersion, computeVersionNumber, getVersionNumberString2, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
 
 # To be able to use SConsBuildFramework.py without SCons
 import __builtin__
@@ -46,8 +46,7 @@ except ImportError as e:
 
 
 def createBlowfishShareBuildCommand( key ):
-	"""create Blowfish share build command
-	@todo version and platform"""
+	"""create Blowfish share build command"""
 	shareBuildCommand = (	'blowfish_1-0_${PLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
@@ -153,7 +152,7 @@ def updateParentProjects( lenv, parentProjects ):
 ### SHARE BUILD HELPERS ###
 def computeFiltersAndCommand( lenv ):
 	"""Computes filters and command.
-	"""
+	@todo shareBuild	=	( filters, 'blowfish' ) => shareBuild	=	[( filters, 'blowfish' ),...]"""
 	filters = lenv['shareBuild'][0]
 	command = lenv['shareBuild'][1]
 	if len(filters) > 0:
@@ -390,7 +389,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 					assert( False )
 
 				### RUNTIME PACKAGE ###
-				if use.hasRuntimePackage():
+				if use.hasRuntimePackage( useVersion ):
 					allUseNames = [useName + '-runtime']
 					if lenv['config'] == 'release':
 						allUseNames.append( useName + '-runtime-release' )
@@ -633,7 +632,7 @@ class SConsBuildFramework :
 			#self.myEnv['MSVC_BATCH'] = True # @todo wait improvement in SCons (better control of scheduler => -j8 and /MP8 => 8*8 processes !!! ).
 			# @todo adds windows version helpers in sbf
 			winVerTuple	= sys.getwindowsversion()
-			winVerNumber= self.computeVersionNumber( [winVerTuple[0], winVerTuple[1]] )
+			winVerNumber= computeVersionNumber( [winVerTuple[0], winVerTuple[1]] )
 			if winVerNumber >= 5.1 :
 				# On computers running Microsoft Windows XP or later, the maximum length
 				# of the string that you can use at the command prompt is 8191 characters.
@@ -847,10 +846,10 @@ class SConsBuildFramework :
 			# Step 2 : Extracts major and minor version
 			splittedCCVersion		=	ccVersion.split( '.', 1 )
 			# Step 3 : Computes version number
-			self.myCCVersionNumber	= self.computeVersionNumber( splittedCCVersion )
+			self.myCCVersionNumber	= computeVersionNumber( splittedCCVersion )
 			# Constructs myCCVersion ( clMajor-Minor[Exp] )
 			self.myIsExpressEdition = self.myEnv['MSVS_VERSION'].find('Exp') != -1
-			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
+			self.myCCVersion = self.myCC + getVersionNumberString2( self.myCCVersionNumber )
 			if self.myIsExpressEdition:
 				# Adds 'Exp'
 				self.myCCVersion += 'Exp'
@@ -890,9 +889,9 @@ class SConsBuildFramework :
 			if len(splittedCCVersion) !=  3 :
 				raise SCons.Errors.UserError( "Unexpected version schema for gcc compiler (expected x.y.z) : %s " % ccVersion )
 			# Step 3 : Computes version number
-			self.myCCVersionNumber = self.computeVersionNumber( splittedCCVersion[:2] )
+			self.myCCVersionNumber = computeVersionNumber( splittedCCVersion[:2] )
 			# Constructs myCCVersion ( gccMajor-Minor )
-			self.myCCVersion = self.myCC + self.getVersionNumberString2( self.myCCVersionNumber )
+			self.myCCVersion = self.myCC + getVersionNumberString2( self.myCCVersionNumber )
 		else :
 			raise SCons.Errors.UserError( "Unsupported cpp compiler : %s" % self.myEnv['CC'] )
 
@@ -1345,7 +1344,6 @@ SConsBuildFramework options:
 		if not weakReading:
 			myOptions.AddVariables(
 				('description', "Description of the project to be presented to users. This is used on win32 platform to embedded in exe, dll or lib files additional informations.", '' ),
-	# @todo use product name elsewhere ?
 				('productName', 'Name of the product to be presented to users. This information is used by nsis installation program. Default value (i.e. empty string) means that project name is used instead.', ''),
 
 				#EnumVariable(	'vcsUse', "'yes' if the project use a versioning control system, 'no' otherwise.", 'yes',
@@ -1371,7 +1369,7 @@ SConsBuildFramework options:
 					usesValidator,
 					usesConverter ),
 
-				('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework (this SCons system).', []),
+				('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework.', []),
 				('stdlibs', 'The list of standard libraries used during the link stage.', []),
 				EnumVariable(	'test', 'Specifies the test framework to configure for compilation and link stages.', 'none',
 								allowed_values=('none', 'gtest'), ignorecase=1 ),
@@ -2609,34 +2607,6 @@ SConsBuildFramework options:
 			if fnmatch.fnmatch( project, pattern ):
 				return True
 		return False
-
-	### Management of version number
-	# @todo moves to sbfVersion.py
-	def computeVersionNumber( self, versionNumberList ):
-		versionNumber	= 0
-		coef			= 1.0
-		for version in versionNumberList :
-			versionNumber += float(version) / coef
-			coef = coef * 1000.0
-		return versionNumber
-
-	def getVersionNumberTuple( self, versionNumber ) :
-		major				= int(versionNumber)
-		minorDotMaintenance	= (versionNumber-major)*1000
-		minor				= int( round(minorDotMaintenance) )
-		maintenance			= int( round((minorDotMaintenance-minor)*1000) )
-		return ( major, minor, maintenance )
-
-	def getVersionNumberString1( self, versionNumber ) :
-		return str( int(versionNumber) )
-
-	def getVersionNumberString2( self, versionNumber ) :
-		tuple = self.getVersionNumberTuple( versionNumber )
-		return "%u-%u" % ( tuple[0], tuple[1] )
-
-	def getVersionNumberString3( self, versionNumber ) :
-		tuple = self.getVersionNumberTuple( versionNumber )
-		return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
 
 
 

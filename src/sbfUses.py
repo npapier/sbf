@@ -18,7 +18,7 @@ except ImportError as e:
 from sbfSubversion import SvnGetRevision
 from sbfTools import *
 from sbfUtils import getPathFromEnv, getFromEnv, convertToList
-from sbfVersion import splitUsesName
+from sbfVersion import computeVersionNumber, splitUsesName
 
 class sofaConfig:
 	__basePath		= None
@@ -133,20 +133,20 @@ class IUse :
 		Returns [...] to explicitly specify one or more license file(s)"""
 		return []
 
-	def hasDevPackage( self ):
+	def hasDevPackage( self, version ):
 		"""Returns True to inform that a developpement package have to be installed, false otherwise. Used by 'pakUpdate' target."""
 		return self.getPackageType() == 'Normal'
 
-	def hasRuntimePackage( self ):
+	def hasRuntimePackage( self, version ):
 		"""Returns True to inform that a deployment package have to be installed, false otherwise. Used by 'pakUpdate' target."""
 		return False
 
-	def hasPackage( self, useName ):
+	def hasPackage( self, useName, version ):
 		"""Return True if useName has a package (runtime or development), otherwise returns False."""
 		if '-runtime' in useName:
-			return self.hasRuntimePackage()
+			return self.hasRuntimePackage( version )
 		else:
-			return self.hasDevPackage()
+			return self.hasDevPackage( version )
 
 	def getRedist( self, version ):
 		"""Returns the redistributable to include in nsis setup program. A redistributable must be a zip file or an executable available in SCONS_BUILD_FRAMEWORK/rc/nsis/ directory"""
@@ -254,20 +254,26 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-48-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-47-0', '1-46-1' ]
+		return [ '1-48-0', '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
-			return [ 'BOOST_ALL_DYN_LINK' ]
+			versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
+			if version == '1-54-0':
+				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
+			else:
+				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
 		else:
-			return []
+			return [ ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
 
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
 
 			# vc version
-			if self.cc == 'cl' and self.ccVersionNumber >= 10.0000:
+			if self.cc == 'cl' and self.ccVersionNumber >= 11.0000:
+				vc = 'vc110'
+			elif self.cc == 'cl' and self.ccVersionNumber >= 10.0000:
 				vc = 'vc100'
 			elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000:
 				vc = 'vc90'
@@ -295,15 +301,21 @@ class Use_boost( IUse ):
 			genPakLibs3 = [	'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
 			genPakLibs4 = [	'boost_context-{vc}-{conf}-{ver}' ]
 			genPakLibs5 = [	'boost_atomic-{vc}-{conf}-{ver}' ]
+			#genPakLibs6 = [ 'boost_log_setup-{vc}-{conf}-{ver}', 'boost_log-{vc}-{conf}-{ver}' ]
 
 			versionToVer = {	'1-48-0'	: '1_48',
 								'1-49-0'	: '1_49',
 								'1-50-0'	: '1_50',
 								'1-51-0'	: '1_51',
 								'1-52-0'	: '1_52',
-								'1-53-0'	: '1_53' }
+								'1-53-0'	: '1_53',
+								'1-54-0'	: '1_54'
+							}
 
-			if version in ['1-53-0']:
+			if version in ['1-54-0']:
+				# autolinking and dev package, so nothing to do.
+				return [], []
+			elif version in ['1-53-0']:
 				# autolinking, so nothing to do.
 				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 + genPakLibs5 ]
@@ -337,6 +349,11 @@ class Use_boost( IUse ):
 						'libboost_wave-mt',			'libboost_wserialization-mt'	]
 			return libs, libs
 
+	def hasRuntimePackage( self, version ):
+		if version == '1-54-0':
+			return True
+		else:
+			return False
 
 
 class Use_bullet( IUse ):
@@ -774,7 +791,7 @@ class Use_python( IUse ):
 	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
 	#	return path, []
 
-	def hasRuntimePackage( self ):
+	def hasRuntimePackage( self, version ):
 		return True
 
 
@@ -1221,9 +1238,8 @@ class UseRepository :
 
 	__repository	= {}
 
-	__allowedValues = [	'physx2-8-1' ]
-	__alias			= {
-			'physx'			: 'physx2-8-1'	}
+	__allowedValues = []
+	__alias			= {}
 
 	__initialized	= False
 
@@ -1484,7 +1500,7 @@ class Use_gtkmm( IUse ):
 		elif self.platform == 'posix':
 			return ['-Wl,--export-dynamic']
 
-	def hasRuntimePackage( self ):
+	def hasRuntimePackage( self, version ):
 		return True
 
 
@@ -1543,7 +1559,7 @@ class Use_cairo( IUse ):
 			libs = [ 'cairo' ]
 			return libs, libs
 
-	def hasRuntimePackage( self ):
+	def hasRuntimePackage( self, version ):
 		return True
 
 
@@ -1594,35 +1610,35 @@ class Use_sigcpp( IUse ):
 			sigcpp = [ 'sigc-2.0' ]
 			return sigcpp, []
 
-	def hasRuntimePackage( self ):
+	def hasRuntimePackage( self, version ):
 		return True
 
 
 
 ### @todo update or remove
-def use_physx( self, lenv, elt ) :
+#def use_physx( self, lenv, elt ) :
 	# Retrieves PHYSX_BASEPATH
-	physxBasePath = getPathFromEnv('PHYSX_BASEPATH')
-	if physxBasePath is None :
-		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
+#	physxBasePath = getPathFromEnv('PHYSX_BASEPATH')
+#	if physxBasePath is None :
+#		raise SCons.Errors.UserError("Unable to configure '%s'." % elt)
 
 	# Sets CPPPATH
-	physxCppPath	=	[ 'SDKs\Foundation\include', 'SDKs\Physics\include', 'SDKs\PhysXLoader\include' ]
-	physxCppPath	+=	[ 'SDKs\Cooking\include', 'SDKs\NxCharacter\include' ]
+#	physxCppPath	=	[ 'SDKs\Foundation\include', 'SDKs\Physics\include', 'SDKs\PhysXLoader\include' ]
+#	physxCppPath	+=	[ 'SDKs\Cooking\include', 'SDKs\NxCharacter\include' ]
 
-	if lenv.GetOption('weak_localext') :
-		for cppPath in physxCppPath :
-			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(physxBasePath, cppPath)] )
-	else :
-		for cppPath in physxCppPath :
-			lenv.AppendUnique( CPPPATH = os.path.join(physxBasePath, cppPath) )
+#	if lenv.GetOption('weak_localext') :
+#		for cppPath in physxCppPath :
+#			lenv.AppendUnique( CCFLAGS = ['${INCPREFIX}' + os.path.join(physxBasePath, cppPath)] )
+#	else :
+#		for cppPath in physxCppPath :
+#			lenv.AppendUnique( CPPPATH = os.path.join(physxBasePath, cppPath) )
 
 	# Sets LIBS and LIBPATH
-	lenv.AppendUnique( LIBS = [	'PhysXLoader', 'NxCooking', 'NxCharacter' ] )
-	if self.myPlatform == 'win32' :
-		lenv.AppendUnique( LIBPATH = [ os.path.join(physxBasePath, 'SDKs\lib\Win32') ] )
-	else :
-		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#	lenv.AppendUnique( LIBS = [	'PhysXLoader', 'NxCooking', 'NxCharacter' ] )
+#	if self.myPlatform == 'win32' :
+#		lenv.AppendUnique( LIBPATH = [ os.path.join(physxBasePath, 'SDKs\lib\Win32') ] )
+#	else :
+#		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
 
 
 #===============================================================================
@@ -1682,32 +1698,21 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 			if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
 				lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
-		### configure PhysX ###
-		if elt == 'physx2-8-1' :
-			use_physx( self, lenv, elt )
-
-#===============================================================================
-#		### configure wxWidgets ###
-#		elif elt in ['wx2-8', 'wxgl2-8'] :
-#			use_wxWidgets( self, lenv, elt )
-#===============================================================================
-
 		### Updates environment using UseRepository
-		else :
 #print "incoming use : %s", elt
-			useNameVersion = elt
+		useNameVersion = elt
 
-			useName, useVersion = splitUsesName( useNameVersion )
-			#print useNameVersion, useName, useVersion
-			use = UseRepository.getUse( useName )
+		useName, useVersion = splitUsesName( useNameVersion )
+		#print useNameVersion, useName, useVersion
+		use = UseRepository.getUse( useName )
 
-			if use:
-				# Tests if the version is supported
-				supportedVersions = use.getVersions()
-				if (len(supportedVersions) == 0) or (useVersion in supportedVersions) :
-					# Configures environment with the 'use'
-					use( useVersion, lenv, skipLinkStageConfiguration )
-				else :
-					raise SCons.Errors.UserError("Uses=[\'%s\'] version %s not supported." % (useNameVersion, useVersion) )
+		if use:
+			# Tests if the version is supported
+			supportedVersions = use.getVersions()
+			if (len(supportedVersions) == 0) or (useVersion in supportedVersions) :
+				# Configures environment with the 'use'
+				use( useVersion, lenv, skipLinkStageConfiguration )
 			else :
-				raise SCons.Errors.UserError("Unknown uses=['%s']" % useNameVersion)
+				raise SCons.Errors.UserError("Uses=[\'%s\'] version %s not supported." % (useNameVersion, useVersion) )
+		else :
+			raise SCons.Errors.UserError("Unknown uses=['%s']" % useNameVersion)

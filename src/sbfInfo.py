@@ -85,7 +85,7 @@ def __doTargetInfoFile( target, source, env ):
 			assert( use ) # raise an assertion for unknow 'uses'
 			for useName in generateAllUseNames(useName):
 				# Test package useName
-				useNameInstalled = _info( pakSystem, useName, useVersion, use, use.hasPackage(useName) )
+				useNameInstalled = _info( pakSystem, useName, useVersion, use, use.hasPackage(useName, useVersion) )
 				if useNameInstalled:
 					file.write( '{0}{1}\n'.format(useName.ljust(lenColPackage), useVersion.ljust(lenColVersion)) )
 		else:

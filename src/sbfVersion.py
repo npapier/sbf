@@ -36,6 +36,35 @@ def getSBFVersion():
 
 
 
+### Helpers to manage version (number and string)
+def computeVersionNumber( versionNumberList ):
+	versionNumber	= 0
+	coef			= 1.0
+	for version in versionNumberList :
+		versionNumber += float(version) / coef
+		coef = coef * 1000.0
+	return versionNumber
+
+def getVersionNumberTuple( versionNumber ) :
+	major				= int(versionNumber)
+	minorDotMaintenance	= (versionNumber-major)*1000
+	minor				= int( round(minorDotMaintenance) )
+	maintenance			= int( round((minorDotMaintenance-minor)*1000) )
+	return ( major, minor, maintenance )
+
+def getVersionNumberString1( versionNumber ) :
+	return str( int(versionNumber) )
+
+def getVersionNumberString2( versionNumber ) :
+	tuple = getVersionNumberTuple( versionNumber )
+	return "%u-%u" % ( tuple[0], tuple[1] )
+
+def getVersionNumberString3( versionNumber ) :
+	tuple = getVersionNumberTuple( versionNumber )
+	return "%u-%u-%u" % ( tuple[0], tuple[1], tuple[2] )
+
+
+
 ### Helpers to extract version ###
 versionPattern = '(?P<version>(?:(?P<major>[0-9]+)(?:-(?P<minor>[0-9]+))?(?:-(?P<maint>[0-9]+))?(?:-(?P<postfix>[a-zA-Z0-9]+))?)?)'
 versionRE = re.compile( r'^{0}$'.format(versionPattern) )
