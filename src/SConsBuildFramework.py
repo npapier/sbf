@@ -2181,11 +2181,14 @@ SConsBuildFramework options:
 		# Swig
 		def extractModuleName( file ):
 			# '%module moduleName' detection
-			moduleNameRe = re.compile(r'^\s*%module\s+([A-Za-z0-9_-]+)\s*') 
+			# or
+			# '%module (directors="1") moduleName' detection
+			regexDirector = r'(?:\s*[(]\s*directors\s*=\s*"1"\s*[)])?'
+			moduleNameRe = re.compile(r'^\s*%module{}\s+([A-Za-z0-9_-]+)\s*'.format(regexDirector))
 			with open(file, 'r') as file:
 				for line in file:
 					matchObject = moduleNameRe.match( line )
-					if matchObject:
+					if matchObject:						
 						return matchObject.group(1)
 
 		def printSwigCommand(target, source, env ):
@@ -2211,7 +2214,7 @@ SConsBuildFramework options:
 
 			swigOutDir = join(self.myProjectBuildPathExpanded, 'swig')
 
-			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-I{0}'.format(self.myIncludesInstallPaths[0]), '-I{0}'.format(self.myIncludesInstallExtPaths[0]) ]
+			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot', '-I{0}'.format(self.myIncludesInstallPaths[0]), '-I{0}'.format(self.myIncludesInstallExtPaths[0]) ]
 
 			# @todo SWIGCOMSTR
 			swigCppFiles = []

@@ -784,7 +784,10 @@ class Use_python( IUse ):
 		return cppPath
 
 	def getLIBS( self, version ):
-		libs = ['python27']
+		if self.config == 'release':
+			libs = ['python27']
+		else:
+			libs = ['python27_d']
 		return libs, []
 
 	#def getLIBPATH( self, version ):
