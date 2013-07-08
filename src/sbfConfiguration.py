@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2012, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -8,7 +8,7 @@ from os.path import join
 
 from sbfEnvironment import Environment
 from sbfPaths import Paths
-from sbfTools import locateProgram, getPathsForRuntime, getPathsForTools
+from sbfTools import locateProgram, getPathsForRuntime, getPathsForTools, prependToPATH, appendToPATH
 from sbfUses import getPathsForSofa
 
 ###### Implementation of sbfConfigure and sbfUnconfigure targets #######
@@ -57,14 +57,23 @@ def _getSBFRuntimePaths( sbf ):
 
 
 # Public interface
+def getPATHForConfigure( sbf ):
+	"""Returns (prependList, appendList)"""
+	toPrepend = getPathsForRuntime(sbf)				# local/bin, localExt/bin and localExt/lib (@todo deprecated localExt/lib)
+	sbfRuntimePaths = _getSBFRuntimePaths( sbf )	# ([$SCONS_BUILD_FRAMEWORK, C:\Python], [C:\Python\Scripts])
+	return ( sbfRuntimePaths[0] + toPrepend, sbfRuntimePaths[1] )
+
+def configurePATH( env, verbose = True ):
+	"""@ brief Configures the PATH environment variable used by the given environment env."""
+	(prependList, appendList) = getPATHForConfigure(env.sbf)
+	prependToPATH(env, prependList, verbose )
+	appendToPATH(env, appendList, verbose )
+
 def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):
-	toPrepend = getPathsForRuntime(sbf)
+	(toPrepend, toAppend) = getPATHForConfigure(sbf)
 	if takeCareOfSofa:
 		toPrepend = toPrepend + getPathsForSofa(True)
-
-	sbfRuntimePaths = _getSBFRuntimePaths( sbf )
-
-	_sbfConfigure( sbfRuntimePaths[0] + toPrepend, sbfRuntimePaths[1], verbose )
+	_sbfConfigure( toPrepend, toAppend, verbose )
 
 
 def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = False, verbose = True ):

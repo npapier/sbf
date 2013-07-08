@@ -62,11 +62,11 @@ def subprocessGetOuputCall( cmdLine, verbose = True ):
 		if verbose:
 			print output
 		return output
-	except CalledProcessError, e:
-		print >>sys.stderr, "Execution failed:", e
+	except subprocess.CalledProcessError, e:
+		print >>sys.stderr, "Execution failed:", e, '\n'
 		exit(e.returncode)
 	except OSError, e:
-		print >>sys.stderr, "Execution failed:", e
+		print >>sys.stderr, "Execution failed:", e, '\n'
 		exit(e.returncode)
 
 

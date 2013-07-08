@@ -140,7 +140,7 @@ def locateProgram( programName ):
 
 def getPathsForTools( verbose = False ):
 	"""	Returns a list containing path for cygwin binaries (rsync and ssh) @todo posix,
-		7z (for zip* targets),
+		7z (for pakupdate, zip* targets),
 		nsis (for nsis target),
 		graphviz and doxygen (for doxygen target)
 	"""
@@ -182,12 +182,12 @@ def getPathsForRuntime( sbf ):
 
 def prependToPATH( env, newPaths, enableLogging = True ):
 	"""env['ENV']['PATH'] = newPaths + env['ENV']['PATH']"""
-	for path in newPaths:
+	for path in reversed(newPaths):
 		if enableLogging: print ('Prepends {0} to sbf private PATH'.format(path))
 		env.PrependENVPath( 'PATH', path )
 
 def appendToPATH( env, newPaths, enableLogging = True ):
 	"""env['ENV']['PATH'] = env['ENV']['PATH'] + newPaths"""
-	for path in newPaths:
+	for path in reversed(newPaths):
 		if enableLogging: print ('Appends {0} to sbf private PATH'.format(path))
 		env.AppendENVPath( 'PATH', path )

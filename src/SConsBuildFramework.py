@@ -19,6 +19,7 @@ from sbfFiles import *
 from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
+from sbfConfiguration import configurePATH
 from sbfQt import *
 from sbfSubversion import anonymizeUrl, removeTrunkOrTagsOrBranches
 from sbfPackagingSystem import PackagingSystem
@@ -187,16 +188,22 @@ def applyFilters( files, filters ):
 		nonMatchingFiles = files
 	return matchingFiles, nonMatchingFiles
 
-def buildFilesFromShare( files, lenv, command ):
+
+def buildFilesFromShare( files, sbf, command ):
 	"""Adds share build stage in 'build' target
 	@return the list of files to install in 'share'"""
 
-	sbf = lenv.sbf
+	if len(files)==0:
+		return []
+
+	lenv = sbf.myEnv.Clone()
+	configurePATH(lenv, lenv.GetOption('verbosity') )
 
 	# list of files to install in 'share'
 	outputs = []
 	for file in files:
 		inputFile = join(sbf.myProjectPathName, file)
+# @todo check ${SOURCE}
 		outputFile = command[1].replace('${SOURCE}', file, 1)
 		outputFile = outputFile.replace('share', join(sbf.myProjectBuildPath, sbf.myProject, 'share'), 1 )
 		if len(command)==3:
@@ -205,6 +212,7 @@ def buildFilesFromShare( files, lenv, command ):
 			Alias( 'build', lenv.Command(outputFile, inputFile, command[0]) )
 		outputs.append( outputFile )
 	return outputs
+
 
 
 ### INSTALLATION HELPERS ###
@@ -2326,7 +2334,7 @@ SConsBuildFramework options:
 
 		(filters, command) = computeFiltersAndCommand( lenv )
 		(filesFromShareToBuild, filesFromShare) = applyFilters( self.getFiles('share', lenv), filters )
-		filesFromShareBuilt = buildFilesFromShare( filesFromShareToBuild, lenv, command )
+		filesFromShareBuilt = buildFilesFromShare( filesFromShareToBuild, self, command )
 
 
 
