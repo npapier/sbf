@@ -925,6 +925,9 @@ class Use_sofa( IUse, sofaConfig ):
 	def getVersions( self ):
 		return [sofaConfig.getVersion()]
 
+	def getRequirements( self, version ):
+		return ['glew 1-9-0', 'glut 3-7']
+
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
 		
@@ -965,8 +968,8 @@ class Use_sofa( IUse, sofaConfig ):
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
 			libs = []
-			pakLibs = ['glew32', 'glut32']
-			
+			pakLibs = []
+
 			libsBoth = [  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual'
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping'
