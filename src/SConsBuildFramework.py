@@ -189,14 +189,14 @@ def applyFilters( files, filters ):
 	return matchingFiles, nonMatchingFiles
 
 
-def buildFilesFromShare( files, sbf, command ):
+def buildFilesFromShare( files, sbf, projectEnv, command ):
 	"""Adds share build stage in 'build' target
 	@return the list of files to install in 'share'"""
 
 	if len(files)==0:
 		return []
 
-	lenv = sbf.myEnv.Clone()
+	lenv = projectEnv.Clone()
 	configurePATH(lenv, lenv.GetOption('verbosity') )
 
 	# list of files to install in 'share'
@@ -212,7 +212,6 @@ def buildFilesFromShare( files, sbf, command ):
 			Alias( 'build', lenv.Command(outputFile, inputFile, command[0]) )
 		outputs.append( outputFile )
 	return outputs
-
 
 
 ### INSTALLATION HELPERS ###
@@ -2334,7 +2333,7 @@ SConsBuildFramework options:
 
 		(filters, command) = computeFiltersAndCommand( lenv )
 		(filesFromShareToBuild, filesFromShare) = applyFilters( self.getFiles('share', lenv), filters )
-		filesFromShareBuilt = buildFilesFromShare( filesFromShareToBuild, self, command )
+		filesFromShareBuilt = buildFilesFromShare( filesFromShareToBuild, self, lenv, command )
 
 
 
