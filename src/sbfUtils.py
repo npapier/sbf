@@ -113,9 +113,13 @@ def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = No
 		setupVCLines = file.readlines()
 
 	# Appends command
-	setupVCLines.append( 'call {0}\n'.format(command) )
+	setupVCLines.append( '@set TMP=\n' )
+	setupVCLines.append( '@set TEMP=\n' )
+	setupVCLines.append( '@set tmp=\n' )
+	setupVCLines.append( '@set temp=\n' )
+	setupVCLines.append( '@call {0}\n'.format(command) )
 	if appendExit:
-		setupVCLines.append( 'exit\n'.format(command) )
+		setupVCLines.append( '@exit\n'.format(command) )
 
 	# Writes patched vcvars.bat
 	with tempfile.NamedTemporaryFile(suffix='.bat', delete=False) as file:
