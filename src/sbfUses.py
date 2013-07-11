@@ -1128,6 +1128,11 @@ class Use_swig( IUse ):
 		return ['2-0-10']
 
 
+class Use_swigShp( Use_swig ):
+	def getName( self ):
+		return 'swigshp'
+
+
 class Use_usb2brd( IUse ):
 	def getName(self ):
 		return "usb2brd"
@@ -1253,7 +1258,7 @@ class UseRepository :
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
-					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_usb2brd(), Use_wxWidgets(),
+					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_swigShp(), Use_usb2brd(), Use_wxWidgets(),
 					Use_wxWidgetsGL() ]
 
 	@classmethod
@@ -1287,7 +1292,7 @@ class UseRepository :
 			print ("Adds in UseRepository :"),
 		for use in listOfIUseImplementation :
 			# Adds to repository
-			name = use.getName()
+			name = use.getName().lower()
 
 			self.__repository[ name ] = use
 			if self.__verbosity :
@@ -1320,6 +1325,7 @@ class UseRepository :
 
 	@classmethod
 	def getUse( self, name ):
+		name = name.lower()
 		if name in self.__repository :
 			return self.__repository[name]
 		else:
@@ -1351,7 +1357,6 @@ def usesValidator( key, val, env ) :
 	list_of_values = val.split()
 
 	invalid_values = [ value for value in list_of_values if value not in UseRepository.getAllowedValues() ] #OptionUses_allowedValues
-
 	if len(invalid_values) > 0 :
 		raise SCons.Errors.UserError("Invalid value(s) for option uses:%s" % invalid_values)
 
@@ -1363,7 +1368,8 @@ def usesConverter( val ) :
 
 	alias = UseRepository.getAlias()							# @todo OPTME, a copy is done !!!
 
-	for value in list_of_values :
+	for value in list_of_values:
+		value = value.lower()
 		if value in alias:
 			# Converts incoming value and appends to result
 			result.append( alias[value] )
