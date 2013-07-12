@@ -21,7 +21,7 @@ struct ILogging;
 /**
  * @brief	Holds the global logger which is sbf::Logging by default.
  */
-struct SBF_API GlobalLogger
+struct GlobalLogger
 {
 	/**
 	 * @brief	Access to the global debug logger.
@@ -29,7 +29,7 @@ struct SBF_API GlobalLogger
 	 * @remark	While the logger instance is managed by a shared pointer,
 	 * 			a reference to it is returned for convenience.
 	 */
-	static ILogging& get();
+	SBF_API static ILogging& get();
 
 	/**
 	 * @brief	Installs a new logger.
@@ -38,7 +38,7 @@ struct SBF_API GlobalLogger
 	 *
 	 * @pre		logger != 0
 	 */
-	static void set( boost::shared_ptr< ILogging > logger );
+	SBF_API static void set( boost::shared_ptr< ILogging > logger );
 
 	/**
 	 * @brief	Installs a new logger that don't need construction time parameters.
@@ -54,14 +54,14 @@ struct SBF_API GlobalLogger
 	 *
 	 * @return true if vgsdk assertion system is enabled, false otherwise.
 	 */
-	static const bool isAssertEnabled();
+	SBF_API static const bool isAssertEnabled();
 
 	/**
 	 * @brief Enables or disables the vgsdk assertion system depending on the value of the parameter isEnabled.
 	 *
 	 * @param isEnabled		true when the vgsdk assertion system must be enabled, false otherwise
 	 */
-	static void setAssertEnabled( const bool enabled = true );
+	SBF_API static void setAssertEnabled( const bool enabled = true );
 
 private:
 

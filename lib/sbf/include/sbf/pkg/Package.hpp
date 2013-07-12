@@ -33,7 +33,7 @@ struct Pluggable;
 /**
  * @brief	Provide package system management and package interactions.
  */
-struct SBF_API Package : public boost::enable_shared_from_this< Package >, public Component
+struct Package : public boost::enable_shared_from_this< Package >, public Component
 {
 	/**
 	 * @name	Containers and iterators
@@ -55,19 +55,19 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >, publi
 	 * @name	Package collection
 	 */
 	//@{
-	static iterator begin();								///< Retrieves the iterator on the beginning of the package collection.
-	static const boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
-	static iterator end();									///< Retrieves the iterator on the end of the package collection.
-	static const PackageContainer findDuplicates();			///< Retrieves the first packages having the same name but a different version.
+	SBF_API static iterator begin();								///< Retrieves the iterator on the beginning of the package collection.
+	SBF_API static const boost::shared_ptr< Package > current();	///< Retrieves the package representing the running programm.
+	SBF_API static iterator end();									///< Retrieves the iterator on the end of the package collection.
+	SBF_API static const PackageContainer findDuplicates();			///< Retrieves the first packages having the same name but a different version.
 	//@}
 
 	/**
 	 * @name	Configuration
 	 */
 	//@{
-	const bool isEnabled() const;			///< Tells if the package is enabled.
-	void setEnabled( const bool enable );	///< Enables or disables the package (may need a software restart to take effect).
-	const bool willBeEnabled() const;		///< Tells if the package will be enabled after a software restart.
+	SBF_API const bool isEnabled() const;			///< Tells if the package is enabled.
+	SBF_API void setEnabled( const bool enable );	///< Enables or disables the package (may need a software restart to take effect).
+	SBF_API const bool willBeEnabled() const;		///< Tells if the package will be enabled after a software restart.
 	//@}
 
 	/**
@@ -82,32 +82,32 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >, publi
 	 *
 	 * @return	a shared pointer to the module
 	 */
-	const boost::shared_ptr< Module > findModule( const std::string & name, const std::string & version = std::string() ) const;
+	SBF_API const boost::shared_ptr< Module > findModule( const std::string & name, const std::string & version = std::string() ) const;
 	
 	/** 
 	 * @brief	Retrieves the iterator on the module collection's beginning.
 	 */
-	module_iterator moduleBegin();
+	SBF_API module_iterator moduleBegin();
 
 	/** 
 	 * @brief	Retrieves the iterator on the module collection's beginning.
 	 */
-	const_module_iterator moduleBegin() const;
+	SBF_API const_module_iterator moduleBegin() const;
 
 	/**
 	 * @brief	Retrieves how many modules have identified and registered.
 	 */
-	const unsigned int moduleCount() const;
+	SBF_API const unsigned int moduleCount() const;
 
 	/**
 	 * @brief	Retrieves the iterator on the module collection's end.
 	 */
-	module_iterator moduleEnd();
+	SBF_API module_iterator moduleEnd();
 
 	/**
 	 * @brief	Retrieves the iterator on the module collection's end.
 	 */
-	const_module_iterator moduleEnd() const;
+	SBF_API const_module_iterator moduleEnd() const;
 	//@}
 
 	/**
@@ -122,44 +122,44 @@ struct SBF_API Package : public boost::enable_shared_from_this< Package >, publi
 	 *
 	 * @return	a shared pointer to the found pluggable module, null if none.
 	 */
-	const boost::shared_ptr< Pluggable > findPluggable( const std::string & name, const std::string & version = std::string() ) const;
+	SBF_API const boost::shared_ptr< Pluggable > findPluggable( const std::string & name, const std::string & version = std::string() ) const;
 	
 	/**
 	 * @brief	Gets plugable module list having the given tag.
 	 */
-	const std::vector< std::string > getPlugablesByTag( const std::string & tag ) const;
+	SBF_API const std::vector< std::string > getPlugablesByTag( const std::string & tag ) const;
 
 	/**
 	 * @brief	Loads plugable modules having the given tag
 	 */
-	void loadPlugablesByTag( const std::string & tag );
+	SBF_API void loadPlugablesByTag( const std::string & tag );
 
 	/** 
 	 * @brief	Retrieves the iterator on the module collection's beginning.
 	 */
-	pluggable_iterator pluggableBegin();
+	SBF_API pluggable_iterator pluggableBegin();
 
 	/** 
 	 * @brief	Retrieves the iterator on the pluggable collection's beginning.
 	 */
-	const_pluggable_iterator pluggableBegin() const;
+	SBF_API const_pluggable_iterator pluggableBegin() const;
 
 	/**
 	 * @brief	Retrieves how many pluggables have identified and registered.
 	 */
-	const unsigned int pluggableCount() const;
+	SBF_API const unsigned int pluggableCount() const;
 
 	/**
 	 * @brief	Retrieves the iterator on the pluggable collection's end.
 	 */
-	pluggable_iterator pluggableEnd();
+	SBF_API pluggable_iterator pluggableEnd();
 
 	/**
 	 * @brief	Retrieves the iterator on the pluggable collection's end.
 	 */
-	const_pluggable_iterator pluggableEnd() const;
+	SBF_API const_pluggable_iterator pluggableEnd() const;
 	//@}
-	
+
 
 private:
 

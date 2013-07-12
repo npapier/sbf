@@ -31,7 +31,7 @@ struct Package;
 /**
  * @brief	Allows to manage dynamically loadable modules.
  */
-struct SBF_API Module : public Component
+struct Module : public Component
 {
 	friend struct Package;
 
@@ -42,19 +42,19 @@ struct SBF_API Module : public Component
 	 *
 	 * @return	a module, null if none
 	 */
-	static boost::shared_ptr< Module > get( const std::string & name = MODULE_NAME, const std::string & version = MODULE_VERSION );
+	SBF_API static boost::shared_ptr< Module > get( const std::string & name = MODULE_NAME, const std::string & version = MODULE_VERSION );
 
 	/**
 	 * @brief	Destructor
 	 */
-	virtual ~Module();
+	SBF_API virtual ~Module();
 	
 	/**
 	 * @name	State and meta data
 	 */
 	//@{
-	const std::string getInfoFromFile() const;								///< Loads defailed informations from file.
-	const bool hasInfoFile() const;											///< Tells if the module has detailed information file.
+	SBF_API const std::string getInfoFromFile() const;								///< Loads defailed informations from file.
+	SBF_API const bool hasInfoFile() const;											///< Tells if the module has detailed information file.
 	//@}
 
 protected:

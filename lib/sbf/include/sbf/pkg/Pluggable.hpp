@@ -19,7 +19,7 @@ namespace pkg
 /**
  * @brief	Implements modules that can be plugged while application is running.
  */
-struct SBF_API Pluggable : public Module
+struct Pluggable : public Module
 {
 	friend struct Package;
 
@@ -28,32 +28,32 @@ struct SBF_API Pluggable : public Module
 	/**
 	 * @brief	Tells if the given module is loaded.
 	 */
-	const bool isLoaded() const;
+	SBF_API const bool isLoaded() const;
 	
 	/**
 	 * @brief	Tells if the given module has an unloading function.
 	 */
-	bool hasUnloadingFunction();
+	SBF_API bool hasUnloadingFunction();
 
 	/**
 	 * @brief	Tells if the given module can be unloaded.
 	 */
-	bool canBeUnloaded();
+	SBF_API bool canBeUnloaded();
 
 	/**
 	 * @brief	Stops the given module from being unloaded.
 	 */
-	void blockUnloading();
+	SBF_API void blockUnloading();
 
 	/**
 	 * @brief	Loads the module, if not already loaded.
 	 */
-	void load();
+	SBF_API void load();
 
 	/**
 	 * @brief	Unloads the module.
 	 */
-	void unload();
+	SBF_API void unload();
 
 private:
 
