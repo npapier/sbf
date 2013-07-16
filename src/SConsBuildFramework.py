@@ -2207,6 +2207,11 @@ SConsBuildFramework options:
 		swigPydFiles = []
 		swigTarget = []
 		if swigFiles:
+			if self.myConfig == 'debug':
+				configPostfix = '_d'
+			else:
+				configPostfix = ''
+
 			# Add implicit uses for swig and python
 			if 'swig' not in self.myImplicitUsesSet:
 				assert( 'python' not in self.myImplicitUsesSet )
@@ -2236,15 +2241,15 @@ SConsBuildFramework options:
 				output = join(self.myProjectBuildPathExpanded, splitext(file)[0]+'_swig_cpp_wrap.cpp')
 				swigCppFiles.append( output )
 
-				swigPydFiles.append( join(swigOutDir, '_{0}.pyd'.format(moduleName)) )
+				swigPydFiles.append( join(swigOutDir, '_{}{}.pyd'.format(moduleName, configPostfix)) )
 
 				tmp = swigEnv.Command( output, join(self.myProjectPathName, file), Action('$SWIG -o $TARGET ${_SWIGOUTDIR} ${_SWIGINCFLAGS} $SWIGFLAGS $SOURCES', printSwigCommand) )
 				swigTarget += tmp
 				swigEnv.SideEffect( swigPyFile, tmp )
 				Clean( self.myProject + '_build', swigPyFile )
 
-			# Creates shared library (_*.pyd)
-			output = '{outdir}{sep}_{moduleName}'.format( outdir = swigOutDir, sep=os.sep, moduleName=moduleName )
+			# Creates shared library (_*[_d].pyd)
+			output = '{outdir}{sep}_{moduleName}{configPostfix}'.format( outdir = swigOutDir, sep=os.sep, moduleName=moduleName, configPostfix=configPostfix )
 			swigEnv.Append( LIBS = objProject )
 			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
 			swigTarget += swigEnv.SharedLibrary( output, swigCppFiles, SHLIBSUFFIX='.pyd' )
