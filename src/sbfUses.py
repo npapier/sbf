@@ -929,7 +929,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return ['glew 1-9-0', 'glut 3-7']
 
 	def getCPPDEFINES( self, version ):
-		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
+		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
 		
 		if int(version) < 11877:
 			# sofa public revision number (used in trunk)
@@ -956,7 +956,6 @@ class Use_sofa( IUse, sofaConfig ):
 					os.path.join(sofaConfig.getBasePath(), 'modules'),
 					os.path.join(sofaConfig.getBasePath(), 'framework'),
 					os.path.join(sofaConfig.getBasePath(), 'include'),
-					os.path.join(sofaConfig.getBasePath(), 'extlibs/taucs_mt/src'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/tinyxml'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
@@ -973,15 +972,12 @@ class Use_sofa( IUse, sofaConfig ):
 			libsBoth = [  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual'
 						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
 						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping'
-						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
+						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
 						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
 			if int(version) > 11876:
 				# sofa_dev revision number (used in branch)
-				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev', 'sofabgl' ]
-			else:
-				# sofa public revision number (used in trunk)
-				libsBoth += [  'SofaAdvancedInteraction', 'SofaAdvancedConstraint', 'SofaMiscCollisionDev' ]
+				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev', 'sofa_taucs_solver', 'sofabgl' ]
 						
 			if int(version) < 11877:
 				# sofa public revision number (used in trunk)
@@ -994,7 +990,7 @@ class Use_sofa( IUse, sofaConfig ):
 			libsBoth += sofaConfig.getPluginsList()
 
 			#
-			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt']
+			staticLibs = ['miniFlowVR', 'newmat']
 			if int(version) < 11877:
 				# sofa public revision number (used in trunk)
 				libsBoth += ['tinyxml']
