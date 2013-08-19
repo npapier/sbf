@@ -1069,7 +1069,6 @@ SConsBuildFramework options:
 		#print self.myEnv.Dump()
 		#exit()
 
-
 	###### Initialize global attributes ######
 	def initializeGlobalsFromEnv( self, lenv ) :
 
@@ -2198,20 +2197,9 @@ SConsBuildFramework options:
 					if matchObject:						
 						return matchObject.group(1)
 
-		def printSwigCommand(target, source, env ):
-			print ('Build {0}'.format(source[0]))
-
 		swigFiles = self.getFiles( 'swig', lenv )
-		swigPyFiles = []
-		#swigCppFiles = []
-		swigPydFiles = []
 		swigTarget = []
 		if swigFiles:
-			if self.myConfig == 'debug':
-				configPostfix = '_d'
-			else:
-				configPostfix = ''
-
 			# Add implicit uses for swig and python
 			if 'swig' not in self.myImplicitUsesSet:
 				assert( 'python' not in self.myImplicitUsesSet )
@@ -2222,44 +2210,49 @@ SConsBuildFramework options:
 				self.myImplicitUsesSet.add( 'python' )
 				self.myImplicitUses.append( UseRepository.getAlias()['python'] )
 
+			# configuration postfix
+			if self.myConfig == 'debug':
+				configPostfix = '_d'
+			else:
+				configPostfix = ''
+
+			# Configure environment
 			swigEnv = lenv.Clone()
 
-			swigOutDir = join(self.myProjectBuildPathExpanded, 'swig')
+			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
 
-			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot', '-I{0}'.format(self.myIncludesInstallPaths[0]), '-I{0}'.format(self.myIncludesInstallExtPaths[0]) ]
+			swigVarDir = join(self.myProjectBuildPathExpanded, 'swig')
+			swigSrcDir = join(self.myProjectPathName, 'swig')
+			swigEnv.VariantDir( swigVarDir, swigSrcDir )
 
-			# @todo SWIGCOMSTR
-			swigCppFiles = []
+			swigEnv['SWIGPATH'] = swigEnv['CPPPATH'] # project/include, local/include
+			swigEnv.Append(SWIGPATH = self.myIncludesInstallExtPaths[0]) # localExt/include
+			# for debug
+			# print 'SWIGPATH', swigEnv['SWIGPATH']
+			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot' ]
+			if swigEnv['printCmdLine'] != 'full':
+				swigEnv['SWIGCOMSTR'] = 'Processing swig file ${SOURCE.file}'
+
 			for file in swigFiles:
 				moduleName = extractModuleName(file)
 				if not moduleName:
 					raise SCons.Errors.UserError( "Unable to extract module name of swig file {}.".format(join(self.myProjectPathName, file)) )
 
-				swigPyFile = join(swigOutDir, moduleName+'.py')
-				swigPyFiles.append( swigPyFile )
+				# Creates shared library (_*[_d].pyd)
+				baseFilename = '_{moduleName}{configPostfix}'.format( moduleName=moduleName, configPostfix=configPostfix )
 
-				output = join(self.myProjectBuildPathExpanded, splitext(file)[0]+'_swig_cpp_wrap.cpp')
-				swigCppFiles.append( output )
+				installInBinTarget.append( File(join(swigVarDir, moduleName+'.py')) )
+				installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd')) )	
+				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd.manifest')) )	
+				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pdb')) )	
 
-				swigPydFiles.append( join(swigOutDir, '_{}{}.pyd'.format(moduleName, configPostfix)) )
-
-				tmp = swigEnv.Command( output, join(self.myProjectPathName, file), Action('$SWIG -o $TARGET ${_SWIGOUTDIR} ${_SWIGINCFLAGS} $SWIGFLAGS $SOURCES', printSwigCommand) )
+				pathFilenameSharedLibrary = '{outdir}{sep}{filename}'.format( outdir = swigVarDir, sep=os.sep, filename=baseFilename )
+				tmp = swigEnv.SharedLibrary( pathFilenameSharedLibrary, file.replace('swig', swigVarDir, 1), SHLIBSUFFIX='.pyd' )
+				swigEnv.Append( LIBS = objProject ) # link with the current project
 				swigTarget += tmp
-				swigEnv.SideEffect( swigPyFile, tmp )
-				Clean( self.myProject + '_build', swigPyFile )
-
-			# Creates shared library (_*[_d].pyd)
-			output = '{outdir}{sep}_{moduleName}{configPostfix}'.format( outdir = swigOutDir, sep=os.sep, moduleName=moduleName, configPostfix=configPostfix )
-			swigEnv.Append( LIBS = objProject )
-			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
-			swigTarget += swigEnv.SharedLibrary( output, swigCppFiles, SHLIBSUFFIX='.pyd' )
 		else:
 			swigTarget = None
-
-		#
-		for file in swigPyFiles + swigPydFiles:
-			installInBinTarget.append( File(file) )
-
+		
 		#
 		filesFromSrc = self.getFiles( 'src', lenv )
 
@@ -2421,7 +2414,7 @@ SConsBuildFramework options:
 		# installInIncludeTarget
 		installInIncludeTarget = filesFromInclude
 
-		#	install swig files
+		#	install swig files (i.e. *.i)
 		for swigFile in swigFiles:
 			src = join( self.myProjectPathName, swigFile )
 			dst = join( self.myInstallDirectory, 'include', swigFile.replace('swig', self.myProject, 1) )
