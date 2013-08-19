@@ -1228,7 +1228,7 @@ SConsBuildFramework options:
 		lenv['sbf_my_FullPostfix']		= self.my_FullPostfix
 
 		###
-		lenv.Append( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
+		lenv.Prepend( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
 
 		### expands myProjectBuildPathExpanded
 		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject, self.myVersion, self.myPlatform, self.myCCVersion, self.myConfig )
