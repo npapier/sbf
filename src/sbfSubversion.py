@@ -1050,7 +1050,7 @@ class Subversion( IVersionControlSystem ):
 		return False
 
 
-	def _export( self, url, path, revision ):
+	def _export( self, url, path, revision = None ):
 		svnExport = SvnExport( rootPath=path, statisticsObservers=[self.stats] )
 		if revision:
 			revisionNumber = svnExport( url, path, revision ) 
