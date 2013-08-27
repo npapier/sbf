@@ -17,7 +17,7 @@ import zipfile
 
 from os.path import basename, dirname, exists, join, splitext
 from sbfArchives import extractArchive
-from sbfFiles import createDirectory, removeDirectoryTree, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
+from sbfFiles import createDirectory, removeDirectoryTree, GlobRegEx, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
 from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
@@ -271,7 +271,9 @@ class PackagingSystem:
 					'execCmdInVCCmdPrompt'		: getLambdaForExecuteCommandInVCCommandPrompt(self.__myMSVCVARS32),
 
 					'buildDirectory'	: self.__mkPakGetBuildDirectory(),
-					'localExtDirectory' : self.__localExtPath
+					'localExtDirectory' : self.__localExtPath,
+
+					'GlobRegEx'			: GlobRegEx
 					}
 		return envDict
 
@@ -286,7 +288,8 @@ class PackagingSystem:
 		"""Retrieves the dictionary named 'descriptor' from the mkdb database for the desired package"""
 		localsFileDict = self.__getEnvironmentDict()
 		execfile( join(self.__mkdbGetDirectory(), pakName), globals(), localsFileDict )
-
+		#globalsFileDict = {}
+		#execfile( join(self.__mkdbGetDirectory(), pakName), globalsFileDict, localsFileDict )
 		return localsFileDict['descriptor']
 
 
@@ -309,15 +312,18 @@ class PackagingSystem:
 
 		# Computes directories
 		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
-		if self.__myConfig == 'debug':
-			configPostfix = '_D'
-		else:
-			configPostfix = ''
-		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + configPostfix + '/' # '/' is needed to specify directory to copy()
+		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectory = pakDescriptor['name'] + '-runtime' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryR = pakDescriptor['name'] + '-runtime-release' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
 
 		# Removes old directories
+# ???
 		removeDirectoryTree( extractionDirectory )
 		removeDirectoryTree( pakDirectory )
+		removeDirectoryTree( runtimePakDirectory )
+		removeDirectoryTree( runtimePakDirectoryR )
+		removeDirectoryTree( runtimePakDirectoryD )
 		print
 
 		# URLS (download and extract)
@@ -334,11 +340,19 @@ class PackagingSystem:
 				self.__vcs._export( url, join(extractionDirectory, project) )
 			print
 
-		import urllib
-		import urlparse
 
 		# URLS
-		for url in pakDescriptor.get('urls', []):
+		import urllib
+		import urlparse
+# ???
+#		for url in []:
+		for entry in pakDescriptor.get('urls', []):
+			if isinstance(entry, tuple):
+				(url, extractionSubDirectory ) = entry
+			else:
+				url = entry
+				extractionSubDirectory = ''
+
 			# Downloads
 			filename = rsearchFilename( urlparse.urlparse(url).path )
 
@@ -352,13 +366,10 @@ class PackagingSystem:
 			print
 
 			# Extracts
-			print ( '* Extracting %s in %s...' % (filename, extractionDirectory) )
-			try:
-				extractArchive( join('cache', filename), extractionDirectory )
-				print ( 'Done.\n' )
-			except Exception, e:
-				print ( 'Error encountered: %s\n' % (e) )
-				return
+			print ( '* Extracting %s in %s...' % (filename, join(extractionDirectory, extractionSubDirectory)) )
+			retVal = sevenZipExtract( join('cache', filename), join(extractionDirectory, extractionSubDirectory), verbose=False )
+			#print 'retVal', retVal, '\n'	# @todo retVal
+			print ( 'Done.\n' )
 
 		# BUILDS
 		import datetime
@@ -433,25 +444,16 @@ class PackagingSystem:
 				copy( include[0], join( 'include', include[1] ), sourceDir, pakDirectory )
 			else:
 				copy( include, 'include/', sourceDir, pakDirectory )
-		#else:
+		else:
 			print
 
 		# Copies lib files
 		for lib in pakDescriptor.get('lib', []):
 			if isinstance(lib, tuple):
 				copy( lib[0], join( 'lib', lib[1] ), sourceDir, pakDirectory )
-			else:		
-				copy( lib, 'lib/', sourceDir, pakDirectory )
-		#else:
-			print
-
-		# Copies bin files
-		for bin in pakDescriptor.get('bin', []):
-			if isinstance(bin , tuple):
-				copy( bin[0], join( 'bin', bin[1] ), sourceDir, pakDirectory )
 			else:
-				copy( bin, 'bin/', sourceDir, pakDirectory )
-		#else:
+				copy( lib, 'lib/', sourceDir, pakDirectory )
+		else:
 			print
 
 		# Copies custom files
@@ -459,7 +461,7 @@ class PackagingSystem:
 			if not isinstance(elt, tuple):
 				elt = (elt,elt)
 			copy( elt[0], elt[1], sourceDir, pakDirectory )
-		#else:
+		else:
 			print
 
 		# Creates zip
@@ -470,7 +472,50 @@ class PackagingSystem:
 		distutils.archive_util.make_zipfile( pakDirectory, pakDirectory, True )
 		print ('Done.\n')
 
-# @todo pprint
+
+
+		# CREATE A RUNTIME PACKAGE
+		def createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectory, binEntry, runtimeCustomEntry ):
+		#if (binEntry in pakDescriptor) or (runtimeCustomEntry in pakDescriptor):
+			print ('* Creates package {0}'.format(runtimePakDirectory[:-1]) )
+
+			# Creates directories
+			createDirectory( runtimePakDirectory )
+			print
+
+			# Copies bin files
+			for bin in pakDescriptor.get(binEntry, []):
+				if isinstance(bin , tuple):
+					copy( bin[0], join( 'bin', bin[1] ), sourceDir, runtimePakDirectory )
+				else:
+					copy( bin, 'bin/', sourceDir, runtimePakDirectory )
+			else:
+				print
+
+			# Copies custom files
+			for elt in pakDescriptor.get(runtimeCustomEntry, []):
+				if not isinstance(elt, tuple):
+					elt = (elt,elt)
+				copy( elt[0], elt[1], sourceDir, runtimePakDirectory )
+			else:
+				print
+
+			# Creates zip
+			runtimePakDirectory = runtimePakDirectory[:-1] # removes the last character '/'
+			pakFile = runtimePakDirectory + '.zip'
+			print ( '* Creates archive of package {0}'.format(pakFile) )
+			removeFile( pakFile )
+			distutils.archive_util.make_zipfile( runtimePakDirectory, runtimePakDirectory, True )
+			print ('Done.\n')
+
+		# RUNTIME PACKAGE
+		createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectory, 'bin', 'runtimeCustom' )
+
+		# RUNTIME PACKAGE (in release)
+		createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectoryR, 'binR', 'runtimeCustomR' )
+
+		# RUNTIME PACKAGE (in debug)
+		createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectoryD, 'binD', 'runtimeCustomD' )
 
 		# Restores old current working directory
 		os.chdir( backupCWD )
