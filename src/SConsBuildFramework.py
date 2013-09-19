@@ -515,6 +515,7 @@ class SConsBuildFramework :
 	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe).
 	myMSVCVARS32					= ''			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
 	myMSVC							= ''			# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+	myMSBuild						= ''			# location of msbuild.exe (i.e. C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe)
 	my_Platform_myCCVersion			= ''
 
 
@@ -862,17 +863,21 @@ class SConsBuildFramework :
 				self.myCCVersion += 'Exp'
 			self.myEnv['CCVERSION'] = self.myCCVersion
 
-			self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
+			if self.myCCVersionNumber >= 11.0:
+				self.myMSVSIDE = self.myEnv.WhereIs( 'WDExpress' )
+			else:
+				self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
 			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
 			# Assuming that the parent directory of cl.exe is the root directory of MSVC (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
-			self.myMSVC = os.path.dirname( self.myEnv.WhereIs( 'cl.exe' ) )
+			self.myMSVC = dirname( self.myEnv.WhereIs( 'cl.exe' ) )
+			self.myMSBuild = self.myEnv.WhereIs( 'msbuild.exe' )
 
 			if self.myEnv.GetOption('verbosity'):
 				print 'Visual C++ version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
 				if self.myMSVSIDE and len(self.myMSVSIDE)>0:
-					print ("Found VCExpress.exe in '{0}'.".format(self.myMSVSIDE))
+					print ("Found {0} in '{1}'.".format(basename(self.myMSVSIDE), self.myMSVSIDE))
 				else:
-					print ('VCExpress.exe not found.')
+					print ('Visual C++ IDE (VCExpress.exe or WDExpress.exe) not found.')
 
 				if self.myMSVCVARS32 and len(self.myMSVCVARS32)>0:
 					print ("Found vcvars32.bat in '{0}'.".format(self.myMSVCVARS32))
@@ -884,6 +889,10 @@ class SConsBuildFramework :
 				else:
 					print ('MSVC not found.')
 
+				if self.myMSBuild and len(self.myMSBuild)>0:
+					print ("Found MSBuild in '{0}'.".format(self.myMSBuild))
+				else:
+					print ('MSBuild not found.')
 
 		elif self.myEnv['CC'] == 'gcc' :
 			# Sets compiler
@@ -1288,7 +1297,7 @@ SConsBuildFramework options:
 
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
-							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', 'highest' ),
+							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', 'highest' ),
 							map={
 									'2003'		: '7.1',
 									'2005Exp'	: '8.0Exp',
@@ -1296,7 +1305,9 @@ SConsBuildFramework options:
 									'2008Exp'	: '9.0Exp',
 									'2008'		: '9.0',
 									'2010Exp'	: '10.0Exp',
-									'2010'		: '10.0'
+									'2010'		: '10.0',
+									'2012Exp'	: '11.0Exp',
+									'2012'		: '11.0'
 									} ),
 
 			('installPath', "The given path would be used as a destination path for target named 'install'. This directory is similar to unix '/usr/local'. It is also the basis of localExt directory (ex: localExt_win32_cl10-0Exp ).", '$SCONS_BUILD_FRAMEWORK/../local'),
@@ -1416,6 +1427,7 @@ SConsBuildFramework options:
 	###### Reads a configuration file for a project ######
 	###### Updates environment (self.myProjectOptions and lenv are modified).
 	# Returns true if config file exists, false otherwise.
+	# @todo error reporting in the function (remove error reporting from caller).
 	def readProjectOptionsAndUpdateEnv( self, lenv, configDotOptionsFile = 'default.options' ):
 		configDotOptionsPathFile = join(self.myProjectPathName, configDotOptionsFile)
 		retVal = os.path.isfile(configDotOptionsPathFile)
@@ -1477,7 +1489,7 @@ SConsBuildFramework options:
 	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
 		# Assumes cl compiler has been selected
 		if self.myCC != 'cl':
-			raise SCons.Errors.UserError( "Unexpected compiler %s on Windows platform." % self.myCC )
+			raise SCons.Errors.UserError( "Unexpected compiler {} on Windows platform.".format(self.myCC) )
 
 		# TMP and tmp environment variables
 		if self.myEnv.GetOption('verbosity') and self.myPlatform == 'win32':
@@ -1509,82 +1521,6 @@ SConsBuildFramework options:
 		if self.myCCVersionNumber >= 8.000000 :
 			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
 
-		# @todo CL10, CL9, CL8 classes to configure env and/or retrieves the whole configuration. Idem for gcc...
-		if self.myCCVersionNumber >= 10.000000:
-			# Configures Microsoft Visual C++ 2010
-			# @todo FIXME should be done by SCons...
-			visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\include'
-			visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\lib'
-			msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Include'
-			msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Lib'
-
-			#visualInclude	= 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\include'
-			#visualLib		= 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\lib'
-			#msSDKInclude	= 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\Include'
-			#msSDKLib		= 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\Lib'
-
-			if self.myIsExpressEdition:
-				# at least for rc.exe
-				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
-				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.0A\\bin' )
-
-				if lenv.GetOption('weak_localext'):
-					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
-				else:
-					lenv.Append( CPPPATH = [visualInclude, msSDKInclude] )
-
-				lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % msSDKInclude )
-
-				lenv.Append( LIBPATH = [visualLib, msSDKLib] )
-
-
-		elif self.myCCVersionNumber >= 9.000000:
-			pass
-			# Configures Microsoft Visual C++ 2008
-			# @todo FIXME should be done by SCons...
-			#visualInclude	= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\INCLUDE'
-			#visualLib		= 'C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\LIB'
-			#msSDKInclude	= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\include'
-			#msSDKLib		= 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\lib'
-
-			visualInclude	= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\include'
-			visualLib		= 'D:\\Program Files (x86)\\Microsoft Visual Studio 9.0\\VC\\lib'
-			msSDKInclude	= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Include'
-			msSDKLib		= 'D:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\Lib'
-
-			if self.myIsExpressEdition:
-				# at least for rc.exe
-				#lenv.AppendENVPath( 'PATH', 'C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
-				#lenv.AppendENVPath( 'PATH', 'D:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v6.0A\\bin' )
-
-				if lenv.GetOption('weak_localext'):
-					lenv.Append( CCFLAGS = ['${INCPREFIX}%s' % visualInclude, '${INCPREFIX}%s' % msSDKInclude] )
-				else:
-					lenv.Append( CPPPATH = [visualInclude, msSDKInclude] )
-
-				lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % msSDKInclude )
-
-				lenv.Append( LIBPATH = [visualLib, msSDKLib] )
-
-
-		elif self.myCCVersionNumber >= 8.000000:
-			pass
-			# Configures Microsoft Platform SDK for Windows Server 2003 R2
-			# @todo FIXME should be done by SCons...
-			#psdkInclude	= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Include'
-			#psdkLib		= 'C:\\Program Files\\Microsoft Platform SDK for Windows Server 2003 R2\\Lib'
-
-			#if self.myIsExpressEdition:
-			#	if lenv.GetOption('weak_localext'):
-			#		lenv.Append( CCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
-			#	else:
-			#		lenv.Append( CPPPATH = psdkInclude )
-
-			#	lenv.Append( RCFLAGS = '"${INCPREFIX}%s"' % psdkInclude )
-
-			#	lenv.Append( LIBPATH = psdkLib )
-
-
 		#
 		if self.myCCVersionNumber >= 10.000000 :
 			lenv.Append( LINKFLAGS = '/MANIFEST' )
@@ -1608,7 +1544,7 @@ SConsBuildFramework options:
 		# Defines
 		lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
 		# bullet uses _CRT_SECURE_NO_WARNINGS,_CRT_SECURE_NO_DEPRECATE,_SCL_SECURE_NO_WARNINGS
-		#lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
+		lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
 
 		#lenv.Append( CXXFLAGS = ['/D_BIND_TO_CURRENT_VCLIBS_VERSION=1'] )
 		#lenv.Append( CXXFLAGS = ['/MP{0}'.format(self.myNumJobs)] )
@@ -2242,9 +2178,9 @@ SConsBuildFramework options:
 				baseFilename = '_{moduleName}{configPostfix}'.format( moduleName=moduleName, configPostfix=configPostfix )
 
 				installInBinTarget.append( File(join(swigVarDir, moduleName+'.py')) )
-				installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd')) )	
-				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd.manifest')) )	
-				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pdb')) )	
+				installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd')) )
+				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd.manifest')) )
+				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pdb')) )
 
 				pathFilenameSharedLibrary = '{outdir}{sep}{filename}'.format( outdir = swigVarDir, sep=os.sep, filename=baseFilename )
 				tmp = swigEnv.SharedLibrary( pathFilenameSharedLibrary, file.replace('swig', swigVarDir, 1), SHLIBSUFFIX='.pyd' )

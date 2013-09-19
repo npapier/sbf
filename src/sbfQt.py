@@ -40,3 +40,19 @@ def moc( lenv, filesForMoc, objFiles ):
 		objFiles += lenv.Command( outputFile, inputFile,
 			Action( [['moc', '-o', '${TARGETS[0]}', '$SOURCE']] ) )
 
+# Mkpak
+def getQMakePlatform( ccVersionNumber ):
+	"""Helper for mkpak."""
+
+	qmakeGenerator = {
+		8	: 'win32-msvc2005',
+		9	: 'win32-msvc2008',
+		10	: 'win32-msvc2010',
+		11	: 'win32-msvc2012',
+		}
+	if ccVersionNumber in qmakeGenerator:
+		return qmakeGenerator[ccVersionNumber]
+	else:
+		print >>sys.stderr, "Wrong MSVC version. ."
+		print ('Given unsupported MSVC version {}. \nVersion 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required.'.format(ccVersionNumber))
+		exit(1)
