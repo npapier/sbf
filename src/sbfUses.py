@@ -706,7 +706,10 @@ class Use_gtest( IUse ):
 		return [ '446', '445' ]
 
 	def getCPPDEFINES( self, version ):
-		return ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
+		defines = ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
+		if self.ccVersionNumber >= 11.0000:
+			defines.append( ('_VARIADIC_MAX', 10) )
+		return defines
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
@@ -727,6 +730,12 @@ class Use_gtest( IUse ):
 		else:
 			libs = ['gtest']
 			return libs, []
+
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '446':
+			return True
+		else:
+			return False
 
 
 class Use_openassetimport( IUse ):
