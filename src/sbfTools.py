@@ -97,6 +97,7 @@ def locateProgramUsingRegistry( programName ):
 	}
 
 	actionMap = {
+		'cmake'			: appendBin,
 		'cygpath'		: appendBin,
 		'doxygen'		: appendBin,
 		'graphviz'		: appendBin,
