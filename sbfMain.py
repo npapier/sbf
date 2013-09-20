@@ -246,9 +246,9 @@ def sbfCheck( env ):
 	# CMake
 	cmakeLocation = locateProgram( 'cmake' )
 	if len(cmakeLocation)>0:
-		print ( 'cmake found at {}\\bin'.format(cmakeLocation) )
+		print ( 'cmake found at {}'.format(cmakeLocation) )
 		sys.stdout.flush()
-		print execute( ['bin/cmake', '--version'], cmakeLocation )
+		print execute( ['cmake', '--version'], cmakeLocation )
 	else:
 		print ( 'cmake not found' )
 	print
