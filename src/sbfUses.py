@@ -1103,8 +1103,8 @@ class Use_sofaQt( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		path = os.path.join( sofaConfig.getBasePath(), 'lib' )
-		return [path], [path]
+		path = join( sofaConfig.getBasePath(), 'cmake_vc{}'.format(int(self.ccVersionNumber)) )
+		return [join(path,'lib')], [join(path,'bin')]
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
