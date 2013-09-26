@@ -189,8 +189,8 @@ class PackagingSystem:
 
 		self.__vcs						= sbf.myVcs
 
-		self.__localPath				= sbf.myInstallPaths[0]
-		self.__localExtPath				= self.__localPath + 'Ext' + sbf.my_Platform_myCCVersion
+		self.__localPath				= sbf.myInstallDirectory
+		self.__localExtPath				= sbf.myInstallExtPaths[0]
 		self.__pakPaths 				= [ self.__mkPakGetDirectory(), join(self.__localPath, '..', 'sbfPak') ]
 		self.__pakPaths.extend( sbf.myEnv['pakPaths'] )
 
@@ -540,7 +540,7 @@ class PackagingSystem:
 		oRelDirectories = []
 		oRelFiles = []
 		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
-		print oPakInfo['name'].ljust(30), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
+		print oPakInfo['name'].ljust(34), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
 
 	def isInstalled( self, packageName ):
 		sbfpakDir = self.getLocalExtSbfPakDBPath()

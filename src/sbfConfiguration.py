@@ -77,7 +77,7 @@ def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):
 
 
 def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = False, verbose = True ):
-	deprecated = [join( sbf.myInstallPaths[0], 'lib' )]
+	deprecated = [join( sbf.myInstallDirectory, 'lib' )]
 	toRemove = getPathsForRuntime(sbf) + deprecated
 	if takeCareOfSofa:
 		toRemove = toRemove + getPathsForSofa(True)

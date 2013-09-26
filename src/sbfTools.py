@@ -178,8 +178,7 @@ def getPathsForTools( verbose = False ):
 
 
 def getPathsForRuntime( sbf ):
-	return [	join( sbf.myInstallPaths[0], 'bin' ),
-				#join( sbf.myInstallPaths[0], 'lib' ),
+	return [	join( sbf.myInstallDirectory, 'bin' ),
 				join( sbf.myInstallExtPaths[0], 'bin' ),
 				join( sbf.myInstallExtPaths[0], 'lib' ) ]
 

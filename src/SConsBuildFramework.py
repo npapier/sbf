@@ -298,7 +298,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 				raise SCons.Errors.UserError( '{0} {1} is installed, but {2} is needed.'.format(useName, oPakInfo['version'], useVersion))
 			if lenv.GetOption('verbosity'):	print ( 'Collecting all files found in installed package {0} {1}'.format(oPakInfo['name'], oPakInfo['version']) )
 			for relFile in oRelFiles:
-				absFile = join( lenv.sbf.myInstallPaths[0], relFile )
+				absFile = join( lenv.sbf.myInstallDirectory, relFile )
 				depsFiles.append( (absFile, relFile) )
 		else:
 			# not installed
@@ -526,7 +526,7 @@ class SConsBuildFramework :
 	mySvnUrls						= {}
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
-	myInstallPaths					= []
+	myInstallPath					= ''
 	myPublishPath					= ''
 	myBuildPath						= ''
 	mySConsignFilePath				= None
@@ -1091,12 +1091,13 @@ SConsBuildFramework options:
 		self.mySvnCheckoutExclude	= lenv['svnCheckoutExclude']
 		self.mySvnUpdateExclude		= lenv['svnUpdateExclude']
 
-		# Updates myInstallPaths, myInstallExtPaths and myInstallDirectory
-		self.myInstallPaths = [ getNormalizedPathname( lenv['installPath'] ) ]
-		self.myInstallExtPaths = [self.myInstallPaths[0] + 'Ext' + self.my_Platform_myCCVersion]
+		# Updates myInstallPath, myInstallExtPaths and myInstallDirectory
+		self.myInstallPath = getNormalizedPathname( lenv['installPath'] )
+		self.myInstallExtPaths = [self.myInstallPath + 'Ext' + self.my_Platform_myCCVersion]
 
-		if ( len(self.myInstallPaths) >= 1 ):
-			self.myInstallDirectory	= self.myInstallPaths[0]
+		if ( len(self.myInstallPath) > 0 ):
+			self.myInstallPath += self.my_Platform_myCCVersion
+			self.myInstallDirectory = self.myInstallPath
 			if not os.path.exists(self.myInstallDirectory):
 				print ( 'Creates directory : {0}'.format(self.myInstallDirectory) )
 				os.makedirs( self.myInstallDirectory )
@@ -1149,13 +1150,13 @@ SConsBuildFramework options:
 			self.myPostfixLinkedToMyConfig = ''
 			self.my_PostfixLinkedToMyConfig = ''
 
-		### use myInstallPaths and myInstallExtPaths to update myIncludesInstallPaths, myLibInstallPaths,
+		### use myInstallPath and myInstallExtPaths to update myIncludesInstallPaths, myLibInstallPaths,
 		### myIncludesInstallExtPaths, myLibInstallExtPaths, myGlobalCppPath and myGlobalLibPath
-		for element in self.myInstallPaths :
-			self.myIncludesInstallPaths	+=	[ os.path.join(element, 'include') ]
-			self.myLibInstallPaths		+=	[ os.path.join(element, 'bin') ]
+		self.myIncludesInstallPaths	+=	[ os.path.join(self.myInstallPath, 'include') ]
+		#self.myLibInstallPaths		+=	[ os.path.join(element, 'lib') ]
+		self.myLibInstallPaths		+=	[ os.path.join(self.myInstallPath, 'bin') ]
 
-		for element in self.myInstallExtPaths :
+		for element in self.myInstallExtPaths:
 			self.myIncludesInstallExtPaths	+=	[ os.path.join(element, 'include') ]
 			self.myLibInstallExtPaths		+=	[ os.path.join(element, 'lib') ]
 
@@ -2174,6 +2175,9 @@ SConsBuildFramework options:
 				moduleName = extractModuleName(file)
 				if not moduleName:
 					raise SCons.Errors.UserError( "Unable to extract module name of swig file {}.".format(join(self.myProjectPathName, file)) )
+					#print ("Ignore swig file {}.".format(join(self.myProjectPathName, file)) )
+					#continue
+
 
 				# Creates shared library (_*[_d].pyd)
 				baseFilename = '_{moduleName}{configPostfix}'.format( moduleName=moduleName, configPostfix=configPostfix )
