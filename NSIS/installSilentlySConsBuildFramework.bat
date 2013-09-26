@@ -1,1 +1,0 @@
-start "SBF installation" /WAIT "SConsBuildFramework_0-13-0-2_setup.exe" /S

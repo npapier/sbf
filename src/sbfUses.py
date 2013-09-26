@@ -120,7 +120,7 @@ class IUse :
 	def getPackageType( self ):
 		"""	None			(no package, i.e. installed in the system (opengl), without files (gtkmmext), include in another package (glibmm in gtkmm))
 			NoneAndNormal	(no package (like None), but getLIBS() and getLicenses() must be redistributed. Example: sofa)
-			Normal			(indicate that this 'uses' is provided by an sbf package, that getLIBS() must be redistributed and that licenses files from package must be redistributed too.)."""
+			Normal			(indicate that this 'uses' is provided by a sbf package, that getLIBS() must be redistributed and that licenses files from package must be redistributed too.)."""
 		return 'Normal'
 
 	def getDbg( self, version ):
@@ -254,7 +254,7 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
+		return [ '1-48-0', '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'win32':
@@ -350,7 +350,10 @@ class Use_boost( IUse ):
 			return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		return version == '1-54-0'
+		if version == '1-54-0':
+			return True
+		else:
+			return False
 
 
 class Use_bullet( IUse ):
@@ -370,7 +373,7 @@ class Use_bullet( IUse ):
 class Use_cityhash( IUse ):
 	def getName( self ):
 		return 'cityhash'
-
+		
 	def getVersions( self ):
 		return ['1-1-0']
 
@@ -381,11 +384,6 @@ class Use_cityhash( IUse ):
 		else:
 			return [lib+'_D'], []
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-1-0':
-			return True
-		else:
-			return False
 
 
 class Use_colladadom( IUse ):
@@ -423,6 +421,20 @@ class Use_colladadom( IUse ):
 				return libs, libs
 
 
+class Use_ffmpeg( IUse ):
+	def getName( self ):
+		return 'ffmpeg'
+
+	def getVersions( self ):
+		return [ '16537' ]
+
+
+	def getLIBS( self, version ):
+		libs = [ 'avcodec-52', 'avdevice-52', 'avformat-52', 'avutil-49', 'swscale-0' ]
+		#libs = [ 'avcodec-52', 'avformat-52', 'avutil-49' ]
+		if self.platform == 'win32':
+			return libs, libs
+
 
 class Use_gstFFmpeg( IUse ):
 	def getName( self ):
@@ -440,12 +452,6 @@ class Use_gstFFmpeg( IUse ):
 					'libbz2', 'z' ]
 		if self.platform == 'win32':
 			return libs, pakLibs
-
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '0-10-9':
-			return True
-		else:
-			return False
 
 
 
@@ -583,12 +589,6 @@ class Use_sdl( IUse ):
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-2-14':
-			return True
-		else:
-			return False
-
 
 class Use_sdlMixer( IUse ):
 	def getName( self ):
@@ -596,7 +596,7 @@ class Use_sdlMixer( IUse ):
 
 	def getVersions( self ):
 		return ['1-2-11']
-
+		
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'posix' :
 			return [ ('_GNU_SOURCE',1), '_REENTRANT' ]
@@ -624,12 +624,6 @@ class Use_sdlMixer( IUse ):
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-2-11':
-			return True
-		else:
-			return False
-
 
 class Use_glew( IUse ):
 	def getName( self ):
@@ -641,12 +635,6 @@ class Use_glew( IUse ):
 	def getLIBS( self, version ):
 		libs = ['glew32']
 		return libs, libs
-
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-9-0':
-			return True
-		else:
-			return False
 
 
 class Use_glu( IUse ):
@@ -673,7 +661,7 @@ class Use_glm( IUse ):
 		return 'glm'
 
 	def getVersions( self ):
-		return [ '0-9-4-1', '0-9-3-4', '0-9-3-3', '0-8-4-1' ]
+		return [ '0-9-3-3', '0-8-4-1' ]
 
 
 class Use_glut( IUse ):
@@ -691,12 +679,6 @@ class Use_glut( IUse ):
 			libs = ['glut']
 			return libs, libs
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '3-7':
-			return True
-		else:
-			return False
-
 
 class Use_gtest( IUse ):
 	def getName(self ):
@@ -706,10 +688,7 @@ class Use_gtest( IUse ):
 		return [ '446', '445' ]
 
 	def getCPPDEFINES( self, version ):
-		defines = ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
-		if self.ccVersionNumber >= 11.0000:
-			defines.append( ('_VARIADIC_MAX', 10) )
-		return defines
+		return ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
@@ -731,19 +710,13 @@ class Use_gtest( IUse ):
 			libs = ['gtest']
 			return libs, []
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '446':
-			return True
-		else:
-			return False
-
 
 class Use_openassetimport( IUse ):
 	def getName( self ):
 		return 'openassetimport'
 
 	def getVersions( self ):
-		return ['3-0-2', '3-0-1', '3-0']
+		return ['3-0-1', '3-0']
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
@@ -751,9 +724,6 @@ class Use_openassetimport( IUse ):
 				return ['assimp'], ['assimp']
 			else:
 				return ['assimpD'], ['assimpD']
-
-	def hasRuntimePackage( self, version ):
-		return version == '3-0-2'
 
 
 class Use_opencollada( IUse ):
@@ -800,6 +770,7 @@ class Use_opencollada( IUse ):
 
 
 
+# @todo package python into a localExt
 class Use_python( IUse ):
 	def getName( self ):
 		return 'python'
@@ -819,9 +790,12 @@ class Use_python( IUse ):
 			libs = ['python27_d']
 		return libs, []
 
+	#def getLIBPATH( self, version ):
+	#	path = [ os.path.join( self.getBasePath(), 'libs' ) ]
+	#	return path, []
+
 	def hasRuntimePackage( self, version ):
 		return True
-
 
 
 class Use_physfs( IUse ):
@@ -830,6 +804,9 @@ class Use_physfs( IUse ):
 
 	def getVersions( self ):
 		return [ '2-0-2', '2-0-1' ]
+
+	def getCPPDEFINES( self, version ):
+		return []
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32':
@@ -843,11 +820,6 @@ class Use_physfs( IUse ):
 			libs = ['physfs']
 			return libs, []
 
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber == 11.0 and version == '2-0-2':
-			return True
-		else:
-			return False
 
 class Use_qt( IUse ):
 	cppModules = ['QtCore', 'QtGui']
@@ -858,10 +830,10 @@ class Use_qt( IUse ):
 		return 'qt'
 
 	def getVersions( self ):
-		return ['4-8-5']
+		return ['4-8-1']
 
 	def getCPPDEFINES( self, version ):
-		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_DLL', 'QT_THREAD_SUPPORT' ] # no more needed for 4.8.5: QT_LARGEFILE_SUPPORT
+		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_DLL', 'QT_LARGEFILE_SUPPORT', 'QT_THREAD_SUPPORT' ]
 		cppDefines += [ 'QT_HAVE_MMX', 'QT_HAVE_3DNOW', 'QT_HAVE_SSE', 'QT_HAVE_MMXEXT', 'QT_HAVE_SSE2']
 		cppDefines += [ 'QT_CORE_LIB', 'QT_GUI_LIB' ]
 		if self.config == 'release':
@@ -877,12 +849,15 @@ class Use_qt( IUse ):
 		if self.platform == 'win32':
 			if self.config == 'release':
 				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
 			else:
 				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
-			return libs, []
+				pakLibs = libs
+				return libs, pakLibs
 
-	def hasRuntimePackage( self, version ):
-		return True
+	def getPackageType( self ):
+		return 'Normal'
 
 
 class Use_qt3support( IUse ):
@@ -896,7 +871,7 @@ class Use_qt3support( IUse ):
 		return 'qt3support'
 
 	def getVersions( self ):
-		return ['4-8-5']
+		return ['4-8-1']
 
 	def getCPPDEFINES( self, version ):
 		cppDefines = [ 'QT_QT3SUPPORT_LIB', 'QT3_SUPPORT' ]
@@ -909,14 +884,15 @@ class Use_qt3support( IUse ):
 		if self.platform == 'win32':
 			if self.config == 'release':
 				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+				pakLibs = libs
+				return libs, pakLibs
 			else:
 				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
-			return libs, []
+				pakLibs = libs
+				return libs, pakLibs
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
-
-
 
 
 class Use_scintilla( IUse ):
@@ -924,7 +900,7 @@ class Use_scintilla( IUse ):
 		return 'scintilla'
 
 	def getVersions( self ):
-		return [ '3-2-4', '3-2-3', '3-2-0']
+		return [ '3-2-0']
 
 	def getCPPPATH( self, version ):
 		return ['Scintilla']
@@ -937,9 +913,6 @@ class Use_scintilla( IUse ):
 			else:
 				libs = ['ScintillaEditd3']
 				return libs, libs
-
-	def hasRuntimePackage( self, version ):
-		return version == '3-2-4'
 
 
 # @todo SOFA_PATH, SOFA_PLUGINS documentation
@@ -956,8 +929,11 @@ class Use_sofa( IUse, sofaConfig ):
 		return ['glew 1-9-0', 'glut 3-7']
 
 	def getCPPDEFINES( self, version ):
-		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
-		definesList += ['SOFA_HAVE_GLEW']
+		definesList = ['SOFA_DOUBLE', 'SOFA_DEV', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
+		
+		if int(version) < 11877:
+			# sofa public revision number (used in trunk)
+			definesList += ['SOFA_HAVE_GLEW']
 
 		pluginsList = sofaConfig.getPluginsList()
 		if pluginsList:
@@ -980,6 +956,7 @@ class Use_sofa( IUse, sofaConfig ):
 					os.path.join(sofaConfig.getBasePath(), 'modules'),
 					os.path.join(sofaConfig.getBasePath(), 'framework'),
 					os.path.join(sofaConfig.getBasePath(), 'include'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/taucs_mt/src'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/tinyxml'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
@@ -993,24 +970,36 @@ class Use_sofa( IUse, sofaConfig ):
 			libs = []
 			pakLibs = []
 
-			libsBoth = [  'SofaBaseCollision', 'SofaBaseLinearSolver', 'SofaBaseMechanics', 'SofaBaseTopology', 'sofaBaseVisual'
-						, 'SofaBoundaryCondition', 'SofaConstraint', 'SofaCore', 'SofaDefaultType', 'SofaDeformable', 'SofaEngine', 'SofaExplicitOdeSolver'
-						, 'SofaGraphComponent', 'SofaHaptics', 'SofaImplicitOdeSolver', 'SofaLoader', 'SofaMeshCollision', 'SofaMiscCollision', 'SofaMiscMapping'
-						, 'SofaObjectInteraction', 'SofaRigid', 'SofaSimpleFem', 'SofaSphFluid', 'SofaTopologyMapping', 'SofaUserInteraction', 'SofaVolumetricData'
-						, 'SofaHelper', 'SofaGuiCommon', 'SofaSimulationCommon', 'SofaSimulationTree' ]
+			libsBoth = [  'sofa_base_collision', 'sofa_base_linear_solver', 'sofa_base_mechanics', 'sofa_base_topology', 'sofa_base_visual'
+						, 'sofa_boundary_condition', 'sofa_constraint', 'sofacore', 'sofadefaulttype', 'sofa_deformable', 'sofa_engine', 'sofa_explicit_ode_solver'
+						, 'sofa_graph_component', 'sofa_haptics', 'sofa_implicit_ode_solver', 'sofa_loader', 'sofa_mesh_collision', 'sofa_misc_collision', 'sofa_misc_mapping'
+						, 'sofa_object_interaction', 'sofa_rigid', 'sofa_simple_fem', 'sofa_sph_fluid', 'sofa_taucs_solver', 'sofa_topology_mapping', 'sofa_user_interaction', 'sofa_volumetric_data'
+						, 'sofahelper', 'sofagui', 'sofasimulation', 'sofatree' ]
 
-			# sofa public revision number (used in trunk)
-			libsBoth += [	'SofaBaseAnimationLoop', 'SofaComponentCommon', 'SofaComponentBase', 'SofaComponentMain', 'SofaComponentGeneral',
-							'SofaComponentAdvanced', 'SofaComponentMisc', 'SofaDenseSolver', 'SofaEulerianFluid', 'SofaExporter',
-							'SofaNonUniformFem', 'SofaOpenglVisual', 'SofaMisc', 'SofaMiscEngine', 'SofaMiscFem', 'SofaMiscForcefield', 'SofaMiscSolver', 'SofaMiscTopology', 
-							'SofaPreconditioner', 'SofaValidation' ]
+			if int(version) > 11876:
+				# sofa_dev revision number (used in branch)
+				libsBoth += [  'sofa_advanced_interaction', 'sofa_advanced_constraint', 'sofa_misc_collision_dev', 'sofabgl' ]
+			else:
+				# sofa public revision number (used in trunk)
+				libsBoth += [  'SofaAdvancedInteraction', 'SofaAdvancedConstraint', 'SofaMiscCollisionDev' ]
+						
+			if int(version) < 11877:
+				# sofa public revision number (used in trunk)
+				libsBoth += [	'sofa_base_animation_loop', 'sofa_component', 'sofa_component_base', 'sofa_component_common', 'sofa_component_general',
+								'sofa_component_advanced', 'sofa_component_misc', 'sofa_dense_solver', 'sofa_eulerian_fluid', 'sofa_exporter',
+								'sofa_non_uniform_fem', 'sofa_opengl_visual', 'sofa_misc', 'sofa_misc_engine', 'sofa_misc_fem', 'sofa_misc_forcefield', 'sofa_misc_solver', 'sofa_misc_topology', 
+								'sofa_preconditioner', 'sofa_validation' ]
 
 			# optional plugins (sofa-dt)
 			libsBoth += sofaConfig.getPluginsList()
 
 			#
-			staticLibs = ['FlowVR', 'newmat']
-			libsBoth += ['tinyxml']
+			staticLibs = ['miniFlowVR', 'newmat', 'taucs_mt']
+			if int(version) < 11877:
+				# sofa public revision number (used in trunk)
+				libsBoth += ['tinyxml']
+			else:
+				staticLibs += ['tinyxml']
 
 			if self.config == 'release':
 				sofaVersion = '_1_0'
@@ -1034,8 +1023,8 @@ class Use_sofa( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		path = join( sofaConfig.getBasePath(), 'cmake_vc{}'.format(int(self.ccVersionNumber)) )
-		return [join(path,'lib')], [join(path,'bin')]
+		path = os.path.join( sofaConfig.getBasePath(), 'lib' )
+		return [path], [path]
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
@@ -1085,7 +1074,7 @@ class Use_sofaQt( IUse, sofaConfig ):
 			pakLibs = []
 
 			# Adds sofa libraries needed by qt
-			libsBoth = [ 'qwt', 'sofaguiqt' ]
+			libsBoth = [ 'qwt', 'QGLViewer', 'sofaguiqt' ]
 
 			if self.config == 'release':
 				sofaVersion = '_1_0'
@@ -1103,8 +1092,8 @@ class Use_sofaQt( IUse, sofaConfig ):
 			return libs, pakLibs
 
 	def getLIBPATH( self, version ):
-		path = join( sofaConfig.getBasePath(), 'cmake_vc{}'.format(int(self.ccVersionNumber)) )
-		return [join(path,'lib')], [join(path,'bin')]
+		path = os.path.join( sofaConfig.getBasePath(), 'lib' )
+		return [path], [path]
 
 	def getPackageType( self ):
 		return 'NoneAndNormal'
@@ -1138,9 +1127,6 @@ class Use_swig( IUse ):
 	def getVersions( self ):
 		return ['2-0-10']
 
-	def hasRuntimePackage( self, version ):
-		return True
-
 
 class Use_swigShp( Use_swig ):
 	def getName( self ):
@@ -1158,12 +1144,6 @@ class Use_usb2brd( IUse ):
 		if self.platform == 'win32':
 			libs = ['usb2brd']
 			return libs, []
-
-	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-0-15':
-			return True
-		else:
-			return False
 
 
 #@todo Adds support to both ANSI and Unicode version of wx
@@ -1276,7 +1256,7 @@ class UseRepository :
 
 	@classmethod
 	def getAll( self ):
-		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
+		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_ffmpeg(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
 					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
 					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_swigShp(), Use_usb2brd(), Use_wxWidgets(),
 					Use_wxWidgetsGL() ]
@@ -1395,7 +1375,7 @@ def usesConverter( val ) :
 			result.append( alias[value] )
 		else :
 			# Appends to result
-			result.append( value.lower() )
+			result.append( value )
 
 	return result
 
@@ -1619,9 +1599,7 @@ class Use_sigcpp( IUse ):
 			if version == '2-2-8':
 				if self.config == 'release' :
 					# RELEASE
-					if self.cc == 'cl' and self.ccVersionNumber >= 11.0000 :
-						libs = [ 'sigc-vc110-2_0' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
 						libs = [ 'sigc-vc100-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs = [ 'sigc-vc90-2_0' ]
@@ -1629,9 +1607,7 @@ class Use_sigcpp( IUse ):
 						libs = [ 'sigc-vc80-2_0' ]
 				else:
 					# DEBUG
-					if self.cc == 'cl' and self.ccVersionNumber >= 11.0000 :
-						libs = [ 'sigc-vc110-d-2_0' ]
-					elif self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
+					if self.cc == 'cl' and self.ccVersionNumber >= 10.0000 :
 						libs = [ 'sigc-vc100-d-2_0' ]
 					elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 						libs = [ 'sigc-vc90-d-2_0' ]

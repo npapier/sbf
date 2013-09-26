@@ -25,7 +25,7 @@ struct Package;
 /**
  * @brief	Base class for components of the system of packages and modules.
  */
-struct Component
+struct SBF_API Component
 {
 	typedef std::vector< std::string >	TagContainer;
 
@@ -33,28 +33,28 @@ struct Component
 	 * @name Properties
 	 */
 	//@{
-	SBF_API const std::string getDescription() const;		///< Retrieves the module description text.
-	SBF_API const std::string getLabel() const;				///< Retrieves the module label.
-	SBF_API const std::string getName() const;			///< Retrieves the name of the package.
-	SBF_API const std::string getNameAndVersion() const;	///< Retrieves the name and version string of the package.
-	SBF_API const TagContainer getTags() const;				///< Retrieves the module tags.
-	SBF_API const std::string getTagsString() const;		///< Retrieves the module tags in a string.
-	SBF_API const boost::shared_ptr< Package > getParent() const;						///< Retrieves the parent package (returns null if none).
-	SBF_API const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the path owned by the component for the given type.
-	SBF_API const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the path owned by the component for the given type and ensures that the path exists.
-	SBF_API const boost::filesystem::path getRootPath() const;	///< Retrieves the root path for the component.
-	SBF_API const std::string & getVersion() const;				///< Retrieves the version of the package.
-	SBF_API const bool hasTag( const std::string & tag ) const;	///< Tells if the module has the given tag.
+	const std::string getDescription() const;		///< Retrieves the module description text.
+	const std::string getLabel() const;				///< Retrieves the module label.
+	const std::string & getName() const;			///< Retrieves the name of the package.
+	const std::string getNameAndVersion() const;	///< Retrieves the name and version string of the package.
+	const TagContainer getTags() const;				///< Retrieves the module tags.
+	const std::string getTagsString() const;		///< Retrieves the module tags in a string.
+	const boost::shared_ptr< Package > getParent() const;						///< Retrieves the parent package (returns null if none).
+	const boost::filesystem::path getPath( const PathType & type ) const;		///< Retrieves the path owned by the component for the given type.
+	const boost::filesystem::path getPathSafe( const PathType & type ) const;	///< Retrieves the path owned by the component for the given type and ensures that the path exists.
+	const boost::filesystem::path getRootPath() const;	///< Retrieves the root path for the component.
+	const std::string & getVersion() const;				///< Retrieves the version of the package.
+	const bool hasTag( const std::string & tag ) const;	///< Tells if the module has the given tag.
 	//@}
 
 	/**
 	 * @name Data access
 	 */
 	//@{
-	SBF_API const boost::property_tree::ptree getDataAsTree( const std::string & key ) const;	///< Retrieves a data tree for the given key.
-	SBF_API const std::string getDataAsString( const std::string & key ) const;					///< Retrieves a data string for the given key.
-	SBF_API void setData( const std::string & key, const std::string & value );					///< Set a string in the data for the given key.
-	SBF_API const bool hasMetaData() const;														///< Tells if the component has loaded a meta data file.
+	const boost::property_tree::ptree getDataAsTree( const std::string & key ) const;	///< Retrieves a data tree for the given key.
+	const std::string getDataAsString( const std::string & key ) const;					///< Retrieves a data string for the given key.
+	void setData( const std::string & key, const std::string & value );					///< Set a string in the data for the given key.
+	const bool hasMetaData() const;														///< Tells if the component has loaded a meta data file.
 	//@}
 
 protected:

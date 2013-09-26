@@ -188,14 +188,11 @@ def sbfCheck( env ):
 		print ('pysvn not installed\n')
 
 	# @todo pyreadline
-	# @todo pyreadline using pywin32 method 
 
 	# @todo cygwin version
 
 	# SVN
 	checkTool( env, 'svn', ['svn', '--version', '--quiet'] )
-
-# @todo check svn patch available (i.e. svn version > 1.7)
 
 	# CC
 	checkCC( env = env )
@@ -233,29 +230,9 @@ def sbfCheck( env ):
 	else:
 		print ('nsis not installed\n')
 
-	# Swig
-	swigLocation = locateProgram( 'swig' )
-	if len(swigLocation)>0:
-		print ( 'swig found at {}'.format(swigLocation) )
-		sys.stdout.flush()
-		print execute( ['swig', '-version'], swigLocation )
-	else:
-		print ( 'swig not found' )
-	print
-
-	# CMake
-	cmakeLocation = locateProgram( 'cmake' )
-	if len(cmakeLocation)>0:
-		print ( 'cmake found at {}'.format(cmakeLocation) )
-		sys.stdout.flush()
-		print execute( ['cmake', '--version'], cmakeLocation )
-	else:
-		print ( 'cmake not found' )
-	print
-
 	# @todo gtkmm see sbfUses.py
 	# print informations in a pretty table program | version | location
-	# @todo others tools
+	# @todo others tools (ex : swig, ...)
 
 	#
 	printSBFVersion()

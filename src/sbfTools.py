@@ -79,7 +79,6 @@ def locateProgramUsingRegistry( programName ):
 	currentSvnVersion = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\CollabNet\Subversion\Client Version')
 	cygwin = [r'SOFTWARE\Cygwin\setup\rootDir', r'SOFTWARE\Cygnus Solutions\Cygwin\mounts v2\/\native']
 	myMap = {
-		'cmake'			: [r'SOFTWARE\Kitware\CMake {}\\'.format(version) for version in ['2.8.11.2']],
 		'cygwin'		: cygwin,
 		'cygpath'		: cygwin,
 		'doxygen'		: [r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1\InstallLocation' ],
@@ -91,13 +90,11 @@ def locateProgramUsingRegistry( programName ):
 		'ssh'			: cygwin,
 		'svn'			: [	r'SOFTWARE\CollabNet\Subversion\{0}\Client\Install Location'.format(currentSvnVersion),
 							r'SOFTWARE\CollabNet\Subversion\{0}\Server\Install Location'.format(currentSvnVersion) ],
-		'swig'			: [],
 		'7z'			: [r'SOFTWARE\7-Zip\Path'],
 		'tortoisemerge'	: [r'SOFTWARE\TortoiseSVN\TMergePath']
 	}
 
 	actionMap = {
-		'cmake'			: appendBin,
 		'cygpath'		: appendBin,
 		'doxygen'		: appendBin,
 		'graphviz'		: appendBin,
@@ -134,7 +131,6 @@ def locateProgram( programName ):
 			return location
 
 	# Using PATH
-	if sys.platform == "win32" and not programName.endswith(".exe"):	programName += ".exe"
 	location = locateProgramUsingPATH( programName )
 	if len(location)>0:
 		return location
@@ -178,7 +174,8 @@ def getPathsForTools( verbose = False ):
 
 
 def getPathsForRuntime( sbf ):
-	return [	join( sbf.myInstallDirectory, 'bin' ),
+	return [	join( sbf.myInstallPaths[0], 'bin' ),
+				#join( sbf.myInstallPaths[0], 'lib' ),
 				join( sbf.myInstallExtPaths[0], 'bin' ),
 				join( sbf.myInstallExtPaths[0], 'lib' ) ]
 

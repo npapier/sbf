@@ -200,7 +200,7 @@ const std::string Component::getDataAsString( const std::string & key ) const
 }
 
 
-const std::string Component::getName() const
+const std::string & Component::getName() const
 {
 	return m_name;
 }
