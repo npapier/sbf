@@ -2164,7 +2164,8 @@ SConsBuildFramework options:
 			swigEnv.VariantDir( swigVarDir, swigSrcDir )
 
 			swigEnv['SWIGPATH'] = swigEnv['CPPPATH'] # project/include, local/include
-			swigEnv.Append(SWIGPATH = self.myIncludesInstallExtPaths[0]) # localExt/include
+			if self.myType in ['shared', 'static']: 
+				swigEnv.Append(SWIGPATH = self.myIncludesInstallExtPaths[0]) # localExt/include
 			# for debug
 			# print 'SWIGPATH', swigEnv['SWIGPATH']
 			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot' ]
