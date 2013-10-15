@@ -997,7 +997,8 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'SofaBoundaryCondition', 'SofaConstraint', 'SofaCore', 'SofaDefaultType', 'SofaDeformable', 'SofaEngine', 'SofaExplicitOdeSolver'
 						, 'SofaGraphComponent', 'SofaHaptics', 'SofaImplicitOdeSolver', 'SofaLoader', 'SofaMeshCollision', 'SofaMiscCollision', 'SofaMiscMapping'
 						, 'SofaObjectInteraction', 'SofaRigid', 'SofaSimpleFem', 'SofaSphFluid', 'SofaTopologyMapping', 'SofaUserInteraction', 'SofaVolumetricData'
-						, 'SofaHelper', 'SofaGuiCommon', 'SofaSimulationCommon', 'SofaSimulationTree' ]
+						, 'SofaHelper', 'SofaGuiCommon', 'SofaSimulationCommon', 'SofaSimulationTree'
+						, 'SofaEigen2Solver', 'SofaSparseSolver' ]
 
 			# sofa public revision number (used in trunk)
 			libsBoth += [	'SofaBaseAnimationLoop', 'SofaComponentCommon', 'SofaComponentBase', 'SofaComponentMain', 'SofaComponentGeneral',
