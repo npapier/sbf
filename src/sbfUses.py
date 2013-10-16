@@ -957,7 +957,7 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
-		definesList += ['SOFA_HAVE_GLEW']
+		definesList += ['SOFA_HAVE_GLEW', 'SOFA_HAVE_EIGEN2', 'SOFA_HAVE_CSPARSE']
 
 		pluginsList = sofaConfig.getPluginsList()
 		if pluginsList:
@@ -980,6 +980,7 @@ class Use_sofa( IUse, sofaConfig ):
 					os.path.join(sofaConfig.getBasePath(), 'modules'),
 					os.path.join(sofaConfig.getBasePath(), 'framework'),
 					os.path.join(sofaConfig.getBasePath(), 'include'),
+					os.path.join(sofaConfig.getBasePath(), 'extlibs/eigen-3.2.0'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/tinyxml'),
 					os.path.join(sofaConfig.getBasePath(), 'extlibs/miniFlowVR/include') ]
 
