@@ -1,4 +1,4 @@
-// SConsBuildFramework - Copyright (C) 2011, 2012, Guillaume Brocker, Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2011, 2012, 2013, Guillaume Brocker, Nicolas Papier.
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
@@ -7,6 +7,7 @@
 #ifndef _SBF_OPERATIONS_HPP_
 #define _SBF_OPERATIONS_HPP_
 
+#include <boost/filesystem.hpp>
 #include <string>
 
 #include "sbf/sbf.hpp"
@@ -62,9 +63,14 @@ SBF_API const std::string getPlatformCCPostfix();
  */
 SBF_API const std::string getConfigurationPostfix();
 
+/**
+ * @brief Retrieves the root path containing the sbf library
+ *
+ * @return path to the directory containing 'bin', 'share' and 'var' sub-directories or an empty() path.
+ */
+SBF_API const boost::filesystem::path getRootPath();
+
 
 } // namespace sbf
-
-
 
 #endif // _SBF_OPERATIONS_HPP_

@@ -1,10 +1,16 @@
-// SConsBuildFramework - Copyright (C) 2011, 2012, Guillaume Brocker, Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2011, 2012, 2013, Guillaume Brocker, Nicolas Papier.
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Guillaume Brocker
 // Author Nicolas Papier
 
 #include "sbf/operations.hpp"
+
+
+#ifdef _WIN32
+  #include <windows.h>
+#endif // _WIN32
+
 
 namespace sbf
 {
@@ -72,6 +78,28 @@ const std::string getConfigurationPostfix()
 	return std::string("");
 #endif
 }
+
+
+const boost::filesystem::path getRootPath()
+{
+#ifdef WIN32
+	char pathFilename[1024*4];
+
+	const DWORD length = GetModuleFileName( 0, pathFilename, sizeof(pathFilename) );
+	if ( length < sizeof(pathFilename) )
+	{
+		return boost::filesystem::path(pathFilename).parent_path().parent_path();
+	}
+	else
+	{
+		return boost::filesystem::path();
+	}
+#else
+	#error "Not yet implemented"
+	return boost::filesystem::path();
+#endif
+}
+
 
 
 } // namespace sbf
