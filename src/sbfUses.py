@@ -53,10 +53,18 @@ class sofaConfig:
 	def getPluginsList( cls ):
 		if cls.__pluginsList is None:
 			# Retrieves SOFA_PLUGINS
-			sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
-			if len(sofaPlugins)>0:
-				cls.__pluginsList = sofaPlugins.split(':')
-				print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
+			basePath = cls.getBasePath(True)
+			if basePath is None:
+				# dummy __pluginsList
+				return []
+			else:
+				sofaPlugins = getFromEnv('SOFA_PLUGINS', True)
+				if len(sofaPlugins)>0:
+					cls.__pluginsList = sofaPlugins.split(':')
+					print ("Found SOFA_PLUGINS:'{0}'.".format(sofaPlugins))
+				else:
+					cls.__pluginsList = []
+					print ("Found empty SOFA_PLUGINS.")
 		return cls.__pluginsList
 
 
