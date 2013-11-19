@@ -556,7 +556,7 @@ class Use_openil( IUse ):
 				return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-7-8':
+		if self.platform == 'win32' and self.ccVersionNumber >= 9.0000 and version == '1-7-8':
 			return True
 		else:
 			return False
