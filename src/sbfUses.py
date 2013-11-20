@@ -970,13 +970,15 @@ class Use_sofa( IUse, sofaConfig ):
 		return ['glew 1-9-0', 'glut 3-7']
 
 	def getCPPDEFINES( self, version ):
-		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'SOFA_SUPPORT_MAPPED_MASS', 'TIXML_USE_STL']
-		definesList += ['SOFA_HAVE_GLEW', 'SOFA_HAVE_EIGEN2', 'SOFA_HAVE_CSPARSE']
+		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'TIXML_USE_STL']
+		definesList += ['SOFA_HAVE_GLEW']
 
 		pluginsList = sofaConfig.getPluginsList()
 		if pluginsList:
 			pluginsDefines = string.join(pluginsList, ':')
 			definesList += [("SOFA_PLUGINS", "\\\"%s\\\"" % pluginsDefines)]
+		else:
+			definesList += [("SOFA_PLUGINS", "\\\"\\\"")]
 		#else nothing to do
 
 		return definesList
@@ -1012,8 +1014,7 @@ class Use_sofa( IUse, sofaConfig ):
 						, 'SofaBoundaryCondition', 'SofaConstraint', 'SofaCore', 'SofaDefaultType', 'SofaDeformable', 'SofaEngine', 'SofaExplicitOdeSolver'
 						, 'SofaGraphComponent', 'SofaHaptics', 'SofaImplicitOdeSolver', 'SofaLoader', 'SofaMeshCollision', 'SofaMiscCollision', 'SofaMiscMapping'
 						, 'SofaObjectInteraction', 'SofaRigid', 'SofaSimpleFem', 'SofaSphFluid', 'SofaTopologyMapping', 'SofaUserInteraction', 'SofaVolumetricData'
-						, 'SofaHelper', 'SofaGuiCommon', 'SofaSimulationCommon', 'SofaSimulationTree'
-						, 'SofaEigen2Solver', 'SofaSparseSolver' ]
+						, 'SofaHelper', 'SofaGuiCommon', 'SofaSimulationCommon', 'SofaSimulationTree' ]
 
 			# sofa public revision number (used in trunk)
 			libsBoth += [	'SofaBaseAnimationLoop', 'SofaComponentCommon', 'SofaComponentBase', 'SofaComponentMain', 'SofaComponentGeneral',
@@ -1025,7 +1026,7 @@ class Use_sofa( IUse, sofaConfig ):
 			libsBoth += sofaConfig.getPluginsList()
 
 			#
-			staticLibs = ['FlowVR', 'newmat']
+			staticLibs = ['miniFlowVR', 'newmat']
 			libsBoth += ['tinyxml']
 
 			if self.config == 'release':
