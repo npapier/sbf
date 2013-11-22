@@ -147,9 +147,9 @@ class PackagingSystem:
 			print ( "%i new file," % self.__numNewFiles ),
 
 		if self.__numOverrideFiles > 1:
-			print ( "%i override files." % self.__numOverrideFiles )
+			print ( "%i overridden files." % self.__numOverrideFiles )
 		else:
-			print ( "%i override file." % self.__numOverrideFiles )
+			print ( "%i overridden file." % self.__numOverrideFiles )
 
 
 		if self.__numDeletedDirectories > 1:
@@ -196,12 +196,14 @@ class PackagingSystem:
 
 		self.__myConfig					= sbf.myConfig
 		self.__myPlatform				= sbf.myPlatform
+		self.__clVersion				= sbf.myEnv['clVersion']
 		self.__myCC						= sbf.myCC
 		self.__myCCVersionNumber		= sbf.myCCVersionNumber
 		self.__myCCVersion				= sbf.myCCVersion
 		self.__myMSVSIDE				= sbf.myMSVSIDE
 		self.__myMSVCVARS32				= sbf.myMSVCVARS32
 		self.__myMSVC					= sbf.myMSVC
+		self.__myMSBuild				= sbf.myMSBuild
 
 		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
 		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
@@ -258,22 +260,193 @@ class PackagingSystem:
 		return join( self.__mkPakGetBuildDirectory(), pakDescriptor['name'] + pakDescriptor['version'] )
 
 	def __getEnvironmentDict( self ):
+
+		def SearchFiles( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".+" ):
+			def _searchFiles( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".+" ):
+				import src.sbfFiles
+				src.sbfFiles.searchFiles( searchDirectory, retVal, pruneDirectoriesPatterns, allowedFilesRe )
+			return lambda : _searchFiles( retVal, searchDirectory, pruneDirectoriesPatterns, allowedFilesRe )
+
+		def SearchVcxproj( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".*[.]vcxproj$" ):
+			return SearchFiles( retVal, searchDirectory, pruneDirectoriesPatterns, allowedFilesRe )
+
+		def MakeDirectory( newDirectory ):
+			def makeDirectory( newDirectory ):
+				import os
+				if not os.path.exists(newDirectory):
+					os.mkdir( newDirectory )
+					if os.path.isabs(newDirectory):
+						print ('Creating directory {}'.format(newDirectory))
+					else:
+						print ('Creating directory {}'.format(join(os.getcwd(), newDirectory)))
+			return lambda : makeDirectory(newDirectory)
+
+		def RemoveDirectory( directory ):
+			def removeDirectory( directory ):
+				import os
+				if os.path.exists(directory):
+					os.rmdir( directory )
+					if os.path.isabs(directory):
+						print ('Removing directory {}'.format(directory))
+					else:
+						print ('Removing directory {}'.format(join(os.getcwd(), directory)))
+			return lambda : removeDirectory(directory)
+
+		def ChangeDirectory( newDirectory ):
+			def changeDirectory( newDirectory ):
+				import os
+				os.chdir( newDirectory )
+				print ('Entering directory {}'.format(os.getcwd()))
+			return lambda : changeDirectory(newDirectory)
+
+		def RemoveFile( file ):
+			def removeFile( file ):
+				import os
+				if os.path.exists(file):
+					os.remove( file )
+					if os.path.isabs(file):
+						print ('Removing file {}'.format(file))
+					else:
+						print ('Removing file {}'.format(join(os.getcwd(), file)))
+			return lambda : removeFile(file)
+
+		def _filePatcher( file, resubs, flags = 0):
+			"""	@param file		the filename to patch
+				@param resubs	a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
+				@param flags	see re flags parameter
+			"""
+			import re
+			with open( file, 'r+' ) as fd:
+				# Read file
+				lines = fd.readlines()
+
+				# Patch the file in memory
+				for(i, line) in enumerate(lines):
+					for resub in resubs:
+						(pattern, repl ) = resub
+						line = re.sub( pattern, repl, line, flags=flags )
+					lines[i] = line
+
+				# Write file
+				fd.seek(0)
+				fd.writelines(lines)
+
+		def _patcher( fileOrFileList, resubs, flags = 0):
+			if isinstance(fileOrFileList, str):
+				_filePatcher(fileOrFileList, resubs, flags)
+			else:
+				for file in fileOrFileList:
+					_filePatcher(file, resubs, flags)
+
+		def _filePatcherMultiline( file, resubs, flags = 0):
+			"""	@param file		the filename to patch
+				@param resubs	a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
+				@param flags	see re flags parameter
+			"""
+			import re
+			with open( file, 'r+' ) as fd:
+				# Read file
+				lines = fd.read()
+
+				# Patch the file in memory
+				for resub in resubs:
+					(pattern, repl ) = resub
+					lines = re.sub( pattern, repl, lines, flags=flags )
+
+				# Write file
+				fd.seek(0)
+				fd.write(lines)
+
+		def _patcherMultiline( fileOrFileList, resubs, flags = 0):
+			if isinstance(fileOrFileList, str):
+				_filePatcherMultiline(fileOrFileList, resubs, flags)
+			else:
+				for file in fileOrFileList:
+					_filePatcherMultiline(file, resubs, flags)
+
+		def Patcher( fileOrFileList, resubs, flags = 0 ):
+			return lambda : _patcher(fileOrFileList, resubs, flags)
+
+		def PatcherMultiline( fileOrFileList, resubs, flags = 0 ):
+			return lambda : _patcherMultiline(fileOrFileList, resubs, flags)
+
+		def RemoveProjectFromSolution( file, projectName ):
+			return lambda : _patcherMultiline(file, [('Project.*?{}(?:.*\n)+?EndProject'.format(projectName), '')], 0 )
+
+		def AddMultiProcessorCompilation( fileOrFileList ):
+			return lambda : _patcher(fileOrFileList, [('^(.*\<ClCompile\>.*)$', '\\1\n<MultiProcessorCompilation>true</MultiProcessorCompilation>')])
+
+		def AddPreprocessorDefinitions( fileOrFileList, definesToAdd ):
+			"""@param definesToAdd		DEFINE1;DEFINE2"""
+			return lambda : _patcher(fileOrFileList, [('^(.*\<PreprocessorDefinitions\>)(.*)(\</PreprocessorDefinitions\>)$','\\1{};\\2\\3'.format(definesToAdd))])
+
+		def ChangeTargetName( fileVCXProj, oldName, newName ):
+			return lambda : _patcher(fileVCXProj, [	#('^(.*\$\(OutDir\)){}(\..*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+													('^(.*TargetName Condition.*){}(.*TargetName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+													('^(.*ImportLibrary.*){}(\.lib.*ImportLibrary.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+													('^(.*ProgramDataBaseFileName.*){}(\.pdb.*ProgramDataBaseFileName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+													('^(.*ProgramDataBaseFile.*){}(\.pdb.*ProgramDataBaseFile.*)$'.format(oldName), '\\1{}\\2'.format(newName))
+													] )
+
+		def ConfigureVisualStudioVersion( CCVersionNumber ):
+			os.environ['VisualStudioVersion'] = str(int(CCVersionNumber)) + '.0'
+
+		def GetMSBuildCommand( execPath, sln, targets = 'build', config = 'Release', logFile = None, maxcpucount = 1, platform = 'Win32', msbuild=self.__myMSBuild ):
+			cmd = 'cd {execPath} && \"{msbuild}\" /nologo \"{sln}\" '.format( execPath=execPath, msbuild=msbuild, sln=sln )
+			if len(targets) > 0:
+				cmd += ' /t:{targets} '.format( targets=targets )
+
+			cmd += ' /p:Configuration={config} /p:Platform={platform} '.format(config=config, platform=platform)
+	
+			cmd += '/consoleloggerparameters:Summary;Verbosity=minimal '
+			#cmd += '/consoleloggerparameters:Summary;Verbosity=normal '
+
+			if logFile:
+				cmd += '/fileLogger /fileloggerparameters:logfile={logFile};Verbosity=minimal;Append '.format( logFile )
+
+			cmd += '/maxcpucount:{maxcpucount} '.format(maxcpucount=maxcpucount)
+
+			#cmd += ' /p:BuildProjectReferences=false '
+			#<ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+
+			return cmd
+
+
 		envDict	= {	'config'			: self.__myConfig,
 					'platform'			: self.__myPlatform,
+					'clVersion'			: self.__clVersion,
 					'CC'				: self.__myCC,
 					'CCVersionNumber'	: self.__myCCVersionNumber,
 					'CCVersion'			: self.__myCCVersion,
 					'MSVSIDE'			: self.__myMSVSIDE,
 					'MSVCVARS32'		: self.__myMSVCVARS32,
 					'MSVC'				: self.__myMSVC,
+					'MSBuild'			: self.__myMSBuild,
 
 					'UseRepository'				: UseRepository,
 					'execCmdInVCCmdPrompt'		: getLambdaForExecuteCommandInVCCommandPrompt(self.__myMSVCVARS32),
 
 					'buildDirectory'	: self.__mkPakGetBuildDirectory(),
+					'localDirectory'	: self.__localPath,
 					'localExtDirectory' : self.__localExtPath,
 
-					'GlobRegEx'			: GlobRegEx
+					'GlobRegEx'			: GlobRegEx,
+
+					'SearchFiles'		: SearchFiles,
+					'SearchVcxproj'		: SearchVcxproj,
+
+					'MakeDirectory'					: MakeDirectory,
+					'RemoveDirectory'				: RemoveDirectory,
+					'ChangeDirectory'				: ChangeDirectory,
+					'RemoveFile'					: RemoveFile,
+
+					'Patcher'						: Patcher,
+					'MSVC'							: { 'RemoveProjectFromSolution'		: RemoveProjectFromSolution,
+														'AddMultiProcessorCompilation'	: AddMultiProcessorCompilation,
+														'AddPreprocessorDefinitions'	: AddPreprocessorDefinitions,
+														'ChangeTargetName'				: ChangeTargetName },
+					'ConfigureVisualStudioVersion'	: ConfigureVisualStudioVersion,
+					'GetMSBuildCommand'				: GetMSBuildCommand
 					}
 		return envDict
 
@@ -288,8 +461,6 @@ class PackagingSystem:
 		"""Retrieves the dictionary named 'descriptor' from the mkdb database for the desired package"""
 		localsFileDict = self.__getEnvironmentDict()
 		execfile( join(self.__mkdbGetDirectory(), pakName), globals(), localsFileDict )
-		#globalsFileDict = {}
-		#execfile( join(self.__mkdbGetDirectory(), pakName), globalsFileDict, localsFileDict )
 		return localsFileDict['descriptor']
 
 
@@ -312,10 +483,11 @@ class PackagingSystem:
 
 		# Computes directories
 		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
-		pakDirectory = pakDescriptor['name'] + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectory = pakDescriptor['name'] + '-runtime' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectoryR = pakDescriptor['name'] + '-runtime-release' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + pakDescriptor['version'] + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		fullVersion = pakDescriptor['version'] + pakDescriptor.get( 'buildVersion', '' )
+		pakDirectory = pakDescriptor['name'] + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectory = pakDescriptor['name'] + '-runtime' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryR = pakDescriptor['name'] + '-runtime-release' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
 
 		# Removes old directories
 # ???
@@ -384,6 +556,7 @@ class PackagingSystem:
 			os.chdir( extractionDirectory )
 			if len(rootBuildDir) > 0:
 				os.chdir( rootBuildDir )
+				print ('* Entering directory {}\n'.format(rootBuildDir))
 
 			# Executes commands
 			print ( '* Building stage...' )
@@ -420,6 +593,8 @@ class PackagingSystem:
 		if not exists( sourceDir ):
 			print ('{0} does not exist'.format( sourceDir) )
 			exit(1)
+		else:
+			print ('* Entering directory {}\n'.format(sourceDir))
 
 		print ('* Creates package {0}'.format(pakDirectory[:-1]) )
 
@@ -519,6 +694,7 @@ class PackagingSystem:
 
 		# Restores old current working directory
 		os.chdir( backupCWD )
+
 
 
 	### PAK INFO ###
