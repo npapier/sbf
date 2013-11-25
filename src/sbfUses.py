@@ -456,6 +456,22 @@ class Use_gstFFmpeg( IUse ):
 			return False
 
 
+class Use_htEsHardware( IUse ):
+	def getName( self ):
+		return "htEsHardware"
+
+	def getVersions( self ):
+		return ['0-0']
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win32' :
+			libs = ['HtEsHardwareAPI']
+			return libs, libs
+
+	def hasRuntimePackage( self, version ):
+		return True
+
 
 class Use_opengl( IUse ):
 	def getName( self ):
@@ -1294,7 +1310,7 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_htEsHardware(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
 					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_swigShp(), Use_usb2brd(), Use_wxWidgets(),
 					Use_wxWidgetsGL() ]
 
