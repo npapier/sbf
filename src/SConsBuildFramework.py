@@ -1500,26 +1500,6 @@ SConsBuildFramework options:
 		if self.myCC != 'cl':
 			raise SCons.Errors.UserError( "Unexpected compiler {} on Windows platform.".format(self.myCC) )
 
-		# TMP and tmp environment variables
-		if self.myEnv.GetOption('verbosity') and self.myPlatform == 'win32':
-			import win32profile
-			envStrings = win32profile.GetEnvironmentStrings()
-			# tmp
-			tmp = envStrings.get('tmp')
-			print 'tmp={0}'.format(tmp)
-			print 'tmp(from lenv)={0}'.format(lenv['ENV'].get('tmp'))
-			# TMP
-			TMP = envStrings.get('TMP')
-			print 'TMP={0}'.format(TMP)
-			print 'TMP(from lenv)={0}'.format(lenv['ENV'].get('TMP'))
-			# temp
-			temp = envStrings.get('temp')
-			print 'temp={0}'.format(temp)
-			print 'temp(from lenv)={0}'.format(lenv['ENV'].get('temp'))
-			# TEMP
-			TEMP = envStrings.get('TEMP')
-			print 'TEMP={0}'.format(TEMP)
-			print 'TEMP(from lenv)={0}'.format(lenv['ENV'].get('TEMP'))
 		# Useful for cygwin 1.7
 		# The Microsoft linker requires that the environment variable TMP is set.
 		if not os.getenv('TMP'):
