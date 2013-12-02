@@ -64,15 +64,13 @@ def getPATHForConfigure( sbf ):
 	return ( sbfRuntimePaths[0] + toPrepend, sbfRuntimePaths[1] )
 
 def configurePATH( env, verbose = True ):
-	"""@ brief Configures the PATH environment variable used by the given environment env."""
+	"""@brief Configures the PATH environment variable used by the given environment env."""
 	(prependList, appendList) = getPATHForConfigure(env.sbf)
 	prependToPATH(env, prependList, verbose )
 	appendToPATH(env, appendList, verbose )
 
 def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):
 	(toPrepend, toAppend) = getPATHForConfigure(sbf)
-	if takeCareOfSofa:
-		toPrepend = toPrepend + getPathsForSofa(True)
 	_sbfConfigure( toPrepend, toAppend, verbose )
 
 
