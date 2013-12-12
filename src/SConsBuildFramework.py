@@ -197,7 +197,6 @@ def buildFilesFromShare( files, sbf, projectEnv, command ):
 		return []
 
 	lenv = projectEnv.Clone()
-	configurePATH(lenv, lenv.GetOption('verbosity') )
 
 	# list of files to install in 'share'
 	outputs = []
@@ -627,11 +626,6 @@ class SConsBuildFramework :
 				myMsvcVersion = None
 
 			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = myTargetArch, MSVC_VERSION = myMsvcVersion )
-
-
-			pathFromEnv = os.environ['PATH'] ### @todo uses getInstallPath() on win32 to FIXME not very recommended
-			if pathFromEnv != None:
-				self.myEnv['ENV']['PATH'] += pathFromEnv
 		else:
 			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools )
 
@@ -963,10 +957,8 @@ class SConsBuildFramework :
 		if self.myEnv.GetOption('verbosity'):	print
 		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity') )
 
-		if len(self.myBuildTargets & self.myRunTargets) > 0:
-			# this is a '*run*' target
-			toPrepend = getPathsForRuntime(self)
-			prependToPATH( self.myEnv, toPrepend, self.myEnv.GetOption('verbosity'))
+		#	Adds local/bin
+		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin') ], self.myEnv.GetOption('verbosity') )
 		if self.myEnv.GetOption('verbosity'):	print
 
 		# Generates help
@@ -1117,9 +1109,11 @@ SConsBuildFramework options:
 		if lenv['publishOn'] and len(self.myPublishPath)==0:
 			print ("sbfError: sbf option named 'publishPath' is empty.")
 			Exit( 1 )
+		if lenv.GetOption('verbosity'):	print ( "Publish path is '{}'".format(self.myPublishPath) )
 
 		# Updates myBuildPath, mySConsignFilePath, myCachePath, myCacheOn, myConfig and myWarningLevel
 		self.myBuildPath = getNormalizedPathname( lenv['buildPath'] )
+		if lenv.GetOption('verbosity'):	print ( "Build path is '{}'".format(self.myBuildPath) )
 
 		# SCons signatures configuration (i.e. location of .sconsign file)
 		if lenv['SConsignFilePath'] == 'buildPath' :
@@ -2453,27 +2447,32 @@ SConsBuildFramework options:
 		self.doVcsCleanOrAdd( lenv )
 
 		# Targets: onlyRun and run
-		executableNode = searchExecutable( lenv, installInBinTarget )
-		if executableNode:
-			executableFilename	= basename(executableNode.abspath)
-			pathForExecutable	= join(self.myInstallDirectory, 'bin')
+		if len(self.myBuildTargets & self.myRunTargets) > 0:
+			executableNode = searchExecutable( lenv, installInBinTarget )
+			if executableNode:
+				executableFilename	= basename(executableNode.abspath)
+				pathForExecutable	= join(self.myInstallDirectory, 'bin')
 
-			cmdParameters = ''
-			for param in lenv['runParams']:
-				cmdParameters += ' ' + param
+				cmdParameters = ''
+				for param in lenv['runParams']:
+					cmdParameters += ' ' + param
 
-			printMsg = '\n' + stringFormatter(lenv, 'Launching {0}'.format(executableFilename))
-			if len(cmdParameters) > 0:
-				printMsg += stringFormatter(lenv, 'with parameters:{0}'.format(cmdParameters))
+				printMsg = '\n' + stringFormatter(lenv, 'Launching {0}'.format(executableFilename))
+				if len(cmdParameters) > 0:
+					printMsg += stringFormatter(lenv, 'with parameters:{0}'.format(cmdParameters))
 
-			Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', 'dummy.in',
-								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
-										printMsg ) ) )
+				def actionCall( target, source, env ):
+					# command 'path' and 'exe'
+					pathFilename = str(source[0])
+					path = dirname(pathFilename)
+					exe = basename(pathFilename)
+					return call( [exe] + env['runParams'], path )
 
-			Alias( 'run', lenv.Command(self.myProject + '_run.out', 'install',
-								Action(	'cd %s && %s %s' % (pathForExecutable, executableFilename, cmdParameters),
-										printMsg ) ) )
+				Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', join(pathForExecutable, executableFilename),
+									Action( actionCall, printMsg ) ) )
+				AlwaysBuild('onlyrun')
 
+				Alias( 'run', ['install', 'onlyrun'] )
 
 
 	###### Helpers ######
