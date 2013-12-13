@@ -769,6 +769,7 @@ class SConsBuildFramework :
 		# Prints sbf version, date and time at sbf startup
 		if self.myEnv.GetOption('verbosity') :
 			printSBFVersion()
+			print ( "SConsBuildFramework path is '{}'".format(self.mySCONS_BUILD_FRAMEWORK) )
 			print 'started', self.myDateTimeForUI
 
 		# Retrieves all targets (normalized in lower case)
