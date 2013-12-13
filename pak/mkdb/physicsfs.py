@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -16,37 +16,32 @@ descriptorName = 'physfs'
 descriptorVersion = '2-0-2'
 descriptorVersionWithDot = descriptorVersion.replace('-', '.')
 
-cmakeGenerator = {
-	8	: 'Visual Studio 8 2005',
-	9	: 'Visual Studio 9 2008',
-	10	: 'Visual Studio 10',
-	11	: 'Visual Studio 11' }
+from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCmdBuildRelease
 
-if CCVersionNumber in [8, 9, 10, 11]:
-	options = '-D PHYSFS_ARCHIVE_GRP:BOOL=OFF -D PHYSFS_ARCHIVE_HOG:BOOL=OFF -D PHYSFS_ARCHIVE_MVL:BOOL=OFF -D PHYSFS_ARCHIVE_QPAK:BOOL=OFF -D PHYSFS_ARCHIVE_WAD:BOOL=OFF -D PHYSFS_BUILD_STATIC:BOOL=OFF'
-	options += ' -D CMAKE_DEBUG_POSTFIX=-d'
-	cmdConfigure = 'cmake -G "{generator}" {options} CMakeLists.txt'.format( generator=cmakeGenerator[CCVersionNumber], options=options )
-	cmdDebug = 'cmake --build . --config debug'
-	cmdRelease = 'cmake --build . --config release'
-else:
-	print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
-	exit(1)
+options = '-D PHYSFS_ARCHIVE_GRP:BOOL=OFF -D PHYSFS_ARCHIVE_HOG:BOOL=OFF -D PHYSFS_ARCHIVE_MVL:BOOL=OFF -D PHYSFS_ARCHIVE_QPAK:BOOL=OFF -D PHYSFS_ARCHIVE_WAD:BOOL=OFF -D PHYSFS_BUILD_STATIC:BOOL=OFF'
+options += ' -D CMAKE_DEBUG_POSTFIX=-d '
+cmdConfigure = getCMakeCmdConfigure(CCVersionNumber, options)
 
 descriptor = {
  'urls'			: [ 'http://icculus.org/physfs/downloads/physfs-2.0.2.tar.gz' ],
 
  'rootBuildDir'	: descriptorName + '-' + descriptorVersionWithDot,
- 'builds'		: [ cmdConfigure, cmdDebug, cmdRelease ],
+ 'builds'		: [ cmdConfigure, getCMakeCmdBuildDebug(), getCMakeCmdBuildRelease() ],
 
  'name'			: descriptorName,
  'version'		: descriptorVersion,
 
+ # packages developer and runtime
  'rootDir'		: descriptorName + '-' + descriptorVersionWithDot,
- 
+
+ # developer package
  'license'		: [('LICENSE.txt'), ('CREDITS.txt'), ('lzma/lzma.txt'), ('zlib123/README')],
-
  'include'		: [	'*.h' ],
+ 'lib'			: [	'debug/physfs-d.lib ', 'release/physfs.lib' ],
 
- 'lib'			: [	'debug/physfs-d.lib ', 'release/physfs.lib',
-					'debug/physfs-d.dll', 'release/physfs.dll' ]
-}
+ # runtime package (release version)
+ 'binR'			: ['release/physfs.dll'],
+ 
+ # runtime package (debug version)
+ 'binD'			: ['debug/physfs-d.dll'],
+ }
