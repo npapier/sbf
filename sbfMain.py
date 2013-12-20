@@ -195,6 +195,9 @@ def sbfCheck( env ):
 	# SVN
 	checkTool( env, 'svn', ['svn', '--version', '--quiet'] )
 
+	# GIT
+	checkTool( env, 'git', ['git', '--version'] )
+
 # @todo check svn patch available (i.e. svn version > 1.7)
 
 	# CC

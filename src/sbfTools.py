@@ -83,6 +83,7 @@ def locateProgramUsingRegistry( programName ):
 		'cygwin'		: cygwin,
 		'cygpath'		: cygwin,
 		'doxygen'		: [r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1\InstallLocation' ],
+		'git'			: [r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1\InstallLocation' ],
 		'graphviz'		: [r'SOFTWARE\AT&T Research Labs\Graphviz\InstallPath', r'SOFTWARE\ATT\Graphviz\InstallPath'],
 		'gtkmm'			: [r'SOFTWARE\gtkmm\2.4\Path'],
 		'nsis'			: [r'SOFTWARE\NSIS\\'],
@@ -100,6 +101,7 @@ def locateProgramUsingRegistry( programName ):
 		'cmake'			: appendBin,
 		'cygpath'		: appendBin,
 		'doxygen'		: appendBin,
+		'git'			: appendBin,
 		'graphviz'		: appendBin,
 		'rsync'			: appendBin,
 		'ssh'			: appendBin
