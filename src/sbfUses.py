@@ -581,7 +581,7 @@ class Use_openil( IUse ):
 # @remarks sdl-config --cflags --libs
 class Use_sdl( IUse ):
 	def getName( self ):
-		return "sdl"
+		return 'sdl'
 
 	def getVersions( self ):
 		return ['1-2-14']
@@ -614,7 +614,7 @@ class Use_sdl( IUse ):
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-2-14':
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-14':
 			return True
 		else:
 			return False
