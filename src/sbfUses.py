@@ -673,7 +673,7 @@ class Use_glew( IUse ):
 		return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-9-0':
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-9-0':
 			return True
 		else:
 			return False
