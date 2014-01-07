@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 # ok for clx.y
+
 import os
 
 sofaUse = UseRepository.getUse('sofa')
@@ -19,8 +20,11 @@ descriptor = {
  'version'		: '3-7',
 
  'rootDir'		: 'glut-3.7',
- 'license'		: ['NOTICE'],
 
- 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glut32.dll'), 'lib/'),
-					(os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'Common', 'glut32.lib'), 'lib/') ]
+ # developer package
+ 'license'		: ['NOTICE'],
+ 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'glut32.lib'), 'lib/') ],
+
+ # runtime package
+ 'runtimeCustom': [ (os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'glut32.dll'), 'bin/') ]
 }
