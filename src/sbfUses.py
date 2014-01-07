@@ -663,7 +663,7 @@ class Use_sdlMixer( IUse ):
 
 class Use_glew( IUse ):
 	def getName( self ):
-		return "glew"
+		return 'glew'
 
 	def getVersions( self ):
 		return ['1-9-0', '1-5-1']
@@ -708,7 +708,7 @@ class Use_glm( IUse ):
 
 class Use_glut( IUse ):
 	def getName(self ):
-		return "glut"
+		return 'glut'
 
 	def getVersions( self ):
 		return ['3-7']
@@ -722,7 +722,7 @@ class Use_glut( IUse ):
 			return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '3-7':
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '3-7':
 			return True
 		else:
 			return False
