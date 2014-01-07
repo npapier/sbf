@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2009, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -20,8 +20,11 @@ descriptor = {
  'version'		: '1-9-0',
 
  'rootDir'		: 'glew-1.9.0',
- 'license'		: ['LICENSE.txt'],
 
- 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'bin', 'glew32.dll'), 'lib/'),
-					(os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'Common', 'glew32.lib'), 'lib/') ]
+ # developer package
+ 'license'		: ['LICENSE.txt'],
+ 'custom'		: [ (os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'glew32.lib'), 'lib/') ],
+
+ # runtime package
+ 'runtimeCustom': [ (os.path.join(sofaUse.getBasePath(), 'lib', 'win32', 'glew32.dll'), 'bin/') ]
 }
