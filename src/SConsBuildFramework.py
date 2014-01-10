@@ -960,6 +960,10 @@ class SConsBuildFramework :
 
 		#	Adds local/bin
 		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin') ], self.myEnv.GetOption('verbosity') )
+
+		#	Adds localExt/lib								# @todo remove me after complete generation of runtime packages
+		appendToPATH( self.myEnv, [ join(self.myInstallExtPaths[0], 'lib') ], self.myEnv.GetOption('verbosity') )
+
 		if self.myEnv.GetOption('verbosity'):	print
 
 		# Generates help
