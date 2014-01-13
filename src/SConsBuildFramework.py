@@ -961,9 +961,6 @@ class SConsBuildFramework :
 		#	Adds local/bin
 		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin') ], self.myEnv.GetOption('verbosity') )
 
-		#	Adds localExt/lib								# @todo remove me after complete generation of runtime packages
-		appendToPATH( self.myEnv, [ join(self.myInstallExtPaths[0], 'lib') ], self.myEnv.GetOption('verbosity') )
-
 		if self.myEnv.GetOption('verbosity'):	print
 
 		# Generates help
@@ -2471,7 +2468,8 @@ SConsBuildFramework options:
 					pathFilename = str(source[0])
 					path = dirname(pathFilename)
 					exe = basename(pathFilename)
-					return call( [exe] + env['runParams'], path )
+					cmdEnv = { 'PATH' : os.path.join(env.sbf.myInstallExtPaths[0], 'lib') }
+					return call( [exe] + env['runParams'], path, cmdEnv )
 
 				Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', join(pathForExecutable, executableFilename),
 									Action( actionCall, printMsg ) ) )

@@ -98,8 +98,9 @@ def execute( commandAndParams, commandPath = None ):
 		if len(line) > 0:
 			return line
 
-def call( commandAndParams, commandPath = None ):
+def call( commandAndParams, commandPath = None, env={} ):
 	"""	Executes commandAndParams = [command, parameter0, ..., parameterX] in commandPath directory if given.
+		@env the environment variables for the new process
 		Returns the return code of the command."""
 
 	# Computes args argument of Popen()
@@ -111,7 +112,7 @@ def call( commandAndParams, commandPath = None ):
 		argsForPopen = commandAndParams
 
 	# Executes command
-	retVal = subprocess.call( args=argsForPopen, cwd=commandPath )
+	retVal = subprocess.call( args=argsForPopen, cwd=commandPath, env=env )
 
 	return retVal
 
