@@ -622,7 +622,7 @@ class Use_sdl( IUse ):
 
 class Use_sdlMixer( IUse ):
 	def getName( self ):
-		return "sdlmixer"
+		return 'sdlmixer'
 
 	def getVersions( self ):
 		return ['1-2-11']
@@ -655,7 +655,7 @@ class Use_sdlMixer( IUse ):
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-2-11':
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-11':
 			return True
 		else:
 			return False
