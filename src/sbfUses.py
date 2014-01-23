@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -730,7 +730,7 @@ class Use_glut( IUse ):
 
 class Use_gtest( IUse ):
 	def getName(self ):
-		return "gtest"
+		return 'gtest'
 
 	def getVersions( self ):
 		return [ '446', '445' ]
@@ -762,7 +762,7 @@ class Use_gtest( IUse ):
 			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '446':
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '446':
 			return True
 		else:
 			return False
