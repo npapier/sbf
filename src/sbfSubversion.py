@@ -559,7 +559,7 @@ def svnIsUpdateAvailable( path, desiredRevisionNumber, verbose = True, veryVerbo
 				print ("Working copy of {0} at revision {1}, remote version at revision {2}.".format(project, workingRevisionNumber, repositoryRevisionNumber))
 			if desiredRevisionNumber:
 				# update to revision
-				if workingLastChangedRevisionNumber < desiredRevisionNumber:
+				if workingRevisionNumber < desiredRevisionNumber:
 					if desiredRevisionNumber > repositoryRevisionNumber:
 						print ('WARNING:Unable to update {0} to revision {1}. Latest revision available is {2}.'.format(project, desiredRevisionNumber, repositoryRevisionNumber))
 						if callExitOnError:
@@ -569,12 +569,12 @@ def svnIsUpdateAvailable( path, desiredRevisionNumber, verbose = True, veryVerbo
 					# else nothing to do
 					if verbose:	print ('REVISION {revisionNumber} IS AVAILABLE FOR {project}.'.format( revisionNumber=desiredRevisionNumber, project=project.upper() ) )
 					return True
-				elif workingLastChangedRevisionNumber == desiredRevisionNumber:
+				elif workingRevisionNumber == desiredRevisionNumber:
 					if verbose:	print ( '{project} at revision {revision}.'.format( project=project, revision=desiredRevisionNumber ) )
 					if veryVerbose:	print ( '{project} is up-to-date.'.format(project=project) )
 					return False
 				else:
-					assert( workingLastChangedRevisionNumber > desiredRevisionNumber )
+					assert( workingRevisionNumber > desiredRevisionNumber )
 					if verbose:	print ('{project} is newer than the desired revision {revision}.'.format(project=project, revision=desiredRevisionNumber) )
 					return True
 			else:
