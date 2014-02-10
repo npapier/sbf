@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2011, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,6 +9,8 @@ from SCons.Script import *
 
 from SConsBuildFramework import nopAction, printGenerate, stringFormatter
 from src.sbfFiles import computeDepth, convertPathAbsToRel, getNormalizedPathname
+from src.sbfUses import convertCPPPATHToAbs, UseRepository
+from src.sbfVersion import splitUsesName
 
 import os
 import re
@@ -229,24 +231,27 @@ def vcprojDebugFileAction( target, source, env ) :
 
 def vcprojAction( target, source, env ):
 
+	sbf = env.sbf
+
 	# Retrieves template location
-	templatePath = os.path.join( env.sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
+	templatePath = os.path.join( sbf.mySCONS_BUILD_FRAMEWORK, 'sbfTemplateMakefile.vcproj' )
 
 	# Retrieves/computes additionnal informations
 	targetName = str(target[0])
 	sourceName = templatePath #str(source[0])
 
-	myInstallDirectory = env.sbf.myInstallDirectory
+	myInstallDirectory = sbf.myInstallDirectory
 
 	MSVSProjectBuildTarget			= ''
 	MSVSProjectBuildTargetDirectory	= ''
 
-	if len(env['sbf_bin']) > 0:
-		MSVSProjectBuildTarget = os.path.basename( env['sbf_bin'][0] )
-		MSVSProjectBuildTargetDirectory = 'bin'
-#	elif len(env['sbf_lib_object']) > 0 :
-#		MSVSProjectBuildTarget = os.path.basename( env['sbf_lib_object'][0] )
-#		MSVSProjectBuildTargetDirectory = 'lib'
+	interestingSuffixes = [env['SHLIBSUFFIX'], env['PROGSUFFIX']]
+	for element in env['sbf_bin']:
+		suffix = os.path.splitext(element)[1]
+		if suffix in interestingSuffixes:
+			MSVSProjectBuildTarget = os.path.basename(element)
+			MSVSProjectBuildTargetDirectory = 'bin'
+			break
 	else:
 		# Nothing to debug (project of type 'none')
 		return
@@ -360,26 +365,42 @@ def vcprojAction( target, source, env ):
 				# sbfIncludeSearchPath customization point
 				res = re_sbfIncludeSearchPath.match(line)
 				if res != None :
-					# Adds 'include' directory of all dependencies
-# @todo Adds localext/include ?
-# @todo a function (see same code in slnAction())
-					projectsRoot = env.sbf.getProjectsRoot(env)
+					projectsRoot = sbf.getProjectsRoot(env)
 					depthFromProjectsRoot = computeDepth( convertPathAbsToRel(projectsRoot, env['sbf_projectPathName']) )
 					relPathToProjectsRoot = "..\\" * depthFromProjectsRoot
 
-					allDependencies = env.sbf.getAllDependencies( env )
+					# Adds 'include' directory of the current project and all its dependencies (compiled by sbf)
+					allDependencies = sbf.getAllDependencies( env )
 
+					#	adds 'include' of the current project
 					includeSearchPath = 'include;'
+					#	adds 'include' of all dependepencies
 					for dependency in allDependencies:
-						dependencyEnv = env.sbf.myParsedProjects[ dependency ]
+						dependencyEnv = sbf.myParsedProjects[ dependency ]
 						pathToInclude = getNormalizedPathname( os.path.join( dependencyEnv['sbf_projectPathName'], 'include' ) )
 						if not os.path.exists(pathToInclude):
 							# Skip project without 'include' sub-directory
 							continue
-
 						newPath = relPathToProjectsRoot + convertPathAbsToRel(projectsRoot, pathToInclude)
 						includeSearchPath += newPath + ';'
 
+					# Adds localExt/include directory
+					includeSearchPath += sbf.myIncludesInstallExtPaths[0] + ";"
+
+					# Adds 'include' for all getCPPPATH of 'uses'.
+					allUses = sbf.getAllUses( env )
+					for useNameVersion in allUses:
+						# Extracts name and version of incoming external dependency
+						useName, useVersion = splitUsesName( useNameVersion )
+						if env.GetOption('verbosity'): print ("Processing uses='{0}'...".format(useNameVersion))
+						# Retrieves use object for incoming dependency
+						use = UseRepository.getUse( useName )
+						if use:
+							cppPaths = use.getCPPPATH(useVersion)
+							for path in convertCPPPATHToAbs(env, cppPaths):
+								includeSearchPath += path + ";"
+
+					#
 					newLine = res.group(1) + includeSearchPath + res.group(3) + '\n'
 					targetFile.write( newLine )
 					continue

@@ -20,6 +20,18 @@ from sbfTools import *
 from sbfUtils import getPathFromEnv, getFromEnv, convertToList
 from sbfVersion import computeVersionNumber, splitUsesName
 
+
+def convertCPPPATHToAbs( env, cppPaths ):
+	cppPathsAbs = []
+	for cppPath in cppPaths:
+		if os.path.isabs(cppPath):
+			cppPathsAbs.append( cppPath )
+		else:
+			# Converts to absolute path
+			cppPathsAbs.append( os.path.join( env.sbf.myIncludesInstallExtPaths[0], cppPath ) )
+	return cppPathsAbs
+
+
 class sofaConfig:
 	__basePath		= None
 	__svnRevision	= None
@@ -115,7 +127,6 @@ class IUse :
 	def getCPPPATH( self, version ):
 		return []
 
-
 	# for linker
 	def getLIBS( self, version ):
 		return [], []
@@ -184,21 +195,13 @@ class IUse :
 		# CPPPATH
 		cpppath = self.getCPPPATH( useVersion )
 		if cpppath != None :
-			if len(cpppath) > 0 :
-				cpppathAbs = []
-				if os.path.isabs(cpppath[0]) :
-					# Nothing to do
-					cpppathAbs = cpppath
-				else:
-					# Converts to absolute path
-					for path in cpppath :
-						cpppathAbs.append( os.path.join( env.sbf.myIncludesInstallExtPaths[0], path ) )		# @todo for each myIncludesInstallExtPaths[]
-
+			if len(cpppath) > 0:
+				cppPathsAbs = convertCPPPATHToAbs( env, cpppath )
 				if env.GetOption('weak_localext') and (self.getName() not in env['weakLocalExtExclude']):
-					for path in cpppathAbs :
+					for path in cppPathsAbs :
 						env.AppendUnique( CCFLAGS = ['${INCPREFIX}' + path ] )
 				else:
-					env.AppendUnique( CPPPATH = cpppathAbs )
+					env.AppendUnique( CPPPATH = cppPathsAbs )
 		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPPATH)." % (useNameVersion, self.platform) )
 
@@ -459,6 +462,7 @@ class Use_gstFFmpeg( IUse ):
 class Use_htEsHardware( IUse ):
 	def getName( self ):
 		return "htEsHardware"
+
 
 	def getVersions( self ):
 		return ['0-0']
