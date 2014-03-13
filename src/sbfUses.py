@@ -1078,11 +1078,12 @@ class Use_sofa( IUse, sofaConfig ):
 		return 'NoneAndNormal'
 
 	def getDbg( self, version ):
-		path = join( sofaConfig.getBasePath(), 'lib' )
+		"""@todo take care of getLIBPATH[0] for miniflowvr and newmat pdb files"""
+		path = self.getLIBPATH(version)[1][0]
 		dbgFiles = glob.glob( join(path,'*.pdb') )
 		dbgFilesD = glob.glob( join(path,'*_[0-9]_[0-9]d.pdb') )
 		dbgFilesR = glob.glob( join(path,'*_[0-9]_[0-9].pdb') )
-		assert( len(dbgFiles) == len(dbgFilesD) + len(dbgFilesR) )
+		# @todo assert( len(dbgFiles) == len(dbgFilesD) + len(dbgFilesR) )
 
 		if self.config == 'release':
 			return dbgFilesR
