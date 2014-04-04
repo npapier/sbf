@@ -1174,7 +1174,7 @@ class Use_swig( IUse ):
 		return 'swig'
 
 	def getVersions( self ):
-		return ['2-0-10']
+		return ['2-0-12']
 
 	def hasRuntimePackage( self, version ):
 		return True
