@@ -5,7 +5,7 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-version = '2-0-10'
+version = '2-0-12'
 versionDot = version.replace('-', '.')
 
 descriptor = {
