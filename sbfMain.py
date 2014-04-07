@@ -215,8 +215,16 @@ def sbfCheck( env ):
 	# ssh
 	checkTool( env, 'ssh', ['ssh', '-v'] )
 
-	# TortoiseMerge
-	tortoiseMergeLocation = locateProgram( 'TortoiseMerge' )
+	# Tortoise[Git|SVN]Merge
+	tortoiseMergeLocation = locateProgram( 'TortoiseGitMerge' )
+	if tortoiseMergeLocation :
+		print ('TortoiseGitMerge.exe found at {0}'.format( tortoiseMergeLocation ))
+		sys.stdout.flush()
+	else:
+		print ('TortoiseGitMerge.exe not found')
+	print
+
+	tortoiseMergeLocation = locateProgram( 'TortoiseSVNMerge' )
 	if tortoiseMergeLocation :
 		print ('TortoiseMerge.exe found at {0}'.format( tortoiseMergeLocation ))
 		sys.stdout.flush()
