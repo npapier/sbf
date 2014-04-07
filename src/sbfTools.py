@@ -94,7 +94,8 @@ def locateProgramUsingRegistry( programName ):
 							r'SOFTWARE\CollabNet\Subversion\{0}\Server\Install Location'.format(currentSvnVersion) ],
 		'swig'			: [],
 		'7z'			: [r'SOFTWARE\7-Zip\Path'],
-		'tortoisemerge'	: [r'SOFTWARE\TortoiseSVN\TMergePath']
+		'tortoisegitmerge'	: [r'SOFTWARE\TortoiseGit\TMergePath'],
+		'tortoisesvnmerge'	: [r'SOFTWARE\TortoiseSVN\TMergePath']
 	}
 
 	actionMap = {
@@ -136,7 +137,11 @@ def locateProgram( programName ):
 			return location
 
 	# Using PATH
-	if sys.platform == "win32" and not programName.endswith(".exe"):	programName += ".exe"
+	if sys.platform == "win32" and\
+		not programName.endswith(".exe") and\
+		not programName.endswith(".bat") :
+		programName += ".exe"
+
 	location = locateProgramUsingPATH( programName )
 	if len(location)>0:
 		return location
