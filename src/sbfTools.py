@@ -140,11 +140,22 @@ def locateProgram( programName ):
 	if sys.platform == "win32" and\
 		not programName.endswith(".exe") and\
 		not programName.endswith(".bat") :
-		programName += ".exe"
+		location = locateProgramUsingPATH( programName + ".exe" )
+		if len(location)>0:
+			return location
+	else:
+		location = locateProgramUsingPATH( programName )
+		if len(location)>0:
+			return location
 
-	location = locateProgramUsingPATH( programName )
-	if len(location)>0:
-		return location
+	# For program not in registry and not in PATH
+	#	graphviz
+	if programName == 'graphviz':
+		graphvizLocation = r"C:\Program Files (x86)\Graphviz2.36\bin"
+		graphvizLocation32 = r"C:\Program Files\Graphviz2.36\bin"
+
+		if exists( graphvizLocation ):		return graphvizLocation
+		if exists( graphvizLocation32 ):	return graphvizLocation32
 
 	return ''
 
