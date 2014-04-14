@@ -213,7 +213,7 @@ def sbfCheck( env ):
 	checkTool( env, 'rsync', ['rsync', '--version'] )
 
 	# ssh
-	checkTool( env, 'ssh', ['ssh', '-v'] )
+	checkTool( env, 'ssh', ['ssh', '-V'] )
 
 	# Tortoise[Git|SVN]Merge
 	tortoiseMergeLocation = locateProgram( 'TortoiseGitMerge' )
