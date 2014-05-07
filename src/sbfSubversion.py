@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -16,6 +16,7 @@ import os
 from os.path import basename, dirname, exists, isfile, isdir, join, normpath, relpath
 from sbfIVersionControlSystem import IVersionControlSystem
 from sbfFiles import convertPathAbsToRel
+from sbfTools import locateProgram
 
 
 
@@ -890,10 +891,13 @@ class Subversion( IVersionControlSystem ):
 
 	def __runConflictResolver( self, myProjectPathName, conflictedList ):
 		"""Executes a conflict editor program on each element of conflictedList.
-			@remark On windows, TortoiseMerge is the default conflict editor."""
+			@remark On Windows, TortoiseMerge is the default conflict editor."""
 
 		if len(conflictedList) > 0 :
 			print 'Launch conflict editor for:'
+
+		mergeTool = ''
+		if sys.platform == 'win32':	mergeTool = locateProgram('tortoisesvnmerge')
 
 		for (projectPathName, pathFilename) in conflictedList:
 			print relpath(pathFilename, myProjectPathName)
@@ -905,17 +909,17 @@ class Subversion( IVersionControlSystem ):
 				work	= f.entry.conflict_work
 				merged	= f.entry.name
 
-				if sys.platform == 'win32':
-					if self.__mustLaunchMergeTool():
-						# @todo Tests if TortoiseMerge is available
-						cmd =	"@TortoiseMerge.exe /base:\"%s\" /theirs:\"%s\" /mine:\"%s\" /merged:\"%s\"" % (
-									join( dirPath, old ),
-									join( dirPath, new ),
-									join( dirPath, work ),
-									join( dirPath, merged ) )
-						cmd +=	"/basename:\"%s\" /theirsname:\"%s\" /minename:\"%s\" /mergedname:\"%s\"" % ( old, new, work, merged )
-						self.sbf.myEnv.Execute( cmd )
-						print
+				if self.__mustLaunchMergeTool() and mergeTool:
+					cmd =	"@\"{exe}\" /base:\"{base}\" /theirs:\"{theirs}\" /mine:\"{mine}\" /merged:\"{merged}\"".format(
+								exe		= mergeTool,
+								base	= join( dirPath, old ),
+								theirs	= join( dirPath, new ),
+								mine	= join( dirPath, work ),
+								merged	= join( dirPath, merged ) )
+					cmd +=	"/basename:\"{basename}\" /theirsname:\"{theirsname}\" /minename:\"{minename}\" /mergedname:\"{mergedname}\"".format(
+						basename=old, theirsname=new, minename=work, mergedname=merged )
+					self.sbf.myEnv.Execute( cmd )
+					print
 
 	# SvnUrl
 	def __searchSvnUrlList( self, projectName ):
