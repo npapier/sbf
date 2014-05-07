@@ -941,7 +941,14 @@ class SConsBuildFramework :
 		### configure compiler and linker flags.
 		self.configureCxxFlagsAndLinkFlags( self.myEnv )
 
-		# Updates PATH
+		### Updates PATH
+
+		# 	Adds localExt/bin (i.e. external tools like swig, moc...)
+		if self.myEnv.GetOption('verbosity'):	print
+		toPrepend = [ join(self.myInstallExtPaths[0], 'bin') ]
+		prependToPATH( self.myEnv, toPrepend, self.myEnv.GetOption('verbosity') )
+
+		#	Adds rsync, ssh, 7z, nsis, graphviz and doxygen.
 		toAppend = getPathsForTools(self.myEnv.GetOption('verbosity'))
 		if self.myEnv.GetOption('verbosity'):	print
 		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity') )
