@@ -896,8 +896,15 @@ class Subversion( IVersionControlSystem ):
 		if len(conflictedList) > 0 :
 			print 'Launch conflict editor for:'
 
-		mergeTool = ''
-		if sys.platform == 'win32':	mergeTool = locateProgram('tortoisesvnmerge')
+		# Retrieves which merge tool to use
+		mergeTool = None
+		if sys.platform == 'win32':
+			mergeTool = locateProgram( 'tortoisesvnmergecustom' )
+			if not mergeTool:
+				mergeTool = locateProgram('tortoisesvnmerge')
+			#else nothing to do
+
+		tortoiseMergeStyleParameters = (basename(mergeTool) == 'TortoiseMerge.exe')
 
 		for (projectPathName, pathFilename) in conflictedList:
 			print relpath(pathFilename, myProjectPathName)
@@ -910,14 +917,29 @@ class Subversion( IVersionControlSystem ):
 				merged	= f.entry.name
 
 				if self.__mustLaunchMergeTool() and mergeTool:
-					cmd =	"@\"{exe}\" /base:\"{base}\" /theirs:\"{theirs}\" /mine:\"{mine}\" /merged:\"{merged}\"".format(
-								exe		= mergeTool,
-								base	= join( dirPath, old ),
-								theirs	= join( dirPath, new ),
-								mine	= join( dirPath, work ),
-								merged	= join( dirPath, merged ) )
-					cmd +=	"/basename:\"{basename}\" /theirsname:\"{theirsname}\" /minename:\"{minename}\" /mergedname:\"{mergedname}\"".format(
-						basename=old, theirsname=new, minename=work, mergedname=merged )
+					if tortoiseMergeStyleParameters:
+						#"C:\Program Files\TortoiseSVN\bin\TortoiseMerge.exe" /base:"E:\Dev\bin\currentProjects\default.options.r7684" /theirs:"E:\Dev\bin\currentProjects\default.options.r7841"
+						# /mine:"E:\Dev\bin\currentProjects\default.options.mine" /merged:"E:\Dev\bin\currentProjects\default.options" /basename:"default.options.r7684"
+						# /theirsname:"default.options.r7841" /minename:"default.options.mine" /mergedname:"default.options"
+						# /groupuuid:"c59f667f6873f70ceadc69dd210ae58f" /saverequired
+						cmd =	"@\"{exe}\" /base:\"{base}\" /theirs:\"{theirs}\" /mine:\"{mine}\" /merged:\"{merged}\"".format(
+									exe		= mergeTool,
+									base	= join( dirPath, old ),
+									theirs	= join( dirPath, new ),
+									mine	= join( dirPath, work ),
+									merged	= join( dirPath, merged ) )
+						cmd +=	" /basename:\"{basename}\" /theirsname:\"{theirsname}\" /minename:\"{minename}\" /mergedname:\"{mergedname}\" /saverequired".format(
+							basename=old, theirsname=new, minename=work, mergedname=merged )
+					else:
+						# "C:\Program Files\Perforce\p4merge.exe" "E:\Dev\bin\currentProjects\default.options.r7684" "E:\Dev\bin\currentProjects\default.options.r7841"
+						# "E:\Dev\bin\currentProjects\default.options.mine" "E:\Dev\bin\currentProjects\default.options"
+						cmd =	"@\"{exe}\" \"{base}\" \"{mine}\" \"{theirs}\" \"{merged}\"".format(
+									exe		= mergeTool,
+									base	= join( dirPath, old ),
+									mine	= join( dirPath, work ),
+									theirs	= join( dirPath, new ),
+									merged	= join( dirPath, merged ) )
+
 					self.sbf.myEnv.Execute( cmd )
 					print
 

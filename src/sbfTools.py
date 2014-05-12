@@ -71,6 +71,12 @@ def appendBin( path ):
 	return join( path, 'bin' )
 #	return join( getNormalizedPathname(path), 'bin' )
 
+def removeComment( path ):
+	if path[0] == '#':
+		return ''
+	else:
+		return path
+
 def nop( path ):
 	return path
 #	return getNormalizedPathname(path)
@@ -94,18 +100,20 @@ def locateProgramUsingRegistry( programName ):
 							r'SOFTWARE\CollabNet\Subversion\{0}\Server\Install Location'.format(currentSvnVersion) ],
 		'swig'			: [],
 		'7z'			: [r'SOFTWARE\7-Zip\Path'],
-		'tortoisegitmerge'	: [r'SOFTWARE\TortoiseGit\TMergePath'],
-		'tortoisesvnmerge'	: [r'SOFTWARE\TortoiseSVN\TMergePath']
+		'tortoisegitmerge'			: [r'SOFTWARE\TortoiseGit\TMergePath'],
+		'tortoisesvnmerge'			: [r'SOFTWARE\TortoiseSVN\TMergePath'],
+		'tortoisesvnmergecustom'	: [r'SOFTWARE\TortoiseSVN\Merge']
 	}
 
 	actionMap = {
-		'cmake'			: appendBin,
-		'cygpath'		: appendBin,
-		'doxygen'		: appendBin,
-		'git'			: appendBin,
-		'graphviz'		: appendBin,
-		'rsync'			: appendBin,
-		'ssh'			: appendBin
+		'cmake'						: appendBin,
+		'cygpath'					: appendBin,
+		'doxygen'					: appendBin,
+		'git'						: appendBin,
+		'graphviz'					: appendBin,
+		'rsync'						: appendBin,
+		'ssh'						: appendBin,
+		'tortoisesvnmergecustom'	: removeComment
 	}
 
 	currentAction = actionMap.get( programName, nop )

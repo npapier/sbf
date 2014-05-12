@@ -230,6 +230,12 @@ def sbfCheck( env ):
 		sys.stdout.flush()
 	else:
 		print ('TortoiseMerge.exe not found')
+
+	# Custom merge tool configured in TortoiseSVN
+	tortoiseSVNCustomMergeLocation = locateProgram( 'tortoisesvnmergecustom' )
+	if tortoiseSVNCustomMergeLocation :
+		print ('Custom merge tool configured for TortoiseSVN is {0}'.format( tortoiseSVNCustomMergeLocation ))
+		sys.stdout.flush()
 	print
 
 	# 7z
@@ -553,7 +559,7 @@ def runSbfAutoUpdater():
 	if not exists(sandboxPath):	os.makedirs(sandboxPath)
 
 	# Copy files in directory 'sbfAutoUpdater'
-	for file in ['sbfFiles.py', 'sbfIVersionControlSystem.py', 'sbfSubversion.py']:
+	for file in ['sbfEnvironment.py', 'sbfFiles.py', 'sbfIVersionControlSystem.py', 'sbfSubversion.py', 'sbfTools.py', 'sbfUtils.py']:
 		shutil.copy( join(sbf.mySCONS_BUILD_FRAMEWORK, 'src', file), sandboxPath )
 
 	# Create autoUpdater.py
