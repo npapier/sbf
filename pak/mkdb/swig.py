@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # SConsBuildFramework - Copyright (C) 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
@@ -9,7 +11,6 @@ versionDot = version.replace('-', '.')
 descriptor = {
  'urls'			: [ 'http://sourceforge.net/projects/swig/files/swigwin/swigwin-{version}/swigwin-{version}.zip'.format(version=versionDot) ],
  
-
  'name'			: 'swig',
  'version'		: version,
 
@@ -22,4 +23,3 @@ descriptor = {
  'custom'		: [	('swig.exe', 'bin/'),
 					(GlobRegEx('Lib/.*', pruneFiles='(?!^.*[.](swg|i)$)', recursive=True), 'bin/Lib/') ]
 }
-

@@ -98,6 +98,22 @@ def execute( commandAndParams, commandPath = None ):
 		if len(line) > 0:
 			return line
 
+def call( commandAndParams, commandPath = None ):
+	"""	Executes commandAndParams = [command, parameter0, ..., parameterX] in commandPath directory if given.
+		Returns the return code of the command."""
+
+	# Computes args argument of Popen()
+	if commandPath:
+		argsForPopen = [join(commandPath, commandAndParams[0])]
+		for elt in commandAndParams[1:]:
+			argsForPopen.append(elt)
+	else:
+		argsForPopen = commandAndParams
+
+	# Executes command
+	retVal = subprocess.call( args=argsForPopen, cwd=commandPath )
+
+	return retVal
 
 def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = None ):
 	if not vcvarsPath:
