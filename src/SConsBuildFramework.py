@@ -947,8 +947,8 @@ class SConsBuildFramework :
 		if self.myEnv.GetOption('verbosity'):	print
 		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity') )
 
-		#	Adds local/bin
-		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin') ], self.myEnv.GetOption('verbosity') )
+		#	Adds local/bin and localExt/lib
+		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin'), join(self.myInstallExtPaths[0], 'lib') ], self.myEnv.GetOption('verbosity') )
 		if self.myEnv.GetOption('verbosity'):	print
 
 		# Generates help
