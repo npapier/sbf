@@ -322,6 +322,7 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 				assert(False) # not yet implemented, @todo deprecated ?
 
 		pakSystem = PackagingSystem(sbf, verbose=False)
+
 		# Processes external dependencies (i.e. 'uses')
 		# For each external dependency, do
 		for useNameVersion in allUses:
@@ -332,35 +333,46 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 			# Retrieves use object for incoming dependency
 			use = UseRepository.getUse( useName )
 			if use:
-				### LIBS ###
-				if use.getPackageType() == 'None':
-					# nothing to do
-					if lenv.GetOption('verbosity'): print ("No files for uses='{0}'...".format(useNameVersion))
-				elif use.getPackageType() in ['NoneAndNormal', 'Normal']:
-					# Retrieves LIBS of incoming dependency
-					libs = use.getLIBS( useVersion )
-					if libs and len(libs) == 2:
-						# Computes the search path list where libraries could be located
-						searchPathList = baseSearchPathList[:]
-						libpath = use.getLIBPATH( useVersion )
-						if libpath and (len(libpath) == 2): searchPathList.extend( libpath[1] )
-
-						# For each library, do
-						if lenv.GetOption('verbosity') and len(libs[1])==0: print ("No files for uses='{0}'...".format(useNameVersion))
-						for file in libs[1]:
-							filename = file + lenv['SHLIBSUFFIX']
-							pathFilename = searchFileInDirectories( filename, searchPathList )
-							if pathFilename:
-								if lenv.GetOption('verbosity'):	print ("Found library {0} for uses='{1}'.".format(pathFilename, useName))
-								splitPathFilename = os.path.split(pathFilename)
-								depsFiles.append( (pathFilename, join('bin', splitPathFilename[1])) )
-							else:
-								raise SCons.Errors.UserError( "File {0} not found for uses='{1}'.".format(filename, useName) )
+				### RUNTIME PACKAGE ###
+				if use.hasRuntimePackage( useVersion ):
+					allUseNames = [useName + '-runtime']
+					if lenv['config'] == 'release':
+						allUseNames.append( useName + '-runtime-release' )
 					else:
-						raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
+						allUseNames.append( useName + '-runtime-debug' )
+					for useName in allUseNames:
+						collectDepsFilesForPackage( pakSystem, useName, useVersion, lenv, depsFiles )
 				else:
-					# getPackageType() returns an unexpected value
-					assert( False )
+				### NO RUNTIME PACKAGE ###
+				### LIBS ###
+					if use.getPackageType() == 'None':
+						# nothing to do
+						if lenv.GetOption('verbosity'): print ("No files for uses='{0}'...".format(useNameVersion))
+					elif use.getPackageType() in ['NoneAndNormal', 'Normal']:
+						# Retrieves LIBS of incoming dependency
+						libs = use.getLIBS( useVersion )
+						if libs and len(libs) == 2:
+							# Computes the search path list where libraries could be located
+							searchPathList = baseSearchPathList[:]
+							libpath = use.getLIBPATH( useVersion )
+							if libpath and (len(libpath) == 2): searchPathList.extend( libpath[1] )
+
+							# For each library, do
+							if lenv.GetOption('verbosity') and len(libs[1])==0: print ("No files for uses='{0}'...".format(useNameVersion))
+							for file in libs[1]:
+								filename = file + lenv['SHLIBSUFFIX']
+								pathFilename = searchFileInDirectories( filename, searchPathList )
+								if pathFilename:
+									if lenv.GetOption('verbosity'):	print ("Found library {0} for uses='{1}'.".format(pathFilename, useName))
+									splitPathFilename = os.path.split(pathFilename)
+									depsFiles.append( (pathFilename, join('bin', splitPathFilename[1])) )
+								else:
+									raise SCons.Errors.UserError( "File {0} not found for uses='{1}'.".format(filename, useName) )
+						else:
+							raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
+					else:
+						# getPackageType() returns an unexpected value
+						assert( False )
 
 				### LICENSE ###
 				if use.getPackageType() == 'None':
@@ -393,17 +405,6 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 				else:
 					# getPackageType() returns an unexpected value
 					assert( False )
-
-				### RUNTIME PACKAGE ###
-				if use.hasRuntimePackage( useVersion ):
-					allUseNames = [useName + '-runtime']
-					if lenv['config'] == 'release':
-						allUseNames.append( useName + '-runtime-release' )
-					else:
-						allUseNames.append( useName + '-runtime-debug' )
-					for useName in allUseNames:
-						collectDepsFilesForPackage( pakSystem, useName, useVersion, lenv, depsFiles )
-				#else nothing to do
 			else:
 				raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, sbf.myPlatform) )
 	# do nothing for 'none' project
