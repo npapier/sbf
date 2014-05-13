@@ -806,7 +806,7 @@ class Use_python( IUse ):
 
 class Use_physfs( IUse ):
 	def getName(self ):
-		return "physfs"
+		return 'physfs'
 
 	def getVersions( self ):
 		return [ '2-0-2', '2-0-1' ]
@@ -826,6 +826,11 @@ class Use_physfs( IUse ):
 			libs = ['physfs']
 			return libs, []
 
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0 and version == '2-0-2':
+			return True
+		else:
+			return False
 
 class Use_qt( IUse ):
 	cppModules = ['QtCore', 'QtGui']
