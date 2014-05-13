@@ -563,7 +563,7 @@ class Use_openil( IUse ):
 # @remarks sdl-config --cflags --libs
 class Use_sdl( IUse ):
 	def getName( self ):
-		return "sdl"
+		return 'sdl'
 
 	def getVersions( self ):
 		return ['1-2-14']
@@ -595,10 +595,16 @@ class Use_sdl( IUse ):
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-14':
+			return True
+		else:
+			return False
+
 
 class Use_sdlMixer( IUse ):
 	def getName( self ):
-		return "sdlmixer"
+		return 'sdlmixer'
 
 	def getVersions( self ):
 		return ['1-2-11']
@@ -629,6 +635,12 @@ class Use_sdlMixer( IUse ):
 			return [], []
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
+
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-11':
+			return True
+		else:
+			return False
 
 
 class Use_glew( IUse ):
