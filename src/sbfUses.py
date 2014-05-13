@@ -553,6 +553,12 @@ class Use_openil( IUse ):
 				#libs = ['ILd']
 				return libs, libs
 
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 9.0000 and version == '1-7-8':
+			return True
+		else:
+			return False
+
 
 # @remarks sdl-config --cflags --libs
 class Use_sdl( IUse ):
