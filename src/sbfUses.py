@@ -697,6 +697,12 @@ class Use_glut( IUse ):
 			libs = ['glut']
 			return libs, libs
 
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '3-7':
+			return True
+		else:
+			return False
+
 
 class Use_gtest( IUse ):
 	def getName(self ):
