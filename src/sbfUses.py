@@ -654,6 +654,12 @@ class Use_glew( IUse ):
 		libs = ['glew32']
 		return libs, libs
 
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-9-0':
+			return True
+		else:
+			return False
+
 
 class Use_glu( IUse ):
 	def getName(self ):
