@@ -52,7 +52,7 @@ const std::string getFullDescriptions()
 
 	ssStr << "CPU: " << getCPU() << std::endl;
 
-	ssStr << "Logical processor: " << getLogicalProcessors() << std::endl;
+	//ssStr << "Logical processor: " << getLogicalProcessors() << std::endl;
 	ssStr << "Multithreading: " << hasMultithreading() << std::endl;
 
 	if ( hasMMX() )		ssStr << "MMX ";
