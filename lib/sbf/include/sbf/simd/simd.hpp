@@ -6,8 +6,10 @@
 #ifndef _SBF_SIMD_SIMD_HPP_
 #define _SBF_SIMD_SIMD_HPP_
 
+#include <emmintrin.h>	// SSE2
 #include <string>
 #include "sbf/sbf.hpp"
+
 
 
 namespace sbf

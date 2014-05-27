@@ -18,8 +18,6 @@
 	#endif
 #endif
 
-#include <emmintrin.h>	// SSE2
-
 
 
 namespace sbf
