@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -1507,7 +1507,14 @@ SConsBuildFramework options:
 			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
 
 		#
-		if self.myCCVersionNumber >= 10.000000 :
+		if self.myCCVersionNumber >= 11.000000:
+			if self.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
+				# @remark add /d2Zi+ undocumented flags in Visual C++ (at least 2012) to improve debugging experience in release configuration (local variable, inline function...)
+				# see http://randomascii.wordpress.com/2013/09/11/debugging-optimized-codenew-in-visual-studio-2012/
+				lenv.Append( CXXFLAGS = ['/d2Zi+'] )
+			lenv.Append( LINKFLAGS = '/MANIFEST' )
+			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+		elif self.myCCVersionNumber >= 10.000000 :
 			lenv.Append( LINKFLAGS = '/MANIFEST' )
 			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
 		elif self.myCCVersionNumber >= 9.000000 :
