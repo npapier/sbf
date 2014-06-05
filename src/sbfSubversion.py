@@ -895,6 +895,8 @@ class Subversion( IVersionControlSystem ):
 
 		if len(conflictedList) > 0 :
 			print 'Launch conflict editor for:'
+		else:
+			return
 
 		# Retrieves which merge tool to use
 		mergeTool = None
@@ -903,8 +905,7 @@ class Subversion( IVersionControlSystem ):
 			if not mergeTool:
 				mergeTool = locateProgram('tortoisesvnmerge')
 			#else nothing to do
-
-		tortoiseMergeStyleParameters = (basename(mergeTool) == 'TortoiseMerge.exe')
+			tortoiseMergeStyleParameters = (basename(mergeTool) == 'TortoiseMerge.exe')
 
 		for (projectPathName, pathFilename) in conflictedList:
 			print relpath(pathFilename, myProjectPathName)
