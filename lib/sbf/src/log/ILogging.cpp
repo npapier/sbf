@@ -5,6 +5,7 @@
 
 #include "sbf/log/ILogging.hpp"
 
+#include <string>
 #include "sbf/log/GlobalLogger.hpp"
 
 #ifdef _WIN32

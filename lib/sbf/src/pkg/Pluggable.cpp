@@ -79,7 +79,7 @@ Pluggable::Pluggable( const std::string & name, const std::string & version, con
 
 const bool Pluggable::isLoaded() const
 {
-	return m_library;
+	return m_library != 0;
 }
 
 

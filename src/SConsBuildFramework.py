@@ -627,7 +627,8 @@ class SConsBuildFramework :
 
 			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = myTargetArch, MSVC_VERSION = myMsvcVersion )
 		else:
-			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools )
+			# @todo OPTME: adds 'tools = myTools' in Environment() to avoid the initialization of all tools supported by SCons.
+			self.myEnv = Environment( options = self.mySBFOptions )
 
 
 		# Configures command line max length
@@ -1620,6 +1621,8 @@ SConsBuildFramework options:
 #			self.myCxxFlags	+= ' -D_DEBUG -DDEBUG -g -O0 '							### profiling myCxxFlags += ' -pg', mpatrol, leaktracer
 
 		# process myWarningLevel, adds always -Wall option.							TODO: adds more warnings with myWarningLevel = 'high' ?
+		lenv.Append( CXXFLAGS = '-std=c++11' )
+		lenv.Append( CXXFLAGS = '-msse2' )
 		lenv.Append( CXXFLAGS = '-Wall' )
 		lenv.Append( CXXFLAGS = '-Wno-deprecated' )
 		# @todo remove me
@@ -2128,6 +2131,11 @@ SConsBuildFramework options:
 		swigFiles = self.getFiles( 'swig', lenv )
 		swigTarget = []
 		if swigFiles:
+			# @todo move the code initializing shlibsuffix in SConsBuildFramework initialization stage.
+			if self.myPlatform == 'win32':
+				shlibsuffix = '.pyd'
+			else:
+				shlibsuffix = '.so'
 			# Add implicit uses for swig and python
 			if 'swig' not in self.myImplicitUsesSet:
 				assert( 'python' not in self.myImplicitUsesSet )
@@ -2174,13 +2182,14 @@ SConsBuildFramework options:
 				baseFilename = '_{moduleName}{configPostfix}'.format( moduleName=moduleName, configPostfix=configPostfix )
 
 				installInBinTarget.append( File(join(swigVarDir, moduleName+'.py')) )
-				installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd')) )
+				installInBinTarget.append( File(join(swigVarDir, baseFilename+shlibsuffix)) )
 				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pyd.manifest')) )
 				#installInBinTarget.append( File(join(swigVarDir, baseFilename+'.pdb')) )
 
 				pathFilenameSharedLibrary = '{outdir}{sep}{filename}'.format( outdir = swigVarDir, sep=os.sep, filename=baseFilename )
-				tmp = swigEnv.SharedLibrary( pathFilenameSharedLibrary, file.replace('swig', swigVarDir, 1), SHLIBSUFFIX='.pyd' )
-				swigEnv.Append( LIBS = objProject ) # link with the current project
+				tmp = swigEnv.SharedLibrary( pathFilenameSharedLibrary, file.replace('swig', swigVarDir, 1), SHLIBPREFIX = '', SHLIBSUFFIX=shlibsuffix )
+				swigEnv.Append( LIBPATH = dirname(objProject) ) # link with the current project
+				swigEnv.Append( LIBS = basename(objProject) ) # link with the current project
 				swigTarget += tmp
 		else:
 			swigTarget = None

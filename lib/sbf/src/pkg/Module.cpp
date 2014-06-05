@@ -1,6 +1,7 @@
 #include "sbf/pkg/Module.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <boost/algorithm/string/trim.hpp>
 

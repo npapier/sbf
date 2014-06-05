@@ -7,6 +7,8 @@
 #define _SBF_SIMD_SIMD_HPP_
 
 #include <emmintrin.h>	// SSE2
+#include <malloc.h>
+#include <string.h>
 #include <string>
 #include "sbf/sbf.hpp"
 

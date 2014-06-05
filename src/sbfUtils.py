@@ -67,7 +67,7 @@ def subprocessGetOuputCall( cmdLine, verbose = True ):
 		exit(e.returncode)
 	except OSError, e:
 		print >>sys.stderr, "Execution failed:", e, '\n'
-		exit(e.returncode)
+		exit(e.errno)
 
 
 def execute( commandAndParams, commandPath = None ):

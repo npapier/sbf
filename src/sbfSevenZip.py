@@ -13,14 +13,18 @@ except ImportError as e:
 
 from os.path import join
 
+
 def sevenZipExtract( pathArchive, outputDir, verbose = True ):
 	"""Extracts files from archive pathArchive with their full paths in the current directory, or in an output directory if specified."""
 	path7z = locateProgram( '7z' )
+	if not len(path7z):
+		print ('sbfError: unable to find 7Zip extractor.')
+		return False
+	
+	cmdLine = [ join(path7z, '7z'), 'x', pathArchive ]
 	if outputDir:
-		cmdLine = '"{sevenZip}" x "{pathArchive}" -o"{outputDir}"'.format( sevenZip=join(path7z, '7z'), pathArchive = pathArchive, outputDir = outputDir )
-	else:
-		cmdLine = '"{sevenZip}" x "{pathArchive}"'.format( sevenZip=join(path7z, '7z'), pathArchive = pathArchive )
-
+		cmdLine.append( '-o{0}'.format(outputDir) )
+	
 	return subprocessGetOuputCall( cmdLine, verbose )
 
 # @todo sevenZipCompress()

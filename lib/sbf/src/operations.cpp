@@ -95,7 +95,8 @@ const boost::filesystem::path getRootPath()
 		return boost::filesystem::path();
 	}
 #else
-	#error "Not yet implemented"
+	#warning "Not yet implemented"
+	assert(false);
 	return boost::filesystem::path();
 #endif
 }

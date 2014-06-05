@@ -257,6 +257,8 @@ class Use_blowfish( IUse ):
 				return ['Blowfish'], []
 			else:
 				return ['Blowfish_D'], []
+		elif self.platform == 'posix':
+			return ['Blowfish'], []
 
 
 
@@ -268,14 +270,14 @@ class Use_boost( IUse ):
 		return [ '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
+		versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
 		if self.platform == 'win32':
-			versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
 			if version == '1-54-0':
 				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
 			else:
 				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
 		else:
-			return [ ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
+			return [ ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
 
 
 	def getLIBS( self, version ):
@@ -351,14 +353,20 @@ class Use_boost( IUse ):
 				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
 				return [], pakLibs
-		elif self.platform == 'posix' and version in ['1-38-0', '1-34-1']:
-			libs = [	'libboost_date_time-mt',	'libboost_filesystem-mt',		'libboost_graph-mt',
-						'libboost_iostreams-mt',	'libboost_prg_exec_monitor-mt',	'libboost_program_options-mt',
-						'libboost_regex-mt',		'libboost_serialization-mt',
-#						'libboost_python-mt',		'libboost_regex-mt',			'libboost_serialization-mt',
-						'libboost_signals-mt',		'libboost_thread-mt',			'libboost_unit_test_framework-mt',
-						'libboost_wave-mt',			'libboost_wserialization-mt'	]
+		elif self.platform == 'posix' and version in ['1-54-0']:
+			libs = [	'libboost_atomic',	'libboost_chrono',		'libboost_context',	'libboost_date_time',
+					'libboost_filesystem',	'libboost_graph_parallel',	'libboost_graph',		'libboost_iostreams',
+					'libboost_locale',	'libboost_log_setup',		'libboost_log',		
+#					'libboost_math_c99f',	'libboost_math_c99l',		'libboost_math_c99',
+#					'libboost_math_tr1f',	'libboost_math_tr1l',		'libboost_math_tr1',
+#					'libboost_mpi_python-py27',	'libboost_mpi_python-py33',	'libboost_mpi_python-py34',
+					'libboost_mpi',		'libboost_prg_exec_monitor',	'libboost_program_options',	
+#					'libboost_python-py27',	'libboost_python-py33',		'libboost_python-py34',
+					'libboost_random',	'libboost_regex',			'libboost_serialization',	'libboost_signals',
+					'libboost_system',	'libboost_thread',		'libboost_timer',			'libboost_unit_test_framework',
+					'libboost_wave',		'libboost_wserialization' ]
 			return libs, libs
+
 
 	def hasRuntimePackage( self, version ):
 		return version == '1-54-0'
@@ -480,6 +488,9 @@ class Use_htEsHardware( IUse ):
 class Use_opengl( IUse ):
 	def getName( self ):
 		return "opengl"
+
+#	def getCPPDEFINES( self, version ):
+#		return [ 'GL_GLEXT_LEGACY' ]
 
 	def getLIBS( self, version ):
 		if self.platform == 'win32' :
@@ -709,6 +720,9 @@ class Use_glm( IUse ):
 	def getVersions( self ):
 		return [ '0-9-4-1', '0-9-3-4', '0-9-3-3', '0-8-4-1' ]
 
+	def hasRuntimePackage( self, version ):
+		return True
+
 
 class Use_glut( IUse ):
 	def getName(self ):
@@ -785,6 +799,8 @@ class Use_openassetimport( IUse ):
 				return ['assimp'], ['assimp']
 			else:
 				return ['assimpD'], ['assimpD']
+		elif self.platform == 'posix':
+			return ['assimp'],['assimp']
 
 	def hasRuntimePackage( self, version ):
 		return version == '3-0-2'
@@ -842,15 +858,20 @@ class Use_python( IUse ):
 		return [ '2-7-3' ]
 
 	def getCPPPATH( self, version ):
-		#cppPath = [	os.path.join(self.getBasePath(), 'include') ]
-		cppPath = ['Python']
+		if self.platform == 'win32':
+			cppPath = ['Python']
+		else:
+			cppPath = ['/usr/include/python2.7']
 		return cppPath
 
 	def getLIBS( self, version ):
-		if self.config == 'release':
-			libs = ['python27']
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = ['python27']
+			else:
+				libs = ['python27_d']
 		else:
-			libs = ['python27_d']
+			libs = ['python2.7']
 		return libs, []
 
 	def hasRuntimePackage( self, version ):
@@ -908,12 +929,11 @@ class Use_qt( IUse ):
 		return self.cppModules
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
-			if self.config == 'release':
-				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
-			else:
-				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
-			return libs, []
+		if self.config == 'release':
+			libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+		else:
+			libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
+		return libs, []
 
 	def hasRuntimePackage( self, version ):
 		return True

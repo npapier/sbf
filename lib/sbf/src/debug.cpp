@@ -77,10 +77,7 @@ LONG WINAPI toplevelExceptionFilterCoreFull( struct _EXCEPTION_POINTERS *excepti
 }
 
 #else
-int generateMiniDump( void * input, MINIDUMP_TYPE miniDumpType )
-{
-	assert( false && "Not yet implemented" );
-}
+	// Nothing to do.
 #endif
 
 }
