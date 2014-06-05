@@ -46,7 +46,7 @@ def __doTargetInfoFile( target, source, env ):
 			# not installed
 			if hasPackage:
 				print ( '{0} {1} is NOT installed.'.format(useName.ljust(16), useVersion))
-				if env.sbf.myPlatform == 'linux'
+				if env.sbf.myPlatform == 'linux':
 					pass # This line was here, because we use external dependencies from Linux system and not the sbfpak generated one
 				else:
 					Exit(1)
