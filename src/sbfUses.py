@@ -721,7 +721,7 @@ class Use_glm( IUse ):
 		return [ '0-9-4-1', '0-9-3-4', '0-9-3-3', '0-8-4-1' ]
 
 	def hasRuntimePackage( self, version ):
-		return True
+		return self.platform == 'posix'
 
 
 class Use_glut( IUse ):
