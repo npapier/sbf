@@ -121,7 +121,30 @@ def passthruConverter( val ):
 
 
 
-### ###
+### Name manipulation ###
+def expandNameOfLibrary( sbf, lib ):
+	libSplitted = splitLibsName( lib )
+	if len(libSplitted[1])==0:
+		# no version information supplied
+		return '{}{}{}'.format( libSplitted[0], sbf.my_Platform_myCCVersion, sbf.my_PostfixLinkedToMyConfig )
+	else:
+		# version information supplied
+		return '{}_{}{}{}'.format( libSplitted[0], libSplitted[1], sbf.my_Platform_myCCVersion, sbf.my_PostfixLinkedToMyConfig )
+
+def computeLibsExpanded( sbf, libs ):
+	"""@return (libsExpanded, True if 'sbf' is in libs (False otherwise))
+	Example: computeLibsExpanded( sbf, ['sbf 0-2'] ) returns (['sbf_0-2_win_cl11-0Exp], True)"""
+
+	libsExpanded = []
+	containsSbfLibrary = False
+
+	for lib in libs:
+		containsSbfLibrary = containsSbfLibrary or lib.startswith('sbf')
+
+		libsExpanded.append( expandNameOfLibrary(sbf, lib) )
+	return (libsExpanded, containsSbfLibrary)
+
+###
 def isLaunchProject( lenv ):
 	return lenv['sbf_launchProject'] == lenv['sbf_project']
 
@@ -436,6 +459,7 @@ class SConsBuildFramework :
 	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnremotemkbranch'] )
 	myInformationsTargets			= set( ['info', 'infofile'] )
 	myBuildingTargets				= set( ['pakupdate', 'all', 'clean', 'mrproper'] )
+	myTestTargets					= set( ['test'] ) # @todo test_clean, test_mrproper and test_run
 	myRunTargets					= set( ['onlyrun', 'run'] )
 	myVCProjTargets					= set( ['vcproj', 'vcproj_clean', 'vcproj_mrproper'] )
 	myDoxTargets					= set( ['dox', 'dox_clean', 'dox_mrproper'] )
@@ -445,7 +469,7 @@ class SConsBuildFramework :
 	myTargetsWhoNeedDeps			= set( ['deps', 'portable', 'zipportable', 'nsis'] )
 	myTargetsAllowingWeakReading	= set( ['svncheckout', 'svnupdate'] )
 
-	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
+	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myTestTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
@@ -771,7 +795,8 @@ class SConsBuildFramework :
 		if self.myEnv.GetOption('verbosity') :
 			printSBFVersion()
 			print ( "SConsBuildFramework path is '{}'".format(self.mySCONS_BUILD_FRAMEWORK) )
-			print 'started', self.myDateTimeForUI
+			print ( 'started {}'.format(self.myDateTimeForUI) )
+			print ( "Host computer is a {} {} with a processor '{}'".format(platform.system(), platform.machine(), platform.processor() ) )
 
 		# Retrieves all targets (normalized in lower case)
 		self.myBuildTargets = [str(buildTarget).lower() for buildTarget in BUILD_TARGETS]
@@ -998,6 +1023,9 @@ build related targets
  'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
  'scons clean' to clean intermediate files (see buildPath option).
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
+
+test related targets
+ 'scons test' to build the project (i.e. scons all) and to build the test project in 'test' sub-directory.
 
 run related targets
  'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
@@ -1251,10 +1279,10 @@ SConsBuildFramework options:
 			self.myProjectBuildPathExpanded += '_' + self.myPostfix
 
 
-	def configureProject( self, lenv ):
+	def configureProject( self, lenv, type ):
 
 		### configures compiler and linker flags.
-		self.configureProjectCxxFlagsAndLinkFlags( lenv )
+		self.configureProjectCxxFlagsAndLinkFlags( lenv, type )
 		### configures CPPDEFINES with myDefines
 		lenv.Append( CPPDEFINES = self.myDefines )
 		# configures lenv['LIBS'] with lenv['stdlibs']
@@ -1576,7 +1604,7 @@ SConsBuildFramework options:
 
 
 	# @todo incremental in release, but not for portable app and nsis
-	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
+	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv, type ):
 		# Linker flags
 		if self.myConfig == 'release':
 			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
@@ -1589,7 +1617,7 @@ SConsBuildFramework options:
 			lenv.Append( LINKFLAGS = [ '/DEBUG', '/INCREMENTAL' ] )
 
 		#
-		if self.myType == 'exec':
+		if type == 'exec':
 			# Subsystem
 			self.mySubsystemNotDefined = str(lenv['LINKFLAGS']).upper().find( '/SUBSYSTEM:' ) == -1
 
@@ -1604,7 +1632,7 @@ SConsBuildFramework options:
 			# /GA : Results in more efficient code for an .exe file for accessing thread-local storage (TLS) variables.
 			lenv.Append( CXXFLAGS = '/GA' )
 
-		elif self.myType == 'shared':
+		elif type == 'shared':
 			lenv.Append( CXXFLAGS = '/D_USRDLL' )
 
 
@@ -1635,7 +1663,7 @@ SConsBuildFramework options:
 #		self.myCxxFlags	+= ' -Wall '
 
 
-	def configureProjectCxxFlagsAndLinkFlagsOnPosix( self, lenv ):
+	def configureProjectCxxFlagsAndLinkFlagsOnPosix( self, lenv, type ):
 		pass
 
 
@@ -1660,24 +1688,31 @@ SConsBuildFramework options:
 		lenv.Append( LIBPATH = self.myGlobalLibPath )
 
 
-	def configureProjectCxxFlagsAndLinkFlags( self, lenv ):
+	def configureProjectCxxFlagsAndLinkFlags( self, lenv, type, skipDefinesInCXXFLAGS = False ):
 		if self.myPlatform == 'win32':
-			self.configureProjectCxxFlagsAndLinkFlagsOnWin32( lenv )
+			self.configureProjectCxxFlagsAndLinkFlagsOnWin32( lenv, type )
 		elif self.myPlatform in ['cygwin', 'posix']:
-			self.configureProjectCxxFlagsAndLinkFlagsOnPosix( lenv )
+			self.configureProjectCxxFlagsAndLinkFlagsOnPosix( lenv, type )
 		else:
 			raise SCons.Errors.UserError("Unknown platform %s." % self.myPlatform)
 
 		# Adds to command-line several defines with version number informations.
 		lenv.Append( CPPDEFINES = [
 						("COMPANY_NAME",	"\\\"%s\\\"" % self.myCompanyName ),
-						("MODULE_NAME",		"\\\"%s\\\"" % self.myProject ),
-						("MODULE_VERSION",	"\\\"%s\\\"" % self.myVersion ),
+						("MODULE_NAME",		"\\\"%s\\\"" % lenv['sbf_project'] ),
+						("MODULE_VERSION",	"\\\"%s\\\"" % lenv['version'] ),
 						("MODULE_MAJOR_VER",	"%s" % self.myVersionMajor ),
 						("MODULE_MINOR_VER",	"%s" % self.myVersionMinor ),
 						("MODULE_MAINT_VER",	"%s" % self.myVersionMaintenance ),
 						("MODULE_POSTFIX_VER",	"%s" % self.myVersionPostfix ),
+#						("MODULE_MAJOR_VER",	"%s" % lenv['sbf_version_major'] ),
+#						("MODULE_MINOR_VER",	"%s" % lenv['sbf_version_minor'] ),
+#						("MODULE_MAINT_VER",	"%s" % lenv['sbf_version_maintenance'] ),
+#						("MODULE_POSTFIX_VER",	"%s" % lenv['sbf_version_postfix'] ),
 						 ] )
+
+		if skipDefinesInCXXFLAGS:
+			return
 
 		# Completes myCxxFlags with some defines
 		if self.myType == 'static':
@@ -1916,19 +1951,7 @@ SConsBuildFramework options:
 		#print "sbfDebug:%s dependencies are %s" % (self.myProject, lenv['deps'])
 
 		# Tests if sbf library must be implicitly built (process lenv['libs'] for that)
-		buildSbfLibrary = False
-		libsExpanded = []
-		for lib in lenv['libs']:
-			libSplitted = splitLibsName( lib )
-
-			buildSbfLibrary = buildSbfLibrary or (libSplitted[0] == 'sbf')
-
-			if len(libSplitted[1])==0:
-				# no version information supplied
-				libsExpanded.append( libSplitted[0] + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig )
-			else:
-				# version information supplied
-				libsExpanded.append( libSplitted[0] + '_' + libSplitted[1] + self.my_Platform_myCCVersion + self.my_PostfixLinkedToMyConfig )
+		(libsExpanded, buildSbfLibrary) = computeLibsExpanded( self, lenv['libs'])
 		lenv['sbf_libsExpanded'] = libsExpanded
 
 		# Builds sbf library
@@ -2038,7 +2061,7 @@ SConsBuildFramework options:
 
 		### Starts building stage
 		self.initializeProject( lenv )
-		self.configureProject( lenv )
+		self.configureProject( lenv, self.myType )
 
 
 
@@ -2046,7 +2069,7 @@ SConsBuildFramework options:
 
 		# lenv modified: CPPPATH, PDB, Precious(), SideEffect(), Alias(), Clean()
 		#
-		# installInBinTarget
+		# installInBinTarget, intallTestInBinTarget
 		# lenv['sbf_rc'] =[resource.rc, resource_sbf.rc, project.ico]
 		# lenv['sbf_bin_debuginfo']
 		# 'myProject_resource_generation' and 'myProject_build' (aliasProjectBuild) targets
@@ -2054,6 +2077,7 @@ SConsBuildFramework options:
 		## Processes win32 resource files (resource.rc and resource_sbf.rc)
 		objFiles = []
 		installInBinTarget = []
+		installTestInBinTarget = []
 
 		# @todo generalizes a rc system
 		Alias( self.myProject + '_resource.rc_generation' )
@@ -2086,6 +2110,7 @@ SConsBuildFramework options:
 		else:
 			lenv['sbf_rc'] = []
 
+		# @todo move to sbfQt.py
 		# Qt: rcc on rc/resources.qrc
 		rcFile = join(rcPath, 'resources.qrc')
 		if os.path.isfile( rcFile ):
@@ -2102,7 +2127,6 @@ SConsBuildFramework options:
 		# @todo use VariantDir()
 
 		filesFromInclude = self.getFiles( 'include', lenv )
-		filesFromSrc = self.getFiles( 'src', lenv )
 
 		objProject = join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
 
@@ -2114,6 +2138,57 @@ SConsBuildFramework options:
 				moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
 			# else nothing to do
 		# else nothing to do
+
+		# Test : aliasProjectTestBuild and filesFromTestShare
+		aliasProjectTestBuild = None
+		filesFromTestShare = []
+
+		if os.path.exists( 'test' ):
+			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
+
+			# Add implicit uses for gtest
+			if 'gtest' not in self.myImplicitUsesSet:
+				self.myImplicitUsesSet.add( 'gtest' )
+				self.myImplicitUses.append( UseRepository.getAlias()['gtest'] )
+
+			# Configure environment
+			testEnv = self.myEnv.Clone()
+
+			testVarDir = join(self.myProjectBuildPathExpanded, '_test')
+			testSrcDir = join(self.myProjectPathName, 'test')
+
+			self.readProjectOptionsAndUpdateEnv( testEnv )
+			testEnv['sbf_projectPathName'] = join( testEnv['sbf_projectPath'], testEnv['sbf_project'], 'test' )	# used by printBuild()
+			testEnv['sbf_project'] += 'Test'																	# used by CPPDEFINES.MODULE_NAME
+			self.configureProjectCxxFlagsAndLinkFlags( testEnv, 'exec', skipDefinesInCXXFLAGS=True )
+
+			testEnv.Prepend( CPPPATH = join(testSrcDir, 'include') )
+
+			testEnv['uses'].append( UseRepository.getAlias()['gtest'] ) # Implicit uses='gtest'
+			(libsExpanded, buildSbfLibrary) = computeLibsExpanded( self, testEnv['libs'] )
+			uses( self, testEnv, testEnv['uses'] )
+			testEnv.Prepend( LIBS = objProject )
+			testEnv.Append( LIBS = libsExpanded )
+			testEnv.Append( LIBS = testEnv['stdlibs'] )
+
+			#
+			testEnv.VariantDir( testVarDir, testSrcDir, duplicate = 1 )
+
+			if self.myType not in ['shared', 'static']:
+				print ("sbfError: Try to build tests for project '{}'. But only libraries can be tested.".format(self.myProject))
+				Exit(1)
+
+			# Compiles test source files
+			baseFilename = '{projectName}Test_{version}{_platform_ccVersion}{_fullPostfix}'.format(projectName=self.myProject, version=self.myVersion, _platform_ccVersion=self.my_Platform_myCCVersion, _fullPostfix=self.my_FullPostfix )
+			pathFilenameProgram = '{outdir}{sep}{filename}'.format( outdir = testVarDir, sep=os.sep, filename=baseFilename )
+
+			# target projectTest_build
+			testTarget = testEnv.Program( pathFilenameProgram, [ join(testVarDir, file) for file in self.getFiles('src', lenv, 'test') ] )
+			aliasProjectTestBuild = Alias( self.myProject + 'Test_build', testEnv.Command('dummy_build_test_print' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
+			aliasProjectTestBuild += testTarget
+
+			# file to install
+			installTestInBinTarget.append( File(pathFilenameProgram+testEnv['PROGSUFFIX']) )
 
 		# Swig
 		def extractModuleName( file ):
@@ -2153,11 +2228,11 @@ SConsBuildFramework options:
 				configPostfix = ''
 
 			# Configure environment
-			swigEnv = lenv.Clone()
+			swigEnv = lenv.Clone() # @todo should be self.myEnv.Clone()
 
 			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
 
-			swigVarDir = join(self.myProjectBuildPathExpanded, 'swig')
+			swigVarDir = join(self.myProjectBuildPathExpanded, '_swig')
 			swigSrcDir = join(self.myProjectPathName, 'swig')
 			swigEnv.VariantDir( swigVarDir, swigSrcDir )
 
@@ -2170,6 +2245,7 @@ SConsBuildFramework options:
 			if swigEnv['printCmdLine'] != 'full':
 				swigEnv['SWIGCOMSTR'] = 'Processing swig file ${SOURCE.file}'
 
+			# Processes each file
 			for file in swigFiles:
 				moduleName = extractModuleName(file)
 				if not moduleName:
@@ -2193,7 +2269,7 @@ SConsBuildFramework options:
 				swigTarget += tmp
 		else:
 			swigTarget = None
-		
+
 		#
 		filesFromSrc = self.getFiles( 'src', lenv )
 
@@ -2260,7 +2336,8 @@ SConsBuildFramework options:
 		# swig
 		if swigTarget:
 			Alias( self.myProject + '_build', swigTarget )
-			
+
+		#
 		Clean( self.myProject + '_build', self.myProjectBuildPathExpanded )
 
 
@@ -2292,7 +2369,7 @@ SConsBuildFramework options:
 		### INSTALLATION ###
 
 		# self.myInstallDirectories, self.myDepsInstallDirectories
-		# installTarget
+		# installTarget, installTestTarget
 
 		self.myInstallDirectories = computeInstallDirectories(lenv, self.myInstallDirectory)
 		self.myInstallDirectories.extend( self.myNSISInstallDirectories )
@@ -2308,12 +2385,18 @@ SConsBuildFramework options:
 			configureZipAndNSISTargets(lenv)
 
 		installTarget = []
+		installTestTarget = []
 
 
-		# install libraries and binaries in 'bin' (from installInBinTarget)
+		# install libraries and binaries in 'bin'
+		# 	from installInBinTarget
 		if len(installInBinTarget) > 0:
 			for installDir in self.myInstallDirectories:
 				installTarget += lenv.Install( join(installDir, 'bin'), installInBinTarget )
+		# 	from installTestInBinTarget
+		if len(installTestInBinTarget) > 0:
+			for installDir in self.myInstallDirectories:
+				installTestTarget += lenv.Install( join(installDir, 'bin'), installTestInBinTarget )
 
 		# install dependencies in 'bin' (from depsFiles)
 		# depsTarget
@@ -2349,7 +2432,10 @@ SConsBuildFramework options:
 				installTarget += lenv.InstallAs( fileRel.replace('share', shareBaseDir, 1), fileAbs )
 			for file in lenv.get('sbf_info', []):
 				installTarget += lenv.Install( shareBaseDir, file )
-
+			# Test
+			shareTestBaseDir = join(installDir, 'share', '{}Test'.format(self.myProject), self.myVersion)
+			for file in filesFromTestShare:
+				installTestTarget += lenv.InstallAs( file.replace('share', shareTestBaseDir, 1), join(self.myProjectPathName, 'test', file) )
 
 		# install in 'include'
 		# installInIncludeTarget
@@ -2360,7 +2446,7 @@ SConsBuildFramework options:
 			src = join( self.myProjectPathName, swigFile )
 			dst = join( self.myInstallDirectory, 'include', swigFile.replace('swig', self.myProject, 1) )
 			installTarget += lenv.InstallAs( dst, src )
-			
+
 		# install in 'include'
 		if 'mrproper' in self.myBuildTargets:
 			removeAllFilesRO( join(self.myInstallDirectory, 'include') )
@@ -2454,12 +2540,13 @@ SConsBuildFramework options:
 #				lenv['sbf_lib_object'].append( absPathFilename )
 
 		###### special targets: build install deps all clean mrproper ######
-		Alias( 'build',		aliasProjectBuild		)
-		Alias( 'install',	aliasProjectInstall		)
-		Alias( 'deps',		aliasProjectDeps		)
-		Alias( 'all',		aliasProject			)
-		Alias( 'clean',		aliasProjectClean		)
-		Alias( 'mrproper',	[aliasProjectClean, aliasProjectMrproper] )
+		Alias( 'build',		aliasProjectBuild							)
+		Alias( 'install',	aliasProjectInstall							)
+		Alias( 'test', 		[aliasProjectInstall, aliasProjectTestBuild, installTestTarget])
+		Alias( 'deps',		aliasProjectDeps							)
+		Alias( 'all',		aliasProject								)
+		Alias( 'clean',		aliasProjectClean							)
+		Alias( 'mrproper',	[aliasProjectClean, aliasProjectMrproper]	)
 
 		# VCS clean and add
 		self.doVcsCleanOrAdd( lenv )
@@ -2494,12 +2581,21 @@ SConsBuildFramework options:
 				Alias( 'run', ['install', 'onlyrun'] )
 
 
+
 	###### Helpers ######
 
-	def getFiles( self, what, lenv ):
-		"""what		select what to collect. It could be 'src', 'include', 'share', 'license' and 'swig'"""
+# @todo what == rc => remove lenv['sbf_rc']
+	def getFiles( self, what, lenv, path = None ):
+		"""	@param what		select what to collect. It could be 'src', 'include', 'share', 'license' and 'swig'
+			@param path		path where to look for files ot None to retrieve files from current working directory
+
+		@todo .cpp .cxx .c => config.options global, idem for pruneDirectories, .h .... => config.options global ?"""
 
 		basenameWithDotRe = r"^[a-zA-Z][a-zA-Z0-9_\-]*\."
+
+		if path:
+			backupCWD = os.getcwd()
+			os.chdir( path )
 
 		files = []
 		if what == 'src':
@@ -2529,6 +2625,9 @@ SConsBuildFramework options:
 			searchFiles( 'swig', files, ['.svn'], basenameWithDotRe + r"(?:i)$" )
 		else:
 			raise SCons.Errors.UserError("Internal sbf error in getFiles().")
+
+		if path:
+			os.chdir( backupCWD )
 
 		return files
 
