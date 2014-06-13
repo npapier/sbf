@@ -2175,7 +2175,7 @@ SConsBuildFramework options:
 			#
 			testEnv.VariantDir( testVarDir, testSrcDir, duplicate = 1 )
 
-			if self.myType not in ['shared', 'static']:
+			if lenv['type'] not in ['shared', 'static']:
 				print ("sbfError: Try to build tests for project '{}'. But only libraries can be tested.".format(self.myProject))
 				Exit(1)
 
