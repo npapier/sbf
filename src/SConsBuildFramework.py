@@ -8,6 +8,7 @@ import fnmatch
 import glob
 import sbfIVersionControlSystem
 import os
+import platform
 import re
 import string
 import tempfile
