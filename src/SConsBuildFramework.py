@@ -2144,7 +2144,7 @@ SConsBuildFramework options:
 		aliasProjectTestBuild = None
 		filesFromTestShare = []
 
-		if os.path.exists( 'test' ):
+		if ('test' in self.myBuildingTargets) and os.path.exists( 'test' ):
 			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
 
 			# Add implicit uses for gtest
