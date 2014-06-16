@@ -21,7 +21,7 @@ def sevenZipExtract( pathArchive, outputDir, verbose = True ):
 		print ('sbfError: unable to find 7Zip extractor.')
 		return False
 	
-	cmdLine = [ join(path7z, '7z'), 'x', pathArchive ]
+	cmdLine = [ join(path7z, '7z'), 'x', pathArchive, '-y' ]
 	if outputDir:
 		cmdLine.append( '-o{0}'.format(outputDir) )
 	
