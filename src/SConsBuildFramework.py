@@ -1682,7 +1682,7 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = '-D__MACOSX__' )
 			#self.myCxxFlags += ' -D__MACOSX__'
 		elif ( sys.platform.find( 'linux' ) != -1 ):
-			lenv.Append( CXXFLAGS = '-D__linux' )
+			lenv.Append( CXXFLAGS = ['-D__linux','-DPOSIX'] )
 			#self.myCxxFlags += ' -D__linux'
 
 		lenv.Append( CPPPATH = self.myGlobalCppPath )

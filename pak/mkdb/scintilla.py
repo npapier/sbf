@@ -14,25 +14,43 @@
 descriptorName = 'scintilla'
 versionMajor = 3
 versionMinor = 2
-versionMaintenance = 3
+versionMaintenance = 4
 descriptorVersion = '{major}{minor}{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
 descriptorDotVersion = '{major}.{minor}.{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
 descriptorDashVersion = '{major}-{minor}-{maintenance}'.format(major=versionMajor, minor=versionMinor, maintenance=versionMaintenance)
 
 import os
+import sys
+
 from src.sbfQt import getQMakePlatform
-
-if CCVersionNumber not in [8, 9, 10, 11]:
-	print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
-	exit(1)
-
-os.environ['QTDIR'] = 'D:\\Qt\\4.8.0'
-os.environ['PATH'] = 'D:\\Qt\\4.8.0\\bin' + os.pathsep + os.environ['PATH']
 
 def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
 	return lambda : execCmdInVCCmdPrompt(cmd)
+	
+currentPlatform = getQMakePlatform( CC, CCVersionNumber )
 
-currentPlatform = getQMakePlatform( CCVersionNumber )
+if platform == 'win32':
+	if CCVersionNumber not in [8, 9, 10, 11]:
+		print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
+		exit(1)
+	cmd  = [	# Build release version
+			myVCCmd('cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform)),
+			myVCCmd('cd qt/ScintillaEdit && nmake -f Makefile release'),
+			# Build debug version
+			myVCCmd('cd qt/ScintillaEdit && qmake -platform {platform} -after "TARGET=ScintillaEditD" ScintillaEdit.pro'.format(platform=currentPlatform)),
+			myVCCmd('cd qt/ScintillaEdit && nmake -f Makefile debug') ]
+	lib  = [ 'bin/*.lib', 'bin/*.pdb' ]
+	binR = [ GlobRegEx('bin/[^\.]+(?<!D3)[.]dll$') ]	# to match *3.dll without *D3.dll
+	binD = [ GlobRegEx('bin/[^\.]+(?<=D3)[.]dll$') ]	# to match *D3.dll
+else:
+	cmd  = [	'cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform),
+			'cd qt/ScintillaEdit && make' ]
+	lib  = []
+	binR = [ 'bin/*.so' ]
+	binD = []
+
+os.environ['QTDIR'] = 'D:\\Qt\\4.8.0'
+os.environ['PATH'] = 'D:\\Qt\\4.8.0\\bin' + os.pathsep + os.environ['PATH']
 
 absRootBuildDir = os.path.join( buildDirectory, descriptorName + descriptorDashVersion, descriptorName )
 def qtIncludesPatcher( directory ):
@@ -65,12 +83,12 @@ descriptor = {
  'rootBuildDir'	: descriptorName,
  'builds'		: [	# ScintillaEdit.h and ScintillaEdit.cpp files will have been populated with the Scintilla API methods.
 					'cd qt/ScintillaEdit && python WidgetGen.py',
-					# Build release version
-					myVCCmd('cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform)),
-					myVCCmd('cd qt/ScintillaEdit && nmake -f Makefile release'),
-					# Build debug version
-					myVCCmd('cd qt/ScintillaEdit && qmake -platform {platform} -after "TARGET=ScintillaEditD" ScintillaEdit.pro'.format(platform=currentPlatform)),
-					myVCCmd('cd qt/ScintillaEdit && nmake -f Makefile debug'),
+					# Patches the Scintilla.pro file in order to use the Scintilla namespace
+					Patcher( 'qt/ScintillaEdit/ScintillaEdit.pro', [(r'^(DEFINES\s\+=\s)(.*)', r'\1 SCI_NAMESPACE=1 \2')] ),
+					Patcher( 'qt/ScintillaEdit/ScintillaEdit.cpp', [(r'(^#include "ScintillaEdit.h")', r'\1\n\n#ifdef SCI_NAMESPACE\nusing namespace Scintilla;\n#endif')] ),
+					Patcher( 'qt/ScintillaEdit/ScintillaDocument.cpp', [(r'(^#include "Document.h")', r'\1\n\n#ifdef SCI_NAMESPACE\nusing namespace Scintilla;\n#endif')] ) ]+
+					cmd +
+				  [
 					# Patch include files (slots => Q_SLOTS, signals => Q_SIGNALS)
 					qtIncludesPatcher(absRootBuildDir)
 					],
@@ -78,13 +96,25 @@ descriptor = {
  'name'			: descriptorName,
  'version'		: descriptorDashVersion,
 
+ # packages developer and runtime
  'rootDir'		: descriptorName,
 
- 'lib'			: [ 'bin/*.dll', 'bin/*.lib', 'bin/*.pdb' ],
-
+ # developer package
+ 'license'		: [ 'License.txt' ],
  'include'		: [	('include/*.h', 'Scintilla/'),
 					('qt/ScintillaEditBase/*.h', 'Scintilla/'),
 					('qt/ScintillaEdit/*.h', 'Scintilla/') ],
+ 'lib'			: lib,
 
- 'license'		: [ 'License.txt' ]
+ # runtime package
+ #'bin'				: [],
+ #'runtimeCustom'	: [],
+
+ # runtime package (release version)
+ 'binR'			: binR,
+ #'runtimeCustomR'	: [],
+
+ # runtime package (debug version)
+ 'binD'			: binD,
+ #'runtimeCustomD'	: [],
 }

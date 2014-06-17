@@ -66,7 +66,7 @@ private:
 	const HMODULE		m_handle;
 };
 
-#endif WIN32
+#endif // WIN32
 
 
 

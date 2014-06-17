@@ -21,6 +21,8 @@ def getCMakeCmdConfigure( CC, CCVersionNumber, arch, options, CMakeListsPath = '
 		else:
 			print ('Given unsupported MSVC version {}. \nVersion 8.0[Exp], 9.0[Exp], 10.0[Exp], 11.0[Exp] or 12.0[Exp] required.'.format(ccVersionNumber))
 			exit(1)
+	elif CC == 'gcc':
+		return 'cmake -G "{generator}" {options} {CMakeList}'.format( generator='Unix Makefiles', options=options, CMakeList = CMakeListsPath )
 	else:
 		print ("Given compiler '{}' not yet supported.".format(CC))
 		exit(1)

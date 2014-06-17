@@ -259,6 +259,9 @@ class Use_blowfish( IUse ):
 				return ['Blowfish_D'], []
 		elif self.platform == 'posix':
 			return ['Blowfish'], []
+			
+	def hasRuntimePackage( self, version ):
+		return True
 
 
 
@@ -916,23 +919,46 @@ class Use_qt( IUse ):
 		return ['4-8-5']
 
 	def getCPPDEFINES( self, version ):
-		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_DLL', 'QT_THREAD_SUPPORT' ] # no more needed for 4.8.5: QT_LARGEFILE_SUPPORT
+		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_THREAD_SUPPORT' ] # no more needed for 4.8.5: QT_LARGEFILE_SUPPORT
 		cppDefines += [ 'QT_HAVE_MMX', 'QT_HAVE_3DNOW', 'QT_HAVE_SSE', 'QT_HAVE_MMXEXT', 'QT_HAVE_SSE2']
 		cppDefines += [ 'QT_CORE_LIB', 'QT_GUI_LIB' ]
 		if self.config == 'release':
 			cppDefines += ['QT_NO_DEBUG']
 		#else nothing to do
+		if self.platform == 'win32':
+			cppDefines += [ 'QT_DLL' ]
+		if self.platform == 'posix':
+			cppDefines += [ 'QT_SHARED' ]
 
 		return cppDefines
 
 	def getCPPPATH( self, version ):
-		return self.cppModules
+		if self.platform == 'win32':
+			return self.cppModules
+		elif self.platform == 'posix':
+			posixQtRootPath = '/usr/include/qt4/'
+			
+			def prependPath(x): return posixQtRootPath + x
+			
+			posixCppModules = map( prependPath, self.cppModules )
+			posixCppModules += [posixQtRootPath]
+			return posixCppModules
+			
+	def getLIBPATH( self, version ):
+		if self.platform == 'posix':
+			return ['/usr/lib/i386-linux-gnu/'],[]
+		else:
+			return [],[]
 
 	def getLIBS( self, version ):
-		if self.config == 'release':
-			libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
-		else:
-			libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
+		if self.platform == 'win32':
+			if self.config == 'release':
+				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
+			else:
+				libs = [ module + 'd' + self.linkVersionPostfix for module in self.linkModules ]
+		elif self.platform == 'posix':
+			libs = self.linkModules
+			
 		return libs, []
 
 	def hasRuntimePackage( self, version ):
@@ -980,6 +1006,10 @@ class Use_scintilla( IUse ):
 	def getVersions( self ):
 		return [ '3-2-4', '3-2-3', '3-2-0']
 
+	def getCPPDEFINES( self, version ):
+		cppDefines = [ 'SCI_NAMESPACE' ]
+		return cppDefines
+
 	def getCPPPATH( self, version ):
 		return ['Scintilla']
 
@@ -991,6 +1021,9 @@ class Use_scintilla( IUse ):
 			else:
 				libs = ['ScintillaEditd3']
 				return libs, libs
+		elif self.platform == 'posix':
+			libs = ['ScintillaEdit']
+			return libs,libs
 
 	def hasRuntimePackage( self, version ):
 		return version == '3-2-4'
