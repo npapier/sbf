@@ -25,13 +25,17 @@ if platform == 'win32':
 			# Debug build command
 			 "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln) ]
 		lib = [ ('Release/Blowfish.lib', 'Blowfish.lib'), ('Debug/Blowfish.lib', 'Blowfish_D.lib') ]
+		binR = []
+		binD = []
 	else:
 		print >>sys.stderr, "Unsupported MSVC version."
 		exit(1)
 elif platform == 'posix':
 	patchList = [ 'http://orange/files/Dev/localExt/src/Blowfish_{0}_PATCH.zip'.format(CCVersion) ]
 	cmd = [ 'g++ --shared -o libBlowfish.so BlowFish.cpp' ]
-	lib = [ 'libBlowfish.so' ]
+	lib = []
+	binR = [ 'libBlowfish.so' ]
+	binD = []
 else:
 	print >>sys.stderr, 'Unsupported platform {0}.'.format(platform)
 	exit(1)
@@ -50,5 +54,7 @@ descriptor = {
 	'rootDir'		: projectFolderName,
 	'license'		: ['COPYING'],
 	'include'		: ['Blowfish.h'],
-	'lib'			: lib
+	'lib'			: lib,
+	'binR'			: binR,
+	'binD'			: binD,
 }

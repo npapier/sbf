@@ -36,7 +36,7 @@ if platform == 'win32':
 		exit(1)
 elif platform == 'posix':
 	lib  = []
-	binR = ['lib/libassimp.so'] #'lib/libassimp.so.3', 'lib/libassimp.so.3.0.1264'
+	binR = ['lib/libassimp.so*'] # @todo Improve this since symbolic links to the same library file will result in copies in the final zip archive
 	binD = []
 	options = ''
 	

@@ -46,7 +46,7 @@ else:
 	cmd  = [	'cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform),
 			'cd qt/ScintillaEdit && make' ]
 	lib  = []
-	binR = [ 'bin/*.so' ]
+	binR = [ 'bin/*.so*' ] # @todo Improve this since symbolic links to the same library file will result in copies in the final zip archive
 	binD = []
 
 os.environ['QTDIR'] = 'D:\\Qt\\4.8.0'
