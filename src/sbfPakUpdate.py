@@ -56,7 +56,7 @@ def doTargetPakUpdate( target, source, env ):
 
 		# Updating packages (development and runtime packages)
 		for useName in generateAllUseNames(useName):
-			packageFilename = '{0}{1}{2}.zip'.format(useName, useVersion, sbf.my_Platform_myCCVersion)
+			packageFilename = '{0}{1}{2}.zip'.format(useName, useVersion, sbf.my_Platform_myArch_myCCVersion)
 			pakUpdate( pakSystem, useName, useVersion, use, use.hasPackage(useName, useVersion), packageFilename )
 
 

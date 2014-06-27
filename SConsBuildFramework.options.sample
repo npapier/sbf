@@ -6,12 +6,32 @@
 #printCmdLine				= 'less'
 #companyName				= ''
 #pakPaths					= []
-#svnUrls					= {}
+
+#svnUrls					= {
+#	'displayDriverConnector'	: 'http://oglpp.googlecode.com/svn/displayDriverConnector/trunk',
+#	'glContext'					: 'http://oglpp.googlecode.com/svn/glContext/trunk',
+#	'gle'						: 'http://oglpp.googlecode.com/svn/gle/trunk',
+#	'glo'	    				: 'http://oglpp.googlecode.com/svn/glo/trunk',
+#	'vgsdk'						: 'http://vgsdk.googlecode.com/svn/trunk',
+#	'SConsBuildFramework'		: 'http://sbf.googlecode.com/svn/trunk',
+#	'' : [ 'svn://myServer/srv/svn/lib/{PROJECT}/trunk', 'svn://myServer/srv/svn/bin/{PROJECT}/trunk' ] }
+#
+# to authenticate check out the source code using your login:
+#	'svn+ssh://login@myServer/srv/svn/lib/{PROJECT}/trunk' or
+#	'https://vgsdk.googlecode.com/svn/trunk'
+#
+# to anonymously check out the source code:
+#	'svn://myServer/srv/svn/lib/{PROJECT}/trunk'
+#	'http://vgsdk.googlecode.com/svn/trunk'
+#
+# Advanced urls specifications to specify a revision and/or trunk/tags/branches
+
 #svnDefaultBranch			= '1.0'
 #projectExclude				= [ '*/vgsdk*' ]
 #weakLocalExtExclude		= []
 #svnCheckoutExclude			= [ '*/vgsdk*' ]
 #svnUpdateExclude			= [ '*/vgsdk*' ]
+#targetArchitecture			= 'x86-32' | 'x86-64'
 #clVersion					= 'highest'
 #installPath				= ''
 #postfixTimeFormat			= '%Y-%m-%d' # '%Hh%Mm%Ss'

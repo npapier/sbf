@@ -120,38 +120,42 @@ def splitLibsName( singleLibsValue ):
 
 ### Helpers to split package name ###
 packagePlatform = '(?P<platform>.+)'
+packageArch = '(?P<arch>.+)'
 packageCC = '(?P<cc>.+)'
 packageExtension = '(?P<extension>.+)'
 
 def splitPackageName( packageName ):
-	"""@remark Example: splitPackageName( 'opencollada865_win32_cl10-0Exp.zip' ) returns 
+	"""@remark Example: splitPackageName( 'opencollada865_win_x86-64_cl10-0Exp.zip' ) returns 
 	{	'name'		: 'opencollada',
 		'version'	: '865',
-		'platform'	: 'win32',
+		'platform'	: 'win',
+		'arch'		: 'x86-64',
 		'cc'		: 'cl10-0Exp',
 		'extension'	: 'zip' }"""
-	splitter = re.compile( r'^{0}{1}_{2}_{3}[.]{4}$'.format( usesNamePattern, versionPattern, packagePlatform, packageCC, packageExtension ) )
+	splitter = re.compile( r'^{0}{1}_{2}_{3}_{4}[.]{5}$'.format( usesNamePattern, versionPattern, packagePlatform, packageArch, packageCC, packageExtension ) )
 	match = splitter.match( packageName )
 	if match:
 		return {	'name'		: match.group('name'),
 					'version'	: match.group('version'),
 					'platform'	: match.group('platform'),
+					'arch'		: match.group('arch'),
 					'cc'		: match.group('cc'),
 					'extension'	: match.group('extension') }
 	else:
-		print ("Unable to split package name {0}. The following schemas must be used 'nameVersion_platform_ccVersion.extension'.".format(packageName) )
+		print ("Unable to split package name {0}. The following schemas must be used 'nameVersion_platform_arch_ccVersion.extension'.".format(packageName) )
 		return
 
 def joinPackageName( pakInfo ):
 	"""@remark Example: tmp = {
 		'name'		: 'opencollada',
 		'version'	: '865',
-		'platform'	: 'win32',
+		'platform'	: 'win',
+		'arch'		: 'x86-64',
 		'cc'		: 'cl10-0Exp',
 		'extension'	: 'zip' }
 		joinPackageName(tmp) returns 'opencollada865_win32_cl10-0Exp.zip'
 	"""
-	return "{0}{1}_{2}_{3}.{4}".format( pakInfo['name'], pakInfo['version'], pakInfo['platform'], pakInfo['cc'], pakInfo['extension'] )
+	return "{0}{1}_{2}_{3}_{4}.{5}".format( pakInfo['name'], pakInfo['version'], pakInfo['platform'], pakInfo['arch'], pakInfo['cc'], pakInfo['extension'] )
 
 
 ### Helpers to split 'deploymentPrecond' ###

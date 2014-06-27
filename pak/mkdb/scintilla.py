@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2012, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -8,8 +8,10 @@
 # cl8,9,10,11[Exp]
 
 # requirement: qmake
+print ('Qt have to be installed and qmake have to be in PATH')
 
 # http://www.scintilla.org/
+
 
 descriptorName = 'scintilla'
 versionMajor = 3
@@ -26,13 +28,10 @@ from src.sbfQt import getQMakePlatform
 
 def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
 	return lambda : execCmdInVCCmdPrompt(cmd)
-	
-currentPlatform = getQMakePlatform( CC, CCVersionNumber )
 
-if platform == 'win32':
-	if CCVersionNumber not in [8, 9, 10, 11]:
-		print >>sys.stderr, "Wrong MSVC version. Version 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required."
-		exit(1)
+currentPlatform = getQMakePlatform( CC, CCVersionNumber, arch )
+
+if platform == 'win':
 	cmd  = [	# Build release version
 			myVCCmd('cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform)),
 			myVCCmd('cd qt/ScintillaEdit && nmake -f Makefile release'),
@@ -44,13 +43,10 @@ if platform == 'win32':
 	binD = [ GlobRegEx('bin/[^\.]+(?<=D3)[.]dll$') ]	# to match *D3.dll
 else:
 	cmd  = [	'cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform),
-			'cd qt/ScintillaEdit && make' ]
+				'cd qt/ScintillaEdit && make' ]
 	lib  = []
 	binR = [ 'bin/*.so*' ] # @todo Improve this since symbolic links to the same library file will result in copies in the final zip archive
 	binD = []
-
-os.environ['QTDIR'] = 'D:\\Qt\\4.8.0'
-os.environ['PATH'] = 'D:\\Qt\\4.8.0\\bin' + os.pathsep + os.environ['PATH']
 
 absRootBuildDir = os.path.join( buildDirectory, descriptorName + descriptorDashVersion, descriptorName )
 def qtIncludesPatcher( directory ):

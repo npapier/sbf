@@ -14,13 +14,13 @@ namespace sbf
 {
 
 #ifdef _WIN32
-    #ifdef SBF_EXPORTS
-        #define SBF_API __declspec(dllexport)
+	#ifdef SBF_EXPORTS
+		#define SBF_API __declspec(dllexport)
 	#else
-        #define SBF_API __declspec(dllimport)
-    #endif
+		#define SBF_API __declspec(dllimport)
+	#endif
 #else
-    #define SBF_API
+	#define SBF_API
 #endif
 
 } // namespace sbf

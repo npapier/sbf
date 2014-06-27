@@ -23,6 +23,7 @@ type				= 'shared'	# exec, static, shared, none
 #runParams			= []
 #deploymentType		= 'none'
 #deploymentPrecond	= 'standalone >= 1.0'
+# first element have to be a standalone project, others have to be embedded project(s)
 #nsis				= {	'autoUninstall'						: True,
 #						'installDirFromRegKey'				: True,
 #						'ensureNewInstallDir'				: False,

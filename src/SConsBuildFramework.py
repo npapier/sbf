@@ -512,6 +512,7 @@ class SConsBuildFramework :
 
 	# Globals attributes
 
+	# haveToBuildTest
 	# tryVcsCheckout
 	# tryVcsUpdate
 
@@ -532,17 +533,20 @@ class SConsBuildFramework :
 	myDateTime						= ''
 	myDateTimeForUI					= ''
 	myVcs							= None
-	myPlatform						= ''			# 'win32' | 'cygwin' | 'posix' | 'darwin'
+	myPlatform						= ''			# 'win' | 'posix' | 'cygwin' | 'darwin'
+	myArch							= ''			# 'x86-32' | 'x86-64'. See targetArchitecture option.
 	myCC							= ''			# 'cl', 'gcc'
 	myCCVersionNumber				= 0				# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1
 	myIsExpressEdition				= False			# True if Visual Express Edition, False otherwise
 	myCCVersion						= ''			# cl8-0Exp
 	myMSVSIDE						= ''			# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.exe).
+	# @todo replace myMSVCVARS32 by myVCVARSALL
 	myMSVCVARS32					= ''			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
+	myVCVARSALL						= ''			# location of vcvarsall.bat (example C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat)
 	myMSVC							= ''			# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
 	myMSBuild						= ''			# location of msbuild.exe (i.e. C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe)
 	my_Platform_myCCVersion			= ''
-
+	my_Platform_myArch_myCCVersion	= ''
 
 	# Global attributes from .SConsBuildFramework.options or computed from it
 	myNumJobs						= 1
@@ -550,7 +554,7 @@ class SConsBuildFramework :
 	mySvnUrls						= {}
 	mySvnCheckoutExclude			= []
 	mySvnUpdateExclude				= []
-	myInstallPath					= ''
+	myInstallPath					= []
 	myPublishPath					= ''
 	myBuildPath						= ''
 	mySConsignFilePath				= None
@@ -597,7 +601,7 @@ class SConsBuildFramework :
 	myFullPostfix					= ''
 	my_FullPostfix					= ''
 
-	myProjectBuildPathExpanded		= ''	# c:\temp\sbf\build\gle\0-3\win32\cl7-1\debug
+	myProjectBuildPathExpanded		= ''	# c:\temp\sbf\build\gle\0-3\win_x86-32_cl7-1\debug
 	mySubsystemNotDefined			= None	# True if LINKFLAGS contains '/SUBSYSTEM:'
 
 	# List of projects that have been already parsed by scons
@@ -639,7 +643,8 @@ class SConsBuildFramework :
 		if tmpEnv['PLATFORM'] == 'win32':
 			myTools += ['msvc', 'mslib', 'mslink', 'mssdk']
 
-			myTargetArch = 'x86'
+			dictTranslator = { 'x86-32' : 'x86', 'x86-64' : 'x86_64' }
+			targetArch = dictTranslator[ tmpEnv['targetArchitecture'] ]
 			if tmpEnv['clVersion'] != 'highest':
 				myMsvcVersion = tmpEnv['clVersion']
 				# Tests existance of the desired version of cl
@@ -650,11 +655,14 @@ class SConsBuildFramework :
 			else:
 				myMsvcVersion = None
 
-			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = myTargetArch, MSVC_VERSION = myMsvcVersion )
+			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = targetArch, MSVC_VERSION = myMsvcVersion )
 		else:
 			# @todo OPTME: adds 'tools = myTools' in Environment() to avoid the initialization of all tools supported by SCons.
+			# @todo takes care of tmpEnv['targetArchitecture']
 			self.myEnv = Environment( options = self.mySBFOptions )
 
+		#print self.myEnv.Dump()
+		#exit()
 
 		# Configures command line max length
 		if self.myEnv['PLATFORM'] == 'win32':
@@ -814,7 +822,8 @@ class SConsBuildFramework :
 
 		self.myProjectOptionsWeakReading = len(self.myBuildTargets - self.myTargetsAllowingWeakReading) == 0
 
-		# Tests which target is given
+		# Tests which target(s) is given
+		self.haveToBuildTest = 'test' in self.myBuildTargets
 		# 	User wants a vcs checkout or update ?
 		self.tryVcsCheckout = 'svncheckout' in self.myBuildTargets
 		if self.tryVcsCheckout and len(self.myEnv['svnUrls']) == 0:
@@ -863,11 +872,16 @@ class SConsBuildFramework :
 			self.myEnv['config'] = 'release'
 
 
-		# myPlatform, myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
-		# myPlatform = win32 | cygwin | posix | darwin				@todo TOTHINK: posix != linux and bsd ?, env['PLATFORM'] != sys.platform
-		self.myPlatform	= self.myEnv['PLATFORM']
+		# myPlatform, myArch, myCC, myCCVersionNumber, myCCVersion, my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
+		if self.myEnv['PLATFORM'].startswith('win'):
+			self.myPlatform = 'win'
+		else:
+			self.myPlatform	= self.myEnv['PLATFORM']
 
-		# myCC, myCCVersionNumber, myCCVersion and my_Platform_myCCVersion
+		self.myArch = self.myEnv['targetArchitecture']
+
+
+		# myCC, myCCVersionNumber, myCCVersion my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
 		if self.myEnv['CC'] == 'cl' :
 			# Sets compiler
 			self.myCC				=	'cl'
@@ -890,10 +904,17 @@ class SConsBuildFramework :
 				self.myMSVSIDE = self.myEnv.WhereIs( 'WDExpress' )
 			else:
 				self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
+
 			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
+			if self.myMSVCVARS32:
+				self.myVCVARSALL = self.myEnv.WhereIs( 'vcvarsall.bat', join( dirname(self.myMSVCVARS32), '..' ) )
+			else:
+				self.myVCVARSALL = None
 			# Assuming that the parent directory of cl.exe is the root directory of MSVC (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
 			self.myMSVC = dirname( self.myEnv.WhereIs( 'cl.exe' ) )
 			self.myMSBuild = self.myEnv.WhereIs( 'msbuild.exe' )
+
+#			print self.myEnv.WhereIs( 'signtool.exe' )
 
 			if self.myEnv.GetOption('verbosity'):
 				print 'Visual C++ version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
@@ -906,6 +927,11 @@ class SConsBuildFramework :
 					print ("Found vcvars32.bat in '{0}'.".format(self.myMSVCVARS32))
 				else:
 					print ('vcvars32.bat not found.')
+
+				if self.myVCVARSALL and len(self.myVCVARSALL)>0:
+					print ("Found vcvarsall.bat in '{0}'.".format(self.myVCVARSALL))
+				else:
+					print ('vcvarsall.bat not found.')
 
 				if self.myMSVC and len(self.myMSVC)>0:
 					print ("Found MSVC in '{0}'.".format(self.myMSVC))
@@ -934,7 +960,8 @@ class SConsBuildFramework :
 		else :
 			raise SCons.Errors.UserError( "Unsupported cpp compiler : %s" % self.myEnv['CC'] )
 
-		self.my_Platform_myCCVersion = '_' + self.myPlatform + '_' + self.myCCVersion
+		self.my_Platform_myCCVersion = '_{}_{}'.format( self.myPlatform, self.myCCVersion )
+		self.my_Platform_myArch_myCCVersion = '_{}_{}_{}'.format( self.myPlatform, self.myArch, self.myCCVersion )
 
 		#
 		self.initializeGlobalsFromEnv( self.myEnv )
@@ -1124,10 +1151,10 @@ SConsBuildFramework options:
 
 		# Updates myInstallPath, myInstallExtPaths and myInstallDirectory
 		self.myInstallPath = getNormalizedPathname( lenv['installPath'] )
-		self.myInstallExtPaths = [self.myInstallPath + 'Ext' + self.my_Platform_myCCVersion]
+		self.myInstallExtPaths = [self.myInstallPath + 'Ext' + self.my_Platform_myArch_myCCVersion]
 
 		if ( len(self.myInstallPath) > 0 ):
-			self.myInstallPath += self.my_Platform_myCCVersion
+			self.myInstallPath += self.my_Platform_myArch_myCCVersion
 			self.myInstallDirectory = self.myInstallPath
 			if not os.path.exists(self.myInstallDirectory):
 				print ( 'Creates directory : {0}'.format(self.myInstallDirectory) )
@@ -1275,7 +1302,7 @@ SConsBuildFramework options:
 		lenv.Prepend( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
 
 		### expands myProjectBuildPathExpanded
-		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject, self.myVersion, self.myPlatform, self.myCCVersion, self.myConfig )
+		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject, self.myVersion, '{}_{}_{}'.format(self.myPlatform, self.myArch, self.myCCVersion), self.myConfig )
 		if len(self.myPostfix) > 0:
 			self.myProjectBuildPathExpanded += '_' + self.myPostfix
 
@@ -1330,6 +1357,9 @@ SConsBuildFramework options:
 			('svnCheckoutExclude', 'The list of projects excludes from subversion checkout operations. All projects not explicitly excluded will be included. The unix filename pattern matching is used by the list.', []),
 			('svnUpdateExclude', 'The list of projects excludes from subversion update operations. All projects not explicitly excluded will be included. The unix filename pattern matching is used by the list.', []),
 
+			EnumVariable(	'targetArchitecture', 'Sets the target architecture for Visual Studio compiler or gcc, i.e. the architecture (32 or 64 bits) of the binaries generated by the compiler.',
+							'x86-32',
+							allowed_values = ( 'x86-32', 'x86-64' ) ),
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
 							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', 'highest' ),
@@ -1536,7 +1566,12 @@ SConsBuildFramework options:
 		if self.myCCVersionNumber >= 8.000000 :
 			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
 
-		#
+		# 64 bits support
+		if self.myArch == 'x86-64':
+			lenv.Append( LINKFLAGS = '/MACHINE:X64' )
+			lenv.Append( ARFLAGS = '/MACHINE:X64' )
+
+		# Compiler/linker command line flags
 		if self.myCCVersionNumber >= 11.000000:
 			if self.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
 				# @remark add /d2Zi+ undocumented flags in Visual C++ (at least 2012) to improve debugging experience in release configuration (local variable, inline function...)
@@ -1563,10 +1598,14 @@ SConsBuildFramework options:
 		# /GR : Enable Run-Time Type Information
 		lenv.AppendUnique( CXXFLAGS = '/GR' )
 
+		lenv.AppendUnique( CXXFLAGS = '/bigobj' ) # see C1128
+
 		# Defines
 		lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
 		# bullet uses _CRT_SECURE_NO_WARNINGS,_CRT_SECURE_NO_DEPRECATE,_SCL_SECURE_NO_WARNINGS
 		lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
+
+		#lenv.Append( CXXFLAGS = ['/wd4251'] ) # see in MSDN C4251
 
 		#lenv.Append( CXXFLAGS = ['/D_BIND_TO_CURRENT_VCLIBS_VERSION=1'] )
 		#lenv.Append( CXXFLAGS = ['/MP{0}'.format(self.myNumJobs)] )
@@ -1671,7 +1710,7 @@ SConsBuildFramework options:
 	def configureCxxFlagsAndLinkFlags( self, lenv ):
 		### TODO: moves defines(-Dxxxx) from platform specific methods into this one.
 		### Completes myCxxFlags and myLinkFlags ###
-		if self.myPlatform == 'win32':
+		if self.myPlatform == 'win':
 			self.configureCxxFlagsAndLinkFlagsOnWin32( lenv )
 		elif self.myPlatform == 'cygwin' or self.myPlatform == 'posix':
 			self.configureCxxFlagsAndLinkFlagsOnPosix( lenv )
@@ -1690,7 +1729,7 @@ SConsBuildFramework options:
 
 
 	def configureProjectCxxFlagsAndLinkFlags( self, lenv, type, skipDefinesInCXXFLAGS = False ):
-		if self.myPlatform == 'win32':
+		if self.myPlatform == 'win':
 			self.configureProjectCxxFlagsAndLinkFlagsOnWin32( lenv, type )
 		elif self.myPlatform in ['cygwin', 'posix']:
 			self.configureProjectCxxFlagsAndLinkFlagsOnPosix( lenv, type )
@@ -1720,6 +1759,7 @@ SConsBuildFramework options:
 			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_STATIC ' )
 		elif self.myType == 'shared':
 			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_SHARED ' )
+			# @todo remove me
 			lenv.Append( CXXFLAGS = ' -D' + self.myProject.upper() + '_EXPORTS ' )
 
 
@@ -1976,7 +2016,8 @@ SConsBuildFramework options:
 				# dependency not already encountered
 				#print ('buildProject %s' % normalizedDependency)
 				if incomingProjectName not in self.myFailedVcsProjects:
-					# Built the dependency and takes care of 'nodeps'.
+					# Built the dependency and takes care of 'nodeps' option by enabling project
+					# configuration only (and not the full building process).
 					if lenv['nodeps'] == False:
 						self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
 					# else nothing to do
@@ -2084,7 +2125,7 @@ SConsBuildFramework options:
 		Alias( self.myProject + '_resource.rc_generation' )
 
 		rcPath = join(self.myProjectPathName, 'rc')
-		if self.myPlatform == 'win32':
+		if self.myPlatform == 'win':
 			# Adds project/rc directory to CPPPATH
 			if os.path.isdir( rcPath ): lenv.Append( CPPPATH = rcPath )
 
@@ -2140,11 +2181,12 @@ SConsBuildFramework options:
 			# else nothing to do
 		# else nothing to do
 
+
 		# Test : aliasProjectTestBuild and filesFromTestShare
 		aliasProjectTestBuild = None
 		filesFromTestShare = []
 
-		if ('test' in self.myBuildingTargets) and os.path.exists( 'test' ):
+		if self.haveToBuildTest and os.path.exists( 'test' ):
 			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
 
 			# Add implicit uses for gtest
@@ -2190,6 +2232,7 @@ SConsBuildFramework options:
 
 			# file to install
 			installTestInBinTarget.append( File(pathFilenameProgram+testEnv['PROGSUFFIX']) )
+
 
 		# Swig
 		def extractModuleName( file ):
@@ -2295,7 +2338,7 @@ SConsBuildFramework options:
 			# Creates shared library
 			projectTarget = lenv.SharedLibrary( objProject, objFiles )
 
-			if self.myPlatform == 'win32':
+			if self.myPlatform == 'win':
 				# filter *.exp file
 				filteredProjectTarget = []				# @todo uses comprehension list
 				for elt in projectTarget:
@@ -2316,7 +2359,7 @@ SConsBuildFramework options:
 
 # @todo /PDBSTRIPPED:pdb_file_name
 			# Generating debug informations
-			if self.myPlatform == 'win32':
+			if self.myPlatform == 'win':
 				if lenv['generateDebugInfoInRelease'] or self.myConfig == 'debug':
 					# PDB Generation. Static library don't generate pdb.
 					if self.myType in ['exec', 'shared']:
@@ -2501,6 +2544,7 @@ SConsBuildFramework options:
 		# clean 'include'
 		#for installDir in self.myInstallDirectories:
 		#	Clean( self.myProject + '_mrproper', join(installDir, 'include', self.myProject) )
+
 		# @todo Improves mrproper (local/doc/myProject directory ?)
 
 # @todo lenv['sbf_*'] used by vcproj target

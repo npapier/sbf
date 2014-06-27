@@ -1,27 +1,27 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
+import cPickle
 import distutils.archive_util
 import fnmatch
 import glob
+import multiprocessing
 import os
-import cPickle
 import shutil
 import subprocess
 import types
 import zipfile
-
 from os.path import basename, dirname, exists, join, splitext
 from sbfArchives import extractArchive
 from sbfFiles import createDirectory, removeDirectoryTree, GlobRegEx, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
 from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
-from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt
+from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt, createSConsBuildFrameworkProject, buildDebugAndReleaseUsingSConsBuildFramework
 from sbfVersion import splitPackageName, joinPackageName
 
 
@@ -194,20 +194,22 @@ class PackagingSystem:
 		self.__pakPaths 				= [ self.__mkPakGetDirectory(), join(self.__localPath, '..', 'sbfPak') ]
 		self.__pakPaths.extend( sbf.myEnv['pakPaths'] )
 
-		self.__myConfig					= sbf.myConfig
-		self.__myPlatform				= sbf.myPlatform
-		self.__clVersion				= sbf.myEnv['clVersion']
-		self.__myCC						= sbf.myCC
-		self.__myCCVersionNumber		= sbf.myCCVersionNumber
-		self.__myCCVersion				= sbf.myCCVersion
-		self.__myMSVSIDE				= sbf.myMSVSIDE
-		self.__myMSVCVARS32				= sbf.myMSVCVARS32
-		self.__myMSVC					= sbf.myMSVC
-		self.__myMSBuild				= sbf.myMSBuild
+		self.__myConfig							= sbf.myConfig
+		self.__myPlatform						= sbf.myPlatform
+		self.__myArch							= sbf.myArch
+		self.__myCC								= sbf.myCC
+		self.__myCCVersionNumber				= sbf.myCCVersionNumber
+		self.__myCCVersion						= sbf.myCCVersion
+		self.__clVersion						= sbf.myEnv['clVersion']
+		self.__my_Platform_myArch_myCCVersion	= sbf.my_Platform_myArch_myCCVersion
+		self.__myMSVSIDE						= sbf.myMSVSIDE
+		self.__myMSVCVARS32						= sbf.myMSVCVARS32
+		self.__myVCVARSALL						= sbf.myVCVARSALL
+		self.__myMSVC							= sbf.myMSVC
+		self.__myMSBuild						= sbf.myMSBuild
 
-		self.__my_Platform_myCCVersion	= sbf.my_Platform_myCCVersion
-		self.__libSuffix				= sbf.myEnv['LIBSUFFIX']
-		self.__shLibSuffix				= sbf.myEnv['SHLIBSUFFIX']
+		self.__libSuffix						= sbf.myEnv['LIBSUFFIX']
+		self.__shLibSuffix						= sbf.myEnv['SHLIBSUFFIX']
 
 		# Tests existance of localExt directory
 		if self.__verbose:	print
@@ -310,6 +312,14 @@ class PackagingSystem:
 						print ('Removing file {}'.format(join(os.getcwd(), file)))
 			return lambda : removeFile(file)
 
+
+		def CreateSConsBuildFrameworkProject( projectName, type, version, includeFiles, sourceFiles ):
+			return lambda : createSConsBuildFrameworkProject( projectName, type, version, includeFiles, sourceFiles )
+
+		def BuildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ):
+			return lambda : buildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch )
+
+
 		def _filePatcher( file, resubs, flags = 0):
 			"""	@param file		the filename to patch
 				@param resubs	a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
@@ -329,6 +339,7 @@ class PackagingSystem:
 
 				# Write file
 				fd.seek(0)
+				fd.truncate()
 				fd.writelines(lines)
 
 		def _patcher( fileOrFileList, resubs, flags = 0):
@@ -370,23 +381,46 @@ class PackagingSystem:
 		def PatcherMultiline( fileOrFileList, resubs, flags = 0 ):
 			return lambda : _patcherMultiline(fileOrFileList, resubs, flags)
 
+		def ChangeContentOfAnXMLElement(fileOrFileList, tag, oldContent, newContent ):
+			"""@brief Change content of an XML element for the given file(s)
+				for example: <tag>oldContent</tag> transformed into <tag>newContent</tag>
+				@param oldContent	specify the content to transform, or None to replace the content for the desired elements anyway.
+				@param newContent	the new content to set"""
+			if not oldContent:
+				oldContent = '.*'
+			return lambda : _patcher(fileOrFileList, [('^(.*\<{tag}\>){oldContent}(\</{tag}\>.*)$'.format(tag=tag, oldContent=oldContent), '\\1{}\\2'.format(newContent))])
+
+
 		def RemoveProjectFromSolution( file, projectName ):
 			return lambda : _patcherMultiline(file, [('Project.*?{}(?:.*\n)+?EndProject'.format(projectName), '')], 0 )
 
-		def AddMultiProcessorCompilation( fileOrFileList ):
-			return lambda : _patcher(fileOrFileList, [('^(.*\<ClCompile\>.*)$', '\\1\n<MultiProcessorCompilation>true</MultiProcessorCompilation>')])
-
-		def AddPreprocessorDefinitions( fileOrFileList, definesToAdd ):
-			"""@param definesToAdd		DEFINE1;DEFINE2"""
-			return lambda : _patcher(fileOrFileList, [('^(.*\<PreprocessorDefinitions\>)(.*)(\</PreprocessorDefinitions\>)$','\\1{};\\2\\3'.format(definesToAdd))])
-
-		def ChangeTargetName( fileVCXProj, oldName, newName ):
-			return lambda : _patcher(fileVCXProj, [	#('^(.*\$\(OutDir\)){}(\..*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+		def ChangeTargetName( VCXProjFileOrFileList, oldName, newName ):
+			return lambda : _patcher(VCXProjFileOrFileList, [	#('^(.*\$\(OutDir\)){}(\..*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 													('^(.*TargetName Condition.*){}(.*TargetName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 													('^(.*ImportLibrary.*){}(\.lib.*ImportLibrary.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 													('^(.*ProgramDataBaseFileName.*){}(\.pdb.*ProgramDataBaseFileName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 													('^(.*ProgramDataBaseFile.*){}(\.pdb.*ProgramDataBaseFile.*)$'.format(oldName), '\\1{}\\2'.format(newName))
 													] )
+
+		def SetPlatformToolset( VCXProjFileOrFileList, CCVersionNumber ):
+			"""<PlatformToolset>v110</PlatformToolset> => <PlatformToolset>vXYZ</PlatformToolset> with XYZ compute from CCVersionNumber"""
+			toPlatformToolset = { 10 : 'v100', 11 : 'v110', 12 : 'v120' }
+			if CCVersionNumber not in toPlatformToolset:
+				print ('CCVersionNumber {} given to SetPlatformToolset() is not yet supported.'.format(CCVersionNumber))
+				exit(1)
+			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<PlatformToolset\>).*(\</PlatformToolset\>)$', '\\1{}\\2'.format(toPlatformToolset[CCVersionNumber]))])
+
+		def AddMultiProcessorCompilation( VCXProjFileOrFileList ):
+			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<ClCompile\>.*)$', '\\1\n<MultiProcessorCompilation>true</MultiProcessorCompilation>')])
+
+		def AddPreprocessorDefinitions( VCXProjFileOrFileList, definesToAdd ):
+			"""@param definesToAdd		DEFINE1;DEFINE2"""
+			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<PreprocessorDefinitions\>)(.*)(\</PreprocessorDefinitions\>)$','\\1{};\\2\\3'.format(definesToAdd))])
+
+		def ChangeLinkVersion( VCXProjFileOrFileList, oldVersion, newVersion ):
+			"""<Version>oldVersion</Version> => <Version>newVersion</Version>"""
+			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<Version\>){oldVersion}(\</Version\>)(.*)$'.format(oldVersion=oldVersion), '\\g<1>{newVersion}\\g<2>\\g<3>'.format(newVersion=newVersion))] )
+
 
 		def ConfigureVisualStudioVersion( CCVersionNumber ):
 			os.environ['VisualStudioVersion'] = str(int(CCVersionNumber)) + '.0'
@@ -411,27 +445,29 @@ class PackagingSystem:
 
 			return cmd
 
-
-		envDict	= {	'config'			: self.__myConfig,
-					'platform'			: self.__myPlatform,
-					'clVersion'			: self.__clVersion,
-					'CC'				: self.__myCC,
-					'CCVersionNumber'	: self.__myCCVersionNumber,
-					'CCVersion'			: self.__myCCVersion,
-					'MSVSIDE'			: self.__myMSVSIDE,
-					'MSVCVARS32'		: self.__myMSVCVARS32,
-					'MSVC'				: self.__myMSVC,
-					'MSBuild'			: self.__myMSBuild,
+		envDict	= {	'cpuCount'					: multiprocessing.cpu_count(),
+					'config'					: self.__myConfig,
+					'platform'					: self.__myPlatform,
+					'arch'						: self.__myArch,
+					'CC'						: self.__myCC,
+					'CCVersionNumber'			: self.__myCCVersionNumber,
+					'CCVersion'					: self.__myCCVersion,
+					'clVersion'					: self.__clVersion,
+					'platform_arch_ccVersion'	: self.__my_Platform_myArch_myCCVersion[1:],
+					'MSVSIDE'					: self.__myMSVSIDE,
+					'MSVCVARS32'				: self.__myMSVCVARS32,
+					'VCVARSALL'					: self.__myVCVARSALL,
+					'MSVC'						: self.__myMSVC,
+					'MSBuild'					: self.__myMSBuild,
 
 					'UseRepository'				: UseRepository,
-					'execCmdInVCCmdPrompt'		: getLambdaForExecuteCommandInVCCommandPrompt(self.__myMSVCVARS32),
+					'execCmdInVCCmdPrompt'		: getLambdaForExecuteCommandInVCCommandPrompt(self.__myVCVARSALL, self.__myArch),
 
 					'buildDirectory'	: self.__mkPakGetBuildDirectory(),
 					'localDirectory'	: self.__localPath,
 					'localExtDirectory' : self.__localExtPath,
 
 					'GlobRegEx'			: GlobRegEx,
-
 					'SearchFiles'		: SearchFiles,
 					'SearchVcxproj'		: SearchVcxproj,
 
@@ -440,11 +476,19 @@ class PackagingSystem:
 					'ChangeDirectory'				: ChangeDirectory,
 					'RemoveFile'					: RemoveFile,
 
+					'CreateSConsBuildFrameworkProject'				: CreateSConsBuildFrameworkProject,
+					'BuildDebugAndReleaseUsingSConsBuildFramework'	: BuildDebugAndReleaseUsingSConsBuildFramework,
+
 					'Patcher'						: Patcher,
+					'PatcherMultiline'				: PatcherMultiline,
+					'ChangeContentOfAnXMLElement'	: ChangeContentOfAnXMLElement,
 					'MSVC'							: { 'RemoveProjectFromSolution'		: RemoveProjectFromSolution,
+														'ChangeTargetName'				: ChangeTargetName,
+														'SetPlatformToolset'			: SetPlatformToolset,
 														'AddMultiProcessorCompilation'	: AddMultiProcessorCompilation,
 														'AddPreprocessorDefinitions'	: AddPreprocessorDefinitions,
-														'ChangeTargetName'				: ChangeTargetName },
+														'ChangeLinkVersion'				: ChangeLinkVersion
+														 },
 					'ConfigureVisualStudioVersion'	: ConfigureVisualStudioVersion,
 					'GetMSBuildCommand'				: GetMSBuildCommand
 					}
@@ -484,10 +528,10 @@ class PackagingSystem:
 		# Computes directories
 		extractionDirectory = self.__mkPakGetExtractionDirectory( pakDescriptor )
 		fullVersion = pakDescriptor['version'] + pakDescriptor.get( 'buildVersion', '' )
-		pakDirectory = pakDescriptor['name'] + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectory = pakDescriptor['name'] + '-runtime' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectoryR = pakDescriptor['name'] + '-runtime-release' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
-		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + fullVersion + self.__my_Platform_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		pakDirectory = pakDescriptor['name'] + fullVersion + self.__my_Platform_myArch_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectory = pakDescriptor['name'] + '-runtime' + fullVersion + self.__my_Platform_myArch_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryR = pakDescriptor['name'] + '-runtime-release' + fullVersion + self.__my_Platform_myArch_myCCVersion + '/' # '/' is needed to specify directory to copy()
+		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + fullVersion + self.__my_Platform_myArch_myCCVersion + '/' # '/' is needed to specify directory to copy()
 
 		# Removes old directories
 # ???
@@ -773,10 +817,10 @@ class PackagingSystem:
 	def listAvailable( self, pattern = '', enablePrint = True ):
 		filenames = set()
 
-		platformAndCCFilter = self.__my_Platform_myCCVersion
-		if self.__myPlatform == 'win32':
+		filter = self.__my_Platform_myArch_myCCVersion
+		if self.__myPlatform == 'win':
 			# Express and non express packages are similar, so don't filter on 'Exp'ress.
-			platformAndCCFilter.replace('Exp', '', 1)
+			filter.replace('Exp', '', 1)
 
 		for pakPath in self.__pakPaths:
 			if enablePrint:
@@ -788,7 +832,7 @@ class PackagingSystem:
 				filename = os.path.basename(element)
 				filenameWithoutExt = splitext(filename)[0]
 
-				splitted = filenameWithoutExt.split( platformAndCCFilter, 1 )
+				splitted = filenameWithoutExt.split( filter, 1 )
 				if len(splitted) == 1:
 				  # The current platform and compiler version not found in package filename, so don't print it
 				  continue
@@ -1245,7 +1289,7 @@ class sbfPakCmd( cmd.Cmd ):
 
 
 	def help_mkpak( self ):
-		print ("Usage: mkpak pakName\nRetrieves, build and create an sbf package for extern dependency (like boost, qt and so on).")
+		print ("Usage: mkpak pakName\nRetrieves, builds and creates an sbf package for an external dependency (like boost, qt and so on).")
 
 	def do_mkpak( self, params ):
 		parameterList = params.split()

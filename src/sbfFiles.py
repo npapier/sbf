@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,7 +9,7 @@ import os
 import re
 import shutil
 
-from os.path import basename, dirname, exists, isfile, isdir, join, splitext
+from os.path import basename, dirname, exists, isfile, isdir, join, split, splitext
 
 ####################################
 ###### Path related functions ######
@@ -266,6 +266,21 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 				else:
 					if verbose:	print ( 'Install {0} in {1}'.format(name, join(destination, basename(name))) )
 					shutil.copyfile( name, join(destination, basename(name)) )
+
+
+def copyTree( srcPathFilenames, dstPath, srcDir ):
+	"""	@brief Copy the file(s) given by srcPathFilenames to the directory dstPath.
+
+		@param srcPathFilenames		a list of path to files that would be copied
+		@param dstPath				directory where files would be copied
+		@param srcDir				files specified by srcPathFilenames are relative path to this directory"""
+	for pathFilename in srcPathFilenames:
+		(path, file) = split( pathFilename )
+		dstDir = join( dstPath, path )
+
+		if not exists( dstDir ):
+			os.makedirs( dstDir )
+		shutil.copy2( join(srcDir, pathFilename), join(dstDir, file) )
 
 
 def removeFile( file, verbose = True ):

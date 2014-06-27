@@ -1,9 +1,10 @@
-# SConsBuildFramework - Copyright (C) 2008, 2010, 2011, 2012, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2008, 2010, 2011, 2012, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 import os
+import shutil
 import sys
 import tempfile
 from os.path import join, exists
@@ -35,7 +36,7 @@ def stringFormatter( lenv, message ) :
 
 
 ### execute command line ###
-def subprocessCall2( command ):
+def subprocessCall2( command ): # @todo rename subprocessCall2 = subprocessCall
 	# Executes commands
 	try:
 		retcode = subprocess.call( command )
@@ -116,20 +117,31 @@ def call( commandAndParams, commandPath = None, env={} ):
 
 	return retVal
 
-def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = None ):
+
+def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = None, arch = 'x86-32' ):
+	"""	@param vcvarsPath
+		@param arch	see SConsBuildFramework.myArch"""
+
 	if not vcvarsPath:
-		# Microsoft Visual Studio 2010 x86 tools.
-		vcvarsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\bin\\vcvars32.bat'
+		# Microsoft Visual Studio 2012 x86 tools.
+		vcvarsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio 11.0\\VC\\vcvarsall.bat'
 
 	# Reads batch file to set environment for using Microsoft Visual Studio 20xx x86 tools.
 	if not exists(vcvarsPath):
-		print ("vcvars32.bat not found in '{0}'.".format(vcvarsPath))
+		print ("vcvarsall.bat not found in '{0}'.".format(vcvarsPath))
 		return 1
 
+	# Creates a copy of .bat and patches it
 	with open(vcvarsPath) as file:
 		setupVCLines = file.readlines()
 
+	for (i, line) in enumerate(setupVCLines):
+		line = line.replace('%~dp0bin', join(dirname(vcvarsPath), 'bin'))
+		line = line.replace('goto :eof', 'goto :myeof')
+		setupVCLines[i] = line
+
 	# Appends command
+	setupVCLines.append( ':myeof\n' )
 	setupVCLines.append( '@set TMP=\n' )
 	setupVCLines.append( '@set TEMP=\n' )
 	setupVCLines.append( '@set tmp=\n' )
@@ -142,8 +154,14 @@ def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = No
 	with tempfile.NamedTemporaryFile(suffix='.bat', delete=False) as file:
 		file.writelines( setupVCLines )
 
+	# Architecture parameter given to vcvarsall.bat
+	if arch == 'x86-32':
+		vcvarsArchParam = 'x86'
+	elif arch == 'x86-64':
+		vcvarsArchParam = 'x86_amd64'
+	print '{comspec} /k ""{vcvarsbat}"" {archParam}'.format( comspec=os.environ['COMSPEC'], vcvarsbat=file.name, archParam=vcvarsArchParam)
 	# Executing command
-	retVal = subprocessCall2( '{comspec} /k ""{vcvarsbat}""'.format( comspec=os.environ['COMSPEC'], vcvarsbat=file.name ) )
+	retVal = subprocessCall2( '{comspec} /k ""{vcvarsbat}"" {archParam}'.format( comspec=os.environ['COMSPEC'], vcvarsbat=file.name, archParam=vcvarsArchParam) )
 
 	# Cleaning
 	os.remove(file.name)
@@ -151,8 +169,53 @@ def executeCommandInVCCommandPrompt( command, appendExit = True, vcvarsPath = No
 	return retVal
 
 
-def getLambdaForExecuteCommandInVCCommandPrompt( vcvarsPath ):
-	return lambda command, appendExit=True : executeCommandInVCCommandPrompt(command, appendExit, vcvarsPath)
+def getLambdaForExecuteCommandInVCCommandPrompt( vcvarsPath, arch ):
+	return lambda command, appendExit=True : executeCommandInVCCommandPrompt(command, appendExit, vcvarsPath, arch)
+
+
+# Helpers to construct a SConsBuildFramework project on filesystem
+def getSConsBuildFrameworkDefaultOptions( productName, type, version ):
+	"""@brief Returns a string containing an SConsBuildFramework project file (default.options)"""
+	SConsBuildFrameworkDefaultOptions = """productName	= '{name}'
+type			= '{type}'
+version		= '{version}'"""
+
+	return SConsBuildFrameworkDefaultOptions.format( name=productName, type=type, version=version )
+
+
+def createSConsBuildFrameworkProject( projectName, type, version, includeFiles, sourceFiles ):
+	# Create a new directory tree for the compilation.
+	os.makedirs( projectName )
+	includeDir = join(projectName, 'include')
+	os.makedirs( includeDir )
+	srcDir = join(projectName, 'src')
+	os.makedirs( srcDir )
+
+	# Create the SConsBuildFramework project options file
+	defaultOptionsString = getSConsBuildFrameworkDefaultOptions(projectName, type, version)
+	with open( join(projectName, 'default.options'), 'w') as file:
+		file.write( defaultOptionsString )
+
+	# Copy the sconstruct file into the project
+	sbfRoot = os.getenv('SCONS_BUILD_FRAMEWORK')
+	print sbfRoot
+	shutil.copy( join(sbfRoot, 'template/projectTemplate/sconstruct'), projectName )
+
+	# Copy include and source files to the right place.
+	copyTree( includeFiles, includeDir, '.' )
+	copyTree( sourceFiles, srcDir, '.' )
+
+
+def buildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ):
+	owd = os.getcwd()
+	os.chdir(path)
+
+	# 'buildPath={}/build'.format(os.getcwd())
+	cmdLine = ['installPath={}/local'.format(os.getcwd()), 'clVersion={}'.format(CCVersion), 'targetArchitecture={}'.format(arch), 'printCmdLine=full']
+	subprocess.call(['scons', 'debug']+cmdLine, shell=True)
+	subprocess.call(['scons', 'release']+cmdLine, shell=True)
+
+	os.chdir(owd)
 
 
 ### Severals helpers ###

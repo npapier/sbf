@@ -579,7 +579,7 @@ vcs.update( SCONS_BUILD_FRAMEWORK, "SConsBuildFramework" )
 		f.write( autoUpdaterCode.format( svnUrls=str(sbf.mySvnUrls) ) )
 
 	# Replace current process with autoUpdater.py
-	if sbf.myPlatform == 'win32':
+	if sbf.myPlatform == 'win':
 		autoUpdater = autoUpdater.replace('\\', '\\\\')
 		print 'Asynchronous update of SConsBuildFramework'
 	os.execlp( 'python', 'python', '"{0}"'.format(autoUpdater) )

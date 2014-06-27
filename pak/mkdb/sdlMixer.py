@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2010, 2011, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2013, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -16,7 +16,12 @@ descriptor = {
 	'version'		: '1-2-11',
 
 	'rootDir'		: 'SDL_mixer-1.2.11',
+
+	# developer package
 	'license'		: ['README', 'COPYING'],
 	'include'		: ['include/'],
-	'lib'			: ['lib/SDL_mixer.lib', 'lib/SDL_mixer.dll']
+	'lib'			: ['lib/SDL_mixer.lib'],
+
+	# runtime package
+	'bin'			: ['lib/SDL_mixer.dll']
 }

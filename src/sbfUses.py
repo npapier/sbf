@@ -51,6 +51,10 @@ class sofaConfig:
 
 	@classmethod
 	def getVersion( cls ):
+		# for sofa source checkout from git
+		#return '0'
+
+		# for svn
 		if cls.__svnRevision is None:
 			# Retrieves svn revision
 			basePath = cls.getBasePath(True)
@@ -243,7 +247,6 @@ class Use_adl( IUse ):
 		return [], []
 
 
-
 class Use_blowfish( IUse ):
 	def getName( self ):
 		return 'blowfish'
@@ -252,17 +255,17 @@ class Use_blowfish( IUse ):
 		return ['1-0']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
+			lib = '{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion) # @todo idem Use_cityhash() =
 			if self.config == 'release':
-				return ['Blowfish'], []
+				return [lib], []
 			else:
-				return ['Blowfish_D'], []
+				return [lib+'_D'], []
 		elif self.platform == 'posix':
 			return ['Blowfish'], []
-			
+
 	def hasRuntimePackage( self, version ):
 		return True
-
 
 
 class Use_boost( IUse ):
@@ -274,7 +277,7 @@ class Use_boost( IUse ):
 
 	def getCPPDEFINES( self, version ):
 		versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if version == '1-54-0':
 				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
 			else:
@@ -284,7 +287,7 @@ class Use_boost( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 
 			# vc version
 			if self.cc == 'cl' and self.ccVersionNumber >= 11.0000:
@@ -404,7 +407,7 @@ class Use_cityhash( IUse ):
 			return [lib+'_D'], []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-1-0':
+		if self.platform == 'win' and self.ccVersionNumber >= 11.0000 and version == '1-1-0':
 			return True
 		else:
 			return False
@@ -460,11 +463,11 @@ class Use_gstFFmpeg( IUse ):
 		pakLibs = [	'avcodec-lgpl-52', 'avdevice-lgpl-52', 'avfilter-lgpl-1',
 					'avformat-lgpl-52', 'avutil-lgpl-50', 'swscale-lgpl-0',
 					'libbz2', 'z' ]
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return libs, pakLibs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '0-10-9':
+		if self.platform == 'win' and self.ccVersionNumber >= 11.0000 and version == '0-10-9':
 			return True
 		else:
 			return False
@@ -480,7 +483,7 @@ class Use_htEsHardware( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = ['HtEsHardwareAPI']
 			return libs, libs
 
@@ -496,7 +499,7 @@ class Use_opengl( IUse ):
 #		return [ 'GL_GLEXT_LEGACY' ]
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			# opengl32	: OpenGL and wgl functions
 			# gdi32		: Pixelformat and swap related functions
 			# user32	: ChangeDisplaySettings* functions
@@ -530,6 +533,7 @@ class Use_poppler( IUse ):
 			return ['poppler-d', 'poppler-cpp-d'], ['poppler-cpp-d', 'libiconv2', 'jpeg62']
 
 
+# @todo update and move
 class Use_itk( IUse ):
 
 	def getName( self ):
@@ -553,7 +557,7 @@ class Use_itk( IUse ):
 
 
 	def getLIBS( self, version ):
-		if (self.platform == 'win32') and (version in ['3-4-0']) :
+		if (self.platform == 'win') and (version in ['3-4-0']) :
 			libs = [	'ITKAlgorithms', 'ITKBasicFilters', 'ITKCommon', 'ITKDICOMParser', 'ITKEXPAT', 'ITKFEM', 'itkgdcm',
 						'ITKIO', 'itkjpeg8', 'itkjpeg12', 'itkjpeg16', 'ITKMetaIO', 'ITKniftiio', 'ITKNrrdIO', 'ITKNumerics',
 						'itkopenjpeg', 'itkpng', 'ITKSpatialObject', 'ITKStatistics', 'itksys', 'itktiff', 'itkv3p_netlib',
@@ -572,7 +576,7 @@ class Use_openil( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			if self.config == 'release' :
 				libs = ['DevIL', 'ILU']
 				return libs, libs
@@ -590,7 +594,32 @@ class Use_openil( IUse ):
 				return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 9.0000 and version == '1-7-8':
+		if self.platform == 'win' and self.ccVersionNumber >= 9.0000 and version == '1-7-8':
+			return True
+		else:
+			return False
+
+
+class Use_resil( IUse ):
+	def getName( self ):
+		return 'resil'
+
+	def getVersions( self ):
+		return ['1-8-2']
+
+
+	def getLIBS( self, version ):
+		if self.platform == 'win' :
+			if self.config == 'release' :
+				libs = ['ResIL', 'ILU']
+				return libs, libs
+			else:
+				libs = ['ResIL', 'ILU']
+				return libs, libs #['DevILd'] @todo openil should be compiled in debug on win32 platform
+		# else @todo
+
+	def hasRuntimePackage( self, version ):
+		if self.platform == 'win' and version == '1-8-2':
 			return True
 		else:
 			return False
@@ -602,7 +631,7 @@ class Use_sdl( IUse ):
 		return 'sdl'
 
 	def getVersions( self ):
-		return ['1-2-14']
+		return ['1-2-15', '1-2-14']
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'posix' :
@@ -618,7 +647,7 @@ class Use_sdl( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = [ 'SDL', 'SDLmain' ]
 			pakLibs = [ 'SDL' ]
 			return libs, pakLibs
@@ -626,13 +655,13 @@ class Use_sdl( IUse ):
 			return ['SDL', 'SDL']
 
 	def getLIBPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return [], []
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-14':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '1-2-14':
 			return True
 		else:
 			return False
@@ -659,7 +688,7 @@ class Use_sdlMixer( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			libsBoth = [ 'SDL_mixer' ]
 			return libsBoth, libsBoth
 		elif self.platform == 'posix':
@@ -667,13 +696,13 @@ class Use_sdlMixer( IUse ):
 			return libsBoth, libsBoth
 
 	def getLIBPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return [], []
 		elif self.platform == 'posix':
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-2-11':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '1-2-11':
 			return True
 		else:
 			return False
@@ -691,7 +720,7 @@ class Use_glew( IUse ):
 		return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '1-9-0':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '1-9-0':
 			return True
 		else:
 			return False
@@ -702,7 +731,7 @@ class Use_glu( IUse ):
 		return "glu"
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = ['glu32']
 			return libs, []
 		else:
@@ -735,7 +764,7 @@ class Use_glut( IUse ):
 		return ['3-7']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = ['glut32']
 			return libs, libs
 		else:
@@ -743,7 +772,7 @@ class Use_glut( IUse ):
 			return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '3-7':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '3-7':
 			return True
 		else:
 			return False
@@ -763,7 +792,7 @@ class Use_gtest( IUse ):
 		return defines
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if version == '446':
 				if self.config == 'release':
 					libs = ['gtest']
@@ -783,7 +812,7 @@ class Use_gtest( IUse ):
 			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0000 and version == '446':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '446':
 			return True
 		else:
 			return False
@@ -797,7 +826,7 @@ class Use_openassetimport( IUse ):
 		return ['3-0-2', '3-0-1', '3-0']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				return ['assimp'], ['assimp']
 			else:
@@ -817,7 +846,7 @@ class Use_opencollada( IUse ):
 		return ['865', '864', '768', '736']
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return [ 	'opencollada/COLLADAFramework/',
 						'opencollada/COLLADABaseUtils/',
 						'opencollada/COLLADABaseUtils/Math',
@@ -840,7 +869,7 @@ class Use_opencollada( IUse ):
 			return []		
 		
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = ['COLLADABaseUtils', 'COLLADAFramework', 'COLLADASaxFrameworkLoader', 'COLLADAStreamWriter', 'GeneratedSaxParser', 'pcre', 'MathMLSolver', 'LibXML', 'libBuffer', 'libftoa']
 				return libs, []
@@ -861,14 +890,14 @@ class Use_python( IUse ):
 		return [ '2-7-3' ]
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			cppPath = ['Python']
 		else:
 			cppPath = ['/usr/include/python2.7']
 		return cppPath
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = ['python27']
 			else:
@@ -890,7 +919,7 @@ class Use_physfs( IUse ):
 		return [ '2-0-2', '2-0-1' ]
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = ['physfs']
 				return libs, libs
@@ -902,7 +931,7 @@ class Use_physfs( IUse ):
 			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 10.0 and version == '2-0-2':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0 and version == '2-0-2':
 			return True
 		else:
 			return False
@@ -925,7 +954,7 @@ class Use_qt( IUse ):
 		if self.config == 'release':
 			cppDefines += ['QT_NO_DEBUG']
 		#else nothing to do
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			cppDefines += [ 'QT_DLL' ]
 		if self.platform == 'posix':
 			cppDefines += [ 'QT_SHARED' ]
@@ -933,7 +962,7 @@ class Use_qt( IUse ):
 		return cppDefines
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return self.cppModules
 		elif self.platform == 'posix':
 			posixQtRootPath = '/usr/include/qt4/'
@@ -951,7 +980,7 @@ class Use_qt( IUse ):
 			return [],[]
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
 			else:
@@ -986,7 +1015,7 @@ class Use_qt3support( IUse ):
 		return self.cppModules
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = [ module + self.linkVersionPostfix for module in self.linkModules ]
 			else:
@@ -1014,7 +1043,7 @@ class Use_scintilla( IUse ):
 		return ['Scintilla']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.config == 'release':
 				libs = ['ScintillaEdit3']
 				return libs, libs
@@ -1044,6 +1073,7 @@ class Use_sofa( IUse, sofaConfig ):
 
 	def getCPPDEFINES( self, version ):
 		definesList = ['SOFA_DOUBLE', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'TIXML_USE_STL']
+#		definesList = ['SOFA_FLOAT', '_SCL_SECURE_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'SOFA_NO_VECTOR_ACCESS_FAILURE', 'TIXML_USE_STL']
 		definesList += ['SOFA_HAVE_GLEW']
 
 		pluginsList = sofaConfig.getPluginsList()
@@ -1057,7 +1087,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return definesList
 
 	def getCPPFLAGS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			return ['/wd4250', '/wd4251', '/wd4275', '/wd4996', '/wd4800']
 		else:
 			return []
@@ -1079,7 +1109,7 @@ class Use_sofa( IUse, sofaConfig ):
 		return cppPath
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = []
 			pakLibs = []
 
@@ -1171,7 +1201,7 @@ class Use_sofaQt( IUse, sofaConfig ):
 		return ['SOFA_QT4']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			libs = []
 			pakLibs = []
 
@@ -1251,12 +1281,12 @@ class Use_usb2brd( IUse ):
 		return [ '1-0-15' ]
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			libs = ['usb2brd']
 			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win32' and self.ccVersionNumber >= 11.0000 and version == '1-0-15':
+		if self.platform == 'win' and self.ccVersionNumber >= 11.0000 and version == '1-0-15':
 			return True
 		else:
 			return False
@@ -1272,25 +1302,25 @@ class Use_wxWidgets( IUse ):
 		return ['2-8-8']
 
 	def getCPPDEFINES( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return [ 'WXUSINGDLL', '__WIN95__' ]
 		else:
 			return [ ('_FILE_OFFSET_BITS', 64), '_LARGE_FILES', '__WXGTK__' ]
 
 	def getCPPFLAGS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return []
 		else:
 			return ['-pthread', '-Wl,-Bsymbolic-functions']
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			return []
 		else:
 			return ['/usr/lib/wx/include/gtk2-unicode-release-2.8', '/usr/include/wx-2.8']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' and version == '2-8-8' :
+		if self.platform == 'win' and version == '2-8-8' :
 			if self.config == 'release' :
 				libs = [	'wxbase28', 'wxbase28_net', 'wxbase28_xml', 'wxmsw28_adv', 'wxmsw28_aui', 'wxmsw28_core',
 							'wxmsw28_html', 'wxmsw28_media', 'wxmsw28_qa', 'wxmsw28_richtext', 'wxmsw28_xrc' ]
@@ -1342,7 +1372,7 @@ class Use_wxWidgetsGL( IUse ):
 		return ['2-8-8']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32' and version == '2-8-8' :
+		if self.platform == 'win' and version == '2-8-8' :
 			if self.config == 'release' :
 				libs = [ 'wxmsw28_gl' ]
 				pakLibs = [ 'wxmsw28_gl_vc_custom' ]
@@ -1353,7 +1383,6 @@ class Use_wxWidgetsGL( IUse ):
 				return libs, pakLibs
 		else :
 			return None
-###
 
 
 
@@ -1373,9 +1402,9 @@ class UseRepository :
 	@classmethod
 	def getAll( self ):
 		return [	Use_adl(), Use_blowfish(), Use_boost(), Use_bullet(), Use_cairo(), Use_cityhash(), Use_colladadom(), Use_gstFFmpeg(), Use_glew(), Use_glu(),
-					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_htEsHardware(), Use_itk(), Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_qt(), Use_qt3support(),
-					Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_swigContrib(), Use_swigShp(), Use_usb2brd(), Use_wxWidgets(),
-					Use_wxWidgetsGL() ]
+					Use_glm(), Use_glut(), Use_gtest(), Use_gtkmm(), Use_gtkmmext(), Use_htEsHardware(), Use_itk(),  Use_openassetimport(), Use_opencollada(), Use_opengl(), Use_openil(), Use_resil(), Use_qt(),
+					Use_qt3support(), Use_scintilla(), Use_sdl(), Use_sdlMixer(), Use_physfs(), Use_poppler(), Use_python(), Use_sigcpp(), Use_sofa(), Use_sofaQt(), Use_swig(), Use_swigContrib(), Use_swigShp(), Use_usb2brd(),
+					Use_wxWidgets(), Use_wxWidgetsGL() ]
 
 	@classmethod
 	def initialize( self, sbf ):
@@ -1517,7 +1546,7 @@ class Use_gtkmm( IUse ):
 		return [ (self.getName().upper()+'_VERSION', versionNumber) ]
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			gtkmmCppPath = [	'../lib/glibmm-2.4/include', 'glibmm-2.4',
 								'../lib/giomm-2.4/include', 'giomm-2.4',
 								'../lib/gdkmm-2.4/include', 'gdkmm-2.4',
@@ -1554,7 +1583,7 @@ class Use_gtkmm( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			libs = [	'glade-2.0', 'gtk-win32-2.0', 'gdk-win32-2.0', 'gdk_pixbuf-2.0',
 						'pangowin32-1.0', 'pangocairo-1.0', 'pangoft2-1.0', 'pango-1.0',
 						'atk-1.0', # 'cairo', see cairo
@@ -1620,7 +1649,7 @@ class Use_gtkmm( IUse ):
 
 	def getCPPFLAGS( self, version ):
 		# compiler options
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.cc == 'cl' and self.ccVersionNumber >= 9.0000 :
 				return ['/wd4250']
 			elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
@@ -1642,7 +1671,7 @@ class Use_gtkmmext( IUse ):
 
 	def getCPPFLAGS( self, version ):
 		# compiler options
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
 				return ['/vd2']
 		else:
@@ -1664,13 +1693,13 @@ class Use_cairo( IUse ):
 
 
 	def getCPPFLAGS( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			return [ '/wd4250' ]
 		else:
 			return []
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			return [ 'cairo', 'freetype2' ] # @todo add libpng14/fontconfig ?
 		elif self.platform == 'posix' :
 			# Sets CPPPATH
@@ -1679,7 +1708,7 @@ class Use_cairo( IUse ):
 			return cppPath
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			libs = [ 'cairo' ] # fontconfig ? expat ?
 			# pakLibs: libpangocairo-1.0-0 ?
 			return libs, []
@@ -1702,7 +1731,7 @@ class Use_sigcpp( IUse ):
 
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win32' :
+		if self.platform == 'win' :
 			return [ 'sigc++', '../lib/sigc++-2.0/include' ]
 		elif self.platform == 'posix':
 			sigcppPath = [ '/usr/include/sigc++-2.0','/usr/lib64/sigc++-2.0/include' ]
@@ -1711,7 +1740,7 @@ class Use_sigcpp( IUse ):
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win32':
+		if self.platform == 'win':
 			if version == '2-2-8':
 				if self.config == 'release' :
 					# RELEASE
@@ -1746,7 +1775,6 @@ class Use_sigcpp( IUse ):
 		return True
 
 
-
 ### @todo update or remove
 #def use_physx( self, lenv, elt ) :
 	# Retrieves PHYSX_BASEPATH
@@ -1767,7 +1795,7 @@ class Use_sigcpp( IUse ):
 
 	# Sets LIBS and LIBPATH
 #	lenv.AppendUnique( LIBS = [	'PhysXLoader', 'NxCooking', 'NxCharacter' ] )
-#	if self.myPlatform == 'win32' :
+#	if self.myPlatform == 'win' :
 #		lenv.AppendUnique( LIBPATH = [ os.path.join(physxBasePath, 'SDKs\lib\Win32') ] )
 #	else :
 #		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
@@ -1777,7 +1805,7 @@ class Use_sigcpp( IUse ):
 # #@todo Adds support to both ANSI and Unicode version of wx
 # #@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
 # def use_wxWidgets( self, lenv, elt ) :
-#	if	self.myPlatform == 'win32' :
+#	if	self.myPlatform == 'win' :
 #
 #		lenv.Append( CPPDEFINES = [ 'WXUSINGDLL', '__WIN95__' ] )
 #
@@ -1827,7 +1855,7 @@ def uses( self, lenv, uses, skipLinkStageConfiguration = False ):
 
 		# @todo FIXME hack for wx @todo move to IUse getLINKFLAGS()
 		if skipLinkStageConfiguration == False :
-			if self.myPlatform == 'win32' and elt == 'wx2-8-8' and self.myType == 'exec' :
+			if self.myPlatform == 'win' and elt == 'wx2-8-8' and self.myType == 'exec' :
 				lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
 
 		### Updates environment using UseRepository

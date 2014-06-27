@@ -1,41 +1,45 @@
 #!/usr/bin/env python
 
-# SConsBuildFramework - Copyright (C) 2010, 2011, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-# ok for cl 9.0, 10.0 and 11.0
+# ok for cl 9.0, 10.0 and 11.0 (32/64 bits)
 
 from os.path import join
 
 # http://www.libsdl.org
 
 descriptorName = 'sdl'
-descriptorVersion = '1-2-14'
-projectFolderName = 'SDL-1.2.14'
+descriptorVersion = '1-2-15'
+descriptorVersionDot = descriptorVersion.replace('-', '.')
 
-if CCVersionNumber >= 9:
-	sln = join( buildDirectory, descriptorName + descriptorVersion, projectFolderName, 'VisualC', 'SDL.sln' )
-	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(MSVSIDE, sln)
-	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln)
-else:
-	print >>sys.stderr, "Unsupported MSVC version."
-	exit(1)
+projectFolderName = 'SDL-{}'.format(descriptorVersionDot)
 
-if CCVersionNumber >= 10:
-	patchFile = 'http://orange/files/Dev/localExt/src/SDL-1.2.14_{0}_PATCH.zip'.format('cl10-0Exp')
+slnPath = 'VisualC'
+
+if arch == 'x86-32':
+	platform = 'Win32'
+	lib =  [ 'VisualC/Release/SDL.lib', 'VisualC/SDLmain/Release/SDLmain.lib' ]
 else:
-	patchFile = 'http://orange/files/Dev/localExt/src/SDL-1.2.14_{0}_PATCH.zip'.format(CCVersion)
+	platform = 'x64'
+	lib = [ 'VisualC/x64/Release/SDL.lib', 'VisualC/SDLmain/x64/Release/SDLmain.lib' ]
+
+ConfigureVisualStudioVersion(CCVersionNumber)
+cmdSDLRelease = GetMSBuildCommand( slnPath, 'SDL.sln', 'SDL', 'Release', maxcpucount = cpuCount, platform = platform )
+cmdSDLMainRelease = GetMSBuildCommand( slnPath, 'SDL.sln', 'SDLmain', 'Release', maxcpucount = cpuCount, platform = platform )
 
 descriptor = {
-	'urls'			: ['http://www.libsdl.org/release/SDL-1.2.14.zip', patchFile ],
+	'urls'			: [	'http://www.libsdl.org/release/SDL-1.2.15.tar.gz',
+						'http://orange/files/Dev/localExt/PUBLIC/src/SDL-1.2.15_patch.zip'
+		],
 
 	'name'			: descriptorName,
 	'version'		: descriptorVersion,
 
 	'rootBuildDir'	: projectFolderName,
-	'builds'		: [	cmdDebug, cmdRelease ],
+	'builds'		: [ cmdSDLRelease, cmdSDLMainRelease ],
 
 	# packages developer and runtime
 	'rootDir'		: projectFolderName,
@@ -43,7 +47,7 @@ descriptor = {
 	# developer package
 	'license'		: ['README-SDL.txt', 'COPYING'],
 	'include'		: ['include/'],
-	'lib'			: [	'VisualC/SDL/Release/SDL.lib', 'VisualC/SDLmain/Release/SDLmain.lib' ],
+	'lib'			: lib,
 
 	# runtime package
 	'bin'				: ['VisualC/SDL/Release/SDL.dll'],

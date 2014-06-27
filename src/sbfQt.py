@@ -41,24 +41,27 @@ def moc( lenv, filesForMoc, objFiles ):
 			Action( [['moc', '-o', '${TARGETS[0]}', '$SOURCE']] ) )
 
 # Mkpak
-def getQMakePlatform( cc, ccVersionNumber ):
+def getQMakePlatform( CC, CCVersionNumber, arch ):
 	"""Helper for mkpak."""
 
-	if cc == 'gcc':
-		return 'linux-g++'
-	elif cc == 'cl':
+	if CC == 'gcc':
+		if arch == 'x86-32':
+			return 'linux-g++-32'
+		else:
+			return 'linux-g++-64'
+	elif CC == 'cl':
 		qmakeGenerator = {
 			8	: 'win32-msvc2005',
 			9	: 'win32-msvc2008',
 			10	: 'win32-msvc2010',
 			11	: 'win32-msvc2012',
 			}
-		if ccVersionNumber in qmakeGenerator:
-			return qmakeGenerator[ccVersionNumber]
+		if CCVersionNumber in qmakeGenerator:
+			return qmakeGenerator[CCVersionNumber]
 		else:
 			print >>sys.stderr, "Wrong MSVC version. ."
-			print ('Given unsupported MSVC version {}. \nVersion 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required.'.format(ccVersionNumber))
+			print ('Given unsupported MSVC version {}. \nVersion 8.0[Exp], 9.0[Exp], 10.0[Exp] or 11.0[Exp] required.'.format(CCVersionNumber))
 			exit(1)
 	else:
-		print '{} version {} not supported'.format( cc, ccVersionNumber )
+		print '{} version {} not supported'.format( CC, CCVersionNumber )
 

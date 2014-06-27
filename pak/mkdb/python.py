@@ -5,10 +5,9 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-# ok for cl10.0
-# nok for cl11.0. Still linked with cl10 runtime !!! Look at <PlatformToolset>v110</PlatformToolset> in .vcxproj ?
+# ok for cl 10.0 and 11.0 (32/64 bits)
 
-from os.path import join
+from os.path import basename, dirname, join
 import shutil
 
 # http://www.python.org
@@ -17,8 +16,9 @@ descriptorName = 'python'
 
 descriptorVersion = '2-7-3'
 # Remarks :
-# * Python-2.7.3_cl10-0Exp.zip contains converted solution and Visual C++ project.
+# * Python-2.7.3_clXX-0Exp.zip contains converted solution and Visual C++ project.
 # * _tkinter, _hashlib and _ssl projects are removed from the Visual C++ solution
+# * for cl11: remove _msi project too (from the Visual C++ solution)
 
 pythonLibs = [	'bsddb', 'compiler', 'ctypes', 'curses', 'distutils', 'email', 'encodings', 'hotshot',
 				'idlelib', 'importlib', 'json', 'lib-tk', 'lib2to3', 'logging', 'msilib', 'multiprocessing',
@@ -65,12 +65,22 @@ def compilePYC( directory, pythonLibs ):
 	return lambda : _compilePYC(directory, pythonLibs)
 
 #
+ConfigureVisualStudioVersion(CCVersionNumber)
+
 if CCVersionNumber >= 10:
 	sln = join( absRootBuildDir, projectFolderName, 'PCbuild', 'pcbuild.sln' )
-	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(MSVSIDE, sln)
-	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln)
+
+	if arch == 'x86-32':
+		myPlatform = 'Win32'
+		relPathToBin = ''
+	else:
+		myPlatform = 'x64'
+		relPathToBin = 'amd64/'
+
+	cmdDebug	= GetMSBuildCommand( dirname(sln), basename(sln), config = 'Debug', maxcpucount = cpuCount, platform = myPlatform )
+	cmdRelease	= GetMSBuildCommand( dirname(sln), basename(sln), config = 'Release', maxcpucount = cpuCount, platform = myPlatform )
 else:
-	print >>sys.stderr, "Unsupported MSVC version."
+	print ('Given unsupported MSVC version {}. \nVersion 10.0[Exp] or 11.0[Exp] required.'.format(ccVersionNumber))
 	exit(1)
 
 
@@ -99,17 +109,17 @@ descriptor = {
 	# developer package 
 	'license'		: ['../LICENSE'],
 	'include'		: [('../Include', 'Python/'), ('../PC/pyconfig.h', 'Python/')],
-	'lib'			: ['python27*.lib', 'python27*.pdb'],
+	'lib'			: ['{}python27*.lib'.format(relPathToBin), '{}python27*.pdb'.format(relPathToBin)],
 
 	# runtime package
 	'runtimeCustom'	:	[(GlobRegEx('../PC/py.?\.ico'), 'bin/DLLs/'),
 						 (GlobRegEx('../Lib/.+', pruneDirs='(?:test)|(?:plat-.+)', recursive=True), 'bin/Lib/')],
 
 	# runtime package (release version)
-	'binR'				: [GlobRegEx('python(?:|w|27)[.](?:dll|exe)')],
-	'runtimeCustomR'	: [('sqlite3.dll', 'bin/DLLs/'), (GlobRegEx('[^\.]+(?<!_d)[.]pyd'), 'bin/DLLs/')],
+	'binR'				: [GlobRegEx('{}python(?:|w|27)[.](?:dll|exe)'.format(relPathToBin))],
+	'runtimeCustomR'	: [('{}sqlite3.dll'.format(relPathToBin), 'bin/DLLs/'), (GlobRegEx('{}[^\.]+(?<!_d)[.]pyd'.format(relPathToBin)), 'bin/DLLs/')],
 
 	# runtime package (debug version)
-	'binD'				: [GlobRegEx('python(?:|w|27)_d[.](?:dll|exe)')],
-	'runtimeCustomD'	: [('sqlite3_d.dll', 'bin/DLLs/'), (GlobRegEx('[^\.]+(?<=_d)[.]pyd'), 'bin/DLLs/')],
+	'binD'				: [GlobRegEx('{}python(?:|w|27)_d[.](?:dll|exe)'.format(relPathToBin))],
+	'runtimeCustomD'	: [('{}sqlite3_d.dll'.format(relPathToBin), 'bin/DLLs/'), (GlobRegEx('{}[^\.]+(?<=_d)[.]pyd'.format(relPathToBin)), 'bin/DLLs/')],
 }

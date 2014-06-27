@@ -1,27 +1,178 @@
-# SConsBuildFramework - Copyright (C) 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
 # pre-defined variables
-config				# 'debug' or 'release'						(see SConsBuildFramework.myConfig)
-platform			# 'win32' | 'cygwin' | 'posix' | 'darwin'	(see SConsBuildFramework.myPlatform)
-CC					# 'cl', 'gcc'								(see SConsBuildFramework.myCC)
-CCVersionNumber		# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1(see SConsBuildFramework.myCCVersionNumber)
-CCVersion			# 'cl8-0Exp'								(see SConsBuildFramework.myCCVersion)
-MSVSIDE				# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE). See SConsBuildFramework.myMSVSIDE
-MSVCVARS32			# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
-MSVC				# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+cpuCount				# number of CPUs in the system
+config					# 'debug' or 'release'						(see SConsBuildFramework.myConfig)
+platform				# 'win' | 'cygwin' | 'posix' | 'darwin'		(see SConsBuildFramework.myPlatform)
+arch					# 'x86-32' | 'x86-64'						(see SConsBuildFramework.myArch)
+CC						# 'cl', 'gcc'								(see SConsBuildFramework.myCC)
+CCVersionNumber			# 8.000000 for cl8-0, 4.002001 for gcc 4.2.1(see SConsBuildFramework.myCCVersionNumber)
+CCVersion				# 'cl8-0Exp'								(see SConsBuildFramework.myCCVersion)
+clVersion				# '2010Exp' | '2012Exp' ...					(see clVersion option)
+platform_arch_ccVersion # 'win_x86-64_cl8-0Exp'
+MSVSIDE					# location of VCExpress (example: C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\VCExpress.EXE). See SConsBuildFramework.myMSVSIDE
+MSVCVARS32				# location of vcvars32.bat (example C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat).
+VCVARSALL				# location of vcvarsall.bat see SConsBuildFramework.myVCVARSALL.
+MSVC					# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+MSBuild					# location of msbuild.exe (i.e. C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe)
 
-UseRepository		# from sbfUses import UseRepository
-execCmdInVCCmdPrompt# contains getLambdaForExecuteCommandInVCCommandPrompt(MSVCVARS32)
+UseRepository			# from sbfUses import UseRepository
+execCmdInVCCmdPrompt	# contains getLambdaForExecuteCommandInVCCommandPrompt(MSVCVARS32)
 
-buildDirectory		# see sbfPackagingSystem.__mkPakGetBuildDirectory()
-localExtDirectory	#
+buildDirectory			# see sbfPackagingSystem.__mkPakGetBuildDirectory()
+localDirectory			#
+localExtDirectory		#
 
-# @todo doc for several typical tasks
+# Building using Visual C++
+if CCVersionNumber >= 9:
+	sln = join( buildDirectory, descriptorName + descriptorVersion, projectFolderName, 'VisualC', 'SDL.sln' )
+	cmdDebug = "\"{0}\" {1} /build Debug /out outDebug.txt".format(MSVSIDE, sln)
+	cmdRelease = "\"{0}\" {1} /build Release /out outRelease.txt".format(MSVSIDE, sln)
+else:
+	print >>sys.stderr, "Unsupported MSVC version."
+	exit(1)
 
-# CMake
+# Building using CMake
 #from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCmdBuildRelease
+see physicsfs.py
 
-# @todo doc for pakDescriptor
+
+# @todo others examples from mkdb
+
+# Calling a function in a build step
+# @todo Functor()
+def configureBDB( src, dst ):
+	def _configureBDB( src, dst ):
+		import glob
+		import os
+		import shutil
+		shutil.move( join(src, 'db-4.7.25'), join(src, 'db-4.7.25.0') )
+		for elt in glob.glob(join(src, 'db-4.7.25.0', '*')):
+			if os.path.isdir(elt):
+				shutil.copytree( elt, join(dst, os.path.basename(elt)) )
+	return lambda : _configureBDB(src, dst)
+
+
+
+# variable named 'pakDescriptor' documentation
+
+# Description of the package using a python dictionary to allow SConsBuildFramework to :
+# * retrieve sources of a package
+# * applying patches
+# * build them
+# * and create the package
+descriptor = {
+# @todo svnUrl
+ 'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk@{0}'.format( 978 ),
+
+ # Retrieves file using urls (all format supported by 7z are supported. tar files at the root of the archive are extracted automatically).
+ # Two forms : a string or a pair.
+ 'urls'			: [	# download python and extract in the build directory
+					'http://python.org/ftp/python/2.7.4/Python-2.7.4.tar.xz',
+					# download sqlite and extract sqlite in subdirectory Python-2.7.4 of the build directory
+					('http://www.sqlite.org/sqlite-amalgamation-3.6.21.tar.gz', 'Python-2.7.4),
+					],
+
+ # Filename of generated package is built using the following schema : (name+version+buildVersion)_platform_arch_ccVersion.zip
+ # example: boost1-53-0-1_win_x86-64_cl10-0Exp.zip
+ 'name'			: 'boost',
+ 'version'		: '1-53-0',
+ 'buildVersion'	: '-1',			# by default, buildVersion = ''
+
+ # The build directory contains all files retrieved from repositories (svnUrls) and/or from archives (urls).
+ # Use rootBuildDir to do from the build directory a 'cd rootBuildDir' in order to simplify all following build command(s).
+ 'rootBuildDir'	: projectFolderName,
+ # a list of commands
+ # predefined commands :
+ # - GlobRegEx()
+ # - SearchFiles( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".+" )
+ # - SearchVcxproj( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".*[.]vcxproj$" )
+ #
+ # - MakeDirectory( newDirectory )
+ # - RemoveDirectory( directory )
+ # - ChangeDirectory( newDirectory )
+ # - RemoveFile( file )
+ #
+ # - CreateSConsBuildFrameworkProject( projectName, type, version, includeFiles, sourceFiles ) see sbfUtils.createSConsBuildFrameworkProject()
+ # - BuildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ) see sbfUtils.buildDebugAndReleaseUsingSConsBuildFramework()
+ #
+ # - Patcher( fileOrFileList, resubs, flags = 0 ) with resubs a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
+ # - PatcherMultiline( fileOrFileList, resubs, flags = 0 )
+ # - ChangeContentOfAnXMLElement(fileOrFileList, tag, oldContent, newContent )
+ #		Change content of an XML element for the given file(s)
+ #		for example: <tag>oldContent</tag> transformed into <tag>newContent</tag>
+ #		oldContent	specify the content to transform, or None to replace the content for the desired elements anyway.
+ #		newContent	the new content to set
+ # - MSVC[specializedPatcherName] with the following specialized patchers :
+ #		* RemoveProjectFromSolution(solutionFile, projectName )
+ #		* ChangeTargetName( VCXProjFileOrFileList, oldName, newName )
+ #		* SetPlatformToolset( VCXProjFileOrFileList, CCVersionNumber )
+ #			<PlatformToolset>v110</PlatformToolset> => <PlatformToolset>vXYZ</PlatformToolset> with XYZ compute from CCVersionNumber
+ #		* AddMultiProcessorCompilation(VCXProjFileOrFileList) add /MP
+ #		* AddPreprocessorDefinitions(VCXProjFileOrFileList, definesToAdd) with definesToAdd		DEFINE1 or DEFINE1;DEFINE2;...
+ # @todo RemovePreprocessorDefinitions
+ # @todo Patch vcxproj to compile without UNICODE support (see resil.py)
+ #		* ChangeLinkVersion( VCXProjFileOrFileList, oldVersion, newVersion )
+ #			<Version>oldVersion</Version> => <Version>newVersion</Version>
+ # - ConfigureVisualStudioVersion( CCVersionNumber ): do os.environ['VisualStudioVersion'] = CCVersionNumber
+ # - GetMSBuildCommand(execPath, sln, targets = 'build', config = 'Release', logFile = None, maxcpucount = 1 or use cpuCount, platform = 'Win32', msbuild=MSBuild)
+ 'builds'		: [ configureBDB(absRootBuildDir, join(absRootBuildDir, projectFolderName, 'PCbuild')),
+					cmdDebug, cmdRelease ],
+
+ # @todo begin
+ # If source is a file, then destination could be a file or a directory.
+ # If source is a directory, then destination must be a non existing directory.
+ #		If source == destination, then sourceDirectory/dirname is copying in destinationDirectory/dirname with dirname = source = destination.
+ #		If source != destination, then sourceDirectory/source is copying in destinationDirectory/destination.
+ # If source is a glob, then destination must be a directory (existing or not)
+ # If source is an enhanced version of glob created using GlobRegEx(), then destination must be a directory (existing or not)
+ # If destination is a directory, it must be ended by a '/'
+ # @todo end
+
+ # packages developer and runtime
+ # Use rootDir to do from the build directory a 'cd rootDir' in order to shorten all following commands.
+ 'rootDir'		: 'Python-{version}'.format(version=DescriptorVersion),
+
+ # developer package
+ 'license'		: ['COPYING'],
+
+ 'include'		: [	# Copying all *.h into packageRootDir/include
+					'*.h',
+					# Copying all files from ../Include into packageRootDir/include/Python
+					('../Include', 'Python/') # @todo explain diff between Python and Python/
+					],
+
+ #
+ 'lib'			: [	# Copying all selected files in packageRootDir/lib
+					'python*.lib',
+					# Copying all files from src into packageRootDir/lib/dst
+					(src, dst+'/') ],
+ 'custom'		: [],
+
+
+ # runtime package
+ #'bin'				: [],
+ #'runtimeCustom'	: [],
+
+ # runtime package (release version)
+ #'binR'			: [],
+ #'runtimeCustomR'	: [],
+
+ # runtime package (debug version)
+ #'binD'			: [],
+ #'runtimeCustomD'	: [],
+}
+
+Usage of GlogRegEx :
+ * GlobRegEx('.*[.]c')							to match *.c
+ * GlobRegEx('crypto[.].*')						to match crypto.*
+ * GlobRegEx('.*[.].*')							to match *.*
+ * GlobRegEx('.*')								to match *
+ * GlobRegEx('python(?:|w|27)_d[.](?:dll|exe)')	to match python_d.exe pythonw_d.exe python27_d.dll
+ * GlobRegEx('^[^\.]+(?<=_d)[.]pyd$')			to match *_d.pyd
+ * GlobRegEx('^[^\.]+(?<!_d)[.]pyd$')			to match *.pyd without *_d.pyd
+@todo 					 (GlobRegEx('../Lib/.*[.](py|pyc)'), 'bin/Lib/'),		# with python glob ('../Lib/*.py', 'bin/Lib/'), ('../Lib/*.pyc', 'bin/Lib/')
+@todo (GlobRegEx('Lib/.*', pruneFiles='(?!^.*[.](swg|i)$)', recursive=True), 'bin/Lib/') ] =>all files recusively, but remove all files non matching *.swg or *.i

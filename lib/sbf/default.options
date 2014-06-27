@@ -13,5 +13,5 @@ defines				= [	('SBF_PLATFORM',					SConsEnvironment.sbf.myPlatform),
 						]
 
 platform = SConsEnvironment.sbf.myPlatform
-if platform == 'win32':
+if platform == 'win':
 	stdlibs = ['Dbghelp.lib']

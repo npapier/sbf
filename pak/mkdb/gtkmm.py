@@ -9,6 +9,21 @@
 
 # See HOWTO Redistributing gtkmm on Microsoft Windows at http://live.gnome.org/gtkmm/MSWindows
 
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# MANUAL STEP:
+# in file gtkmm2-22-0-2_win32_cl10-0Exp\include\gtkmm-2.4\gtkmm\papersize.h
+# have to modified lines 34-36 containing:
+#	#ifndef DOXYGEN_SHOULD_SKIP_THIS
+#	class PaperSizeTraits;
+#	#endif
+#
+#	by
+#
+#	#ifndef DOXYGEN_SHOULD_SKIP_THIS
+#	struct PaperSizeTraits;
+#	#endif
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 # gtk
 gtk_exe	= [ 'bin/gspawn-win32-helper.exe', 'bin/gspawn-win32-helper-console.exe' ]
 gtk_base_dll = [	'bin/libglade-2.0-0', 'bin/libgtk-win32-2.0-0', 'bin/libgdk-win32-2.0-0', 'bin/libgdk_pixbuf-2.0-0',
