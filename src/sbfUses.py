@@ -661,7 +661,7 @@ class Use_sdl( IUse ):
 			return [ '/usr/lib' ], [ '/usr/lib' ]
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '1-2-14':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version >= '1-2-14':
 			return True
 		else:
 			return False
