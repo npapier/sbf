@@ -569,17 +569,33 @@ class PackagingSystem:
 				url = entry
 				extractionSubDirectory = ''
 
-			# Downloads
+			# Computes filename
 			filename = rsearchFilename( urlparse.urlparse(url).path )
 
-			if not exists( join('cache', filename) ):
-				print ( '* Retrieving %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
-
-				urllib.urlretrieve(url, filename= join('cache', filename), reporthook=reporthook_urlretrieve)
-				print ( 'Done.' + ' '*16 )
+			# in cache ?
+			filenameInCache = join('cache', filename)
+			if not exists( filenameInCache ):
+				# not in cache
+				if '$SRCPAKPATH' in url:
+					# Replaces $SRCPAKPATH using option 'pakPaths' of SConsBuildFramework
+					for pakPath in self.__pakPaths[2:]:
+						newUrl = url.replace('$SRCPAKPATH', join(pakPath, 'src'), 1)
+						print ('Is {} an existing path ?'.format(newUrl))
+						if exists( newUrl ):
+							copyFile( newUrl, filenameInCache, True )
+							break
+						# else continue
+					else:
+						print('Unable to found file {}'.format(filename))
+						exit(1)
+				else:
+					print ( '* Retrieving %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
+					urllib.urlretrieve(url, filename= filenameInCache, reporthook=reporthook_urlretrieve)
+					print ( 'Done.' + ' '*16 )
 			else:
+				# already available in cache
 				print ('* %s already downloaded.' % filename)
-			print
+				print
 
 			# Extracts
 			print ( '* Extracting %s in %s...' % (filename, join(extractionDirectory, extractionSubDirectory)) )
