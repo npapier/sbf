@@ -49,7 +49,7 @@ except ImportError as e:
 
 def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command"""
-	shareBuildCommand = (	'blowfish_1-0_${MYPLATFORM}_${TARGETARCHITECTURE}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
+	shareBuildCommand = (	'blowfish_1-0_${MYPLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
 
