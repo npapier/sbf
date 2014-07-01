@@ -49,7 +49,7 @@ except ImportError as e:
 
 def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command"""
-	shareBuildCommand = (	'blowfish_1-0_${PLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
+	shareBuildCommand = (	'blowfish_1-0_${MYPLATFORM}_${TARGETARCHITECTURE}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
 							'${SOURCE}.encrypted', 'Encrypt $SOURCE.file' )
 	return shareBuildCommand
 
@@ -877,8 +877,10 @@ class SConsBuildFramework :
 			self.myPlatform = 'win'
 		else:
 			self.myPlatform	= self.myEnv['PLATFORM']
+		self.myEnv['MYPLATFORM'] = self.myPlatform
 
 		self.myArch = self.myEnv['targetArchitecture']
+		self.myEnv['TARGETARCHITECTURE'] = self.myArch
 
 
 		# myCC, myCCVersionNumber, myCCVersion my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
