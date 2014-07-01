@@ -34,7 +34,7 @@ else:
 
 
 descriptor = {
-	'urls'			: ['http://orange/files/Dev/localExt/PUBLIC/src/' + file for file in ['Blowfish.zip', 'Blowfish_PATCH.zip']],
+	'urls'			: [ join('$SRCPAKPATH', file) for file in ['Blowfish.zip', 'Blowfish_PATCH.zip']],
 
 	'name'			: descriptorName,
 	'version'		: descriptorVersion,
