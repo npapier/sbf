@@ -66,6 +66,7 @@ def configureBDB( src, dst ):
 # * and create the package
 descriptor = {
 # @todo svnUrl
+ # $SRCPAKPATH is replaced by pakPaths[i]/src for each i in [0, len(pakPaths)]
  'svnUrl'		: 'http://opencollada.googlecode.com/svn/trunk@{0}'.format( 978 ),
 
  # Retrieves file using urls (all format supported by 7z are supported. tar files at the root of the archive are extracted automatically).
