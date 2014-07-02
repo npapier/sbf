@@ -262,7 +262,7 @@ class Use_blowfish( IUse ):
 			else:
 				return [lib+'_D'], []
 		elif self.platform == 'posix':
-			return ['Blowfish'], []
+			return ['{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion)], []
 
 	def hasRuntimePackage( self, version ):
 		return True

@@ -5,11 +5,7 @@
 
 #include "sbf/platform.hpp"
 
-#ifdef WIN32
-	#include <malloc.h>
-#else
-	#include <stdlib.h>
-#endif
+#include <malloc.h>
 
 
 

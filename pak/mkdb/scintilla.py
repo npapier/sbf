@@ -42,8 +42,8 @@ if platform == 'win':
 	binR = [ GlobRegEx('bin/[^\.]+(?<!D3)[.]dll$') ]	# to match *3.dll without *D3.dll
 	binD = [ GlobRegEx('bin/[^\.]+(?<=D3)[.]dll$') ]	# to match *D3.dll
 else:
-	cmd  = [	'cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform),
-				'cd qt/ScintillaEdit && make' ]
+	cmd  = [	'export QT_SELECT=4 && cd qt/ScintillaEdit && qmake -platform {platform} ScintillaEdit.pro'.format(platform=currentPlatform),
+				'export QT_SELECT=4 && cd qt/ScintillaEdit && make' ]
 	lib  = []
 	binR = [ 'bin/*.so*' ] # @todo Improve this since symbolic links to the same library file will result in copies in the final zip archive
 	binD = []

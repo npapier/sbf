@@ -31,14 +31,15 @@ def getFilesForMoc( includeFiles ):
 	return retVal
 
 
-def moc( lenv, filesForMoc, objFiles ):
+def moc( lenv, filesForMoc, objFiles, qtMajorVersion ):
 	"""@brief apply moc to filesForMoc using lenv. Add all moc action in objFiles."""
 	sbf = lenv.sbf
 	for mocFile in filesForMoc:
 		inputFile = join(sbf.myProjectPathName, mocFile)
 		outputFile = (os.path.splitext(mocFile)[0]).replace('include'+os.sep+sbf.myProject, sbf.myProjectBuildPathExpanded, 1 ) + '_moc.cpp'
 		objFiles += lenv.Command( outputFile, inputFile,
-			Action( [['moc', '-o', '${TARGETS[0]}', '$SOURCE']] ) )
+			Action( [['moc', '-qt={}'.format(qtMajorVersion), '-o', '${TARGETS[0]}', '$SOURCE']] ) )
+
 
 # Mkpak
 def getQMakePlatform( CC, CCVersionNumber, arch ):

@@ -2179,7 +2179,7 @@ SConsBuildFramework options:
 		if qtUse:
 			if qtUse.getName() + qtUse.getVersions()[0] in lenv['uses']: # @todo note very generic 'qt4-8-0' !!!
 				# MOC
-				moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
+				moc(lenv, getFilesForMoc(filesFromInclude), objFiles, qtUse.getVersions()[0][0])
 			# else nothing to do
 		# else nothing to do
 
@@ -2285,6 +2285,10 @@ SConsBuildFramework options:
 			swigEnv['SWIGPATH'] = swigEnv['CPPPATH'] # project/include, local/include
 			if self.myType in ['shared', 'static']: 
 				swigEnv.Append(SWIGPATH = self.myIncludesInstallExtPaths[0]) # localExt/include
+				if self.myPlatform == 'posix':
+					# @todo remove the two following lines only here for linux
+					swigEnv.Append(SWIGPATH = join(self.myInstallExtPaths[0], 'bin/Lib/') ) # localExt/bin/Lib
+					swigEnv.Append(SWIGPATH = join(self.myInstallExtPaths[0], 'bin/Lib/python') ) # localExt/bin/Lib/python
 			# for debug
 			# print 'SWIGPATH', swigEnv['SWIGPATH']
 			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot' ]

@@ -6,6 +6,8 @@
 #ifndef _SBF_PLATFORM_HPP_
 #define _SBF_PLATFORM_HPP_
 
+#include <cstring>
+
 #include "sbf/sbf.hpp"
 
 namespace sbf
