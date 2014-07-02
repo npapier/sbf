@@ -2253,7 +2253,7 @@ SConsBuildFramework options:
 		swigTarget = []
 		if swigFiles:
 			# @todo move the code initializing shlibsuffix in SConsBuildFramework initialization stage.
-			if self.myPlatform == 'win32':
+			if self.myPlatform == 'win':
 				shlibsuffix = '.pyd'
 			else:
 				shlibsuffix = '.so'
