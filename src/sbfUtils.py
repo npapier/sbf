@@ -212,8 +212,8 @@ def buildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ):
 
 	# 'buildPath={}/build'.format(os.getcwd())
 	cmdLine = ['installPath={}/local'.format(os.getcwd()), 'clVersion={}'.format(CCVersion), 'targetArchitecture={}'.format(arch), 'printCmdLine=full']
-	subprocess.call(['scons', 'debug']+cmdLine, shell=True)
-	subprocess.call(['scons', 'release']+cmdLine, shell=True)
+	subprocessGetOuputCall(['scons', 'debug']+cmdLine)
+	subprocessGetOuputCall(['scons', 'release']+cmdLine)
 
 	os.chdir(owd)
 
