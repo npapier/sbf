@@ -255,14 +255,11 @@ class Use_blowfish( IUse ):
 		return ['1-0']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win':
-			lib = '{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion) # @todo idem Use_cityhash() =
-			if self.config == 'release':
-				return [lib], []
-			else:
-				return [lib+'_D'], []
-		elif self.platform == 'posix':
-			return ['{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion)], []
+		lib = '{0}_{1}_{2}_{3}'.format(self.getName(), version, self.platform, self.ccVersion) # @todo idem Use_cityhash() =
+		if self.config == 'release':
+			return [lib], []
+		else:
+			return [lib+'_D'], []
 
 	def hasRuntimePackage( self, version ):
 		return True
