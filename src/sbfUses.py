@@ -1254,22 +1254,22 @@ class Use_swig( IUse ):
 		return 'swig'
 
 	def getVersions( self ):
-		return ['2-0-12']
+		return ['3-0-2', '2-0-12']
 
 	def hasRuntimePackage( self, version ):
 		return True
 
-		
+
 class Use_swigContrib( Use_swig ):
 	def getName( self ):
 		return 'swigcontrib'
-		
+
 
 class Use_swigShp( Use_swig ):
 	def getName( self ):
 		return 'swigshp'
-		
-		
+
+
 class Use_usb2brd( IUse ):
 	def getName(self ):
 		return "usb2brd"
