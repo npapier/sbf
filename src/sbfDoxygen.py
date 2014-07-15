@@ -71,6 +71,7 @@ def doxyfileAction( target, source, env ) :
 
 	with open( targetName, 'a' ) as file:
 		file.write( '\n### Added by SConsBuildFramework\n' )
+		file.write( 'LAYOUT_FILE			= "%s"\n'					% os.path.join(sbf.mySCONS_BUILD_FRAMEWORK, 'DoxygenLayout.xml') )
 		file.write( 'PROJECT_NAME		= "%s"\n'					% sbf.myProject )
 		file.write( 'PROJECT_NUMBER		= "%s generated at %s"\n'	% (sbf.myVersion, sbf.myDateTime) )
 		file.write( 'OUTPUT_DIRECTORY	= "%s"\n'					% (targetName + '_build') )
