@@ -639,7 +639,7 @@ class SConsBuildFramework :
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions, tools=[] )
 
-		myTools = ['textfile', 'swig']
+		myTools = ['textfile']
 		if tmpEnv['PLATFORM'] == 'win32':
 			myTools += ['msvc', 'mslib', 'mslink', 'mssdk']
 
@@ -2274,7 +2274,7 @@ SConsBuildFramework options:
 				configPostfix = ''
 
 			# Configure environment
-			swigEnv = lenv.Clone() # @todo should be self.myEnv.Clone()
+			swigEnv = lenv.Clone( tools=['swig'] ) # @todo should be self.myEnv.Clone()
 
 			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
 

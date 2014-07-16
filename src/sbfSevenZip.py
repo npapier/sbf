@@ -14,6 +14,7 @@ except ImportError as e:
 		print ('CCCsbfWarning: unable to import SCons.Script')
 
 import glob
+import sys
 from os.path import join
 
 # @todo cache locateProgram
@@ -34,7 +35,12 @@ def sevenZipExtract( pathArchive, outputDir, verbose = True, extractRootTarFiles
 	if extractRootTarFiles:
 		for tarFile in glob.glob( join(outputDir, '*.tar') ):
 			tarFile = join(outputDir, tarFile)
-			subRetVal = sevenZipExtract( tarFile, outputDir, verbose, False )
+			# Depending on the platform, we will call tar or 7z once again.
+			if sys.platform != 'win32': # @todo Use a more portable platform detection way.
+				subRetVal = subprocessCall2( ['/bin/tar', '-C', outputDir, '-xvf', tarFile] )
+			else:
+				subRetVal = sevenZipExtract( tarFile, outputDir, verbose, False )
+			
 			#print 'subRetVal', subRetVal, '\n'	# @todo retVal
 			os.remove( tarFile )
 	return retVal
