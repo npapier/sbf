@@ -2287,8 +2287,9 @@ SConsBuildFramework options:
 				swigEnv.Append(SWIGPATH = self.myIncludesInstallExtPaths[0]) # localExt/include
 				if self.myPlatform == 'posix':
 					# @todo remove the two following lines only here for linux
-					swigEnv.Append(SWIGPATH = join(self.myInstallExtPaths[0], 'bin/Lib/') ) # localExt/bin/Lib
 					swigEnv.Append(SWIGPATH = join(self.myInstallExtPaths[0], 'bin/Lib/python') ) # localExt/bin/Lib/python
+					swigEnv.Append(SWIGPATH = join(self.myInstallExtPaths[0], 'bin/Lib/') ) # localExt/bin/Lib
+
 			# for debug
 			# print 'SWIGPATH', swigEnv['SWIGPATH']
 			swigEnv['SWIGFLAGS'] = [ '-c++', '-python', '-dirprot' ]
