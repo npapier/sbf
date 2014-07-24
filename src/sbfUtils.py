@@ -15,7 +15,6 @@ from sbfEnvironment import Environment
 from sbfFiles import *
 
 
-
 ###### Functions for print action ######
 def printSeparator( text ):
 	if len(text)==0:
@@ -212,8 +211,12 @@ def buildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ):
 
 	# 'buildPath={}/build'.format(os.getcwd())
 	cmdLine = ['installPath={}/local'.format(os.getcwd()), 'clVersion={}'.format(CCVersion), 'targetArchitecture={}'.format(arch), 'printCmdLine=full']
-	subprocessGetOuputCall(['scons', 'debug']+cmdLine)
-	subprocessGetOuputCall(['scons', 'release']+cmdLine)
+	if sys.platform == 'win32':
+		sconsExecutable = 'scons.bat'
+	else:
+		sconsExecutable = 'scons'
+	subprocessGetOuputCall([sconsExecutable, 'debug']	+cmdLine)
+	subprocessGetOuputCall([sconsExecutable, 'release']	+cmdLine)
 
 	os.chdir(owd)
 
