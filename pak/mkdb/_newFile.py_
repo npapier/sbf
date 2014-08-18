@@ -92,6 +92,8 @@ descriptor = {
  # - SearchFiles( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".+" )
  # - SearchVcxproj( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".*[.]vcxproj$" )
  #
+ # - RequiredProgram( executableName )
+ #
  # - MakeDirectory( newDirectory )
  # - RemoveDirectory( directory )
  # - ChangeDirectory( newDirectory )
