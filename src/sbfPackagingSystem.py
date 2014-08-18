@@ -272,6 +272,18 @@ class PackagingSystem:
 		def SearchVcxproj( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".*[.]vcxproj$" ):
 			return SearchFiles( retVal, searchDirectory, pruneDirectoriesPatterns, allowedFilesRe )
 
+
+		def RequiredProgram( executableName ):
+			from src.sbfTools import locateProgram
+			location = locateProgram(executableName)
+			if location:
+				print ( 'Found {} in {}.'.format( executableName, location ) )
+				return location
+			else:
+				print( 'ERROR: Unable to find {} in PATH'.format(executableName) )
+				exit(1)
+
+
 		def MakeDirectory( newDirectory ):
 			def makeDirectory( newDirectory ):
 				import os
@@ -440,6 +452,7 @@ class PackagingSystem:
 
 			cmd += '/maxcpucount:{maxcpucount} '.format(maxcpucount=maxcpucount)
 
+			#cmd += ' /tv:12.0 '
 			#cmd += ' /p:BuildProjectReferences=false '
 			#<ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
 
@@ -470,6 +483,8 @@ class PackagingSystem:
 					'GlobRegEx'			: GlobRegEx,
 					'SearchFiles'		: SearchFiles,
 					'SearchVcxproj'		: SearchVcxproj,
+
+					'RequiredProgram'	: RequiredProgram,
 
 					'MakeDirectory'					: MakeDirectory,
 					'RemoveDirectory'				: RemoveDirectory,
