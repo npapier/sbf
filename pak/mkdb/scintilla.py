@@ -7,11 +7,9 @@
 
 # cl8,9,10,11[Exp]
 
-# requirement: qmake
-print ('Qt have to be installed and qmake have to be in PATH')
+RequiredProgram('qmake')
 
 # http://www.scintilla.org/
-
 
 descriptorName = 'scintilla'
 versionMajor = 3
