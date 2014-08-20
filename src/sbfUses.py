@@ -525,9 +525,12 @@ class Use_poppler( IUse ):
 
 	def getLIBS( self, version ):
 		if self.config == 'release' :
-			return ['poppler', 'poppler-cpp'], ['poppler-cpp', 'libiconv2', 'jpeg62']
+			return ['poppler', 'poppler-cpp'], []
 		else:
-			return ['poppler-d', 'poppler-cpp-d'], ['poppler-cpp-d', 'libiconv2', 'jpeg62']
+			return ['poppler-d', 'poppler-cpp-d'], []
+
+	def hasRuntimePackage( self, version ):
+		return True
 
 
 # @todo update and move
