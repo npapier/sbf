@@ -88,6 +88,9 @@ descriptor = {
  'name'			: 'cairo',
  'version'		: '1-10-0',
 
+ #
+ 'builds'	: [Patcher('include/fontconfig/fontconfig.h', [('^(\#include \<unistd\.h\>)$', '// \\1 see https://bugs.freedesktop.org/show_bug.cgi?id=26783')])],
+
  # developer package
  'license'		: [	'share/doc/cairo_1.10.2-1_{platformArch}/COPYING'.format(platformArch=platformArch),
 					'share/doc/cairo_1.10.2-1_{platformArch}/COPYING-LGPL-2.1'.format(platformArch=platformArch),
