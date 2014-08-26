@@ -464,7 +464,7 @@ class Use_gstFFmpeg( IUse ):
 			return libs, pakLibs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 11.0000 and version == '0-10-9':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '0-10-9':
 			return True
 		else:
 			return False
