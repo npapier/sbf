@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -25,7 +25,8 @@ def doTargetPakUpdate( target, source, env ):
 					print ( '{0} {1} is installed, but {2} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
 					print ( 'Upgrading or downgrading...' )
 					pakSystem.remove( oPakInfo['name'] )
-					pakSystem.install( packageFilename )
+					retVal = pakSystem.install( packageFilename )
+					if not retVal:	Exit(1)
 					print ('\n'* 3)
 			else:
 				print ( '{0} {1} is installed, but it is no more needed.'.format(oPakInfo['name'], oPakInfo['version']) )
@@ -36,7 +37,8 @@ def doTargetPakUpdate( target, source, env ):
 			# not installed
 			if hasPackage:
 				print ( '{0} {1} is NOT installed.'.format(useName.ljust(16), useVersion))
-				pakSystem.install( packageFilename )
+				retVal = pakSystem.install( packageFilename )
+				if not retVal:	Exit(1)
 				print ('\n'* 3)
 			#else nothing to do
 

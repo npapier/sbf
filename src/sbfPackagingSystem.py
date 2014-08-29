@@ -935,14 +935,14 @@ class PackagingSystem:
 
 
 	def install( self, pakName, forced = False ):
+		"""@return False if an error occurs during installation, False otherwise"""
 		pakInfo = splitPackageName( pakName )
 		if not pakInfo:
-			print ( 'The package named {0} is not available.'.format(pakName) )
-			return
+			return False
 
 		if (not forced) and self.isInstalled( pakInfo['name'] ):
 			print ( "Package {0} already installed.".format(pakInfo['name']) )
-			return
+			return False
 
 		# Retrieves paths to several directories
 		sbfpakDir = self.getLocalExtSbfPakDBPath()
@@ -953,16 +953,17 @@ class PackagingSystem:
 		# Retrieves package pakName
 		pathPakName = self.getLocalPackage( pakName, sbfpakDir )
 		if not pathPakName:
-			return
+			return False
 
 		print
 		print ( "Installing package {0} using {1}...".format( pakName, pathPakName ) )
-		print
-		print ('Details :')
+		if self.__verbose:
+			print
+			print ('Details :')
 
 		# Extracts pak
 		retVal = sevenZipExtract( pathPakName, tmpDir, self.__verbose )
-		print
+		if self.__verbose:	print
 
 		# Collects all files and directories
 		absFiles = []
@@ -981,27 +982,27 @@ class PackagingSystem:
 		destinationDir = self.getDestinationDirectory( pakName )
 
 		# Creates directories
-		print ('\nCreating directories...')
+		if self.__verbose:	print ('\nCreating directories...')
 		for relDir in relDirectories:
 			dir = join( destinationDir, relDir )
 			# Creates directory if needed
 			if not exists( dir ):
-				print ( 'Creating directory {0}'.format(dir) )
+				if self.__verbose:	print ( 'Creating directory {0}'.format(dir) )
 				os.makedirs( dir )
 				self.__numNewDirectories += 1
 			else:
-				print ( 'Directory {0} already created'.format(dir) )
+				if self.__verbose:	print ( 'Directory {0} already created'.format(dir) )
 
 		# Copies files
-		print ('\nInstalling files...')
+		if self.__verbose:	print ('\nInstalling files...')
 		for absFile in absFiles:
 			relFile = removePathHead( convertPathAbsToRel(tmpDir, absFile) )
 			file = join( destinationDir, relFile )
 			if exists( file ):
-				print ( 'Overriding {0}'.format( file ) )
+				if self.__verbose:	print ( 'Overriding {0}'.format( file ) )
 				self.__numOverrideFiles += 1
 			else:
-				print ( 'Installing {0}'.format( file ) )
+				if self.__verbose:	print ( 'Installing {0}'.format( file ) )
 				self.__numNewFiles += 1
 			shutil.copyfile( absFile, file )
 
@@ -1013,6 +1014,8 @@ class PackagingSystem:
 
 		# Cleans
 		removeDirectoryTree( tmpDir )
+
+		return True
 
 
 	def remove( self, packageName ):
