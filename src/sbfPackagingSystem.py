@@ -332,6 +332,36 @@ class PackagingSystem:
 			return lambda : buildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch )
 
 
+		def GetCMakeInitialCacheCodeToAppendValue( variableName, valueToAppend ):
+			"""Retrieve code for CMakeInitialCache.txt to append a value to the end of an existing variable
+				@param variableName		name of the variable to customize
+				@param valueToAppend	content to append to CMAKE_variableName"""
+
+			str = """message("Input: CMAKE_{name}=${{CMAKE_{name}}}")
+
+if (CMAKE_{name})
+	message("Customizing CMAKE_{name}")
+
+	# add new flags
+	set (FLAGS "${{CMAKE_{name}}} {value} ")
+
+	set(CMAKE_{name} "${{FLAGS}}" CACHE STRING "" FORCE)
+	message("Output:CMAKE_{name}=${{CMAKE_{name}}}")
+else()
+	message("Don't customize CMAKE_{name}")
+endif()
+"""
+			return str.format( name=variableName, value = valueToAppend )
+
+		def CreateCMakeInitialCache( directory, contents ):
+			"""	@param directory		path where CMakeInitialCache.txt file would be created
+				@param contents			contents of the CMakeInitialCache.txt file to create"""
+			def _createCMakeInitialCacheFile( directory, contents ):
+				with open( join(directory, 'CMakeInitialCache.txt'), 'w' ) as f:
+					f.write(contents)
+			return lambda : _createCMakeInitialCacheFile(directory, contents)
+
+
 		def _filePatcher( file, resubs, flags = 0):
 			"""	@param file		the filename to patch
 				@param resubs	a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
@@ -397,10 +427,10 @@ class PackagingSystem:
 			"""@brief Change content of an XML element for the given file(s)
 				for example: <tag>oldContent</tag> transformed into <tag>newContent</tag>
 				@param oldContent	specify the content to transform, or None to replace the content for the desired elements anyway.
-				@param newContent	the new content to set"""
+				@param newContent	the new content to set. \\2 to add the oldContent"""
 			if not oldContent:
 				oldContent = '.*'
-			return lambda : _patcher(fileOrFileList, [('^(.*\<{tag}\>){oldContent}(\</{tag}\>.*)$'.format(tag=tag, oldContent=oldContent), '\\1{}\\2'.format(newContent))])
+			return lambda : _patcherMultiline(fileOrFileList, [('^(.*\<{tag}\>)({oldContent})(\</{tag}\>.*)$'.format(tag=tag, oldContent=oldContent), '\\1{}\\3'.format(newContent))])
 
 
 		def RemoveProjectFromSolution( file, projectName ):
@@ -493,6 +523,9 @@ class PackagingSystem:
 
 					'CreateSConsBuildFrameworkProject'				: CreateSConsBuildFrameworkProject,
 					'BuildDebugAndReleaseUsingSConsBuildFramework'	: BuildDebugAndReleaseUsingSConsBuildFramework,
+
+					'GetCMakeInitialCacheCodeToAppendValue'			: GetCMakeInitialCacheCodeToAppendValue,
+					'CreateCMakeInitialCache'						: CreateCMakeInitialCache,
 
 					'Patcher'						: Patcher,
 					'PatcherMultiline'				: PatcherMultiline,
@@ -775,15 +808,32 @@ class PackagingSystem:
 	### PAK INFO ###
 	def getLocalPackage( self, pakName, localDir ):
 		"""Search package pakName in different repositories and copy in localDir (if needed).
-		@return the path to the copy of pakName"""
-		pathPakName = self.locatePackage( pakName )
-		if not pathPakName:
-			print ("Unable to find package {0}".format(pakName) )
-			return
+			@return (the path to the copy of pakName, pakName)
 
-		localPakName = join( localDir, pakName )
-		copyFile( pathPakName, localPakName, self.__verbose ) # @todo error proof
-		return localPakName
+			@remarks On Windows platform with compiler cl.exe from Microsoft, when pakName is not found, try to found package name with/without (depending of the initial lookup) 'Exp' postfix.
+		"""
+
+		# Computes pakNames
+		if self.__myPlatform == 'win':
+			if pakName.rfind('Exp.') != -1:		# package name contains Exp (i.e. express version of Visual C++)
+				secondPakName = pakName.replace('Exp.', '.', 1) # remove Exp
+			else:
+				splitPakName = pakName.rsplit('.', 1)
+				secondPakName = '{}Exp.{}'.format( splitPakName[0], splitPakName[1] )	# add Exp
+			pakNames = [pakName, secondPakName]
+		else:
+			pakNames = [pakName]
+
+		# Search package
+		for currentPakName in pakNames:
+			pathPakName = self.locatePackage( currentPakName )
+			if pathPakName:
+				localPakName = join( localDir, currentPakName )
+				copyFile( pathPakName, localPakName, self.__verbose ) # @todo error proof
+				return (localPakName, currentPakName)
+
+		print ("Unable to find package {}".format(pakNames) )
+		return (None, None)
 
 
 	def printPackageNameAndVersion( self, packageName ):
@@ -951,9 +1001,11 @@ class PackagingSystem:
 		createDirectory( tmpDir )
 
 		# Retrieves package pakName
-		pathPakName = self.getLocalPackage( pakName, sbfpakDir )
+		(pathPakName, pakName) = self.getLocalPackage( pakName, sbfpakDir )
 		if not pathPakName:
 			return False
+		else:
+			pakInfo = splitPackageName( pakName )
 
 		print
 		print ( "Installing package {0} using {1}...".format( pakName, pathPakName ) )
