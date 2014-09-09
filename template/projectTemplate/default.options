@@ -21,6 +21,7 @@ type				= 'shared'	# exec, static, shared, none
 	#						import myFile # a file name myFile.py in the directory of this project"""
 #console			= True
 #runParams			= []
+#runTestParams		= []
 #deploymentType		= 'none'
 #deploymentPrecond	= 'standalone >= 1.0'
 # first element have to be a standalone project, others have to be embedded project(s)

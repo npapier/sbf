@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 from os.path import join, exists
+from collections import OrderedDict
 import subprocess
 
 
@@ -325,6 +326,14 @@ def convertDictToString( dict ) :
 #	for key, value in dict.iteritems() :
 #		result += "%s=%s " % (key, value)
 	return result
+
+
+def getSwapDict( iDict ):
+	"""Returns a new dictionnary with each element (key, value) swapped (value, key)"""
+	oDict = OrderedDict()
+	for (key, value) in iDict.iteritems():
+		oDict[value] = key
+	return oDict
 
 
 def getDictPythonCode( dict, dictName, orderedDict = False, eol = False, addImport = True ):

@@ -102,13 +102,21 @@ descriptor = {
  # - CreateSConsBuildFrameworkProject( projectName, type, version, includeFiles, sourceFiles ) see sbfUtils.createSConsBuildFrameworkProject()
  # - BuildDebugAndReleaseUsingSConsBuildFramework( path, CCVersion, arch ) see sbfUtils.buildDebugAndReleaseUsingSConsBuildFramework()
  #
+ # - GetCMakeInitialCacheCodeToAppendValue( variableName, valueToAppend )
+ #		Retrieve code for CMakeInitialCache.txt to append a value at the end of an existing variable
+ #			variableName		name of the variable to customize
+ #			valueToAppend		content to append to CMAKE_variableName
+ # - CreateCMakeInitialCache( directory, contents )
+ #		directory		path where CMakeInitialCache.txt file would be created
+ #		contents		contents of the CMakeInitialCache.txt file to create
+ #
  # - Patcher( fileOrFileList, resubs, flags = 0 ) with resubs a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
  # - PatcherMultiline( fileOrFileList, resubs, flags = 0 )
  # - ChangeContentOfAnXMLElement(fileOrFileList, tag, oldContent, newContent )
  #		Change content of an XML element for the given file(s)
  #		for example: <tag>oldContent</tag> transformed into <tag>newContent</tag>
  #		oldContent	specify the content to transform, or None to replace the content for the desired elements anyway.
- #		newContent	the new content to set
+ #		newContent	the new content to set. \\2 to add the oldContent
  # - MSVC[specializedPatcherName] with the following specialized patchers :
  #		* RemoveProjectFromSolution(solutionFile, projectName )
  #		* ChangeTargetName( VCXProjFileOrFileList, oldName, newName )

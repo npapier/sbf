@@ -224,7 +224,7 @@ class PackagingSystem:
 			if os.path.isdir( path ) :
 				if self.__verbose: print ("Found package repository in %s" % path)
 			else :
-				print ("WARNING: Package repository not found in %s" % path)
+				if self.__verbose: print ("WARNING: Package repository not found in %s" % path)
 		if self.__verbose:	print
 
 		# Creates localExt directory
@@ -333,7 +333,7 @@ class PackagingSystem:
 
 
 		def GetCMakeInitialCacheCodeToAppendValue( variableName, valueToAppend ):
-			"""Retrieve code for CMakeInitialCache.txt to append a value to the end of an existing variable
+			"""Retrieve code for CMakeInitialCache.txt to append a value at the end of an existing variable
 				@param variableName		name of the variable to customize
 				@param valueToAppend	content to append to CMAKE_variableName"""
 

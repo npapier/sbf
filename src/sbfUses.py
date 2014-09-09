@@ -270,12 +270,12 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
+		return [ '1-54-0', '1-56-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
 
 	def getCPPDEFINES( self, version ):
 		versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
 		if self.platform == 'win':
-			if version == '1-54-0':
+			if version in ['1-54-0', '1-56-0']:
 				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
 			else:
 				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
@@ -287,15 +287,14 @@ class Use_boost( IUse ):
 		if self.platform == 'win':
 
 			# vc version
-			if self.cc == 'cl' and self.ccVersionNumber >= 11.0000:
-				vc = 'vc110'
-			elif self.cc == 'cl' and self.ccVersionNumber >= 10.0000:
-				vc = 'vc100'
-			elif self.cc == 'cl' and self.ccVersionNumber >= 9.0000:
-				vc = 'vc90'
-			elif self.cc == 'cl' and self.ccVersionNumber >= 8.0000 :
-				vc = 'vc80'
-			else:
+			vcVersionDict = {	12 : 'vc120',
+								11 : 'vc110',
+								10 : 'vc100',
+								9  : 'vc90',
+								8  : 'vc80'	}
+
+			vc = vcVersionDict.get(self.ccVersionNumber, None)
+			if not vc:
 				return
 
 			# configuration
@@ -319,36 +318,25 @@ class Use_boost( IUse ):
 			genPakLibs5 = [	'boost_atomic-{vc}-{conf}-{ver}' ]
 			#genPakLibs6 = [ 'boost_log_setup-{vc}-{conf}-{ver}', 'boost_log-{vc}-{conf}-{ver}' ]
 
-			versionToVer = {	'1-48-0'	: '1_48',
-								'1-49-0'	: '1_49',
-								'1-50-0'	: '1_50',
-								'1-51-0'	: '1_51',
-								'1-52-0'	: '1_52',
-								'1-53-0'	: '1_53',
-								'1-54-0'	: '1_54'
-							}
+			ver = version[0:4].replace('-', '_') # 1-56-0 => 1_56
 
-			if version in ['1-54-0']:
+			if version in ['1-54-0', '1-56-0']:
 				# autolinking and dev package, so nothing to do.
 				return [], []
 			elif version in ['1-53-0']:
 				# autolinking, so nothing to do.
-				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 + genPakLibs5 ]
 				return [], pakLibs
 			elif version in ['1-52-0', '1-51-0']:
 				# autolinking, so nothing to do.
-				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 ]
 				return [], pakLibs
 			elif version in ['1-50-0', '1-49-0', '1-48-0']:
 				# autolinking, so nothing to do.
-				ver = versionToVer[version]
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
 				return [], pakLibs
 			elif version == '1-47-0':
 				# autolinking, so nothing to do.
-				ver = '1_47'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 ]
 				return [], pakLibs
 			elif version == '1-46-1':
@@ -372,7 +360,7 @@ class Use_boost( IUse ):
 
 
 	def hasRuntimePackage( self, version ):
-		return version == '1-54-0'
+		return version in ['1-56-0', '1-54-0']
 
 
 class Use_bullet( IUse ):

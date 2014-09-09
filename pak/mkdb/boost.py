@@ -5,12 +5,13 @@
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
 
-# cl8-0Exp, cl9-0Exp, cl10-0Exp and cl11-0Exp (32/64 bits)
+# cl8-0Exp, cl9-0Exp, cl10-0Exp, cl11-0Exp and cl12-0Exp (32/64 bits)
 # gcc
 
+# look at http://stackoverflow.com/questions/2629421/how-to-use-boost-in-visual-studio-2010 for full (i.e. all modules) boost build
 # configuration
 versionMajor = 1
-versionMinor = 54
+versionMinor = 56
 versionMaintenance = 0
 
 def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
@@ -27,7 +28,12 @@ if platform == 'win':
 	builds_cl = {	8  : cmd.format('msvc-8.0express'),
 					9  : cmd.format('msvc-9.0express'),
 					10 : cmd.format('msvc-10.0express'),
-					11 : cmd.format('msvc-11.0express') }
+					11 : cmd.format('msvc-11.0express'),
+					12 : cmd.format('msvc-12.0express'),
+					}
+	if CCVersionNumber not in builds_cl:
+		print ('Compiler cl version {} is not yet supported.'.format(CCVersionNumber))
+		exit(1)
 	build = [ myVCCmd('bootstrap'), myVCCmd(builds_cl[CCVersionNumber]) ]
 	libD = ['stage/lib/*-mt-gd-1_*.lib']
 	libR = ['stage/lib/*-mt-1_*.lib']

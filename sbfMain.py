@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -131,7 +131,7 @@ from src.sbfUI		import ask, askQuestion
 from src.sbfUses	import uses, UseRepository
 from src.sbfUtils	import *
 from src.sbfVersion import splitUsesName, printSBFVersion
-from src.SConsBuildFramework import stringFormatter
+from src.SConsBuildFramework import stringFormatter, clVersionNumToYear, printInstalledCL
 from src.sbfSubversion import anonymizeUrl, unanonymizeUrl, branches2branch, localListSbfTags, printSbfBranch, getLocalTagsContents, locateProject, removeTrunkOrTagsOrBranches, svnIsUpdateAvailable, svnIsVersioned, Subversion, splitSvnUrl, joinSvnUrl
 
 ###### Action function for sbfCheck target #######
@@ -306,9 +306,8 @@ def checkCC(target = None, source = None, env = None) :
 
 	if env['CC'] == 'cl' :
 		#ccVersionAction		= Action( 'cl /help' )
-		print 'cl version :', env['MSVC_VERSION']
-		print 'The installed versions of cl are', sorted(cached_get_installed_vcs())
-
+		print ('MS Visual C++ (cl.exe) version used {}({}).'.format( clVersionNumToYear.get(env['MSVC_VERSION'], env['MSVC_VERSION']), env['MSVC_VERSION']) )
+		printInstalledCL()
 	checkTool( env, 'gcc', ['gcc', '-dumpversion'] )
 
 

@@ -47,6 +47,35 @@ except ImportError as e:
 	pass
 
 
+# MS Visual C++ version dictionnaries
+
+clYearToVersionNum = OrderedDict( [	('2003'		, '7.1'),
+									('2005Exp'	, '8.0Exp'),
+									('2005'		, '8.0'),
+									('2008Exp'	, '9.0Exp'),
+									('2008'		, '9.0'),
+									('2010Exp'	, '10.0Exp'),
+									('2010'		, '10.0'),
+									('2012Exp'	, '11.0Exp'),
+									('2012'		, '11.0'),
+									('2013Exp'	, '12.0Exp'),
+									('2013'		, '12.0') ] )
+
+clVersionNumToYear = getSwapDict( clYearToVersionNum )
+
+def getInstalledCLVersionNum():
+	return sorted(cached_get_installed_vcs())
+
+def getInstalledCLYear():
+	return sorted(map( lambda x: clVersionNumToYear.get(x, x), getInstalledCLVersionNum() ))
+
+def printInstalledCL():
+	print ('The installed versions of Visual C++ are'),
+	for year in getInstalledCLYear():
+		versionNum = clYearToVersionNum.get(year, year)
+		print ('{} ({})'.format( year, versionNum )),
+	print
+
 def createBlowfishShareBuildCommand( key ):
 	"""create Blowfish share build command"""
 	shareBuildCommand = (	'blowfish_1-0_${MYPLATFORM}_${CCVERSION}${sbf_my_FullPostfix}.exe encrypt ' + key + ' ${SOURCE} ${TARGET}',
@@ -460,21 +489,26 @@ class SConsBuildFramework :
 	mySvnBranchOrTagTargets			= set( ['svnmktag', 'svnremotemkbranch'] )
 	myInformationsTargets			= set( ['info', 'infofile'] )
 	myBuildingTargets				= set( ['pakupdate', 'all', 'clean', 'mrproper'] )
-	myTestTargets					= set( ['test'] ) # @todo test_clean, test_mrproper and test_run
+	myTestTargets					= set( ['test'] ) # @todo test_clean and test_mrproper
+	myRunTestTargets				= set( ['onlyruntest', 'runtest'] )
 	myRunTargets					= set( ['onlyrun', 'run'] )
 	myVCProjTargets					= set( ['vcproj', 'vcproj_clean', 'vcproj_mrproper'] )
 	myDoxTargets					= set( ['dox', 'dox_clean', 'dox_mrproper'] )
 	# @todo 'zipruntime', 'zipdeps', 'zipdev', 'zipsrc', 'zip', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'
 	myZipTargets					= set( ['portable', 'zipportable', 'dbg', 'zipdbg', 'nsis'] )
 
+	myTargetsHavingToBuildTest		= myTestTargets | myRunTestTargets
+	myTargetsHavingToBuildTest.add('pakupdate')
+
 	myTargetsWhoNeedDeps			= set( ['deps', 'portable', 'zipportable', 'nsis'] )
 	myTargetsAllowingWeakReading	= set( ['svncheckout', 'svnupdate'] )
 
-	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myTestTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
+	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myTestTargets | myRunTestTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
 	myCmdLineOptions				= set( myCmdLineOptionsList )
+
 
 	# sbf environment
 	mySCONS_BUILD_FRAMEWORK			= ''
@@ -484,25 +518,27 @@ class SConsBuildFramework :
 	myEnv							= None
 	myCurrentLocalEnv				= None			# contains the lenv of the current project
 
-	# lenv['sbf_*'] listing
-	#
-	# sbf_projectPathName
-	# sbf_projectPath
-	# sbf_project
-	# sbf_parentProjects
-	# sbf_libsExpanded
+		# lenv['sbf_*'] listing
+		#
+		# sbf_projectPathName
+		# sbf_projectPath
+		# sbf_project
+		# sbf_parentProjects
+		# sbf_libsExpanded
 
-	# sbf_version_major
-	# sbf_version_minor
-	# sbf_version_maintenance
-	# sbf_version_postfix
-	# sbf_my_FullPostfix
+		# sbf_version_major
+		# sbf_version_minor
+		# sbf_version_maintenance
+		# sbf_version_postfix
+		# sbf_my_FullPostfix
 
-	# sbf_projectGUID
-	#@todo completes this list
+		# sbf_projectGUID
+		#@todo completes this list
 
-	# Options instances
+	# Options for SConsBuildFramework
 	mySBFOptions					= None
+
+	# Options for project
 	myProjectOptions				= None
 
 	# Global attributes from command line
@@ -628,7 +664,7 @@ class SConsBuildFramework :
 		self.mySCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
 		if self.mySCONS_BUILD_FRAMEWORK == None:
 			raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
-		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( os.getenv('SCONS_BUILD_FRAMEWORK') )
+		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( self.mySCONS_BUILD_FRAMEWORK )
 
 		# Sets the root directory of sbf library
 		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
@@ -641,16 +677,19 @@ class SConsBuildFramework :
 
 		myTools = ['textfile']
 		if tmpEnv['PLATFORM'] == 'win32':
-			myTools += ['msvc', 'mslib', 'mslink', 'mssdk']
+			myTools += ['msvc', 'mslib', 'mslink']
 
 			dictTranslator = { 'x86-32' : 'x86', 'x86-64' : 'x86_64' }
 			targetArch = dictTranslator[ tmpEnv['targetArchitecture'] ]
 			if tmpEnv['clVersion'] != 'highest':
 				myMsvcVersion = tmpEnv['clVersion']
+				myMsvcYear = clVersionNumToYear.get(myMsvcVersion, myMsvcVersion)
 				# Tests existance of the desired version of cl
-				if myMsvcVersion not in cached_get_installed_vcs():
-					print ('sbfError: clVersion sets to {0}'.format(myMsvcVersion))
-					print ('The installed versions of cl are {0}'.format(sorted(cached_get_installed_vcs())))
+				if myMsvcVersion not in getInstalledCLVersionNum():
+					print ('sbfError: MS Visual C++ desired version is not installed in the system.')
+					print ('Requested version is Visual C++ {}({}).'.format(myMsvcYear, myMsvcVersion))
+					printInstalledCL()
+					print ("See 'clVersion' option in SConsBuildFramework.options to fix the problem.")
 					Exit(1)
 			else:
 				myMsvcVersion = None
@@ -823,7 +862,8 @@ class SConsBuildFramework :
 		self.myProjectOptionsWeakReading = len(self.myBuildTargets - self.myTargetsAllowingWeakReading) == 0
 
 		# Tests which target(s) is given
-		self.haveToBuildTest = 'test' in self.myBuildTargets
+		self.haveToBuildTest = len( self.myBuildTargets & self.myTargetsHavingToBuildTest ) > 0
+
 		# 	User wants a vcs checkout or update ?
 		self.tryVcsCheckout = 'svncheckout' in self.myBuildTargets
 		if self.tryVcsCheckout and len(self.myEnv['svnUrls']) == 0:
@@ -1055,7 +1095,9 @@ build related targets
  'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
 
 test related targets
- 'scons test' to build the project (i.e. scons all) and to build the test project in 'test' sub-directory.
+ 'scons test' to build the test project found optionally in the 'test' sub-directory of each project. The project embedding this 'test' sub-directory is automatically built too.
+ 'scons onlyRunTest' to launch the test program (if any and available), but without trying to build it.
+ 'scons runTest' to launch the test program (if any), but firstly build the test (see 'test' target).
 
 run related targets
  'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
@@ -1364,18 +1406,8 @@ SConsBuildFramework options:
 							allowed_values = ( 'x86-32', 'x86-64' ) ),
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
-							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', 'highest' ),
-							map={
-									'2003'		: '7.1',
-									'2005Exp'	: '8.0Exp',
-									'2005'		: '8.0',
-									'2008Exp'	: '9.0Exp',
-									'2008'		: '9.0',
-									'2010Exp'	: '10.0Exp',
-									'2010'		: '10.0',
-									'2012Exp'	: '11.0Exp',
-									'2012'		: '11.0'
-									} ),
+							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', '12.0Exp', '12.0', 'highest' ),
+							map=clYearToVersionNum ),
 
 			('installPath', "The given path would be used as a destination path for target named 'install'. This directory is similar to unix '/usr/local'. It is also the basis of localExt directory (ex: localExt_win32_cl10-0Exp ).", '$SCONS_BUILD_FRAMEWORK/../local'),
 
@@ -1471,6 +1503,11 @@ SConsBuildFramework options:
 					[],
 					passthruValidator, passthruConverter ),
 
+				(	'runTestParams',
+					"The list of parameters given to executable by targets 'runTest' and 'onlyRunTest'. To specify multiple parameters at command-line uses a comma-separated list of parameters, which will get translated into a space-separated list for passing to the launching command.",
+					[],
+					passthruValidator, passthruConverter ),
+
 				EnumVariable(	'deploymentType', "Specifies where the project and its dependencies have to be installed in root of the installation directory and/or in sub-directory 'packages' of the installation directory.",
 								'none', allowed_values=('none', 'standalone', 'embedded'), ignorecase=1 ),
 
@@ -1519,6 +1556,7 @@ SConsBuildFramework options:
 					('shareBuild'	, ([],('','',''))),
 					('console'		, True),
 					('runParams'		, []),
+					('runTestParams'	, []),
 					('deploymentType', 'none'),
 					('deploymentPrecond'	, ''),
 					('nsis'			, {}) ])
@@ -2188,13 +2226,14 @@ SConsBuildFramework options:
 		aliasProjectTestBuild = None
 		filesFromTestShare = []
 
-		if self.haveToBuildTest and os.path.exists( 'test' ):
-			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
-
-			# Add implicit uses for gtest
+		if self.haveToBuildTest and os.path.exists('test'):
+			# Add implicit uses for gtest (for all test related targets and pakUpdate)
 			if 'gtest' not in self.myImplicitUsesSet:
 				self.myImplicitUsesSet.add( 'gtest' )
 				self.myImplicitUses.append( UseRepository.getAlias()['gtest'] )
+
+			#
+			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
 
 			# Configure environment
 			testEnv = self.myEnv.Clone()
@@ -2203,8 +2242,8 @@ SConsBuildFramework options:
 			testSrcDir = join(self.myProjectPathName, 'test')
 
 			self.readProjectOptionsAndUpdateEnv( testEnv )
-			testEnv['sbf_projectPathName'] = join( testEnv['sbf_projectPath'], testEnv['sbf_project'], 'test' )	# used by printBuild()
-			testEnv['sbf_project'] += 'Test'																	# used by CPPDEFINES.MODULE_NAME
+			testEnv['sbf_projectPathName'] = join( lenv['sbf_projectPath'], lenv['sbf_project'], 'test' )		# used by printBuild()
+			testEnv['sbf_project'] = '{}-test'.format(lenv['sbf_project'])										# used by CPPDEFINES.MODULE_NAME
 			self.configureProjectCxxFlagsAndLinkFlags( testEnv, 'exec', skipDefinesInCXXFLAGS=True )
 
 			testEnv.Prepend( CPPPATH = join(testSrcDir, 'include') )
@@ -2224,12 +2263,12 @@ SConsBuildFramework options:
 				Exit(1)
 
 			# Compiles test source files
-			baseFilename = '{projectName}Test_{version}{_platform_ccVersion}{_fullPostfix}'.format(projectName=self.myProject, version=self.myVersion, _platform_ccVersion=self.my_Platform_myCCVersion, _fullPostfix=self.my_FullPostfix )
+			baseFilename = '{projectName}_{version}{_platform_ccVersion}{_fullPostfix}'.format(projectName=testEnv['sbf_project'], version=self.myVersion, _platform_ccVersion=self.my_Platform_myCCVersion, _fullPostfix=self.my_FullPostfix )
 			pathFilenameProgram = '{outdir}{sep}{filename}'.format( outdir = testVarDir, sep=os.sep, filename=baseFilename )
 
 			# target projectTest_build
 			testTarget = testEnv.Program( pathFilenameProgram, [ join(testVarDir, file) for file in self.getFiles('src', lenv, 'test') ] )
-			aliasProjectTestBuild = Alias( self.myProject + 'Test_build', testEnv.Command('dummy_build_test_print' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
+			aliasProjectTestBuild = Alias( self.myProject + '-test_build', testEnv.Command('dummy_build_test_print' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
 			aliasProjectTestBuild += testTarget
 
 			# file to install
@@ -2484,7 +2523,7 @@ SConsBuildFramework options:
 			for file in lenv.get('sbf_info', []):
 				installTarget += lenv.Install( shareBaseDir, file )
 			# Test
-			shareTestBaseDir = join(installDir, 'share', '{}Test'.format(self.myProject), self.myVersion)
+			shareTestBaseDir = join(installDir, 'share', '{}-test'.format(self.myProject), self.myVersion)
 			for file in filesFromTestShare:
 				installTestTarget += lenv.InstallAs( file.replace('share', shareTestBaseDir, 1), join(self.myProjectPathName, 'test', file) )
 
@@ -2603,6 +2642,28 @@ SConsBuildFramework options:
 		# VCS clean and add
 		self.doVcsCleanOrAdd( lenv )
 
+
+		# Helpers for targets *run*
+		def actionCall( runParams ):
+			def _actionCall( runParams, target, source, env ):
+				# command 'path' and 'exe'
+				pathFilename = str(source[0])
+				path = dirname(pathFilename)
+				exe = basename(pathFilename)
+				cmdEnv = { 'PATH' : os.path.join(env.sbf.myInstallExtPaths[0], 'lib') }
+				return call( [exe] + runParams, path, cmdEnv )
+			return lambda target, source, env : _actionCall( runParams, target, source, env )
+
+		def buildPrintMsg( env, executableFilename, runParams ):
+			printMsg = '\n' + stringFormatter(env, 'Launching {}'.format(executableFilename))
+
+			if len(runParams):
+				cmdParameters = ''
+				for param in runParams:
+					cmdParameters += ' ' + param
+				printMsg += stringFormatter(env, 'with parameters:{}'.format(cmdParameters))
+			return printMsg
+
 		# Targets: onlyRun and run
 		if len(self.myBuildTargets & self.myRunTargets) > 0:
 			executableNode = searchExecutable( lenv, installInBinTarget )
@@ -2610,28 +2671,26 @@ SConsBuildFramework options:
 				executableFilename	= basename(executableNode.abspath)
 				pathForExecutable	= join(self.myInstallDirectory, 'bin')
 
-				cmdParameters = ''
-				for param in lenv['runParams']:
-					cmdParameters += ' ' + param
-
-				printMsg = '\n' + stringFormatter(lenv, 'Launching {0}'.format(executableFilename))
-				if len(cmdParameters) > 0:
-					printMsg += stringFormatter(lenv, 'with parameters:{0}'.format(cmdParameters))
-
-				def actionCall( target, source, env ):
-					# command 'path' and 'exe'
-					pathFilename = str(source[0])
-					path = dirname(pathFilename)
-					exe = basename(pathFilename)
-					cmdEnv = { 'PATH' : os.path.join(env.sbf.myInstallExtPaths[0], 'lib') }
-					return call( [exe] + env['runParams'], path, cmdEnv )
-
-				Alias( 'onlyrun', lenv.Command(self.myProject + '_onlyRun.out', join(pathForExecutable, executableFilename),
-									Action( actionCall, printMsg ) ) )
+				printMsg = buildPrintMsg( lenv, executableFilename, lenv['runParams'] )
+				Alias( 'onlyrun',	lenv.Command(self.myProject + '_onlyRun.out', join(pathForExecutable, executableFilename),
+									Action( actionCall(lenv['runParams']), printMsg ) ) )
 				AlwaysBuild('onlyrun')
 
 				Alias( 'run', ['install', 'onlyrun'] )
 
+		# Targets: onlyRunTest and runTest
+		if	len(self.myBuildTargets & self.myRunTestTargets)>0 and \
+			len(installTestInBinTarget)>0:
+			executableFilename = installTestInBinTarget[0].name
+			pathForExecutable = join( self.myInstallDirectories[0], 'bin' )
+
+			printMsg = buildPrintMsg( lenv, executableFilename, lenv['runTestParams'] )
+
+			Alias( 'onlyruntest',	lenv.Command(self.myProject + '_onlyRunTest.out', join(pathForExecutable, executableFilename),
+									Action( actionCall(lenv['runTestParams']), printMsg ) ) )
+			AlwaysBuild('onlyruntest')
+
+			Alias( 'runtest', ['test', 'onlyruntest'] )
 
 
 	###### Helpers ######
