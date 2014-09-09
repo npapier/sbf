@@ -9,7 +9,7 @@ version = '3-0-2'
 versionDot = version.replace('-', '.')
 
 descriptor = {
- 'urls'			: [ 'http://orange/files/Dev/localExt/PUBLIC/src/swigContrib{0}.zip'.format(version) ],
+ 'urls'			: [ '$SRCPAKPATH/swigContrib{0}.zip'.format(version) ],
 
  'name'			: 'swigContrib',
  'version'		: version,
