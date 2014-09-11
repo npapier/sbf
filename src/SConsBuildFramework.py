@@ -1998,10 +1998,14 @@ SConsBuildFramework options:
 			else:
 				raise SCons.Errors.UserError("Unable to find 'default.options' file for project %s in directory %s." % (self.myProject, self.myProjectPath) )
 		else:
-			print "sbfWarning: Unable to find project", self.myProject, "in directory", self.myProjectPath
-			print "sbfInfo: Skip to the next project..."
-			self.myFailedVcsProjects.add( self.myProject )
-			return
+			#if strict:
+			print ( "sbfError: Unable to find project '{}' in directory '{}'".format( self.myProject, self.myProjectPath ) )
+			Exit(1)
+			#if not strict
+				#print 'sbfWarning: Unable to find project', self.myProject, 'in directory', self.myProjectPath
+				#print ('sbfInfo: Skip to the next project...')
+				#self.myFailedVcsProjects.add( self.myProject )
+				#return
 
 
 		# VCS update
