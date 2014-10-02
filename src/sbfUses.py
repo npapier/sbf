@@ -270,7 +270,11 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		return [ '1-54-0', '1-56-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
+		if platform == 'win':
+			return [ '1-54-0', '1-56-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
+		else:
+			return [ '1-56-0', '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
+
 
 	def getCPPDEFINES( self, version ):
 		versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
@@ -344,18 +348,25 @@ class Use_boost( IUse ):
 				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
 				return [], pakLibs
-		elif self.platform == 'posix' and version in ['1-54-0']:
-			libs = [	'libboost_atomic',	'libboost_chrono',		'libboost_context',	'libboost_date_time',
-					'libboost_filesystem',	'libboost_graph_parallel',	'libboost_graph',		'libboost_iostreams',
-					'libboost_locale',	'libboost_log_setup',		'libboost_log',		
-#					'libboost_math_c99f',	'libboost_math_c99l',		'libboost_math_c99',
-#					'libboost_math_tr1f',	'libboost_math_tr1l',		'libboost_math_tr1',
-#					'libboost_mpi_python-py27',	'libboost_mpi_python-py33',	'libboost_mpi_python-py34',
-					'libboost_mpi',		'libboost_prg_exec_monitor',	'libboost_program_options',	
-#					'libboost_python-py27',	'libboost_python-py33',		'libboost_python-py34',
-					'libboost_random',	'libboost_regex',			'libboost_serialization',	'libboost_signals',
-					'libboost_system',	'libboost_thread',		'libboost_timer',			'libboost_unit_test_framework',
-					'libboost_wave',		'libboost_wserialization' ]
+		elif self.platform == 'posix' and version in ['1-56-0']:
+			libs = [	'libboost_atomic.so', 'libboost_bzip2.so', 'libboost_chrono.so', 'libboost_container.so', 'libboost_context.so', 'libboost_coroutine.so',
+					'libboost_date_time.so', 'libboost_filesystem.so', 'libboost_graph.so', 'libboost_iostreams.so', 'libboost_locale.so', 'libboost_log.so',
+					'libboost_log_setup.so', 'libboost_math_c99.so', 'libboost_math_c99f.so', 'libboost_math_c99l.so', 'libboost_math_tr1.so', 'libboost_math_tr1f.so',
+					'libboost_math_tr1l.so', 'libboost_prg_exec_monitor.so', 'libboost_program_options.so', 'libboost_python.so', 'libboost_random.so',
+					'libboost_regex.so', 'libboost_serialization.so', 'libboost_signals.so', 'libboost_system.so', 'libboost_thread.so', 'libboost_timer.so',
+					'libboost_unit_test_framework.so', 'libboost_wave.so', 'libboost_wserialization.so', 'libboost_zlib.so']
+
+#			libs = [	'libboost_atomic',	'libboost_chrono',		'libboost_context',	'libboost_date_time',
+#					'libboost_filesystem',	'libboost_graph_parallel',	'libboost_graph',		'libboost_iostreams',
+#					'libboost_locale',	'libboost_log_setup',		'libboost_log',		
+	#					'libboost_math_c99f',	'libboost_math_c99l',		'libboost_math_c99',
+	#					'libboost_math_tr1f',	'libboost_math_tr1l',		'libboost_math_tr1',
+	#					'libboost_mpi_python-py27',	'libboost_mpi_python-py33',	'libboost_mpi_python-py34',
+#					'libboost_mpi',		'libboost_prg_exec_monitor',	'libboost_program_options',	
+	#					'libboost_python-py27',	'libboost_python-py33',		'libboost_python-py34',
+#					'libboost_random',	'libboost_regex',			'libboost_serialization',	'libboost_signals',
+#					'libboost_system',	'libboost_thread',		'libboost_timer',			'libboost_unit_test_framework',
+#					'libboost_wave',		'libboost_wserialization' ]
 			return libs, libs
 
 
@@ -572,20 +583,14 @@ class Use_openil( IUse ):
 				libs = ['DevIL', 'ILU']
 				return libs, libs #['DevILd'] @todo openil should be compiled in debug on win32 platform
 		else:
-			if self.config == 'release' :
-				libs = ['IL', 'ILU']
-				return libs, libs
-			else :
-				libs = ['IL', 'ILU']
-				# @remark openil not compiled in debug in ubuntu 8.10
-				#libs = ['ILd']
-				return libs, libs
+			libs = ['IL', 'ILU']
+			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 9.0000 and version == '1-7-8':
-			return True
+		if self.platform == 'win':
+			return self.ccVersionNumber >= 9.0000 and version == '1-7-8'
 		else:
-			return False
+			return True
 
 
 class Use_resil( IUse ):
@@ -613,7 +618,6 @@ class Use_resil( IUse ):
 			return False
 
 
-# @remarks sdl-config --cflags --libs
 class Use_sdl( IUse ):
 	def getName( self ):
 		return 'sdl'
@@ -629,7 +633,7 @@ class Use_sdl( IUse ):
 
 	def getCPPPATH( self, version ):
 		if self.platform == 'posix' :
-			return ['/usr/include/SDL']
+			return ['SDL']
 		else:
 			return []
 
@@ -639,20 +643,11 @@ class Use_sdl( IUse ):
 			libs = [ 'SDL', 'SDLmain' ]
 			pakLibs = [ 'SDL' ]
 			return libs, pakLibs
-		elif self.platform == 'posix' :
+		elif self.platform == 'posix':
 			return ['SDL', 'SDL']
 
-	def getLIBPATH( self, version ):
-		if self.platform == 'win':
-			return [], []
-		elif self.platform == 'posix':
-			return [ '/usr/lib' ], [ '/usr/lib' ]
-
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version >= '1-2-14':
-			return True
-		else:
-			return False
+		return True
 
 
 class Use_sdlMixer( IUse ):
@@ -916,13 +911,14 @@ class Use_physfs( IUse ):
 				return libs, libs
 		else:
 			libs = ['physfs']
-			return libs, []
+			return libs, libs
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 10.0 and version == '2-0-2':
-			return True
+		if self.platform == 'win':
+			return self.ccVersionNumber >= 10.0 and version == '2-0-2'
 		else:
-			return False
+			return True
+
 
 class Use_qt( IUse ):
 	cppModules = ['QtCore', 'QtGui']
@@ -933,7 +929,10 @@ class Use_qt( IUse ):
 		return 'qt'
 
 	def getVersions( self ):
-		return ['4-8-5']
+		if self.platform == 'win':
+			return ['4-8-5', '4-8-6']
+		else:
+			return ['4-8-6']
 
 	def getCPPDEFINES( self, version ):
 		cppDefines = [ 'QT_NO_KEYWORDS', 'UNICODE', 'QT_THREAD_SUPPORT' ] # no more needed for 4.8.5: QT_LARGEFILE_SUPPORT
@@ -944,28 +943,16 @@ class Use_qt( IUse ):
 		#else nothing to do
 		if self.platform == 'win':
 			cppDefines += [ 'QT_DLL' ]
-		if self.platform == 'posix':
+		elif self.platform == 'posix':
 			cppDefines += [ 'QT_SHARED' ]
 
 		return cppDefines
 
 	def getCPPPATH( self, version ):
-		if self.platform == 'win':
-			return self.cppModules
-		elif self.platform == 'posix':
-			posixQtRootPath = '/usr/include/qt4/'
-			
-			def prependPath(x): return posixQtRootPath + x
-			
-			posixCppModules = map( prependPath, self.cppModules )
-			posixCppModules += [posixQtRootPath]
-			return posixCppModules
+		return self.cppModules
 			
 	def getLIBPATH( self, version ):
-		if self.platform == 'posix':
-			return ['/usr/lib/i386-linux-gnu/'],[]
-		else:
-			return [],[]
+		return [],[]
 
 	def getLIBS( self, version ):
 		if self.platform == 'win':
@@ -1690,19 +1677,10 @@ class Use_cairo( IUse ):
 		if self.platform == 'win' :
 			return [ 'cairo', 'freetype2' ] # @todo add libpng14/fontconfig ?
 		elif self.platform == 'posix' :
-			# Sets CPPPATH
-			cppPath = [	'/usr/include/cairo', '/usr/include/pixman-1', '/usr/include/freetype2',
-						'/usr/include/libpng12'	]
-			return cppPath
+			return ['cairo']
 
 	def getLIBS( self, version ):
-		if self.platform == 'win':
-			libs = [ 'cairo' ] # fontconfig ? expat ?
-			# pakLibs: libpangocairo-1.0-0 ?
-			return libs, []
-		elif self.platform == 'posix' :
-			libs = [ 'cairo' ]
-			return libs, libs
+		return ['cairo'], []
 
 	def hasRuntimePackage( self, version ):
 		return True

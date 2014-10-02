@@ -9,16 +9,29 @@
 # gcc
 
 # look at http://stackoverflow.com/questions/2629421/how-to-use-boost-in-visual-studio-2010 for full (i.e. all modules) boost build
+
+# http://www.zlib.net/ for zlib
+# http://www.bzip.org/ for bzip2
+
 # configuration
 versionMajor = 1
 versionMinor = 56
 versionMaintenance = 0
 
+descriptorName = 'boost'
+
+descriptorVersion = '{major}-{minor}-{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance )
+versionPostfix = '{}.{}.{}'.format(versionMajor, versionMinor, versionMaintenance)
+
+absRootBuildDir = join(buildDirectory, descriptorName + descriptorVersion )
+rootBuildDir = 'boost_{major}_{minor}_{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance )
+
 def myVCCmd( cmd, execCmdInVCCmdPrompt = execCmdInVCCmdPrompt ):
 	return lambda : execCmdInVCCmdPrompt(cmd)
 
 cmd = 'bjam -j {}'.format( cpuCount )
-cmd += ' --toolset={} --build-type=minimal threading=multi link=shared runtime-link=shared stage'
+cmd += ' --toolset={} threading=multi link=shared runtime-link=shared stage'
+cmd += ' -s ZLIB_SOURCE={0}/zlib-1.2.8 -s BZIP2_SOURCE={0}/bzip2-1.0.6 '.format( absRootBuildDir )
 
 if platform == 'win':
 	if arch == 'x86-64':
@@ -26,11 +39,11 @@ if platform == 'win':
 	# else: pass
 
 	builds_cl = {	8  : cmd.format('msvc-8.0express'),
-					9  : cmd.format('msvc-9.0express'),
-					10 : cmd.format('msvc-10.0express'),
-					11 : cmd.format('msvc-11.0express'),
-					12 : cmd.format('msvc-12.0express'),
-					}
+			9  : cmd.format('msvc-9.0express'),
+			10 : cmd.format('msvc-10.0express'),
+			11 : cmd.format('msvc-11.0express'),
+			12 : cmd.format('msvc-12.0express'),
+			}
 	if CCVersionNumber not in builds_cl:
 		print ('Compiler cl version {} is not yet supported.'.format(CCVersionNumber))
 		exit(1)
@@ -40,18 +53,23 @@ if platform == 'win':
 	sharedD = ['stage/lib/*-mt-gd-1_*.dll']
 	sharedR = ['stage/lib/*-mt-1_*.dll']
 else:
-	cmd = './' + cmd
-	build = ['./bootstrap.sh',  cmd.format('gcc') ]
-	lib = ['stage/lib/*.so', 'stage/lib/*.so.*']
+	# @todo debug version
+	cmd = './' + cmd.format('gcc') + 'variant={}'
+	build = ['./bootstrap.sh', cmd.format('release')] # cmd.format('debug')
+	libD = []
+	libR = ['stage/lib/*.a']
+	sharedD = []
+	sharedR = ['stage/lib/*.so.{}'.format(versionPostfix), 'stage/lib/*.so']
 
 descriptor = {
- 'urls'			: [	'http://sourceforge.net/projects/boost/files/boost/{major}.{minor}.{maintenance}/boost_{major}_{minor}_{maintenance}.tar.bz2/download'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ) ],
+ 'urls'			: [	'http://sourceforge.net/projects/boost/files/boost/{major}.{minor}.{maintenance}/boost_{major}_{minor}_{maintenance}.tar.bz2/download'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
+				'http://zlib.net/zlib-1.2.8.tar.gz', 'http://www.bzip.org/1.0.6/bzip2-1.0.6.tar.gz' ],
 
- 'name'			: 'boost',
- 'version'		: '{major}-{minor}-{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
+ 'name'			: descriptorName,
+ 'version'		: descriptorVersion,
 
  #
- 'rootBuildDir'	: 'boost_{major}_{minor}_{maintenance}'.format( major=versionMajor, minor=versionMinor, maintenance=versionMaintenance ),
+ 'rootBuildDir'		: rootBuildDir,
  'builds'		: build,
 
  #
@@ -68,3 +86,4 @@ descriptor = {
  # runtime package (debug version)
  'binD'			: sharedD,
 }
+

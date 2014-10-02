@@ -43,7 +43,7 @@ def sevenZipExtract( pathArchive, outputDir, verbose = True, extractRootTarFiles
 			
 			#print 'subRetVal', subRetVal, '\n'	# @todo retVal
 			os.remove( tarFile )
-	return retVal
+	return True
 
 # @todo sevenZipCompress()
 

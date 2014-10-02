@@ -11,21 +11,29 @@ import fnmatch
 import glob
 import multiprocessing
 import os
+import sbfAutoconf
 import shutil
 import subprocess
 import types
 import zipfile
 from os.path import basename, dirname, exists, join, splitext
-from sbfArchives import extractArchive
+
+from sbfArchives import createArchive, extractArchive, extractAllTarFiles, getFilesAndDirectories
 from sbfFiles import createDirectory, removeDirectoryTree, GlobRegEx, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
-from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
 from sbfUses import UseRepository
 from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt, createSConsBuildFrameworkProject, buildDebugAndReleaseUsingSConsBuildFramework
 from sbfVersion import splitPackageName, joinPackageName
 
 
-# @todo PackagingSystem.verbose = False
+# see sbfVersion.py: splitPackageName() and sbfArchives.py: __extractExtensionAndFormat__()
+defaultArchiveFormat = 'tar.bz2'
+supportedArchiveFormats = [ defaultArchiveFormat, 'zip' ]
+
+def isAGlobPattern( pattern ):
+	globCharacters = set(['*', '?', '[', ']'])
+	return len( set(list(pattern)) & globCharacters )>0
+
 def pprintList( list ) :
 	listLength = len(list)
 	currentString = '[ '
@@ -78,9 +86,11 @@ def copyFile( source, destination, verbose = False, bufferSize = 1024 * 512 ):
 
 def reporthook_urlretrieve( blockCount, blockSize, totalSize ):
 	size = blockCount * blockSize / 1024
-	# Prints report on download advancement (each 128 kb)
-	if ( size % 128 == 0):
-		print ( '{0} kB \r'.format(size) ),
+	# Prints report on download advancement
+	print ( '{} kB \r'.format(size) ),
+	# Prints report on download advancement (each 128 kb)	
+#	if ( size % 128 == 0):
+#		print ( '{} kB \r'.format(size) ),
 	#if totalSize > 0:
 	#	print ( '%i kB, %i/%i' % ( size/1024, size, totalSize ) )
 	#else:
@@ -98,16 +108,8 @@ def rsearchFilename( path ):
 
 
 
-# @todo usable as a library or a cmd
-# @todo without SConstruct() stuff
-
-# @todo improves stats (see test() for missing stats), and install/remove/test() prints the same stats => flags to select interesting stats)).
-# @todo renames into sbf-get and uses apt-get syntax.
-# @todo search
-# @todo verbose mode (see sbf ?)
-
+# @todo improves stats (see test() for missing stats), and install/remove/test() prints the same stats => flags to select interesting stats)).# @todo renames into sbf-get and uses apt-get syntax.
 # @todo creates a Statistics class
-# @todo uses pylzma instead of zip
 class PackagingSystem:
 
 	# Statistics
@@ -230,6 +232,7 @@ class PackagingSystem:
 		# Creates localExt directory
 		createDirectory( self.getLocalExtSbfPakDBPath() )
 
+	# local or localExt ?
 	def getDestinationDirectory( self, pakName ):
 		"""Returns local directory for any runtime package or returns localExt directory for developer package."""
 		if '-runtime' in pakName:
@@ -251,6 +254,7 @@ class PackagingSystem:
 	# (M)a(K)e(D)ata(B)ase)
 	def __mkdbGetDirectory( self ):
 		return join( self.__SCONS_BUILD_FRAMEWORK, 'pak', 'mkdb' )
+
 
 	def __mkPakGetDirectory( self ):
 		return join( self.__SCONS_BUILD_FRAMEWORK, 'pak', 'var' )
@@ -497,6 +501,8 @@ endif()
 					'CCVersion'					: self.__myCCVersion,
 					'clVersion'					: self.__clVersion,
 					'platform_arch_ccVersion'	: self.__my_Platform_myArch_myCCVersion[1:],
+					'libSuffix'					: self.__libSuffix,
+					'shLibSuffix'				: self.__shLibSuffix,
 					'MSVSIDE'					: self.__myMSVSIDE,
 					'MSVCVARS32'				: self.__myMSVCVARS32,
 					'VCVARSALL'					: self.__myVCVARSALL,
@@ -527,6 +533,8 @@ endif()
 					'GetCMakeInitialCacheCodeToAppendValue'			: GetCMakeInitialCacheCodeToAppendValue,
 					'CreateCMakeInitialCache'						: CreateCMakeInitialCache,
 
+					'GetAutoconfBuildingCommands'					: sbfAutoconf.getAutoconfBuildingCommands,
+
 					'Patcher'						: Patcher,
 					'PatcherMultiline'				: PatcherMultiline,
 					'ChangeContentOfAnXMLElement'	: ChangeContentOfAnXMLElement,
@@ -542,11 +550,13 @@ endif()
 					}
 		return envDict
 
+
 	def mkdbListPackage( self, pattern = '' ):
-		"""Returns the list of package description in mkdb.
-		For example boost.py"""
-		db = glob.glob( join( self.__mkdbGetDirectory(), '{0}*'.format(pattern) ) )
-		return [ os.path.basename(elt) for elt in db ]
+		"""@return the list of files (without extension) containing descriptor of package found in mkdb using the given pattern (a glob)
+		For example ['boost', 'sdl']
+		"""
+		db = glob.glob( join( self.__mkdbGetDirectory(), '{}.py'.format(pattern) ) )
+		return [os.path.basename(elt)[:-3] for elt in db]
 
 
 	def mkdbGetDescriptor( self, pakName ):
@@ -557,7 +567,12 @@ endif()
 
 
 	def mkPak( self, pakName ):
-		"""Retrieves sources of a package, build them and creates the package"""
+		"""	@briefRetrieves sources of a package, build them and creates the package
+			@remark pakName parameter have to be specified without .py extension"""
+		# Adds .py to pakName
+		pakName = '{}.py'.format(pakName)
+
+		#
 		pakDescriptor = self.mkdbGetDescriptor(pakName)
 
 		if ('name' not in pakDescriptor) or ('version' not in pakDescriptor):
@@ -567,7 +582,7 @@ endif()
 		# Creates the sandbox (i.e. private directory)
 		createDirectory( self.__mkPakGetDirectory() )
 		createDirectory( join(self.__mkPakGetDirectory(), 'cache' ) )
-		createDirectory( join(self.__mkPakGetDirectory(), 'build' ) )
+		createDirectory( self.__mkPakGetBuildDirectory() )
 
 		# Moves to sandbox
 		backupCWD = os.getcwd()
@@ -582,7 +597,7 @@ endif()
 		runtimePakDirectoryD = pakDescriptor['name'] + '-runtime-debug' + fullVersion + self.__my_Platform_myArch_myCCVersion + '/' # '/' is needed to specify directory to copy()
 
 		# Removes old directories
-# ???
+# DEBUG
 		removeDirectoryTree( extractionDirectory )
 		removeDirectoryTree( pakDirectory )
 		removeDirectoryTree( runtimePakDirectory )
@@ -608,7 +623,7 @@ endif()
 		# URLS
 		import urllib
 		import urlparse
-# ???
+# DEBUG
 #		for url in []:
 		for entry in pakDescriptor.get('urls', []):
 			if isinstance(entry, tuple):
@@ -623,6 +638,7 @@ endif()
 			# in cache ?
 			filenameInCache = join('cache', filename)
 			if not exists( filenameInCache ):
+			if True:
 				# not in cache
 				if '$SRCPAKPATH' in url:
 					# Replaces $SRCPAKPATH using option 'pakPaths' of SConsBuildFramework
@@ -646,10 +662,17 @@ endif()
 				print
 
 			# Extracts
-			print ( '* Extracting %s in %s...' % (filename, join(extractionDirectory, extractionSubDirectory)) )
-			retVal = sevenZipExtract( join('cache', filename), join(extractionDirectory, extractionSubDirectory), verbose=False )
-			#print 'retVal', retVal, '\n'	# @todo retVal
-			print ( 'Done.\n' )
+			extractionDirectory = join(extractionDirectory, extractionSubDirectory)
+			print ( '* Extracting {} in {}...'.format( filename, extractionDirectory ) )
+			retVal = extractArchive( join('cache', filename), extractionDirectory, self.__verbose )
+			if not retVal:
+				print ('Error during extraction of {}'.format(filename))
+				return
+			else:
+				retVal = extractAllTarFiles( extractionDirectory, self.__verbose )
+				if not retVal:
+					print ('Error during extraction of {}'.format(filename))
+					return
 
 		# BUILDS
 		import datetime
@@ -699,16 +722,16 @@ endif()
 		# CREATES PAK
 		sourceDir = join( extractionDirectory, pakDescriptor.get('rootDir','') )
 		if not exists( sourceDir ):
-			print ('{0} does not exist'.format( sourceDir) )
+			print ('{} does not exist'.format( sourceDir) )
 			exit(1)
 		else:
 			print ('* Entering directory {}\n'.format(sourceDir))
 
-		print ('* Creates package {0}'.format(pakDirectory[:-1]) )
+		print ('* Creating package {}'.format(pakDirectory[:-1]) )
 
 		# Creates directories
 		createDirectory( pakDirectory )
-		print
+		#print
 
 		# Copies license files
 		for i, licenseFile in enumerate(pakDescriptor.get('license', [])):
@@ -719,7 +742,7 @@ endif()
 			copy(	licenseFile,
 					join( 'license', '{0}license.{1}{2}.txt'.format( prefix, pakDescriptor['name'], pakDescriptor['version']) ),
 					sourceDir, pakDirectory )
-		print
+		#print
 
 		# Copies include files
 		for include in pakDescriptor.get('include', []):
@@ -727,8 +750,8 @@ endif()
 				copy( include[0], join( 'include', include[1] ), sourceDir, pakDirectory )
 			else:
 				copy( include, 'include/', sourceDir, pakDirectory )
-		else:
-			print
+		#else:
+		#	print
 
 		# Copies lib files
 		for lib in pakDescriptor.get('lib', []):
@@ -736,31 +759,31 @@ endif()
 				copy( lib[0], join( 'lib', lib[1] ), sourceDir, pakDirectory )
 			else:
 				copy( lib, 'lib/', sourceDir, pakDirectory )
-		else:
-			print
+		#else:
+		#	print
 
 		# Copies custom files
 		for elt in pakDescriptor.get('custom', []):
 			if not isinstance(elt, tuple):
 				elt = (elt,elt)
 			copy( elt[0], elt[1], sourceDir, pakDirectory )
-		else:
-			print
+		#else:
+		#	print
 
-		# Creates zip
+		# Creates archive
 		pakDirectory = pakDirectory[:-1] # removes the last character '/'
-		pakFile = pakDirectory + '.' + 'zip'
-		print ( '* Creates archive of package {0}'.format(pakFile) )
-		removeFile( pakFile )
-		distutils.archive_util.make_zipfile( pakDirectory, pakDirectory, True )
-		print ('Done.\n')
-
+		pakFile = '{}.{}'.format( pakDirectory, defaultArchiveFormat )
+		if exists(pakFile):	removeFile( pakFile )
+		print ( ' => Creating archive {}\n'.format(pakFile) )
+		retVal = createArchive(pakFile, pakDirectory, self.__verbose)
+		if not retVal:
+			return
 
 
 		# CREATE A RUNTIME PACKAGE
 		def createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectory, binEntry, runtimeCustomEntry ):
 		#if (binEntry in pakDescriptor) or (runtimeCustomEntry in pakDescriptor):
-			print ('* Creates package {0}'.format(runtimePakDirectory[:-1]) )
+			print ('* Creating package {}'.format(runtimePakDirectory[:-1]) )
 
 			# Creates directories
 			createDirectory( runtimePakDirectory )
@@ -772,24 +795,25 @@ endif()
 					copy( bin[0], join( 'bin', bin[1] ), sourceDir, runtimePakDirectory )
 				else:
 					copy( bin, 'bin/', sourceDir, runtimePakDirectory )
-			else:
-				print
+			#else:
+			#	print
 
 			# Copies custom files
 			for elt in pakDescriptor.get(runtimeCustomEntry, []):
 				if not isinstance(elt, tuple):
 					elt = (elt,elt)
 				copy( elt[0], elt[1], sourceDir, runtimePakDirectory )
-			else:
-				print
+			#else:
+			#	print
 
 			# Creates zip
 			runtimePakDirectory = runtimePakDirectory[:-1] # removes the last character '/'
-			pakFile = runtimePakDirectory + '.zip'
-			print ( '* Creates archive of package {0}'.format(pakFile) )
-			removeFile( pakFile )
-			distutils.archive_util.make_zipfile( runtimePakDirectory, runtimePakDirectory, True )
-			print ('Done.\n')
+			pakFile = '{}.{}'.format( runtimePakDirectory, defaultArchiveFormat )
+			if exists(pakFile):	removeFile( pakFile )
+			print ( ' => Creating archive {}\n'.format(pakFile) )
+			retVal = createArchive(pakFile, runtimePakDirectory, self.__verbose)
+			if not retVal:
+				return
 
 		# RUNTIME PACKAGE
 		createRuntimePackage( pakDescriptor, sourceDir, runtimePakDirectory, 'bin', 'runtimeCustom' )
@@ -806,8 +830,127 @@ endif()
 
 
 	### PAK INFO ###
+	def __printPackageNameAndVersion__( self, packageName ):
+		oPakInfo = {}
+		oRelDirectories = []
+		oRelFiles = []
+		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
+		print oPakInfo['name'].ljust(34), oPakInfo['version'].ljust(10)
+
+	def savePackageInfo( self, pakInfo, relDirectories, relFiles ):
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		pathInfoFile = join(sbfpakDir, pakInfo['name'] + '.info')
+
+		with open( pathInfoFile, 'wb' ) as output:
+			cPickle.dump( pakInfo, output )
+			cPickle.dump( relDirectories, output )
+			cPickle.dump( relFiles, output )
+
+	def loadPackageInfo( self, pakName, oPakInfo, oRelDirectories = [], oRelFiles = [] ):
+		"""@pre isInstalled( pakName )"""
+		assert( self.isInstalled(pakName) )
+
+		sbfpakDir = self.getLocalExtSbfPakDBPath()
+		pathInfoFile = join(sbfpakDir, pakName + '.info')
+
+		with open( pathInfoFile, 'rb' ) as input:
+			oPakInfo.update( cPickle.load(input) )
+			oRelDirectories.extend( cPickle.load(input) )
+			oRelFiles.extend( cPickle.load(input) )
+
+
+	def isInstalled( self, packageName ):
+		return exists( join(self.getLocalExtSbfPakDBPath(), packageName + '.info') )
+
+
+	def listInstalled( self, pattern = '', enablePrint = False ):
+		"""	@param pattern		glob(pattern)
+			@return the list of installed packages filtered by pattern."""
+		files = glob.glob( join(self.getLocalExtSbfPakDBPath(), '{}.info'.format(pattern)) )
+		files = [splitext(basename(file))[0] for file in sorted(files)]
+
+		for file in files:
+			if enablePrint: self.__printPackageNameAndVersion__(file)
+
+		return files
+
+
+	### Availability/retrieving of packages ###
+	def locatePackage( self, pakName ):
+		"""@return the path where pakName has been found, otherwise None"""
+		for path in self.__pakPaths :
+			pathPakName = join( path, pakName )
+			if os.path.isfile(pathPakName):
+				return pathPakName
+
+
+	def isAvailable( self, pakName ):
+		"""@return True if pakName is available, otherwse False"""
+		pathPakName = self.locatePackage(pakName)
+		return pathPakName and len(pathPakName)>0
+
+
+	# @todo move implicit filtering (i.e. filter = self.__my_Platform_myArch_myCCVersion in class sbfPakCmd)
+	def listAvailable( self, pattern = '', enablePrint = True, automaticFiltering = True ):
+		"""	@param pattern				glob(pattern)
+			@param automaticFiltering	True to replace automatically pattern by {}{}.{}.format(pattern, __my_Platform_myArch_myCCVersion, extension), False to use pattern directly
+			@return list of filenames corresponding to package filter by pattern
+		"""
+		filenames = set()
+
+		if automaticFiltering:
+			filter = self.__my_Platform_myArch_myCCVersion
+			# Express and non express packages are similar, so don't filter on 'Exp'ress.
+			if self.__myPlatform == 'win':	filter.replace('Exp', '', 1)
+		else:
+			filter = ''
+
+		for pakPath in self.__pakPaths:
+			elements = []
+			for extension in supportedArchiveFormats:
+				elements += glob.glob( join(pakPath, '{}{}.{}'.format(pattern, filter, extension)) )
+			sortedElements = sorted( elements )
+			if enablePrint:
+				if len(sortedElements)>0:
+					print ("\nAvailable packages in {} :".format(pakPath))
+			for element in sortedElements:
+				filename = basename(element)
+				pakInfo = splitPackageName(filename)
+				if not pakInfo:		continue	# unable to split package name, so skip to next element
+
+				filenameWithoutExt = splitext(filename)[0]
+				if automaticFiltering:
+					splitted = filenameWithoutExt.split( filter, 1 )
+					if len(splitted) == 1:
+					  # The current platform and compiler version not found in package filename, so don't print it
+					  continue
+				if enablePrint:	print pakInfo['name'].ljust(34), pakInfo['version'].ljust(10)
+				filenames.add(filename)
+
+		return list(filenames)
+
+
+
+	def listAvailablePackageName(self, packageNameFilter):
+		"""	@param packageNameFilter		glob(packageNameFilter)
+			@return the list of available packages name. Example ['boost', 'boost-runtime', 'boost-runtime-debug', 'boost-runtime-release', ...]
+		"""
+		filenames = self.listAvailable( packageNameFilter, False )
+		return [ splitPackageName(filename)['name'] for filename in filenames ]
+
+	def getPackageFilename(self, packageName ):
+		"""	@return the name of file corresponding to the given packageName, otherwise an empty string.
+			Example: _getPackageFilename('boost') could returned 'boost1-56-0_posix_x86-32_gcc4-8.tar.bz2'"""
+		filenames = self.listAvailable( packageName + '*', False )
+		for filename in filenames:
+			pakInfo = splitPackageName(filename)
+			if pakInfo['name'] == packageName:
+				return filename
+		return ''
+
+
 	def getLocalPackage( self, pakName, localDir ):
-		"""Search package pakName in different repositories and copy in localDir (if needed).
+		"""	@brief Search package pakName in different repositories and copy it in localDir (if needed).
 			@return (the path to the copy of pakName, pakName)
 
 			@remarks On Windows platform with compiler cl.exe from Microsoft, when pakName is not found, try to found package name with/without (depending of the initial lookup) 'Exp' postfix.
@@ -835,238 +978,99 @@ endif()
 		print ("Unable to find package {}".format(pakNames) )
 		return (None, None)
 
+	### Package actions ###
+	def install( self, packageFilename, forced = False ):
+		"""	@brief install package named pakName
+			@param packageFilename		name of the file containing the package to install (example: boost1-56-0_posix_x86-32_gcc4-8.tar.bz2)
+			@param forced				True to force the installation even if already installed
 
-	def printPackageNameAndVersion( self, packageName ):
-		oPakInfo = {}
-		oRelDirectories = []
-		oRelFiles = []
-		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
-		print oPakInfo['name'].ljust(34), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
+			@return False if an error occurs during installation, False otherwise
+		"""
 
-	def isInstalled( self, packageName ):
-		sbfpakDir = self.getLocalExtSbfPakDBPath()
-		return exists( join(sbfpakDir, packageName + '.info') )
-
-	def isAvailable( self, pakName ):
-		pathPakName = self.locatePackage(pakName)
-		return pathPakName and (len(pathPakName)>0)
-
-	def listInstalled( self, pattern = '', enablePrint = False ):
-		"""Returns the list of installed packages."""
-
-		files = glob.glob( join(self.getLocalExtSbfPakDBPath(), '*.info') )
-		files = [splitext(basename(file))[0] for file in sorted(files)]
-
-		retVal = []
-		for file in files:
-			if pattern:
-				if file.find(pattern) == 0:
-					if enablePrint: self.printPackageNameAndVersion(file)
-					retVal.append( file )
-				#else nothing to do
-			else:
-				if enablePrint: self.printPackageNameAndVersion(file)
-				retVal.append(file)
-		return retVal
-
-
-	def savePackageInfo( self, pakInfo, relDirectories, relFiles ):
-		"""@pre !isInstalled( pakInfo['name'] )"""
-
-		sbfpakDir = self.getLocalExtSbfPakDBPath()
-		pathInfoFile = join(sbfpakDir, pakInfo['name'] + '.info')
-
-		with open( pathInfoFile, 'wb' ) as output:
-			cPickle.dump( pakInfo, output )
-			cPickle.dump( relDirectories, output )
-			cPickle.dump( relFiles, output )
-
-	def loadPackageInfo( self, pakName, oPakInfo, oRelDirectories = [], oRelFiles = [] ):
-		"""@pre isInstalled( pakName )"""
-
-		sbfpakDir = self.getLocalExtSbfPakDBPath()
-		pathInfoFile = join(sbfpakDir, pakName + '.info')
-
-		with open( pathInfoFile, 'rb' ) as input:
-			oPakInfo.update( cPickle.load(input) )
-			oRelDirectories.extend( cPickle.load(input) )
-			oRelFiles.extend( cPickle.load(input) )
-
-
-
-	###
-	def listAvailable( self, pattern = '', enablePrint = True ):
-		filenames = set()
-
-		filter = self.__my_Platform_myArch_myCCVersion
-		if self.__myPlatform == 'win':
-			# Express and non express packages are similar, so don't filter on 'Exp'ress.
-			filter.replace('Exp', '', 1)
-
-		for pakPath in self.__pakPaths:
-			if enablePrint:
-				print ("\nAvailable packages in %s :" % pakPath)
-			elements = glob.glob( join(pakPath, "%s*.zip" % pattern) )
-#			elements = glob.glob( join(pakPath, "*%s*.zip" % pattern) )
-			sortedElements = sorted( elements )
-			for element in sortedElements :
-				filename = os.path.basename(element)
-				filenameWithoutExt = splitext(filename)[0]
-
-				splitted = filenameWithoutExt.split( filter, 1 )
-				if len(splitted) == 1:
-				  # The current platform and compiler version not found in package filename, so don't print it
-				  continue
-				if enablePrint:
-					print splitted[0].ljust(30), filename
-				filenames.add(filename)
-		return list(filenames)
-
-
-
-	# @todo command-line option ?
-	def locatePackage( self, pakName ):
-		for path in self.__pakPaths :
-			pathPakName = join( path, pakName )
-			if os.path.isfile(pathPakName):
-				return pathPakName
-
-
-	# def testZip( self, pathFilename ):
-
-		# # Tests file existance
-		# if not os.path.lexists( pathFilename ):
-			# print ("File %s does not exist." % pathFilename )
-			# exit(1)
-
-		# # Tests file type
-		# if zipfile.is_zipfile( pathFilename ) == False :
-			# print ("File %s is not a zip." % pathFilename)
-			# exit(1)
-
-		# # Opens and tests package
-		# zip = zipfile.ZipFile( pathFilename )
-		# print ('Tests %s\nPlease wait...' % os.path.basename(pathFilename) )
-		# testzipRetVal = zip.testzip()
-		# if testzipRetVal != None :
-			# print ('bad file:%s' % testzipRetVal)
-			# exit(1)
-		# else :
-			# print ('Done.\n')
-		# zip.close()
-
-
-	# def info( self, pathFilename, pattern ):
-
-		# # Opens package
-		# zip = zipfile.ZipFile( pathFilename )
-
-		# # Prints info
-		# sharedObjectList = []
-		# staticObjectList = []
-		# for name in zip.namelist() :
-			# normalizeName = os.path.normpath( name )
-			# if fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__shLibSuffix ):
-				# sharedObjectList.append( splitext(os.path.basename(normalizeName))[0] )
-			# elif fnmatch.fnmatch( normalizeName, "*%s*" % pattern + self.__libSuffix ):
-				# staticObjectList.append( splitext(os.path.basename(normalizeName))[0] )
-
-		# #import pprint
-		# print
-		# print "static objects :"
-		# pprintList( staticObjectList )
-
-		# print
-		# print "shared objects : "
-		# pprintList( sharedObjectList )
-
-		# # Closes package
-		# zip.close()
-
-
-	def install( self, pakName, forced = False ):
-		"""@return False if an error occurs during installation, False otherwise"""
-		pakInfo = splitPackageName( pakName )
+		pakInfo = splitPackageName( packageFilename )
 		if not pakInfo:
 			return False
 
 		if (not forced) and self.isInstalled( pakInfo['name'] ):
-			print ( "Package {0} already installed.".format(pakInfo['name']) )
+			print ( "Package {} already installed.".format(pakInfo['name']) )
 			return False
 
 		# Retrieves paths to several directories
 		sbfpakDir = self.getLocalExtSbfPakDBPath()
-		tmpDir = self.getLocalExtSbfPakDBTmpPath()
-		removeDirectoryTree( tmpDir, self.__verbose )
-		createDirectory( tmpDir )
 
 		# Retrieves package pakName
-		(pathPakName, pakName) = self.getLocalPackage( pakName, sbfpakDir )
-		if not pathPakName:
+		(pathPackageFilename, packageFilename) = self.getLocalPackage( packageFilename, sbfpakDir )
+		if not packageFilename:
 			return False
 		else:
-			pakInfo = splitPackageName( pakName )
+			pakInfo = splitPackageName( packageFilename )
 
-		print
-		print ( "Installing package {0} using {1}...".format( pakName, pathPakName ) )
 		if self.__verbose:
-			print
-			print ('Details :')
-
-		# Extracts pak
-		retVal = sevenZipExtract( pathPakName, tmpDir, self.__verbose )
-		if self.__verbose:	print
-
-		# Collects all files and directories
-		absFiles = []
-		absDirectories = []
-		searchAllFilesAndDirectories( tmpDir, absFiles, absDirectories, False )
-		# Converts files and directories to be relative to tmp/localExt_platform_cc
-		relFiles = [convertPathAbsToRel(tmpDir, file) for file in absFiles]
-		relDirectories = [convertPathAbsToRel(tmpDir, dir) for dir in absDirectories]
-		relFiles = removePathHead( relFiles )
-		relDirectories = removePathHead( relDirectories )
-
-		# Initializes statistics
-		self.__initializeStatistics()
+			print ( "\nInstalling package {} version {} using {}...".format( pakInfo['name'], pakInfo['version'], pathPackageFilename ) )
+			print ('\nDetails :')
+		else:
+			print ( "\nInstalling package {} version {}...".format( pakInfo['name'], pakInfo['version'] ) )
 
 		# Computes destination directory (local or localExt)
-		destinationDir = self.getDestinationDirectory( pakName )
+		destinationDir = self.getDestinationDirectory( packageFilename )		
 
-		# Creates directories
-		if self.__verbose:	print ('\nCreating directories...')
-		for relDir in relDirectories:
-			dir = join( destinationDir, relDir )
-			# Creates directory if needed
-			if not exists( dir ):
-				if self.__verbose:	print ( 'Creating directory {0}'.format(dir) )
-				os.makedirs( dir )
-				self.__numNewDirectories += 1
+		# Extracts pak		
+		if pakInfo['extension'] == 'zip':
+			# Zip packages have been deprecated.
+			tmpDir = self.getLocalExtSbfPakDBTmpPath()
+			removeDirectoryTree( tmpDir, self.__verbose )
+			createDirectory( tmpDir, self.__verbose )
+
+			retVal = extractArchive( pathPackageFilename, tmpDir, self.__verbose )
+			if not retVal:
+				print ('Error during extraction of {}'.format(pakInfo['name']))
+				return False
+			if self.__verbose:	print
+
+			# Collects all files and directories
+			absFiles = []
+			absDirectories = []
+			searchAllFilesAndDirectories( tmpDir, absFiles, absDirectories, False )
+			# Converts files and directories to be relative to tmp/localExt_platform_cc
+			relFiles = [convertPathAbsToRel(tmpDir, file) for file in absFiles]
+			relDirectories = [convertPathAbsToRel(tmpDir, dir) for dir in absDirectories]
+			relFiles = removePathHead( relFiles )		# Removes the root directory of the archive (example: boost1-56-0_posix_x86-32_gcc4-8)
+			relDirectories = removePathHead( relDirectories )
+			relDirectories = sorted(relDirectories, key=lambda value: value.count(os.sep), reverse=True) # sort directories using depth criterion
+
+			# Copies the tree
+			cwdBAK = os.getcwd()
+			dirs = os.listdir(tmpDir)
+			if len(dirs) != 1:
+				print("Zip package have to contain only one root directory.")
+				return False
 			else:
-				if self.__verbose:	print ( 'Directory {0} already created'.format(dir) )
+				os.chdir( join(tmpDir, dirs[0]) )
+			copy( '.', destinationDir + '/', verbose = self.__verbose )
+			os.chdir(cwdBAK)
 
-		# Copies files
-		if self.__verbose:	print ('\nInstalling files...')
-		for absFile in absFiles:
-			relFile = removePathHead( convertPathAbsToRel(tmpDir, absFile) )
-			file = join( destinationDir, relFile )
-			if exists( file ):
-				if self.__verbose:	print ( 'Overriding {0}'.format( file ) )
-				self.__numOverrideFiles += 1
-			else:
-				if self.__verbose:	print ( 'Installing {0}'.format( file ) )
-				self.__numNewFiles += 1
-			shutil.copyfile( absFile, file )
+			# Saves pak info
+			self.savePackageInfo( pakInfo, relDirectories, relFiles )
 
-		# Prints statistics
-		self.__printStatistics()
+			# Cleans
+			removeDirectoryTree( tmpDir, self.__verbose )
+		else: # not a zip archive
+			retVal = extractArchive( pathPackageFilename, destinationDir, self.__verbose )
+			if not retVal:
+				print ('Error during extraction of {}'.format(pakInfo['name']))
+				return False
+			if self.__verbose:	print
 
-		# Saves pak info
-		self.savePackageInfo( pakInfo, relDirectories, relFiles )
+			# Collects informations about all files and directories
+			relFiles = []
+			relDirectories = []
+			getFilesAndDirectories( pathPackageFilename, relFiles, relDirectories )
+			relDirectories = sorted(relDirectories, key=lambda value: value.count(os.sep), reverse=True) # sort directories using depth criterion
 
-		# Cleans
-		removeDirectoryTree( tmpDir )
+			# Saves pak info
+			self.savePackageInfo( pakInfo, relDirectories, relFiles )
 
+		print ('Done.')
 		return True
 
 
@@ -1074,7 +1078,7 @@ endif()
 		"""@pre isInstalled(packageName)"""
 
 		if not self.isInstalled( packageName ):
-			print ( "Package {0} is not installed.".format(packageName) )
+			print ( "Package {} is not installed.".format(packageName) )
 			return
 
 		# Load package info
@@ -1082,57 +1086,64 @@ endif()
 		oRelDirectories = []
 		oRelFiles = []
 		self.loadPackageInfo( packageName, oPakInfo, oRelDirectories, oRelFiles )
-		pakName = joinPackageName( oPakInfo )
+		packageFilename = joinPackageName( oPakInfo )
 
 		# for debugging
 		#print oPakInfo['name'].ljust(30), oPakInfo['version'].ljust(10)#, oPakInfo['platform'], oPakInfo['cc'], len(oRelFiles)
-		#print pakName
+		#print packageFilename
 
 		# Retrieves paths to several directories
 		sbfpakDir = self.getLocalExtSbfPakDBPath()
 
-		print ( "\nRemoving package {0} version {1}...\nDetails :".format( packageName, oPakInfo['version'] ) )
+		if self.__verbose:
+			print ( "\nRemoving package {} version {}...\nDetails :".format( packageName, oPakInfo['version'] ) )
+		else:
+			print ( "\nRemoving package {} version {}...".format( packageName, oPakInfo['version'] ) )
 
 		# Initializes statistics
 		self.__initializeStatistics()
 
 		# Computes destination directory (local or localExt)
-		destinationDir = self.getDestinationDirectory( pakName )
+		destinationDir = self.getDestinationDirectory( packageFilename )
 
 		# Removes files
-		print ('\nRemoving files...')
+		if self.__verbose:	print ('\nRemoving files...')
 		for relFile in oRelFiles:
 			absFile = join( destinationDir, relFile )
 			if exists(absFile):
 				os.remove( absFile )
 				self.__numDeletedFiles += 1
-				print ( 'Removing {0}'.format(absFile) )
+				if self.__verbose:	print ( 'Removing {}'.format(absFile) )
 			else:
 				self.__numNotFoundFiles += 1
-				print ( '{0} already removed.'.format(absFile) )
+				if self.__verbose:	print ( '{} already removed.'.format(absFile) )
 
 		# Removes directories
-		print ('\nRemoving directories...')
+		if self.__verbose:	print ('\nRemoving directories...')
 		for relDir in oRelDirectories:
 			absDir = join( destinationDir, relDir )
 			if exists( absDir ):
 				if len( os.listdir(absDir) ) == 0:
 					os.rmdir( absDir )
 					self.__numDeletedDirectories += 1
-					print ( 'Removing {0}'.format(absDir) )
+					if self.__verbose:	print ( 'Removing {}'.format(absDir) )
 				else:
 					self.__numNotEmptyDirectory += 1
-					print ( 'Directory {0} not empty.'.format(absDir) )
+					if self.__verbose:	print ( 'Directory {} not empty.'.format(absDir) )
 			else:
 				self.__numNotFoundDirectories += 1
-				print ( '{0} already removed.'.format(absDir) )
+				if self.__verbose:	print ( '{} already removed.'.format(absDir) )
 
 		# Removes package archive and pak info
-		os.remove( join(sbfpakDir, pakName) )
+		os.remove( join(sbfpakDir, packageFilename) )
 		os.remove( join(sbfpakDir, packageName + '.info') )
 
 		# Prints statistics
-		self.__printStatistics()
+		if self.__verbose:
+			print ('Done.'),
+			self.__printStatistics()
+		else:
+			print ('Done.')
 
 
 	# def test( self, pathFilename ):
@@ -1210,25 +1221,30 @@ endif()
 
 
 
+
+
 ### class sbfPakCmd to implement interactive mode ###
 import cmd
 
+# Remove '-' as readline delimiter
+try:
+	import readline
+	delims = readline.get_completer_delims()
+	for elt in ['-', '*', '?', '[', ']']:
+		delims = delims.replace(elt, '')
+	readline.set_completer_delims( delims )
+except ImportError as e:
+	print ('sbfWarning: python module pyreadline is not installed.')
+
+
+# @todo commands testArchive and testInstalled
 class sbfPakCmd( cmd.Cmd ):
 
-	__packagingSystem = None
-
 	def __init__( self, packagingSystem ):
-		cmd.Cmd.__init__(self )
+		cmd.Cmd.__init__(self)
 		self.__packagingSystem = packagingSystem
 
-	def __mkdbLocatePackage( self, pakName ):
-		packages = self.__packagingSystem.mkdbListPackage()
-		if pakName not in packages:
-			print ("Unable to find package {0}".format(pakName) )
-		else:
-			return pakName
-
-# Commands
+	# Commands
 	def help_exit( self ):
 		print "Usage: exit"
 		print "Exit the interpreter."
@@ -1240,9 +1256,11 @@ class sbfPakCmd( cmd.Cmd ):
 		print ('\n')
 		return True
 
+	def help_EOF( self ):
+		self.help_exit()
 
 	def help_listAvailable( self ):
-		print ("Usage: list [sub-package-name]\nList the available packages in repositories.")
+		print ("Usage: listAvailable [packageNameFilter]\nPrint the list of available packages in repositories using a filter specified using the glob syntax.")
 
 	def do_listAvailable( self, params ):
 		parameterList = params.split()
@@ -1251,16 +1269,21 @@ class sbfPakCmd( cmd.Cmd ):
 			return
 
 		# Initializes pattern
-		pattern = ''
 		if len(parameterList) == 1 :
-			pattern = parameterList[0]
+			if isAGlobPattern(parameterList[0]):
+				pattern = parameterList[0]
+			else:
+				pattern = parameterList[0] + '*'
+		else:
+			pattern = '*'
 
 		# Calls list method
-		self.__packagingSystem.listAvailable( pattern )
+		self.__packagingSystem.listAvailable( pattern, True )
+
 
 
 	def help_listInstalled( self ):
-		print ("Usage: listInstalled [sub-package-name]\nList the installed packages in the current 'localExt' directory.")
+		print ("Usage: listInstalled [packageNameFilter]\nPrint the list of the installed packages, filtered using packageNameFilter, in the current 'local/localExt' directories.")
 
 	def do_listInstalled( self, params ):
 		parameterList = params.split()
@@ -1270,16 +1293,40 @@ class sbfPakCmd( cmd.Cmd ):
 
 		# Initializes pattern
 		if len(parameterList) == 1 :
-			pattern = parameterList[0]
+			if isAGlobPattern(parameterList[0]):
+				pattern = parameterList[0]
+			else:
+				pattern = parameterList[0] + '*'
 		else:
-			pattern = ''
+			pattern = '*'
 
 		# Calls list method
 		self.__packagingSystem.listInstalled( pattern, True )
 
 
 	def help_install( self ):
-		print ("Usage: install pakName\nSearch in repositories the first package named 'pakName' and install it in the current 'localExt' directory.")
+		print ("Usage: install packageNameFilter\nSearch in repositories all packages using the given packageNameFilter and install them in the current 'local/localExt' directories.")
+		print ("Example: install glm* to install glm, glm-runtime, glm-runtime-debug and glm-runtime-release.")
+
+
+	def __do_install__( self, filter, forced = False ):
+		if isAGlobPattern(filter):
+			packageFilenames = self.__packagingSystem.listAvailable( filter, False )
+		else:
+			packageFilename = self.__packagingSystem.getPackageFilename( filter )
+			if packageFilename:
+				packageFilenames = [packageFilename]
+			else:
+				packageFilenames = None
+
+		if not packageFilenames:
+			print ("No package selected by filter '{}'".format(filter))
+			return
+
+		for packageFilename in sorted(packageFilenames):
+			# Call install method
+			self.__packagingSystem.install( packageFilename, forced )
+
 
 	def do_install( self, params ):
 		parameterList = params.split()
@@ -1287,18 +1334,20 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_install()
 			return
 
-		pakName = parameterList[0]
-
-		# Call install method
-		self.__packagingSystem.install( pakName )
+		self.__do_install__(parameterList[0])
+		
 
 	def complete_install( self, text, line, begidx, endidx ):
-		filenames = self.__packagingSystem.listAvailable( text, False )
-		return filenames
+		if isAGlobPattern(text):
+			return [text]
+		else:
+			return self.__packagingSystem.listAvailablePackageName( text + '*' )
 
 
 	def help_installForced( self ):
-		print ("Usage: installForced pakName\nSearch in repositories the first package named 'pakName' and install/reinstall it in the current 'localExt' directory.")
+		print ("Usage: installForced packageNameFilter\nSearch in repositories all packages using the given packageNameFilter and install them in the current 'local/localExt' directories.")
+		print ("Example: installForced glm* to install glm, glm-runtime, glm-runtime-debug and glm-runtime-release.")
+
 
 	def do_installForced( self, params ):
 		parameterList = params.split()
@@ -1306,18 +1355,16 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_install()
 			return
 
-		pakName = parameterList[0]
+		self.__do_install__(parameterList[0], True)
 
-		# Call install method
-		self.__packagingSystem.install( pakName, True )
 
 	def complete_installForced( self, text, line, begidx, endidx ):
-		filenames = self.__packagingSystem.listAvailable( text, False )
-		return filenames
+		return self.complete_install(text, line, begidx, endidx )
 
 
 	def help_remove( self ):
-		print ("Usage: remove installedPackageName\nRemove from 'localExt' all files and directories installed by this package.")
+		print ("Usage: remove packageNameFilter\nRemove from 'local/localExt' all files and directories installed by all packages selected by the given packageNameFilter.")
+		print ("Example: remove glm* to remove glm, glm-runtime, glm-runtime-debug and glm-runtime-release.")
 
 	def do_remove( self, params ):
 		parameterList = params.split()
@@ -1325,57 +1372,30 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_remove()
 			return
 
-		pakName = parameterList[0]
-		# Calls remove method
-		self.__packagingSystem.remove( pakName )
+		filter = parameterList[0]
+
+		if isAGlobPattern(filter):
+			packageNames = self.__packagingSystem.listInstalled( filter, False )
+		else:
+			packageNames = [filter]
+
+		if not packageNames:
+			print ("No package selected by filter '{}'".format(filter))
+			return
+
+		for packageName in sorted(packageNames):
+			# Call remove method
+			self.__packagingSystem.remove( packageName )
 
 	def complete_remove( self, text, line, begidx, endidx ):
-		packages = self.__packagingSystem.listInstalled( text )
-		return packages
-
-# @todo test
-#	def help_test( self ):
-#		print "Usage: test pakName"
-
-#	def do_test( self, params ):
-#		parameterList = params.split()
-#		if len(parameterList) not in [1]:
-#			self.help_test()
-#			return
-
-		# Initializes pakName
-#		pathPakName = self.__locatePakName( parameterList[0] )
-#		if pathPakName != None :
-			# Calls test method
-#			self.__packagingSystem.testZip( pathPakName )
-#			self.__packagingSystem.test( pathPakName )
-
-
-# @todo info printed in mkpak
-#	def help_info( self ):
-#		print "Usage: info pakName [sub-package-name]"
-
-#	def do_info( self, params ):
-#		parameterList = params.split()
-#		if len(parameterList) not in [1,2]:
-#			self.help_info()
-#			return
-
-#		# Initializes pakName
-##		pathPakName = self.__locatePakName( parameterList[0] )
-#		if pathPakName != None :
-#			# Retrieves pattern
-#			pattern = ''
-#			if len(parameterList) == 2 :
-#				pattern = parameterList[1]
-
-			# Calls test method
-#			self.__packagingSystem.testZip( pathPakName )
-#			self.__packagingSystem.info( pathPakName, pattern )
+		if isAGlobPattern(text):
+			return [text]
+		else:
+			return self.__packagingSystem.listInstalled( text + '*')
 
 
 	def help_mkpak( self ):
-		print ("Usage: mkpak pakName\nRetrieves, builds and creates an sbf package for an external dependency (like boost, qt and so on).")
+		print ("Usage: mkpak packageNameFilter\nRetrieves, builds and creates sbf package(s) for external dependencies selected by the given packageNameFilter (like boost, qt and so on).")
 
 	def do_mkpak( self, params ):
 		parameterList = params.split()
@@ -1383,16 +1403,30 @@ class sbfPakCmd( cmd.Cmd ):
 			self.help_mkpak()
 			return
 
-		# Initializes pakName
-		pakName = self.__mkdbLocatePackage( parameterList[0] )
-		if pakName:
-			self.__packagingSystem.mkPak( pakName )
+		filter = parameterList[0]
+
+		if isAGlobPattern(filter):
+			packageNames = self.__packagingSystem.mkdbListPackage(filter)
+		else:
+			if filter in self.__packagingSystem.mkdbListPackage('*'):
+				packageNames = [filter]
+			else:
+				packageNames = []
+
+		for packageName in sorted(packageNames):
+			self.__packagingSystem.mkPak( packageName )
+		if not packageNames:
+			print ("No package selected by filter '{}'".format(filter))
 
 	def complete_mkpak( self, text, line, begidx, endidx ):
-		packages = self.__packagingSystem.mkdbListPackage( text )
-		return packages
+		if isAGlobPattern(text):
+			return [text]
+		else:
+			return sorted(self.__packagingSystem.mkdbListPackage( text + '*' ))
 
 
 def runSbfPakCmd( sbf ):
 	shell = sbfPakCmd( PackagingSystem(sbf) )
-	shell.cmdloop("Welcome to interactive mode of sbfPak\n")
+	shell.cmdloop("Using compiler {CCVERSION} with {ARCHITEXTURE} architecture on a {PLATFORM} system.\n\nWelcome to interactive mode of sbfPak".format(CCVERSION=sbf.myCCVersion, PLATFORM=sbf.myPlatform, ARCHITEXTURE=sbf.myArch))
+	
+

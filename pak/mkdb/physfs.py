@@ -7,7 +7,8 @@
 # Author Maxime Peresson
 
 # http://icculus.org/physfs/
-# cl8-0[Exp], cl9-0[Exp], cl10-0[Exp] and cl11-0[Exp] (32/64bits)
+
+# cl8-0[Exp], cl9-0[Exp], cl10-0[Exp] and cl11-0[Exp] (32/64bits) and gcc
 # Support for zip (zlib123), 7z (using lzma)
 
 import os.path
@@ -21,6 +22,15 @@ from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCm
 options = '-D PHYSFS_ARCHIVE_GRP:BOOL=OFF -D PHYSFS_ARCHIVE_HOG:BOOL=OFF -D PHYSFS_ARCHIVE_MVL:BOOL=OFF -D PHYSFS_ARCHIVE_QPAK:BOOL=OFF -D PHYSFS_ARCHIVE_WAD:BOOL=OFF -D PHYSFS_BUILD_STATIC:BOOL=OFF'
 options += ' -D CMAKE_DEBUG_POSTFIX=-d '
 cmdConfigure = getCMakeCmdConfigure(CC, CCVersionNumber, arch, options)
+
+if platform == 'win':
+	lib = ['debug/physfs-d.lib ', 'release/physfs.lib']
+	binR = ['release/physfs.dll']
+	binD = ['debug/physfs-d.dll']
+else:
+	lib = []
+	binR = ['*.so.*']
+	binD = []
 
 descriptor = {
  'urls'			: [ 'http://icculus.org/physfs/downloads/physfs-2.0.2.tar.gz' ],
@@ -37,11 +47,11 @@ descriptor = {
  # developer package
  'license'		: [('LICENSE.txt'), ('CREDITS.txt'), ('lzma/lzma.txt'), ('zlib123/README')],
  'include'		: [	'*.h' ],
- 'lib'			: [	'debug/physfs-d.lib ', 'release/physfs.lib' ],
+ 'lib'			: lib,
 
  # runtime package (release version)
- 'binR'			: ['release/physfs.dll'],
+ 'binR'			: binR,
  
  # runtime package (debug version)
- 'binD'			: ['debug/physfs-d.dll'],
+ 'binD'			: binD,
 }

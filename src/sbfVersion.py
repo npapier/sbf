@@ -122,7 +122,7 @@ def splitLibsName( singleLibsValue ):
 packagePlatform = '(?P<platform>.+)'
 packageArch = '(?P<arch>.+)'
 packageCC = '(?P<cc>.+)'
-packageExtension = '(?P<extension>.+)'
+packageExtension = '(?P<extension>tar[.]bz2|zip)'		# see sbfPackagingSystem.py: defaultArchiveFormat and supportedArchiveFormats
 
 def splitPackageName( packageName ):
 	"""@remark Example: splitPackageName( 'opencollada865_win_x86-64_cl10-0Exp.zip' ) returns 
@@ -131,7 +131,7 @@ def splitPackageName( packageName ):
 		'platform'	: 'win',
 		'arch'		: 'x86-64',
 		'cc'		: 'cl10-0Exp',
-		'extension'	: 'zip' }"""
+		'extension'	: 'tar.bz2' or 'zip'  }"""
 	splitter = re.compile( r'^{0}{1}_{2}_{3}_{4}[.]{5}$'.format( usesNamePattern, versionPattern, packagePlatform, packageArch, packageCC, packageExtension ) )
 	match = splitter.match( packageName )
 	if match:

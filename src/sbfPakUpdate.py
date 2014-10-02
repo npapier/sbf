@@ -20,23 +20,25 @@ def doTargetPakUpdate( target, source, env ):
 			pakSystem.loadPackageInfo( useName, oPakInfo )
 			if hasPackage:
 				if useVersion == oPakInfo['version']:
-					print ( '{0} {1} is installed.'.format(useName.ljust(32), useVersion.ljust(8)) )
+					print ( '{} {} is installed.'.format(useName.ljust(32), useVersion.ljust(8)) )
 				else:
-					print ( '{0} {1} is installed, but {2} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
+					print ( '{} {} is installed, but {} is needed.'.format(oPakInfo['name'], oPakInfo['version'], useVersion) )
 					print ( 'Upgrading or downgrading...' )
 					pakSystem.remove( oPakInfo['name'] )
+					print 'Use package {}'.format(packageFilename)
 					retVal = pakSystem.install( packageFilename )
 					if not retVal:	Exit(1)
 					print ('\n'* 3)
 			else:
-				print ( '{0} {1} is installed, but it is no more needed.'.format(oPakInfo['name'], oPakInfo['version']) )
+				print ( '{} {} is installed, but it is no more needed.'.format(oPakInfo['name'], oPakInfo['version']) )
 				print ( 'Removing...' )
 				pakSystem.remove( oPakInfo['name'] )
 				print ('\n'* 3)
 		else:
 			# not installed
 			if hasPackage:
-				print ( '{0} {1} is NOT installed.'.format(useName.ljust(16), useVersion))
+				print ( '{} {} is NOT installed.'.format(useName.ljust(16), useVersion))
+				print 'Use package {}'.format(packageFilename)
 				retVal = pakSystem.install( packageFilename )
 				if not retVal:	Exit(1)
 				print ('\n'* 3)
@@ -52,14 +54,24 @@ def doTargetPakUpdate( target, source, env ):
 	uses = sorted(list(sbf.getAllUses(env)))
 
 	for useNameVersion in uses:
+		# Retrieves use, useName and useVersion
 		useName, useVersion = splitUsesName( useNameVersion )
-
 		use = UseRepository.getUse( useName )
 
-		# Updating packages (development and runtime packages)
-		for useName in generateAllUseNames(useName):
-			packageFilename = '{0}{1}{2}.zip'.format(useName, useVersion, sbf.my_Platform_myArch_myCCVersion)
-			pakUpdate( pakSystem, useName, useVersion, use, use.hasPackage(useName, useVersion), packageFilename )
+		if use.hasPackage(useName, useVersion):
+			# There is a package for this 'uses' option
+			for useName in generateAllUseNames(useName):
+				# Updating packages (development and runtime packages)
+				#filter = '{name}{ver}{postfix}.*'.format( name=useName, ver=useVersion, postfix=sbf.my_Platform_myArch_myCCVersion)
+				filter = '{name}{ver}*'.format( name=useName, ver=useVersion )
+				packageFilenames = pakSystem.listAvailable( pattern=filter, enablePrint=False, automaticFiltering=False )
+				if packageFilenames:
+					if len(packageFilenames)>1 and env.GetOption('verbosity'):	print ('sbfWarning: Found several packages {}'.format(packageFilenames))
+					pakUpdate( pakSystem, useName, useVersion, use, use.hasPackage(useName, useVersion), packageFilenames[0] )
+				else:
+					print ('sbfError: Unable to found package for {} {}'.format(useName, useVersion))
+#					#Exit(1)
+
 
 
 def configurePakUpdateTarget( env ):

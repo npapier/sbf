@@ -40,5 +40,5 @@ descriptor = {
  'license'		: ['LICENSE', 'LICENSE-GPL', 'LICENSE-UNIVERSITIES'],
 
  'custom'		: [	(prgName, 'bin/'),
-				(GlobRegEx('Lib/.*', pruneFiles='(?!^.*[.](swg|i)$)', recursive=True), 'bin/Lib/') ]
+					(GlobRegEx('Lib/.*', pruneFiles='(?!^.*[.](swg|i)$)', recursive=True), 'bin/Lib/') ]
 }

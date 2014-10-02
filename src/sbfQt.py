@@ -37,10 +37,7 @@ def moc( lenv, filesForMoc, objFiles, qtMajorVersion ):
 	for mocFile in filesForMoc:
 		inputFile = join(sbf.myProjectPathName, mocFile)
 		outputFile = (os.path.splitext(mocFile)[0]).replace('include'+os.sep+sbf.myProject, sbf.myProjectBuildPathExpanded, 1 ) + '_moc.cpp'
-		if sbf.myPlatform == 'posix':
-			action = [['moc', '-qt={}'.format(qtMajorVersion), '-o', '${TARGETS[0]}', '$SOURCE']]
-		else:
-			action = [['moc', '-o', '${TARGETS[0]}', '$SOURCE']]
+		action = [['moc', '-o', '${TARGETS[0]}', '$SOURCE']]
 		objFiles += lenv.Command( outputFile, inputFile, Action(action) )
 
 

@@ -181,7 +181,7 @@ def getPathsForTools( verbose = False ):
 			paths.append( location )
 		else:
 			if verbose:
-				print ('sbfWarning: unable to locate {0}'.format(program))
+				print ('sbfWarning: unable to locate {}'.format(program))
 
 	paths = []
 
@@ -212,11 +212,11 @@ def getPathsForRuntime( sbf ):
 def prependToPATH( env, newPaths, enableLogging = True ):
 	"""env['ENV']['PATH'] = newPaths + env['ENV']['PATH']"""
 	for path in reversed(newPaths):
-		if enableLogging: print ('Prepends {0} to sbf private PATH'.format(path))
+		if enableLogging: print ('Prepends {} to sbf private PATH'.format(path))
 		env.PrependENVPath( 'PATH', path )
 
 def appendToPATH( env, newPaths, enableLogging = True ):
 	"""env['ENV']['PATH'] = env['ENV']['PATH'] + newPaths"""
 	for path in reversed(newPaths):
-		if enableLogging: print ('Appends {0} to sbf private PATH'.format(path))
+		if enableLogging: print ('Appends {} to sbf private PATH'.format(path))
 		env.AppendENVPath( 'PATH', path )

@@ -19,6 +19,9 @@ VCVARSALL				# location of vcvarsall.bat see SConsBuildFramework.myVCVARSALL.
 MSVC					# root directory of Microsoft Visual Studio C++ (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
 MSBuild					# location of msbuild.exe (i.e. C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe)
 
+libSuffix				# .lib (on windows) or .a (on Unix)
+shLibSuffix				# .dll (on windows) or .so (on Unix)
+
 UseRepository			# from sbfUses import UseRepository
 execCmdInVCCmdPrompt	# contains getLambdaForExecuteCommandInVCCommandPrompt(MSVCVARS32)
 
@@ -109,6 +112,10 @@ descriptor = {
  # - CreateCMakeInitialCache( directory, contents )
  #		directory		path where CMakeInitialCache.txt file would be created
  #		contents		contents of the CMakeInitialCache.txt file to create
+ #
+ # - GetAutoconfBuildingCommands(configureOptions)
+ #	Returns ['./configure' + configureOptions, 'make', 'make install']
+ #		configureOptions		option(s) to append to './configure ' command, or None to call ./configure
  #
  # - Patcher( fileOrFileList, resubs, flags = 0 ) with resubs a list of [(pattern, repl),...] see re.sub(pattern, repl,...)
  # - PatcherMultiline( fileOrFileList, resubs, flags = 0 )

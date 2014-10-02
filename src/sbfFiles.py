@@ -44,14 +44,14 @@ def computeDepth( path ):
 def createDirectory( directory, verbose = True ):
 	"""	Creates the directory if not already existing.
 		@remark Creates all intermediate-level directories recursively if needed."""
-	if not os.path.exists( directory ):
+	if not exists( directory ):
 		if verbose:
 			print ( 'Creates directory {0}'.format(directory) )
 		os.makedirs( directory )
 
 def removeDirectoryTree( directory, verbose = True ):
 	"""Deletes an entire directory tree (if the directory is existing)"""
-	if os.path.exists( directory ):
+	if exists( directory ):
 		if verbose:
 			print ( 'Removes directory tree {0}'.format(directory) )
 		shutil.rmtree( directory, True )
@@ -76,7 +76,7 @@ class GlobRegEx:
 			@param pruneDirs		regular expression used to prune directories
 			@param pruneFiles		regular expression used to prune files
 			@param ignoreDirs		True to ignore all directories, False to look at directories
-			@param ignoreFiles		True to ignore all file, False to look at files
+			@param ignoreFiles		True to ignore all files, False to look at files
 			@param recursive		True to traverse the filesystem tree (top-down), False to stay at the top level of the tree
 		"""
 
@@ -166,10 +166,22 @@ class GlobRegEx:
 
 
 
+def shutilCopyTree( src, dst, symlinks=False, ignore=None ):
+	createDirectory(dst, False )
+
+	for item in os.listdir(src):
+		s = join(src, item)
+		d = join(dst, item)
+		if isdir(s):
+			shutilCopyTree(s, d, symlinks, ignore)
+		else:
+			#if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
+			shutil.copy2(s, d)
+
 def copy( source, destination, sourceDirectory = None, destinationDirectory = None, verbose = True ):
 	"""Copies source to destination. Prepend sourceDirectory to source (resp. destinationDirectory to destination).
 	If source is a file, then destination could be a file or a directory.
-	If source is a directory, then destination must be a non existing directory.
+	If source is a directory, then destination must be a directory (existing or non existing).
 		If source == destination, then sourceDirectory/dirname is copying in destinationDirectory/dirname with dirname = source = destination.
 		If source != destination, then sourceDirectory/source is copying in destinationDirectory/destination.
 	If source is a glob, then destination must be a directory (existing or not)
@@ -187,17 +199,20 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 		# source is a regular expression and destination must be a directory (existing or not)
 		if destination[-1:] != '/':																		# @todo remove / ?
 			# destination is not a directory
-			print ('Destination {0} is not a directory.'.format(destination))
+			print ('Destination {} is not a directory.'.format(destination))
 			exit(1)
 
 		# Creates destination if needed
 		createDirectory(destination, verbose)
 
 		# Collecting files to copy
-		source.apply( join(sourceDirectory, source.path) )
+		if sourceDirectory != None:
+			source.apply( join(sourceDirectory, source.path) )
+		else:
+			source.apply()
 		entries = source.list()
 		if len(entries) == 0:
-			print ("No files/directories matching '{0}'".format(source.pattern) )
+			print ("No files/directories matching '{}'".format(source.pattern) )
 			exit(1)
 		else:
 			# Directories
@@ -206,13 +221,14 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 					createDirectory( join(destination, dir), verbose )
 			else:
 				for dir in source.listDirs():
-					if verbose:	print ( 'Copying tree {0} in {1}'.format(dir, destination) )
+					if verbose:	print ( 'Copying tree {} in {}'.format(dir, destination) )
 					shutil.copytree( join(source.path, dir), join(destination, dir) )
 
 			# Files
 			for file in source.listFiles():
-				if verbose:	print ( 'Install {0} in {1}'.format(file, join(destination, file)) )
+				if verbose:	print ( 'Copying {} in {}'.format(file, join(destination, file)) )
 				shutil.copyfile( join(source.path, file), join(destination, file) )
+				shutil.copystat( join(source.path, file), join(destination, file) )
 		return
 	else:
 		# Prepares the copy
@@ -229,25 +245,25 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 			# destination is not a directory
 			newDir = dirname(destination)
 			createDirectory(newDir, verbose)
-		shutil.copy( source, destination )
+		shutil.copy2( source, destination )
 		if verbose:
 			if os.path.isfile(destination):
-				print ( 'Install {0}'.format(destination) )
+				print ( 'Installing {}'.format(destination) )
 			else:
-				print ( 'Install {0}'.format( join(destination,basename(source)) ) )
+				print ( 'Installing {}'.format( join(destination,basename(source)) ) )
 	# Copies a directory
 	elif os.path.isdir(source):
 		if destination[-1:] != '/':
 			# destination is not a directory
-			print ('Destination {0} is not a directory.'.format(destination))
+			print ('Destination {} is not a directory.'.format(destination))
 			exit(1)
-		print ( 'Populates {0} using {1}'.format(destination, source) )
-		shutil.copytree( source, destination )
+		if verbose:	print ( 'Populating {} using {}'.format(destination, source) )
+		shutilCopyTree( source, destination )
 	else:
 		# source is a glob and destination must be a directory
 		if destination[-1:] != '/':
 			# destination is not a directory
-			print ('Destination {0} is not a directory.'.format(destination))
+			print ('Destination {} is not a directory.'.format(destination))
 			exit(1)
 
 		# Creates destination if needed
@@ -255,17 +271,18 @@ def copy( source, destination, sourceDirectory = None, destinationDirectory = No
 
 		globMatch = glob.glob(source)
 		if len(globMatch) == 0:
-			if verbose:	print ('No files or directories for {0}'.format(source) )
+			if verbose:	print ('No files or directories for {}'.format(source) )
 			exit(1)
 		else:
-			if verbose:	print ( 'Populates {0} using {1}'.format(destination, source) )
+			if verbose:	print ( 'Populating {} using {}'.format(destination, source) )
 			for name in globMatch:
 				if os.path.isdir(name):
-					if verbose:	print ( 'Install {0} directory in {1}'.format(name, destination) )
+					if verbose:	print ( 'Installing {} directory in {}'.format(name, destination) )
 					shutil.copytree( name, join(destination, basename(name)) )
 				else:
-					if verbose:	print ( 'Install {0} in {1}'.format(name, join(destination, basename(name))) )
+					if verbose:	print ( 'Installing {} in {}'.format(name, join(destination, basename(name))) )
 					shutil.copyfile( name, join(destination, basename(name)) )
+					shutil.copystat( name, join(destination, basename(name)) )
 
 
 def copyTree( srcPathFilenames, dstPath, srcDir ):

@@ -5,7 +5,6 @@
 
 from os.path import join, splitext
 
-from src.sbfArchives	import extractArchive, isExtractionSupported
 from src.sbfFiles		import *
 from src.sbfRsync		import createRsyncAction
 from src.sbfSevenZip	import create7ZipCompressAction

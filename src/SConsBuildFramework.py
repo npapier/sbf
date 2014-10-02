@@ -1738,7 +1738,8 @@ SConsBuildFramework options:
 #		lenv.Append( CXXFLAGS = '-fvisibility=hidden' )
 		lenv.Append( CXXFLAGS = '-fvisibility-inlines-hidden' )
 #		lenv.Append( CXXFLAGS = '-fvisibility-ms-compat' )
-		lenv.Append( LINKFLAGS = '-Wl,-rpath=%s' % os.path.join( self.myInstallDirectory, 'lib' ) )
+#		lenv.Append( LINKFLAGS = '-Wl,-rpath=%s' % os.path.join( self.myInstallDirectory, 'lib' ) )
+		lenv.Append( LINKFLAGS = '-Wl,-rpath=.' )
 
 #		self.myCxxFlags	+= ' -Wall '
 
@@ -2654,7 +2655,11 @@ SConsBuildFramework options:
 				pathFilename = str(source[0])
 				path = dirname(pathFilename)
 				exe = basename(pathFilename)
-				cmdEnv = { 'PATH' : os.path.join(env.sbf.myInstallExtPaths[0], 'lib') }
+				if env.sbf.myPlatform == 'win':
+					cmdEnv = { 'PATH' : os.path.join(env.sbf.myInstallExtPaths[0], 'lib') }
+				else:
+					cmdEnv = os.environ
+					#cmdEnv['LD_LIBRARY_PATH'] = '{}:$LD_LIBRARY_PATH'.format( join(env.sbf.myInstallDirectory, 'bin') ) no more used see -Wl,-rpath option
 				return call( [exe] + runParams, path, cmdEnv )
 			return lambda target, source, env : _actionCall( runParams, target, source, env )
 
