@@ -2204,8 +2204,7 @@ SConsBuildFramework options:
 			# Compiles the resource file
 			inputFile = rcFile
 			outputFile = join(self.myProjectBuildPathExpanded, 'qrc_resources.cpp')
-			objFiles += lenv.Command( outputFile, inputFile,
-					Action( [['rcc', '$SOURCE', '-o', '${TARGETS[0]}']] ) )
+			objFiles += lenv.Command( outputFile, inputFile, Action( [['rcc', '-name', self.myProject, '$SOURCE', '-o', '${TARGETS[0]}']] ) )
 			lenv['sbf_rc'].append( rcFile )
 		#else nothing todo
 
