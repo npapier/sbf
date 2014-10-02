@@ -637,7 +637,7 @@ endif()
 
 			# in cache ?
 			filenameInCache = join('cache', filename)
-			if not exists( filenameInCache ):
+#			if not exists( filenameInCache ):
 			if True:
 				# not in cache
 				if '$SRCPAKPATH' in url:
