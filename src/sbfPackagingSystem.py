@@ -48,6 +48,7 @@ def pprintList( list ) :
 
 
 # Copy a file
+# @todo move in another file : sbfFiles.py
 def copyFile( source, destination, verbose = False, bufferSize = 1024 * 512 ):
 	def _copyFile( source, destination, verbose ):
 		if verbose:
@@ -1039,15 +1040,17 @@ endif()
 			relDirectories = sorted(relDirectories, key=lambda value: value.count(os.sep), reverse=True) # sort directories using depth criterion
 
 			# Copies the tree
-			cwdBAK = os.getcwd()
 			dirs = os.listdir(tmpDir)
-			if len(dirs) != 1:
+			if len(dirs) == 0:
+				pass
+			elif len(dirs) == 1:
+				cwdBAK = os.getcwd()
+				os.chdir( join(tmpDir, dirs[0]) )
+				copy( '.', destinationDir + '/', verbose = self.__verbose )
+				os.chdir(cwdBAK)
+			else:
 				print("Zip package have to contain only one root directory.")
 				return False
-			else:
-				os.chdir( join(tmpDir, dirs[0]) )
-			copy( '.', destinationDir + '/', verbose = self.__verbose )
-			os.chdir(cwdBAK)
 
 			# Saves pak info
 			self.savePackageInfo( pakInfo, relDirectories, relFiles )
