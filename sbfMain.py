@@ -438,8 +438,7 @@ if hasBranchOrTagTarget:
 
 
 # Initializes 'uses' repository
-if UseRepository.isInitialized() == False :
-	UseRepository.initialize( sbf )
+UseRepository.initialize( sbf )
 
 
 # target sbfCheck sbfPak sbfConfigure sbfUnconfigure sbfConfigureTools and sbfUnconfigureTools

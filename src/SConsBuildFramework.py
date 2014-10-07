@@ -26,7 +26,7 @@ from sbfSubversion import anonymizeUrl, removeTrunkOrTagsOrBranches
 from sbfPackagingSystem import PackagingSystem
 from sbfTools import getPathsForTools, getPathsForRuntime, prependToPATH, appendToPATH
 from sbfUI import askQuestion
-from sbfUses import UseRepository, generateAllUseNames, usesValidator, usesConverter, uses
+from sbfUses import UseRepository, generateAllUseNames, uses
 from sbfUtils import *
 from sbfVersion import printSBFVersion, computeVersionNumber, getVersionNumberString2, extractVersion, splitLibsName, splitUsesName, splitDeploymentPrecond
 
@@ -1478,12 +1478,10 @@ SConsBuildFramework options:
 
 				#('deps', 'Specifies list of dependencies to others projects. Absolute path is forbidden.', []),
 
+				# 'Available packages:{}\nAlias: {}'.format( convertToString(UseRepository.getAllowedValues()), convertDictToString(UseRepository.getAlias()))
 				(	'uses',
-					'Specifies a list of packages to configure for compilation and link stages.\nAvailable packages:%s\nAlias: %s' %
-					(convertToString(UseRepository.getAllowedValues()), convertDictToString(UseRepository.getAlias())),
-					[],
-					usesValidator,
-					usesConverter ),
+					'Specifies a list of packages to configure for compilation and link stages.\n',
+					[] ),
 
 				('libs', 'The list of libraries used during the link stage that have been compiled with SConsBuildFramework.', []),
 				('stdlibs', 'The list of standard libraries used during the link stage.', []),
@@ -1535,7 +1533,7 @@ SConsBuildFramework options:
 	def readProjectOptionsAndUpdateEnv( self, lenv, configDotOptionsFile = 'default.options' ):
 		configDotOptionsPathFile = join(self.myProjectPathName, configDotOptionsFile)
 		retVal = os.path.isfile(configDotOptionsPathFile)
-		if retVal :
+		if retVal:
 			# update lenv with config.options
 			self.myProjectOptions = self.readProjectOptions( configDotOptionsPathFile, self.myProjectOptionsWeakReading )
 			if self.myProjectOptionsWeakReading:
@@ -1564,29 +1562,32 @@ SConsBuildFramework options:
 					lenv[key] = val
 			else:
 				self.myProjectOptions.Update( lenv )
-
-			# Adding requirements for each element of 'uses'
-			usesToProcess = lenv['uses'][:]
-			for useNameVersion in usesToProcess:
-				useName, useVersion = splitUsesName( useNameVersion )			# @todo cache split in lenv['usesNameVersion'] = (useName, useVersion, use)
-
-				# Retrieves use object for incoming dependency
-				use = UseRepository.getUse( useName )
-				if use:
-					requirements = use.getRequirements( useVersion )
-					if requirements:
-						for requirement in requirements:
-							reqName, reqVersion = splitUsesName( requirement )
-							requirement = reqName + reqVersion
-							if requirement not in lenv['uses']:
-								lenv['uses'].append(requirement)
-								usesToProcess.append(requirement)
-							#else do nothing
-					# else nothing to do
-				else:
-					raise SCons.Errors.UserError("Uses=[\'{0}\'] not supported on platform {1}.".format(useNameVersion, self.myPlatform) )
-
+		#else:
+		#	pass
 		return retVal
+
+
+	def processUsesRequirements( self, lenv ):
+		"""Adding requirements for each element of 'uses'"""
+		usesToProcess = lenv['uses'][:]
+		for useNameVersion in usesToProcess:
+			# Retrieves use, useName and useVersion
+			useName, useVersion, use = UseRepository.gethUse( useNameVersion )
+
+			# Retrieves use object for incoming dependency
+			if use:
+				requirements = use.getRequirements( useVersion )
+				if requirements:
+					for requirement in requirements:
+						reqName, reqVersion = splitUsesName( requirement )
+						requirement = reqName + reqVersion
+						if requirement not in lenv['uses']:
+							lenv['uses'].append(requirement)
+							usesToProcess.append(requirement)
+						#else do nothing
+				# else nothing to do
+			else:
+				raise SCons.Errors.UserError("Uses=[\'{}\'] not supported on platform {}.".format(useNameVersion, self.myPlatform) )
 
 
 
@@ -1873,8 +1874,7 @@ SConsBuildFramework options:
 				self.vcsUpdate( lenv )
 				self.readProjectOptionsAndUpdateEnv( lenv )
 			else:
-				if lenv.GetOption('verbosity') :
-					print ("Skip project {0} in {1}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
+				if lenv.GetOption('verbosity'):	print ("Skip project {} in {}, because 'vcsUse' option sets to no.".format(self.myProject, self.myProjectPath))
 		# else nothing to do.
 
 
@@ -1972,7 +1972,7 @@ SConsBuildFramework options:
 		   (self.matchProjectInList(self.myProjectPathName, self.myEnv['projectExclude'])) and \
 		   (self.myProject != os.path.basename(GetLaunchDir())) :
 			if self.myEnv.GetOption('verbosity') :
-				print ( "Ignore project {0} in {1}".format(self.myProject, self.myProjectPath) )
+				print ( "Ignore project {} in {}".format(self.myProject, self.myProjectPath) )
 			return
 
 
@@ -1985,12 +1985,13 @@ SConsBuildFramework options:
 		lenv['sbf_projectPath'		] = self.myProjectPath
 		lenv['sbf_project'			] = self.myProject
 
+		if lenv.GetOption('verbosity'): print ( "Reading default.options of project {}...".format(lenv['sbf_project']) )
 
 		# VCS checkout or status or relocate or mkTag/Branch or rmTag/Branch
 		self.doVcsCheckoutOrOther( lenv )
 
 		# Tests existance of project path name and updates lenv with 'default.options' configuration file
-		if os.path.isdir(self.myProjectPathName):
+		if isdir(self.myProjectPathName):
 			successful = self.readProjectOptionsAndUpdateEnv( lenv )
 			if successful:
 				# Adds the new environment
@@ -2090,6 +2091,9 @@ SConsBuildFramework options:
 
 		# Initializes the project
 		self.initializeProjectFromEnv( lenv )
+
+		###
+		self.processUsesRequirements(lenv)
 
 		### option 'customBuild' of project
 		if len(lenv['customBuild']):
@@ -2216,15 +2220,13 @@ SConsBuildFramework options:
 
 		objProject = join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
 
-		# Qt
-		qtUse = UseRepository.getUse( 'qt' )
-		if qtUse:
-			if qtUse.getName() + qtUse.getVersions()[0] in lenv['uses']: # @todo note very generic 'qt4-8-0' !!!
-				# MOC
-				moc(lenv, getFilesForMoc(filesFromInclude), objFiles, qtUse.getVersions()[0][0])
-			# else nothing to do
-		# else nothing to do
+		# Qt: moc stage
+		if 'qt' in lenv['uses']:	moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
 
+# @todo Modularization {	alias : ,
+#							filesShare, } testModule.execute()
+#						swigModule.execute()
+#						...
 
 		# Test : aliasProjectTestBuild and filesFromTestShare
 		aliasProjectTestBuild = None
@@ -2234,7 +2236,7 @@ SConsBuildFramework options:
 			# Add implicit uses for gtest (for all test related targets and pakUpdate)
 			if 'gtest' not in self.myImplicitUsesSet:
 				self.myImplicitUsesSet.add( 'gtest' )
-				self.myImplicitUses.append( UseRepository.getAlias()['gtest'] )
+				self.myImplicitUses.append( 'gtest' )
 
 			#
 			filesFromTestShare = self.getFiles( 'share', lenv, 'test' )
@@ -2252,7 +2254,7 @@ SConsBuildFramework options:
 
 			testEnv.Prepend( CPPPATH = join(testSrcDir, 'include') )
 
-			testEnv['uses'].append( UseRepository.getAlias()['gtest'] ) # Implicit uses='gtest'
+			testEnv['uses'].append( 'gtest' ) # Implicit uses='gtest'
 			(libsExpanded, buildSbfLibrary) = computeLibsExpanded( self, testEnv['libs'] )
 			uses( self, testEnv, testEnv['uses'] )
 			testEnv.Prepend( LIBS = objProject )
@@ -2305,10 +2307,10 @@ SConsBuildFramework options:
 				assert( 'python' not in self.myImplicitUsesSet )
 				# swig
 				self.myImplicitUsesSet.add( 'swig' )
-				self.myImplicitUses.append( UseRepository.getAlias()['swig'] )
+				self.myImplicitUses.append( 'swig' )
 				# python
 				self.myImplicitUsesSet.add( 'python' )
-				self.myImplicitUses.append( UseRepository.getAlias()['python'] )
+				self.myImplicitUses.append( 'python' )
 
 			# configuration postfix
 			if self.myConfig == 'debug':
@@ -2319,7 +2321,7 @@ SConsBuildFramework options:
 			# Configure environment
 			swigEnv = lenv.Clone( tools=['swig'] ) # @todo should be self.myEnv.Clone()
 
-			uses( self, swigEnv, [UseRepository.getAlias()['python']] )
+			uses( self, swigEnv, 'python' )
 
 			swigVarDir = join(self.myProjectBuildPathExpanded, '_swig')
 			swigSrcDir = join(self.myProjectPathName, 'swig')

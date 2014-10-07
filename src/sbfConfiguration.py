@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -9,7 +9,8 @@ from os.path import join
 from sbfEnvironment import Environment
 from sbfPaths import Paths
 from sbfTools import locateProgram, getPathsForRuntime, getPathsForTools, prependToPATH, appendToPATH
-from sbfUses import getPathsForSofa
+
+
 
 ###### Implementation of sbfConfigure and sbfUnconfigure targets #######
 def _sbfConfigure( pathsToPrepend, pathsToAppend, verbose ):
@@ -21,7 +22,7 @@ def _sbfConfigure( pathsToPrepend, pathsToAppend, verbose ):
 		print
 		environment.set('PATH', paths.getString(), output = verbose)
 	else:
-		print ('Target sbfConfigure* not yet implemented on {0} platform.'.format(sys.platform))
+		print ('Target sbfConfigure* not yet implemented on {} platform.'.format(sys.platform))
 
 
 def _sbfUnconfigure( pathsToRemove, verbose ):
@@ -29,6 +30,7 @@ def _sbfUnconfigure( pathsToRemove, verbose ):
 		environment = Environment()
 		paths = Paths( environment.get('PATH', output=verbose) )
 		paths.removeList( pathsToRemove )
+# @todo asks user
 		paths.removeAllNonExisting( verbose )
 		if verbose:	print
 		environment.set('PATH', paths.getString(), output=verbose)
@@ -69,16 +71,14 @@ def configurePATH( env, verbose = True ):
 	prependToPATH(env, prependList, verbose )
 	appendToPATH(env, appendList, verbose )
 
-def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):
+def sbfConfigure( sbf, takeCareOfSofa = True, verbose = True ):	# @todo remove takeCareOfSofa
 	(toPrepend, toAppend) = getPATHForConfigure(sbf)
 	_sbfConfigure( toPrepend, toAppend, verbose )
 
 
-def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = False, verbose = True ):
+def sbfUnconfigure( sbf, takeCareOfSofa = True, takeCareOfSBFRuntimePaths = False, verbose = True ): # @todo remove takeCareOfSofa
 	deprecated = [join( sbf.myInstallDirectory, 'lib' )]
 	toRemove = getPathsForRuntime(sbf) + deprecated
-	if takeCareOfSofa:
-		toRemove = toRemove + getPathsForSofa(True)
 
 	if takeCareOfSBFRuntimePaths:
 		SBFRuntimePaths = _getSBFRuntimePaths(sbf) 

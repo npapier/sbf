@@ -362,6 +362,7 @@ def vcprojAction( target, source, env ):
 					targetFile.write( newLine )
 					continue
 
+# @todo a function (see same code in slnAction())
 				# sbfIncludeSearchPath customization point
 				res = re_sbfIncludeSearchPath.match(line)
 				if res != None :

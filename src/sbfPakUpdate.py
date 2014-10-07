@@ -55,8 +55,7 @@ def doTargetPakUpdate( target, source, env ):
 
 	for useNameVersion in uses:
 		# Retrieves use, useName and useVersion
-		useName, useVersion = splitUsesName( useNameVersion )
-		use = UseRepository.getUse( useName )
+		useName, useVersion, use = UseRepository.gethUse( useNameVersion )
 
 		if use.hasPackage(useName, useVersion):
 			# There is a package for this 'uses' option
@@ -64,14 +63,16 @@ def doTargetPakUpdate( target, source, env ):
 				# Updating packages (development and runtime packages)
 				#filter = '{name}{ver}{postfix}.*'.format( name=useName, ver=useVersion, postfix=sbf.my_Platform_myArch_myCCVersion)
 				filter = '{name}{ver}*'.format( name=useName, ver=useVersion )
-				packageFilenames = pakSystem.listAvailable( pattern=filter, enablePrint=False, automaticFiltering=False )
+				packageFilenames = pakSystem.listAvailable( pattern=filter, enablePrint=False, automaticFiltering=True )
 				if packageFilenames:
 					if len(packageFilenames)>1 and env.GetOption('verbosity'):	print ('sbfWarning: Found several packages {}'.format(packageFilenames))
 					pakUpdate( pakSystem, useName, useVersion, use, use.hasPackage(useName, useVersion), packageFilenames[0] )
 				else:
 					print ('sbfError: Unable to found package for {} {}'.format(useName, useVersion))
-#					#Exit(1)
-
+					Exit(1)
+		else:
+			for useName in generateAllUseNames(useName):
+				pakUpdate( pakSystem, useName, useVersion, use, False, '' )
 
 
 def configurePakUpdateTarget( env ):

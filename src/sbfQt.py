@@ -31,7 +31,7 @@ def getFilesForMoc( includeFiles ):
 	return retVal
 
 
-def moc( lenv, filesForMoc, objFiles, qtMajorVersion ):
+def moc( lenv, filesForMoc, objFiles ):
 	"""@brief apply moc to filesForMoc using lenv. Add all moc action in objFiles."""
 	sbf = lenv.sbf
 	for mocFile in filesForMoc:

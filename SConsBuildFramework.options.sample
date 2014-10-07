@@ -25,6 +25,13 @@
 #	'http://vgsdk.googlecode.com/svn/trunk'
 #
 # Advanced urls specifications to specify a revision and/or trunk/tags/branches
+#	http://vgsdk.googlecode.com/svn/trunk/@567
+#	http://vgsdk.googlecode.com/svn/tags/0-4
+#	http://vgsdk.googlecode.com/svn/branches/0-5
+#	svn://myServer/srv/svn/lib/{PROJECT}/trunk@3000
+#	svn://myServer/srv/svn/lib/{PROJECT}/tags/0.2
+#	svn://myServer/srv/svn/lib/{PROJECT}/branches/2.0@3058
+
 
 #svnDefaultBranch			= '1.0'
 #projectExclude				= [ '*/vgsdk*' ]

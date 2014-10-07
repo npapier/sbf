@@ -34,6 +34,7 @@ class DefaultEnvironment( IEnvironment ):
 
 
 	def set( self, varname, value, output = True ) :
+		"""@todo this method"""
 		print( 'DefaultEnvironment::set() not implemented' )
 
 

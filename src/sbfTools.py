@@ -205,9 +205,7 @@ def getPathsForTools( verbose = False ):
 
 def getPathsForRuntime( sbf ):
 	return [	join( sbf.myInstallDirectory, 'bin' ),
-				join( sbf.myInstallExtPaths[0], 'bin' ),
-				join( sbf.myInstallExtPaths[0], 'lib' ) ]
-
+				join( sbf.myInstallExtPaths[0], 'bin' )	]
 
 def prependToPATH( env, newPaths, enableLogging = True ):
 	"""env['ENV']['PATH'] = newPaths + env['ENV']['PATH']"""
