@@ -1361,7 +1361,7 @@ SConsBuildFramework options:
 		lenv.Append( LIBS = lenv['sbf_libsExpanded'] )
 		# Configures lenv[*] with lenv['test']
 		if lenv['test'] != 'none':
-			lenv['uses'].append( usesConverter(lenv['test'])[0] )
+			lenv['uses'].append( lenv['test'] )
 		# Configures lenv[*] with lenv['uses']
 		uses( self, lenv, lenv['uses'] )
 
