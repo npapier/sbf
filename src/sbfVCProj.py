@@ -391,11 +391,9 @@ def vcprojAction( target, source, env ):
 					# Adds 'include' for all getCPPPATH of 'uses'.
 					allUses = sbf.getAllUses( env )
 					for useNameVersion in allUses:
-						# Extracts name and version of incoming external dependency
-						useName, useVersion = splitUsesName( useNameVersion )
-						if env.GetOption('verbosity'): print ("Processing uses='{0}'...".format(useNameVersion))
-						# Retrieves use object for incoming dependency
-						use = UseRepository.getUse( useName )
+						# Retrieves use, useName and useVersion
+						useName, useVersion, use = UseRepository.gethUse( useNameVersion )
+						if env.GetOption('verbosity'): print ("Processing uses='{}'...".format(useNameVersion))
 						if use:
 							cppPaths = use.getCPPPATH(useVersion)
 							for path in convertCPPPATHToAbs(env, cppPaths):

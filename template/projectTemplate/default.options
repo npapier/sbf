@@ -33,3 +33,20 @@ type				= 'shared'	# exec, static, shared, none
 #						'copySetupFileIntoVarDirectory'		: False,
 #						'customPointInstallationValidation'	: ''
 #						}
+
+
+#from src.sbfUses import UseRepository
+#from Uses import Use_glm
+#UseRepository.add( [Use_glm()] )
+
+#and in Uses.py
+#from src.sbfUses import IUse
+#class Use_glm( IUse ):
+#	def getName(self ):
+#		return 'glm'
+#
+#	def getVersions( self ):
+#		return [ '0-9-4-1', '0-9-3-4', '0-9-3-3', '0-8-4-1' ]
+#
+#	def hasRuntimePackage( self, version ):
+#		return self.platform == 'posix'

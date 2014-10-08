@@ -379,12 +379,10 @@ def getDepsFiles( lenv, baseSearchPathList, forced = False ):
 		# Processes external dependencies (i.e. 'uses')
 		# For each external dependency, do
 		for useNameVersion in allUses:
-			# Extracts name and version of incoming external dependency
-			useName, useVersion = splitUsesName( useNameVersion )
-			if lenv.GetOption('verbosity'): print ("Processing uses='{0}'...".format(useNameVersion))
+			# Retrieves use, useName and useVersion
+			useName, useVersion, use = UseRepository.gethUse( useNameVersion )
+			if lenv.GetOption('verbosity'): print ("Processing uses='{}'...".format(useNameVersion))
 
-			# Retrieves use object for incoming dependency
-			use = UseRepository.getUse( useName )
 			if use:
 				### RUNTIME PACKAGE ###
 				if use.hasRuntimePackage( useVersion ):

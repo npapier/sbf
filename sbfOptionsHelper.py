@@ -34,7 +34,7 @@ customBuild = {	'svncheckout'	: customTarget.format(target='checkout'),
 
 # UseRepository access
 from src.sbfUses import UseRepository
-sofaUse = UseRepository.getUse('sofa')
+sofaUse = UseRepository.gethUse('sofa')
 
 # SCons InstallAs 
 installTarget += SCons.Script.InstallAs( os.path.join(self.myLocalBin, os.path.basename(lib)), lib)

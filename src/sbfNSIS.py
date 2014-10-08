@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -1511,11 +1511,8 @@ def getAllDebugFiles( env ):
 
 	# Collect debug files from 'uses'
 	for useNameVersion in sbf.getAllUses( env ):
-		# Extracts name and version of incoming external dependency
-		useName, useVersion = splitUsesName( useNameVersion )
-
-		# Retrieves use object for incoming dependency
-		use = UseRepository.getUse( useName )
+		# Retrieves use, useName and useVersion
+		useName, useVersion, use = UseRepository.gethUse( useNameVersion )
 		if use:
 			#print useName, use.getDbg(useVersion)
 			debugFiles.extend( use.getDbg(useVersion) )

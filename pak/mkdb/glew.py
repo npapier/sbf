@@ -9,7 +9,7 @@
 
 import os
 
-sofaUse = UseRepository.getUse('sofa')
+sofaUse = UseRepository.gethUse('sofa')
 
 print ('INFO: This package exists only as a sofa dependency (this is not a full package).')
 
