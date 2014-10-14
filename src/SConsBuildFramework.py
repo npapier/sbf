@@ -2062,8 +2062,8 @@ SConsBuildFramework options:
 				if incomingProjectName not in self.myFailedVcsProjects:
 					# Built the dependency and takes care of 'nodeps' option by enabling project
 					# configuration only (and not the full building process).
-					if lenv['nodeps'] == False:
-						self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
+					self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
+#					if lenv['nodeps'] == False: self.buildProject( normalizedDependency, lenv['sbf_parentProjects'], lenv['nodeps'] )
 					# else nothing to do
 				#else: nothing to do
 			else:
@@ -2086,13 +2086,22 @@ SConsBuildFramework options:
 						raise SCons.Errors.UserError("Internal sbf error.")
 
 
-
 		# Initializes the project
 		self.initializeProjectFromEnv( lenv )
-
-		###
 		self.processUsesRequirements(lenv)
 
+		#
+		if self.tryVcsOperation or configureOnly:
+			if lenv.GetOption('verbosity'): print ( "Parsing project {}...".format(lenv['sbf_project']) )
+			return
+		else:
+			# Adds the new environment
+			self.myBuiltProjects[ lenv['sbf_project'] ] = lenv
+			if lenv.GetOption('verbosity'): print ( "Studying project {}...".format(lenv['sbf_project']) )
+
+		# Dumping construction environment (for debugging) : print lenv.Dump() Exit()
+
+		### Starts building stage
 		### option 'customBuild' of project
 		if len(lenv['customBuild']):
 			for target, cmd in lenv['customBuild'].iteritems():
@@ -2137,18 +2146,6 @@ SConsBuildFramework options:
 				#Alias( target, lenv.Command(
 				#	'{0}_{1}.out'.format(lenv['sbf_project'], target), 'dummy.in', '{cmd}'.format(cmd=cmd), chdir=lenv['sbf_projectPathName'] ) )
 
-		#
-		if self.tryVcsOperation or configureOnly:
-			if lenv.GetOption('verbosity'): print ( "Parsing project {0}...".format(lenv['sbf_project']) )
-			return
-		else:
-			# Adds the new environment
-			self.myBuiltProjects[ lenv['sbf_project'] ] = lenv
-			if lenv.GetOption('verbosity'): print ( "Studying project {0}...".format(lenv['sbf_project']) )
-
-		# Dumping construction environment (for debugging) : print lenv.Dump() Exit()
-
-		### Starts building stage
 		self.initializeProject( lenv )
 		self.configureProject( lenv, self.myType )
 
