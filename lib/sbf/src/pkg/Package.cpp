@@ -12,6 +12,10 @@
   #include <windows.h>
 #endif // WIN32
 
+#ifdef _GNU_SOURCE
+  #include <dlfcn.h>
+#endif
+
 #include "sbf/pkg/Module.hpp"
 #include "sbf/pkg/Pluggable.hpp"
 
@@ -30,12 +34,34 @@ namespace
  */
 const boost::filesystem::path getRoot()
 {
-#ifdef WIN32
+#if defined(WIN32)
 	
 	char	filename[1024];
 
 	GetModuleFileName( 0, filename, sizeof(filename) );
 	return boost::filesystem::path(filename).parent_path().parent_path();
+
+#elif defined(_GNU_SOURCE)
+
+    boost::filesystem::path rootPath;   // Will receive the root path.
+
+    // Retrieves information about the dynamic library object.
+    Dl_info dlInfo;
+    if( dladdr(&getRoot, &dlInfo) != 0 )
+    {
+        const boost::filesystem::path modulePath(dlInfo.dli_fname);
+
+        // We build the full path of the dynamic library object
+        // and adjusts that path to finaly have the root path of the SBF folder tree.
+        rootPath = boost::filesystem::canonical(modulePath);
+        rootPath = rootPath.parent_path().parent_path();
+    }
+    else
+    {
+        rootPath = boost::filesystem::initial_path();
+    }
+
+    return rootPath;
 
 #else
 
