@@ -8,7 +8,14 @@ class Use_sdl( IUse ):
 		return 'sdl'
 
 	def getVersions( self ):
-		return ['1-2-15', '1-2-14']
+		#return ['2-0-3', '1-2-15', '1-2-14']
+		return ['1-2-15', '2-0-3', '1-2-14']
+
+	def getRequirements( self, version ):
+		if version == '2-0-3':
+			return ['angle 2-0-0']
+		else:
+			return []
 
 	def getCPPDEFINES( self, version ):
 		if self.platform == 'posix' :
@@ -20,14 +27,21 @@ class Use_sdl( IUse ):
 		if self.platform == 'posix' :
 			return ['SDL']
 		else:
-			return []
+			if version == '2-0-3':
+				return ['SDL2']
+			else:
+				return []
 
 
 	def getLIBS( self, version ):
 		if self.platform == 'win' :
-			libs = [ 'SDL', 'SDLmain' ]
-			pakLibs = [ 'SDL' ]
-			return libs, pakLibs
+			if version == '2-0-3':
+				libs = [ 'SDL2', 'SDL2main' ]
+				return libs, []
+			else:
+				libs = [ 'SDL', 'SDLmain' ]
+				pakLibs = [ 'SDL' ]
+				return libs, pakLibs
 		elif self.platform == 'posix':
 			return ['SDL', 'SDL']
 
