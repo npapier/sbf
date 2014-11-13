@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ $os="Windows_NT" ];
+then
+	sbf.bat $*
+else
+	scons $*
+fi
+
+#PROJECT_ROOT=$PWD 			#/cygdrive/e/Dev/bin/helloWorld
+#SBF_ROOT=$(dirname "$0")	#/cygdrive/e/Dev/bin/SConsBuildFramework
