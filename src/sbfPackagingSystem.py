@@ -901,8 +901,6 @@ endif()
 
 		if automaticFiltering:
 			filter = self.__my_Platform_myArch_myCCVersion
-			# Express and non express packages are similar, so don't filter on 'Exp'ress.
-			if self.__myPlatform == 'win':	filter.replace('Exp', '', 1)
 		else:
 			filter = ''
 
@@ -910,6 +908,13 @@ endif()
 			elements = []
 			for extension in supportedArchiveFormats:
 				elements += glob.glob( join(pakPath, '{}{}.{}'.format(pattern, filter, extension)) )
+				# Don't differentiate Visual C++ edition (express, pro, community...)
+				if automaticFiltering and self.__myPlatform == 'win' and self.__myCC == 'cl':
+					if filter.endswith('Exp'):
+						elements += glob.glob( join(pakPath, '{}{}.{}'.format(pattern, filter.replace('Exp', '', 1), extension)) )
+					else:
+						elements += glob.glob( join(pakPath, '{}{}.{}'.format(pattern, filter + 'Exp', extension)) )
+
 			sortedElements = sorted( elements )
 			if enablePrint:
 				if len(sortedElements)>0:
@@ -1431,5 +1436,3 @@ class sbfPakCmd( cmd.Cmd ):
 def runSbfPakCmd( sbf ):
 	shell = sbfPakCmd( PackagingSystem(sbf) )
 	shell.cmdloop("Using compiler {CCVERSION} with {ARCHITEXTURE} architecture on a {PLATFORM} system.\n\nWelcome to interactive mode of sbfPak".format(CCVERSION=sbf.myCCVersion, PLATFORM=sbf.myPlatform, ARCHITEXTURE=sbf.myArch))
-	
-
