@@ -109,8 +109,7 @@
 #import datetime
 #sbfMainBeginTime = datetime.datetime.now()
 
-import __builtin__
-import collections, os, string, sys
+import collections, os, platform, string, sys
 
 # To be able to catch wrong SCons version or missing SCons
 try:
@@ -152,9 +151,16 @@ def checkTool( env, toolName, toolCmdArgs ):
 def sbfCheck( env ):
 	print stringFormatter( env, 'Availability and version of tools' )
 
-	checkTool( env, 'python', ['python', '--version'] )
+	pythonLocation = locateProgram('python')
+	print ( 'python found at {}'.format( pythonLocation ) )
+	print ( 'python version : {}'.format(platform.python_version() ) )
+	#checkTool( env, 'python', ['python', '--version'] )
 
-	sconsLocation = locateProgram( 'scons.bat' )
+	import distutils.sysconfig
+	sitePackages = distutils.sysconfig.get_python_lib(plat_specific=1)
+	print ('python site packages directory : {}\n'.format(sitePackages))
+
+	sconsLocation = locateProgram( 'scons' )
 	if sconsLocation :
 		print 'scons found at', sconsLocation
 		print 'scons version :', SCons.__version__
@@ -163,15 +169,11 @@ def sbfCheck( env ):
 		print 'scons not found'
 	print
 
-	print 'Version of python used by scons : {0}\n'.format( sys.version )
-
 	# PYWIN32
 	try:
-		import distutils.sysconfig
-		sitePackages = distutils.sysconfig.get_python_lib(plat_specific=1)
 		with open(os.path.join(sitePackages, "pywin32.version.txt")) as file:
 			buildNumber = file.read().strip()
-			print ('PyWin32 version : {0}\n'.format( buildNumber ))
+			print ('PyWin32 version : {}\n'.format( buildNumber ))
 	except:
 		print ('PyWin32 not installed\n')
 
@@ -187,8 +189,18 @@ def sbfCheck( env ):
 	except ImportError as e:
 		print ('pysvn not installed\n')
 
-	# @todo pyreadline
-	# @todo pyreadline using pywin32 method 
+	def checkInstalledInSitePackages( sitePackages, packageName ):
+		isInstalled = os.path.exists( join(sitePackages, packageName) )
+		if isInstalled:
+			print ('{} is installed\n'.format( packageName ))
+		else:
+			print ('{} is not installed\n'.format( packageName ))
+
+	# pyGit2
+	checkInstalledInSitePackages(sitePackages, 'pygit2')
+
+	# pyReadline
+	checkInstalledInSitePackages(sitePackages, 'pyreadline')
 
 	# @todo cygwin version
 
@@ -270,7 +282,6 @@ def sbfCheck( env ):
 		print ( 'cmake not found' )
 	print
 
-	# @todo gtkmm see sbfUses.py
 	# print informations in a pretty table program | version | location
 	# @todo others tools
 
@@ -302,13 +313,28 @@ def sbfCheck( env ):
 
 
 def checkCC(target = None, source = None, env = None) :
-	print 'Current default compiler :', env['CC']
+	print ('Current default compiler : {}\n'.format( env['CC'] ))
 
-	if env['CC'] == 'cl' :
-		#ccVersionAction		= Action( 'cl /help' )
+	# CL
+	if env['CC'] == 'cl':
 		print ('MS Visual C++ (cl.exe) version used {}({}).'.format( clVersionNumToYear.get(env['MSVC_VERSION'], env['MSVC_VERSION']), env['MSVC_VERSION']) )
 		printInstalledCL()
+	else:
+		if sys.platform == 'win32':	printInstalledCL()
+	print
+
+	# GCC
 	checkTool( env, 'gcc', ['gcc', '-dumpversion'] )
+
+	# Emscripten
+	if isEmscriptenInstalled():
+		whereis = getEmscriptenRoot()
+		if len(whereis)>0:
+			print ( 'emcc found at {}'.format(dirname(whereis)) )
+			print ( 'emcc version : {}'.format(basename(whereis)) )
+		else:
+			print ( 'emcc not found' )
+	print
 
 
 from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLine
@@ -316,7 +342,7 @@ from src.SConsBuildFramework import SConsBuildFramework, nopAction, printEmptyLi
 
 ###### Initial environment ######
 EnsurePythonVersion(2, 7)
-EnsureSConsVersion(2, 1, 0)
+EnsureSConsVersion(2, 3, 0)
 
 # create objects
 sbf = SConsBuildFramework()
@@ -324,13 +350,45 @@ SConsEnvironment.sbf = sbf
 env = sbf.myEnv # TODO remove me (this line is just for compatibility with the old global env)
 buildTargetsSet = sbf.myBuildTargets
 
+# Emscripten related target
+from src.sbfEmscripten import *
+
+if 'updateemscripten' in buildTargetsSet:
+	if not isEmscriptenInstalled():
+		installEmscripten(sbf)
+
+	configureEmscripten( env, env.GetOption('verbosity'), True )
+	print
+	env.Execute(['emsdk.bat update'])
+	print
+
+	#env.Execute(['emsdk.bat install latest'])
+	#print
+	#env.Execute('emsdk.bat activate latest')
+	#print
+
+	# Install and activate desired version of emscripten tools
+	# install/activate latest seems to fail in our case @todo FIXME)
+	#tools = ['', 'spidermonkey-30.0.0-64bit']#['', 'node-0.10.17-64bit', 'python-2.7.5.3-64bit', 'spidermonkey-30.0.0-64bit', 'git-1.9.4', 'emscripten-1.25.0', 'crunch-1.03', 'sdk-1.25.0-64bit']
+	tools = ['git-1.9.4', 'node-0.10.17-64bit', 'python-2.7.5.3-64bit', 'spidermonkey-30.0.0-64bit', 'crunch-1.03', 'java-7.45-64bit']
+	#tools += ['sdk-master-64bit', 'clang-master-64bit', 'emscripten-master']
+	tools += ['sdk-1.25.0-64bit', 'clang-e1.25.0-64bit', 'emscripten-1.25.0']
+	for tool in tools:
+		env.Execute('emsdk.bat install {}'.format(tool))
+		env.Execute('emsdk.bat activate {}'.format(tool))
+	print
+	#env.Execute('emcc --show-ports')
+	env.Execute('cmd')
+	Exit(0)
+
+
 # checks if target is valid
 if buildTargetsSet.issubset(sbf.myAllTargets) == False:
-	print( 'sbfError: invalid target(s): {0}'.format(string.join(list(buildTargetsSet-sbf.myAllTargets), ', ')) )
+	print( 'sbfError: invalid target(s): {}'.format(string.join(list(buildTargetsSet-sbf.myAllTargets), ', ')) )
 	exit(1)
 
 # Prints current 'config' option
-print ( "Configuration: {0}\n".format(env['config']) )
+print ( "Configuration: {}\n".format(env['config']) )
 
 # Dumping construction environment (for debugging).
 #print env.Dump()

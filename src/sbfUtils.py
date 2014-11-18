@@ -7,6 +7,8 @@ import os
 import shutil
 import sys
 import tempfile
+import urllib
+import urlparse
 from os.path import join, exists
 from collections import OrderedDict
 import subprocess
@@ -15,6 +17,31 @@ import subprocess
 from sbfEnvironment import Environment
 from sbfFiles import *
 
+
+###### Download funtion ######
+def download( url, filename, message = '* Retrieving {} from {}' ):
+	def reporthook_urlretrieve( blockCount, blockSize, totalSize ):
+		"""Prints report on download advancement"""
+		size = blockCount * blockSize / 1024
+		print ( '{} kB \r'.format(size) ),
+
+	if message:	print ( message.format( filename, urlparse.urlparse(url).hostname ) )
+	urllib.urlretrieve(url, filename, reporthook=reporthook_urlretrieve)
+	if message:	print '{} downloaded.                '.format(os.path.basename(filename))
+
+def extractFilenameFromUrl( url ):
+	path = urlparse.urlparse(url).path
+	return os.path.basename(path)
+
+#def rsearchFilename( path ):
+#	if len(path) <= 1:
+#		return
+#	else:
+#		splitted = os.path.split(path)
+#		if len(splitext(splitted[1])[1]) > 0:
+#			return splitted[1]
+#		else:
+#			return rsearchFilename( splitted[0] )
 
 ###### Functions for print action ######
 def printSeparator( text ):

@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2010, 2011, 2012, 2013, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2010, 2011, 2012, 2013, 2014, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -14,8 +14,8 @@ except ImportError as e:
 
 import logging
 import os, sys
-from os.path import join, exists
-#from sbfFiles import getNormalizedPathname
+from os.path import exists, dirname, join
+from sbfFiles import getNormalizedPathname
 
 isPyWin32Available = False
 
@@ -75,11 +75,10 @@ def removeComment( path ):
 	if path[0] == '#':
 		return ''
 	else:
-		return path
+		return getNormalizedPathname(path)
 
 def nop( path ):
-	return path
-#	return getNormalizedPathname(path)
+	return getNormalizedPathname(path)
 
 def locateProgramUsingRegistry( programName ):
 	currentSvnVersion = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\CollabNet\Subversion\Client Version')
@@ -93,7 +92,8 @@ def locateProgramUsingRegistry( programName ):
 		'graphviz'		: [r'SOFTWARE\AT&T Research Labs\Graphviz\InstallPath', r'SOFTWARE\ATT\Graphviz\InstallPath'],
 		'gtkmm'			: [r'SOFTWARE\gtkmm\2.4\Path'],
 		'nsis'			: [r'SOFTWARE\NSIS\\'],
-		'python'		: [r'SOFTWARE\Python\PythonCore\2.7\InstallPath\\', r'SOFTWARE\Python\PythonCore\2.6\InstallPath\\'],
+		# No more locate python from registry since Python is embedded in SConsBuildFramework
+		#'python'		: [r'SOFTWARE\Python\PythonCore\2.7\InstallPath\\', r'SOFTWARE\Python\PythonCore\2.6\InstallPath\\'],
 		'rsync'			: cygwin,
 		'ssh'			: cygwin,
 		'svn'			: [	r'SOFTWARE\CollabNet\Subversion\{0}\Client\Install Location'.format(currentSvnVersion),
@@ -131,13 +131,27 @@ def locateProgramUsingRegistry( programName ):
 def locateProgramUsingPATH( programName ):
 	"""Searches programName in PATH environment variable"""
 	# The following code is similar to location = WhereIs( programName, os.getenv('PATH') )
-	for path in os.getenv('PATH').split(os.pathsep):
+	# @todo use lenv['ENV']['PATH'] to retrieve (sbf.myInstallExtPaths[0], 'bin') configured at runtime
+	paths = os.getenv('PATH').split(os.pathsep)
+
+	if sys.platform == 'win32':
+		# scons.bat do the following commands :
+		#	@REM ensure the script will be executed with the Python it was installed for
+		#	set path=%~dp0;%~dp0..;%path%
+		# so the first two entries in PATH have to be ignored.
+		paths = paths[2:]
+	# else nothing to do
+
+	for path in paths:
 		if exists( join(path, programName) ):
-			return path
+			return getNormalizedPathname(path)
 	return ''
 
 
 def locateProgram( programName ):
+	if programName == 'python':
+		return getNormalizedPathname(dirname(sys.executable))
+
 	# Using registry
 	if isPyWin32Available:
 		location = locateProgramUsingRegistry( programName.lower() )
@@ -145,12 +159,15 @@ def locateProgram( programName ):
 			return location
 
 	# Using PATH
-	if sys.platform == "win32" and\
-		not programName.endswith(".exe") and\
-		not programName.endswith(".bat") :
-		location = locateProgramUsingPATH( programName + ".exe" )
-		if len(location)>0:
-			return location
+	if sys.platform == "win32":
+		if	not programName.endswith(".exe") and\
+			not programName.endswith(".bat") :
+			location = locateProgramUsingPATH( programName + ".exe" ) or locateProgramUsingPATH( programName + ".bat" )
+			if len(location)>0: return location
+		else:
+			location = locateProgramUsingPATH( programName )
+			if len(location)>0:
+				return location
 	else:
 		location = locateProgramUsingPATH( programName )
 		if len(location)>0:

@@ -24,7 +24,6 @@ def __extractExtensionAndFormat__( filename ):
 
 def isArchiveFormatSupported( filename ):
 	"""Returns True if the given filename is an archive supported by createArchive/extractArchive() functions, False otherwise."""
-	print filename
 	extension, format = __extractExtensionAndFormat__(filename)
 	return len(extension)>0
 

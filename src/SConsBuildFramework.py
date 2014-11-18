@@ -15,12 +15,13 @@ import tempfile
 import time
 
 from collections import OrderedDict
-
+from os.path import splitext
 from sbfFiles import *
 from sbfRC import resourceFileGeneration
 
 from sbfAllVcs import *
 from sbfConfiguration import configurePATH
+from sbfEmscripten import *
 from sbfQt import *
 from sbfSubversion import anonymizeUrl, removeTrunkOrTagsOrBranches
 from sbfPackagingSystem import PackagingSystem
@@ -170,7 +171,6 @@ def computeLibsExpanded( sbf, libs ):
 
 	for lib in libs:
 		containsSbfLibrary = containsSbfLibrary or lib.startswith('sbf')
-
 		libsExpanded.append( expandNameOfLibrary(sbf, lib) )
 	return (libsExpanded, containsSbfLibrary)
 
@@ -478,6 +478,421 @@ from sbfNSIS import initializeNSISInstallDirectories, configureZipAndNSISTargets
 from sbfInfo import configureInfofileTarget, configureInfoTarget
 
 
+###### Toolchains ######
+# @todo move into sbfToolchains.py
+
+### MSVC ###
+# export SCONS_MSCOMMON_DEBUG=ms.log
+# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
+
+def createEnvMSVC( sbf, tmpEnv, myTools ):
+	myTools += ['msvc', 'mslib', 'mslink']
+
+	dictTranslator = { 'x86-32' : 'x86', 'x86-64' : 'x86_64' }
+	targetArch = dictTranslator[ tmpEnv['targetArchitecture'] ]
+	if tmpEnv['clVersion'] != 'highest':
+		myMsvcVersion = tmpEnv['clVersion']
+		myMsvcYear = clVersionNumToYear.get(myMsvcVersion, myMsvcVersion)
+		# Tests existance of the desired version of cl
+		if myMsvcVersion not in getInstalledCLVersionNum():
+			print ('sbfError: MS Visual C++ desired version is not installed in the system.')
+			print ('Requested version is Visual C++ {}({}).'.format(myMsvcYear, myMsvcVersion))
+			printInstalledCL()
+			print ("See 'clVersion' option in SConsBuildFramework.options to fix the problem.")
+			Exit(1)
+	else:
+		myMsvcVersion = None
+
+	return Environment( options = sbf.mySBFOptions, tools = myTools, TARGET_ARCH = targetArch, MSVC_VERSION = myMsvcVersion )
+
+def setupMSVC( sbf ):
+	# Extracts version number
+	# Step 1 : Extracts x.y (without Exp if any)
+	ccVersion				=	sbf.myEnv['MSVS_VERSION'].replace('Exp', '', 1)
+	# Step 2 : Extracts major and minor version
+	splittedCCVersion		=	ccVersion.split( '.', 1 )
+	# Step 3 : Computes version number
+	sbf.myCCVersionNumber	= computeVersionNumber( splittedCCVersion )
+	# Constructs myCCVersion ( clMajor-Minor[Exp] )
+	sbf.myIsExpressEdition = sbf.myEnv['MSVS_VERSION'].find('Exp') != -1
+	sbf.myCCVersion = sbf.myCC + getVersionNumberString2( sbf.myCCVersionNumber )
+	if sbf.myIsExpressEdition:
+		# Adds 'Exp'
+		sbf.myCCVersion += 'Exp'
+	sbf.myEnv['CCVERSION'] = sbf.myCCVersion
+
+	if sbf.myCCVersionNumber >= 12.0:
+		sbf.myMSVSIDE = sbf.myEnv.WhereIs( 'devenv.exe' )
+	elif sbf.myCCVersionNumber >= 11.0:
+		sbf.myMSVSIDE = sbf.myEnv.WhereIs( 'WDExpress' )
+	else:
+		sbf.myMSVSIDE = sbf.myEnv.WhereIs( 'VCExpress' )
+
+	sbf.myMSVCVARS32 = sbf.myEnv.WhereIs( 'vcvars32.bat' )
+	if sbf.myMSVCVARS32:
+		sbf.myVCVARSALL = sbf.myEnv.WhereIs( 'vcvarsall.bat', join( dirname(sbf.myMSVCVARS32), '..' ) )
+	else:
+		sbf.myVCVARSALL = None
+	# Assuming that the parent directory of cl.exe is the root directory of MSVC (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
+	sbf.myMSVC = dirname( sbf.myEnv.WhereIs( 'cl.exe' ) )
+	sbf.myMSBuild = sbf.myEnv.WhereIs( 'msbuild.exe' )
+
+#			print sbf.myEnv.WhereIs( 'signtool.exe' )
+
+	if sbf.myEnv.GetOption('verbosity'):
+		print 'Visual C++ version {0} installed.'.format( sbf.myEnv['MSVS_VERSION'] )
+		if sbf.myMSVSIDE and len(sbf.myMSVSIDE)>0:
+			print ("Found {0} in '{1}'.".format(basename(sbf.myMSVSIDE), sbf.myMSVSIDE))
+		else:
+			print ('Visual C++ IDE (VCExpress.exe, WDExpress.exe or devenv.exe) not found.')
+
+		if sbf.myMSVCVARS32 and len(sbf.myMSVCVARS32)>0:
+			print ("Found vcvars32.bat in '{0}'.".format(sbf.myMSVCVARS32))
+		else:
+			print ('vcvars32.bat not found.')
+
+		if sbf.myVCVARSALL and len(sbf.myVCVARSALL)>0:
+			print ("Found vcvarsall.bat in '{0}'.".format(sbf.myVCVARSALL))
+		else:
+			print ('vcvarsall.bat not found.')
+
+		if sbf.myMSVC and len(sbf.myMSVC)>0:
+			print ("Found MSVC in '{0}'.".format(sbf.myMSVC))
+		else:
+			print ('MSVC not found.')
+
+		if sbf.myMSBuild and len(sbf.myMSBuild)>0:
+			print ("Found MSBuild in '{0}'.".format(sbf.myMSBuild))
+		else:
+			print ('MSBuild not found.')
+
+def configureMSVC(sbf, lenv):
+	# Useful for cygwin 1.7
+	# The Microsoft linker requires that the environment variable TMP is set.
+	if not os.getenv('TMP'):
+		lenv['ENV']['TMP'] = sbf.myBuildPath
+		if GetOption('verbosity') : print ('TMP sets to {}'.format(sbf.myBuildPath))
+
+	# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
+	if sbf.myCCVersionNumber >= 8.000000 :
+		lenv['WINDOWS_INSERT_MANIFEST'] = True
+
+	# 64 bits support
+	if sbf.myArch == 'x86-64':
+		lenv.Append( LINKFLAGS = '/MACHINE:X64' )
+		lenv.Append( ARFLAGS = '/MACHINE:X64' )
+
+	# Compiler/linker command line flags
+	if sbf.myCCVersionNumber >= 11.000000:
+		if sbf.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
+			# @remark add /d2Zi+ undocumented flags in Visual C++ (at least 2012) to improve debugging experience in release configuration (local variable, inline function...)
+			# see http://randomascii.wordpress.com/2013/09/11/debugging-optimized-codenew-in-visual-studio-2012/
+			lenv.Append( CXXFLAGS = ['/d2Zi+'] )
+		lenv.Append( LINKFLAGS = '/MANIFEST' )
+		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+	elif sbf.myCCVersionNumber >= 10.000000 :
+		lenv.Append( LINKFLAGS = '/MANIFEST' )
+		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+	elif sbf.myCCVersionNumber >= 9.000000 :
+		lenv.Append( LINKFLAGS = '/MANIFEST' )
+		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+		#lenv.Append( CXXFLAGS = ['/MP'] )
+	elif sbf.myCCVersionNumber >= 8.000000 :
+		# /GX is deprecated in Visual C++ 2005
+		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] ) # @todo FIXME : '/GS-' for SOFA !!!
+	elif sbf.myCCVersionNumber >= 7.000000 :
+		lenv.Append( CXXFLAGS = '/GX' )
+		if sbf.myConfig == 'release' :
+			lenv.Append( CXXFLAGS = '/Zm600' )
+
+	# /TP : Specify Source File Type (C++) => adds by SCons
+	# /GR : Enable Run-Time Type Information
+	lenv.AppendUnique( CXXFLAGS = '/GR' )
+
+	lenv.AppendUnique( CXXFLAGS = '/bigobj' ) # see C1128
+
+	# Defines
+	lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
+	# bullet uses _CRT_SECURE_NO_WARNINGS,_CRT_SECURE_NO_DEPRECATE,_SCL_SECURE_NO_WARNINGS
+	lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
+
+	#lenv.Append( CXXFLAGS = ['/wd4251'] ) # see in MSDN C4251
+
+	#lenv.Append( CXXFLAGS = ['/D_BIND_TO_CURRENT_VCLIBS_VERSION=1'] )
+	#lenv.Append( CXXFLAGS = ['/MP{0}'.format(sbf.myNumJobs)] )
+
+	if sbf.myConfig == 'release' :							### @todo use /Zd in release mode to be able to debug a little.
+		lenv.Append( CXXFLAGS = ['/DNDEBUG'] )
+		lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
+		#lenv.Append( CXXFLAGS = ['/GL'] )
+		if lenv['generateDebugInfoInRelease']:
+			lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
+	else:
+		lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
+		# /Od : Disable (Debug)
+		lenv.Append( CXXFLAGS = ['/MDd', '/Od'] )
+		# Enable Function-Level Linking
+		lenv.Append( CXXFLAGS = ['/Gy'] )
+		lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
+
+		# /Yd is deprecated in Visual C++ 2005; Visual C++ now supports multiple objects writing to a single .pdb file,
+		# use /Zi instead (Microsoft Visual Studio 2008/.NET Framework 3.5).
+
+		# /Zi : Produces a program database (PDB) that contains type information and symbolic debugging information
+		# for use with the debugger. The symbolic debugging information includes the names and types of variables,
+		# as well as functions and line numbers. Using the /Zi instead may yield improved link-time performance,
+		# although parallel builds will no longer work. You can generate PDB files with the /Zi switch by overriding
+		# the default $CCPDBFLAGS variable
+		# /ZI : Produces a program database in a format that supports the Edit and Continue feature.
+		# /Gm : Enable Minimal Rebuild.
+
+	# Warnings
+	if sbf.myWarningLevel == 'normal' :		### @todo it is dependent of the myConfig. Must be changed ? yes, do it...
+		lenv.Append( CXXFLAGS = '/W3' )
+	else:
+		# /Wall : Enables all warnings
+		lenv.Append( CXXFLAGS = ['/W4', '/Wall'] )
+
+### gcc ###
+def createEnvGCC( sbf, tmpEnv, myTools ):
+	# @todo takes care of tmpEnv['targetArchitecture'], TARGET_ARCH = targetArch ?
+	return Environment( options = sbf.mySBFOptions, tools = myTools )
+
+def setupGCC(sbf):
+	# Extracts version number
+	# Step 1 : Extracts x.y.z
+	ccVersion				=	sbf.myEnv['CCVERSION']
+	# Step 2 : Extracts major and minor version
+	splittedCCVersion		=	ccVersion.split( '.', 2 )
+	if len(splittedCCVersion) !=  3 :
+		raise SCons.Errors.UserError( "Unexpected version schema for gcc compiler (expected x.y.z) : %s " % ccVersion )
+	# Step 3 : Computes version number
+	sbf.myCCVersionNumber = computeVersionNumber( splittedCCVersion[:2] )
+	# Constructs myCCVersion ( gccMajor-Minor )
+	sbf.myCCVersion = sbf.myCC + getVersionNumberString2( sbf.myCCVersionNumber )
+
+def configureGCC(sbf, lenv):
+	lenv['CXX'] = lenv.WhereIs('g++')											### FIXME: remove me
+																				### myCxxFlags += ' -pedantic'
+	if ( sbf.myConfig == 'release' ) :
+		lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O3'] )
+	else:
+		lenv.Append( CXXFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
+		### profiling myCxxFlags += ' -pg', mpatrol, leaktracer
+
+	# process myWarningLevel, adds always -Wall option.
+	lenv.Append( CXXFLAGS = '-std=c++11' )
+	lenv.Append( CXXFLAGS = '-msse2' )
+	lenv.Append( CXXFLAGS = '-Wall' )
+	lenv.Append( CXXFLAGS = '-Wno-deprecated' )
+	# @todo remove me
+	lenv.Append( CXXFLAGS = '-fpermissive' )
+#		lenv.Append( CXXFLAGS = '-fvisibility=hidden' )
+	lenv.Append( CXXFLAGS = '-fvisibility-inlines-hidden' )
+#		lenv.Append( CXXFLAGS = '-fvisibility-ms-compat' )
+#		lenv.Append( LINKFLAGS = '-Wl,-rpath=%s' % os.path.join( sbf.myInstallDirectory, 'lib' ) )
+	lenv.Append( LINKFLAGS = '-Wl,-rpath=.' )
+
+### emcc ###
+def createEnvEMCC( sbf, tmpEnv, myTools ):
+	myTools += ['gcc', 'g++', 'ar', 'link']
+
+	emscriptenSCons = getEmscriptenSCons()
+	if not emscriptenSCons or not exists(emscriptenSCons):
+		if 'updateemscripten' in sbf.myBuildTargets:
+			# Creates an environment to continue the construction of SConsBuildFramework.
+			# Installation/update of emscripten occurs after.
+			return Environment( options = sbf.mySBFOptions, tools = myTools )
+		else:
+			print ("sbfError: emscripten is not installed and/or configured. Try 'sbf updateEmscripten' to resolve this problem.")
+			Exit(1)
+
+	myEnv = Environment( options = sbf.mySBFOptions, tools = myTools )
+	myEnv.Tool('emscripten', toolpath=[emscriptenSCons])
+	# Previous line configure CC with EMSCRIPTEN_ROOT/emcc. The following lines reduces the length of the command lines
+	# by removing EMSCRIPTEN_ROOT (it is in PATH).
+	myEnv.Replace(CC     = 'emcc'    )
+	myEnv.Replace(CXX    = 'em++'    )
+	myEnv.Replace(LINK   = 'emcc'    )
+	myEnv.Replace(AR     = 'emar'    )
+	myEnv.Replace(RANLIB = 'emranlib')
+
+	# BEGIN	: FOR DEBUGGING
+	#myEnv['ENV']['EMCC_DEBUG'] = 1
+	# END	: FOR DEBUGGING
+
+	#
+	configureEmscripten( myEnv, myEnv.GetOption('verbosity') )
+	return myEnv
+
+def setupEMCC(sbf):
+	sbf.myEnv['CC'] = basename(sbf.myEnv['CC'])
+	sbf.myCC = sbf.myEnv['CC']
+
+	# Extracts version number of emscripten
+	# Step 1 : Extracts x.y.z
+	ccVersion = basename(getEmscriptenRoot())
+	# Step 2 : Extracts major and minor version
+	splittedCCVersion = ccVersion.split( '.', 2 )
+	if len(splittedCCVersion) !=  3:
+		raise SCons.Errors.UserError( "Unexpected version schema for emscripten compiler (expected x.y.z) : {} ".format( ccVersion ) )
+	# Step 3 : Computes version number
+	sbf.myCCVersionNumber = computeVersionNumber( splittedCCVersion[:2] )
+	# Constructs myCCVersion ( gccMajor-Minor )
+	sbf.myCCVersion = sbf.myEnv['CC'] + getVersionNumberString2( sbf.myCCVersionNumber )
+
+def configureEMCC(sbf, lenv):
+	"""CPPDEFINES=__EMSCRIPTEN__"""
+	#lenv.Append( CPPDEFINES = ['EMSCRIPTEN'] )
+	if sbf.myConfig == 'release':
+# @todo -O3
+		lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O1'] )
+		lenv.Append( LINKFLAGS = ['-DNDEBUG', '-O1'] )
+# @todo
+		# disable because of --memory-init-file1
+		#lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O2'] )
+		#lenv.Append( LINKFLAGS = ['-DNDEBUG', '-O2'] )
+	else:
+		lenv.Append( CXXFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
+		lenv.Append( LINKFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
+
+	# process myWarningLevel, adds always -Wall option.
+	#lenv.Append( CXXFLAGS = '-Wall' )
+	lenv.Append( CXXFLAGS = '-Wno-warn-absolute-paths' )
+	lenv.Append( LINKFLAGS = '-Wno-warn-absolute-paths' )
+
+
+
+
+### call Object(), Program(), StaticLibrary(), SharedLibrary()... ###
+def setupBuildingRulesSConsDefault(sbf, lenv, objFiles, objProject, installInBinTarget):
+	"""	@param lenv		SCons environment to be configured to build the project (using SCons api)
+		@param ...
+		@return objFiles, installInBinTarget, lenv modified using SCons api, lenv['sbf_src'], lenv['sbf_bin_debuginfo']
+	"""
+	filesFromSrc = sbf.getFiles( 'src', lenv )
+	lenv['sbf_src'] = filesFromSrc
+
+	if sbf.myType in ['exec', 'static']:
+		# Compiles source files
+		for srcFile in filesFromSrc:
+			objFile = (splitext(srcFile)[0]).replace('src', sbf.myProjectBuildPathExpanded, 1 )
+			# Object is a synonym for the StaticObject builder method.
+			objFiles.append( lenv.Object( objFile, join(sbf.myProjectPathName, srcFile) ) )
+		# Creates executable or static library
+		if sbf.myType == 'exec':
+			# executable
+			projectTarget = lenv.Program( objProject, objFiles )
+		else:
+			# static library
+			projectTarget = lenv.StaticLibrary( objProject, objFiles )
+	elif sbf.myType == 'shared':
+		# Compiles source files
+		for srcFile in filesFromSrc:
+			objFile = (splitext(srcFile)[0]).replace('src', sbf.myProjectBuildPathExpanded, 1 )
+			objFiles.append( lenv.SharedObject( objFile, join(sbf.myProjectPathName, srcFile) ) )
+		# Creates shared library
+		projectTarget = lenv.SharedLibrary( objProject, objFiles )
+
+		if sbf.myPlatform == 'win':
+			# filter *.exp file
+			filteredProjectTarget = []				# @todo uses comprehension list
+			for elt in projectTarget:
+				if splitext(elt.name)[1] != '.exp':
+					filteredProjectTarget.append(elt)
+			projectTarget = filteredProjectTarget
+		# else no filtering
+	else:
+		assert( sbf.myType == 'none' )
+		projectTarget = None
+
+	if projectTarget:
+		# Installation part
+		installInBinTarget.extend( projectTarget )
+		# projectTarget is not deleted before it is rebuilt.
+		lenv.Precious( projectTarget )
+
+		# @todo /PDBSTRIPPED:pdb_file_name
+		# Generating debug informations
+		if sbf.myPlatform == 'win':
+			if lenv['generateDebugInfoInRelease'] or sbf.myConfig == 'debug':
+				# PDB Generation. Static library don't generate pdb.
+				if sbf.myType in ['exec', 'shared']:
+					lenv['PDB'] = objProject + '.pdb'
+					lenv.SideEffect( lenv['PDB'], projectTarget )
+					# it is not deleted before it is rebuilt.
+					lenv.Precious( lenv['PDB'] )
+					lenv['sbf_bin_debuginfo'] = lenv['PDB']
+				# else nothing to do
+			# else nothing to do
+		# else nothing to do
+	return projectTarget
+
+def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTarget):
+	filesFromSrc = sbf.getFiles( 'src', lenv )
+	lenv['sbf_src'] = filesFromSrc
+
+	bcFiles = []
+	if sbf.myType in ['exec', 'static', 'shared']:
+		# Compiles source files
+		for srcFile in filesFromSrc:
+			bcFile = splitext(srcFile)[0].replace('src', sbf.myProjectBuildPathExpanded, 1 ) + '.bc'
+			bcFiles.append( bcFile )
+			# Object is a synonym for the StaticObject builder method.
+			objFiles.append( lenv.Object(bcFile, join(sbf.myProjectPathName, srcFile)) )
+	else:
+		assert( sbf.myType == 'none' )
+		projectTarget = None
+
+	# 'share'
+	filesFromShare = sbf.getFiles('share', lenv)
+	if len(filesFromShare)>0:
+		shareDir = join(sbf.myProjectPathName, 'share')
+	else:
+		shareDir = None
+
+	#
+	if sbf.myType == 'exec':
+		# Creates executable (.js)
+		projectTarget = lenv.Program( objProject + '.js', bcFiles )
+		#projectTarget.append( File(objProject + '.js.mem') )
+		#lenv.SideEffect( objProject + '.js.mem', projectTarget )
+		# Creates executable (.html)
+		projectTarget.extend( lenv.Program( objProject + '.html', bcFiles ) )
+		#projectTarget.append( File(objProject + '.html.mem') )
+		#lenv.SideEffect( objProject + '.html.mem', projectTarget )
+
+		# @todo --preload-file
+		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
+		if shareDir:
+			lenv.Append(LINKFLAGS = '--embed-file {}@/share'.format(shareDir))
+			#projectTarget.append( File(objProject + '.data') )
+	elif sbf.myType in ['static', 'shared']:
+		# Appending all generated bytecodes
+		projectTarget = lenv.StaticLibrary( objProject + '.a', bcFiles )
+
+	if projectTarget:
+		# Installation part
+		installInBinTarget.extend( projectTarget )
+
+	return projectTarget
+
+### toolchains registry ###
+#def createEnvForToolchain( sbf, tmpEnv, myTools ):
+#	return Environment()
+
+#def setupToolchain( sbf ):
+#	"""	Have to initialize self.myCCVersionNumber and self.myCCVersion
+#		Ensure that myEnv['CCVERSION'] is correct"""
+
+#def configureToolchain( sbf, env ):
+	#env['ARFLAGS'... CXXFLAGS, LINKFLAGS...] = ...
+
+registryToolchains = {
+	'msvc'		: [createEnvMSVC,	setupMSVC,	configureMSVC,	setupBuildingRulesSConsDefault],
+	'gcc'		: [createEnvGCC,	setupGCC,	configureGCC,	setupBuildingRulesSConsDefault],
+	'emcc'		: [createEnvEMCC,	setupEMCC,	configureEMCC,	setupBuildingRulesEmscripten] }
+
 ###### SConsBuildFramework main class ######
 class SConsBuildFramework :
 
@@ -494,6 +909,7 @@ class SConsBuildFramework :
 	myDoxTargets					= set( ['dox', 'dox_clean', 'dox_mrproper'] )
 	# @todo 'zipruntime', 'zipdeps', 'zipdev', 'zipsrc', 'zip', 'zip_clean', 'zip_mrproper', 'nsis_clean', 'nsis_mrproper'
 	myZipTargets					= set( ['portable', 'zipportable', 'dbg', 'zipdbg', 'nsis'] )
+	myEmscriptenTargets  			= set( ['updateemscripten'] )
 
 	myTargetsHavingToBuildTest		= myTestTargets | myRunTestTargets
 	myTargetsHavingToBuildTest.add('pakupdate')
@@ -501,7 +917,7 @@ class SConsBuildFramework :
 	myTargetsWhoNeedDeps			= set( ['deps', 'portable', 'zipportable', 'nsis'] )
 	myTargetsAllowingWeakReading	= set( ['svncheckout', 'svnupdate'] )
 
-	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myTestTargets | myRunTestTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets
+	myAllTargets = mySbfTargets | mySvnTargets | mySvnBranchOrTagTargets | myInformationsTargets | myBuildingTargets | myTestTargets | myRunTestTargets | myRunTargets | myVCProjTargets | myDoxTargets | myZipTargets | myEmscriptenTargets
 
 	# Command-line options
 	myCmdLineOptionsList			= ['debug', 'release']
@@ -513,6 +929,7 @@ class SConsBuildFramework :
 	mySbfLibraryRoot				= ''
 
 	# SCons environment
+	myCurrentToolChain				= None
 	myEnv							= None
 	myCurrentLocalEnv				= None			# contains the lenv of the current project
 
@@ -655,52 +1072,32 @@ class SConsBuildFramework :
 	#lenv['myBranchOrTag']		= 'tag' or 'branch' or None
 	#lenv['myBranch']			= None or env['svnDefaultBranch'] or '2.0' for example.
 
-	###### Constructor ######
-	def __init__( self, initializeOptions = True ) :
-
-		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
-		self.mySCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
-		if self.mySCONS_BUILD_FRAMEWORK == None:
-			raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
-		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( self.mySCONS_BUILD_FRAMEWORK )
-
-		# Sets the root directory of sbf library
-		self.mySbfLibraryRoot = os.path.join( self.mySCONS_BUILD_FRAMEWORK, 'lib', 'sbf' )
-
-		currentSConsBuildFrameworkOptions = getSConsBuildFrameworkOptionsFileLocation( self.mySCONS_BUILD_FRAMEWORK )
-		self.mySBFOptions = self.readSConsBuildFrameworkOptions( currentSConsBuildFrameworkOptions )
-
+	def createEnvForToolchain(self):
 		# Constructs SCons environment.
 		tmpEnv = Environment( options = self.mySBFOptions, tools=[] )
 
-		myTools = ['textfile']
+		# Processes 'stages' option of SConsBuildFramework.options
 		if tmpEnv['PLATFORM'] == 'win32':
-			myTools += ['msvc', 'mslib', 'mslink']
-
-			dictTranslator = { 'x86-32' : 'x86', 'x86-64' : 'x86_64' }
-			targetArch = dictTranslator[ tmpEnv['targetArchitecture'] ]
-			if tmpEnv['clVersion'] != 'highest':
-				myMsvcVersion = tmpEnv['clVersion']
-				myMsvcYear = clVersionNumToYear.get(myMsvcVersion, myMsvcVersion)
-				# Tests existance of the desired version of cl
-				if myMsvcVersion not in getInstalledCLVersionNum():
-					print ('sbfError: MS Visual C++ desired version is not installed in the system.')
-					print ('Requested version is Visual C++ {}({}).'.format(myMsvcYear, myMsvcVersion))
-					printInstalledCL()
-					print ("See 'clVersion' option in SConsBuildFramework.options to fix the problem.")
-					Exit(1)
-			else:
-				myMsvcVersion = None
-
-			self.myEnv = Environment( options = self.mySBFOptions, tools = myTools, TARGET_ARCH = targetArch, MSVC_VERSION = myMsvcVersion )
+			# Replace defaultCC by msvc on windows platform
+			defaultCC = 'msvc'
 		else:
-			# @todo OPTME: adds 'tools = myTools' in Environment() to avoid the initialization of all tools supported by SCons.
-			# @todo takes care of tmpEnv['targetArchitecture']
-			self.myEnv = Environment( options = self.mySBFOptions )
+			# Replace defaultCC by gcc on posix platform
+			defaultCC = 'gcc'
+		tmpEnv['stages'] = map( lambda x: defaultCC if x == 'defaultCC' else x, tmpEnv['stages'] )
 
-		#print self.myEnv.Dump()
-		#exit()
+		# Creates self.myEnv with desired toolchain initialized
+		myTools = ['textfile']
+		for stage in tmpEnv['stages']:
+			if stage in registryToolchains:
+				self.myCurrentToolChain = registryToolchains[stage]
+				self.myEnv = self.myCurrentToolChain[0]( self, tmpEnv, myTools )
+				break
+		else:
+			print ("sbfError: Unable to found any compiler toolchains in stages={}".format(tmpEnv['stages']))
+			print ("'stages' option could be found in SCONS_BUILD_FRAMEWORK/SConsBuildFramework.options")
+			Exit( 1 )
 
+	def configureCommandLine(self):
 		# Configures command line max length
 		if self.myEnv['PLATFORM'] == 'win32':
 			#self.myEnv['MSVC_BATCH'] = True # @todo wait improvement in SCons (better control of scheduler => -j8 and /MP8 => 8*8 processes !!! ).
@@ -717,6 +1114,11 @@ class SConsBuildFramework :
 				# prompt is 2047 characters.
 
 		# Configures command line output
+		#self.myEnv['LINKCOMSTR'] = "Linking $TARGET"#'sbfLN'#print_cmd_line
+		#self.myEnv['SHLINKCOMSTR'] = "Linking $TARGET"#'sbfShLN' #print_cmd_line
+		#self.myEnv.Replace(LINKCOMSTR = "Linking... ${TARGET.file}")
+		#self.myEnv.Replace(SHLINKCOMSTR = "$LINKCOMSTR")
+		#self.myEnv.Replace(ARCOMSTR = "Creating archive... ${TARGET.file}")
 		if self.myEnv['printCmdLine'] == 'less' :
 			self.myEnv['PRINT_CMD_LINE_FUNC'] = sbfPrintCmdLine
 			if self.myEnv['PLATFORM'] == 'win32' :
@@ -730,34 +1132,20 @@ class SConsBuildFramework :
 				self.myEnv['SHCXXCOMSTR']	= "$SOURCE.file"
 
 			self.myEnv['INSTALLSTR'] = "Installing ${SOURCE.file}"
-		#self.myEnv['LINKCOMSTR'] = "Linking $TARGET"#'sbfLN'#print_cmd_line
-		#self.myEnv['SHLINKCOMSTR'] = "Linking $TARGET"#'sbfShLN' #print_cmd_line
-		#self.myEnv.Replace(LINKCOMSTR = "Linking... ${TARGET.file}")
-		#self.myEnv.Replace(SHLINKCOMSTR = "$LINKCOMSTR")
-		#self.myEnv.Replace(ARCOMSTR = "Creating archive... ${TARGET.file}")
 
-# @todo uses UnknownVariables()
-#		#
-#		unknown = self.mySBFOptions.UnknownVariables()
-#		print "Unknown variables:", unknown.keys()
-#		if unknown:
-#			print "Unknown variables:", unknown.keys()
-#			Exit(1)
-
+	def addCommandLineOptions(self):
 		# Analyses command line options
 		AddOption(	'--nd', '--nodeps',
 					action	= 'store_true',
 					dest	= 'nodeps',
 					default	= False,
 					help	= "do not follow project dependencies specified by 'deps' project option." )
-		self.myEnv['nodeps'] = GetOption('nodeps')
 
 		AddOption(	'--nx', '--noexclude',
 					action	= 'store_true',
 					dest	= 'noexclude',
 					default	= False,
 					help	= "do not exclude project(s) specified by 'projectExclude' sbf option." )
-		self.myEnv['exclude'] = not GetOption('noexclude')
 
 		AddOption(	"--weak-localext",
 					action	= "store_true",
@@ -783,26 +1171,22 @@ class SConsBuildFramework :
 					# #dest	= "optimize",
 					# default	= 1,
 					# help	= "todo documentation" )
-		#print self.myEnv.GetOption("optimize")
-		#print self.myEnv.GetOption("weak_localext")
-		#if self.myEnv.GetOption("optimize") == 0 :
-		#	self.myEnv.SetOption("weak_localext", 0 )
+		#print env.GetOption("optimize")
+		#print env.GetOption("weak_localext")
+		#if env.GetOption("optimize") == 0 :
+		#	env.SetOption("weak_localext", 0 )
 
 		AddOption(	'--fast',
 					action	= 'store_true',
 					default	= False,
 					help	= "Speed up the SCons 'thinking' about what must be built before it starts the build. The drawback of this option is that SCons will not rebuild correctly the project in several rare cases." # this comment is duplicated in Help()
 					)
-		if self.myEnv.GetOption('fast'):
-			self.myEnv['decider'] = 'fast'
 
 		AddOption(	"--accurate",
 					action	= "store_true",
 					default	= False,
 					help	= "See 'decider' SConsBuildFramework option."
 					)
-		if self.myEnv.GetOption('accurate'):
-			self.myEnv['decider'] = 'accurate'
 
 		# @todo Each instance of '--verbose' on the command line increases the verbosity level by one, so if you need more details on the output, specify it twice.
 		AddOption(	"--verbose",
@@ -811,13 +1195,15 @@ class SConsBuildFramework :
 					default	= False,
 					help	= "Shows details about the results of running sbf. This can be especially useful when the results might not be obvious." )
 
-		# @todo FIXME : It is disabled, because it doesn't work properly
-		# Log into a file the last scons outputs (stdout and stderr) for a project
-		#myProject = os.path.basename( os.getcwd() )
-		#logCommand = "tee " + os.path.join( env['buildPath'], myProject + "_sbf.log")
-		#sys.stderr = sys.stdout = open( os.path.join( env['buildPath'], myProject + "_sbf.log"), 'w' )# or
-		#sys.stdout = sys.stderr = os.popen(logCommand, "w")
+	def updateEnvFromCommandLineOptions(self, env ):
+		env['nodeps'] = GetOption('nodeps')
+		env['exclude'] = not GetOption('noexclude')
+		if GetOption('fast'):
+			env['decider'] = 'fast'
+		if GetOption('accurate'):
+			env['decider'] = 'accurate'
 
+	def configureDateTime( self ):
 		# myCurrentTime, myDate, myTime, myDateTime, myDateTimeForUI
 		self.myCurrentTime = time.localtime()
 
@@ -831,12 +1217,14 @@ class SConsBuildFramework :
 		self.myDateTime	= '{0}_{1}'.format( self.myDate, self.myTime )
 		self.myDateTimeForUI = time.strftime( '%d-%b-%Y %H:%M:%S', self.myCurrentTime )
 
+	def configureVCS(self):
 		# Sets the vcs subsystem (at this time only svn is supported).
 		if isSubversionAvailable:
 			self.myVcs = Subversion( self )
 		else:
 			self.myVcs = sbfIVersionControlSystem.IVersionControlSystem()
 
+	def startupMessage(self):
 		# Prints sbf version, date and time at sbf startup
 		if self.myEnv.GetOption('verbosity') :
 			printSBFVersion()
@@ -844,19 +1232,7 @@ class SConsBuildFramework :
 			print ( 'started {}'.format(self.myDateTimeForUI) )
 			print ( "Host computer is a {} {} with a processor '{}'".format(platform.system(), platform.machine(), platform.processor() ) )
 
-		# Retrieves all targets (normalized in lower case)
-		self.myBuildTargets = [str(buildTarget).lower() for buildTarget in BUILD_TARGETS]
-		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
-		self.myBuildTargets = set(self.myBuildTargets)
-		self.myCurrentCmdLineOptions = self.myBuildTargets & self.myCmdLineOptions
-		self.myBuildTargets = self.myBuildTargets - self.myCurrentCmdLineOptions
-		if len(self.myBuildTargets)==0:	self.myBuildTargets = set(['all'])
-
-		tmp = list(self.myBuildTargets)[0]
-		Alias( tmp )
-		Alias( list(self.myCurrentCmdLineOptions), tmp )
-		Default('all')
-
+	def processTargetsAndOptions(self):
 		self.myProjectOptionsWeakReading = len(self.myBuildTargets - self.myTargetsAllowingWeakReading) == 0
 
 		# Tests which target(s) is given
@@ -909,8 +1285,8 @@ class SConsBuildFramework :
 		elif 'release' in self.myCurrentCmdLineOptions:
 			self.myEnv['config'] = 'release'
 
-
-		# myPlatform, myArch, myCC, myCCVersionNumber, myCCVersion, my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
+	def configurePlatformAndArch(self):
+		# myPlatform, myArch, 
 		if self.myEnv['PLATFORM'].startswith('win'):
 			self.myPlatform = 'win'
 		else:
@@ -920,267 +1296,8 @@ class SConsBuildFramework :
 		self.myArch = self.myEnv['targetArchitecture']
 		self.myEnv['TARGETARCHITECTURE'] = self.myArch
 
-
-		# myCC, myCCVersionNumber, myCCVersion my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
-		if self.myEnv['CC'] == 'cl' :
-			# Sets compiler
-			self.myCC				=	'cl'
-			# Extracts version number
-			# Step 1 : Extracts x.y (without Exp if any)
-			ccVersion				=	self.myEnv['MSVS_VERSION'].replace('Exp', '', 1)
-			# Step 2 : Extracts major and minor version
-			splittedCCVersion		=	ccVersion.split( '.', 1 )
-			# Step 3 : Computes version number
-			self.myCCVersionNumber	= computeVersionNumber( splittedCCVersion )
-			# Constructs myCCVersion ( clMajor-Minor[Exp] )
-			self.myIsExpressEdition = self.myEnv['MSVS_VERSION'].find('Exp') != -1
-			self.myCCVersion = self.myCC + getVersionNumberString2( self.myCCVersionNumber )
-			if self.myIsExpressEdition:
-				# Adds 'Exp'
-				self.myCCVersion += 'Exp'
-			self.myEnv['CCVERSION'] = self.myCCVersion
-
-			if self.myCCVersionNumber >= 11.0:
-				self.myMSVSIDE = self.myEnv.WhereIs( 'WDExpress' )
-			else:
-				self.myMSVSIDE = self.myEnv.WhereIs( 'VCExpress' )
-
-			self.myMSVCVARS32 = self.myEnv.WhereIs( 'vcvars32.bat' )
-			if self.myMSVCVARS32:
-				self.myVCVARSALL = self.myEnv.WhereIs( 'vcvarsall.bat', join( dirname(self.myMSVCVARS32), '..' ) )
-			else:
-				self.myVCVARSALL = None
-			# Assuming that the parent directory of cl.exe is the root directory of MSVC (i.e. C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC)
-			self.myMSVC = dirname( self.myEnv.WhereIs( 'cl.exe' ) )
-			self.myMSBuild = self.myEnv.WhereIs( 'msbuild.exe' )
-
-#			print self.myEnv.WhereIs( 'signtool.exe' )
-
-			if self.myEnv.GetOption('verbosity'):
-				print 'Visual C++ version {0} installed.'.format( self.myEnv['MSVS_VERSION'] )
-				if self.myMSVSIDE and len(self.myMSVSIDE)>0:
-					print ("Found {0} in '{1}'.".format(basename(self.myMSVSIDE), self.myMSVSIDE))
-				else:
-					print ('Visual C++ IDE (VCExpress.exe or WDExpress.exe) not found.')
-
-				if self.myMSVCVARS32 and len(self.myMSVCVARS32)>0:
-					print ("Found vcvars32.bat in '{0}'.".format(self.myMSVCVARS32))
-				else:
-					print ('vcvars32.bat not found.')
-
-				if self.myVCVARSALL and len(self.myVCVARSALL)>0:
-					print ("Found vcvarsall.bat in '{0}'.".format(self.myVCVARSALL))
-				else:
-					print ('vcvarsall.bat not found.')
-
-				if self.myMSVC and len(self.myMSVC)>0:
-					print ("Found MSVC in '{0}'.".format(self.myMSVC))
-				else:
-					print ('MSVC not found.')
-
-				if self.myMSBuild and len(self.myMSBuild)>0:
-					print ("Found MSBuild in '{0}'.".format(self.myMSBuild))
-				else:
-					print ('MSBuild not found.')
-
-		elif self.myEnv['CC'] == 'gcc' :
-			# Sets compiler
-			self.myCC = 'gcc'
-			# Extracts version number
-			# Step 1 : Extracts x.y.z
-			ccVersion				=	self.myEnv['CCVERSION']
-			# Step 2 : Extracts major and minor version
-			splittedCCVersion		=	ccVersion.split( '.', 2 )
-			if len(splittedCCVersion) !=  3 :
-				raise SCons.Errors.UserError( "Unexpected version schema for gcc compiler (expected x.y.z) : %s " % ccVersion )
-			# Step 3 : Computes version number
-			self.myCCVersionNumber = computeVersionNumber( splittedCCVersion[:2] )
-			# Constructs myCCVersion ( gccMajor-Minor )
-			self.myCCVersion = self.myCC + getVersionNumberString2( self.myCCVersionNumber )
-		else :
-			raise SCons.Errors.UserError( "Unsupported cpp compiler : %s" % self.myEnv['CC'] )
-
-		self.my_Platform_myCCVersion = '_{}_{}'.format( self.myPlatform, self.myCCVersion )
-		self.my_Platform_myArch_myCCVersion = '_{}_{}_{}'.format( self.myPlatform, self.myArch, self.myCCVersion )
-
-		#
-		self.initializeGlobalsFromEnv( self.myEnv )
-
-		#
-		if initializeOptions:
-			# Option 'fast'
-			if self.myEnv['decider'] == 'fast':
-				#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
-				#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
-
-				# The drawback of MD5-timestamp is that SCons will not detect if a file's content 
-				# has changed but its timestamp is the same, as might happen in an automated script
-				# that runs a build, updates a file, and runs the build again, all within a single 
-				# second.
-				self.myEnv.Decider('MD5-timestamp')									# 29.8, 17.9
-
-				# implicit-cache instructs SCons to not rebuild "correctly" in the following cases:
-				# - SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH,).
-				#	This can lead to SCons not rebuilding a file if a change to $CPPPATH would normally cause a different,
-				#	same-named file from a different directory to be used.
-				# - SCons will not detect if a same-named file has been added to a directory that is earlier in the search 
-				#	path than the directory in which the file was found last time.
-				# =>	So obviously the only way to defeat implicit-cache is to change CPPPATH such that the set of files 
-				#		included changes without touching ANY files in the entire include tree (from mailing list).
-				self.myEnv.SetOption('implicit_cache', 1)							# 11.57, 11.4
-	# @todo --implicit-deps-changed ?
-	# @todo target incr with --implicit-deps-unchanged => incremental build
-				self.myEnv.SetOption('max_drift', 1)								# 11.57, 11.3
-			else:
-				self.myEnv.Decider('MD5')											# 34, 19.3
-
-			# option num_jobs
-			self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
-
-		### configure compiler and linker flags.
-		self.configureCxxFlagsAndLinkFlags( self.myEnv )
-
-		### Updates PATH
-
-		# 	Adds localExt/bin (i.e. external tools like swig, moc...)
-		if self.myEnv.GetOption('verbosity'):	print
-		toPrepend = [ join(self.myInstallExtPaths[0], 'bin') ]
-		prependToPATH( self.myEnv, toPrepend, self.myEnv.GetOption('verbosity') )
-
-		#	Adds rsync, ssh, 7z, nsis, graphviz and doxygen.
-		toAppend = getPathsForTools(self.myEnv.GetOption('verbosity'))
-		if self.myEnv.GetOption('verbosity'):	print
-		appendToPATH( self.myEnv, toAppend, self.myEnv.GetOption('verbosity') )
-
-		#	Adds local/bin
-		appendToPATH( self.myEnv, [ join(self.myInstallDirectory, 'bin') ], self.myEnv.GetOption('verbosity') )
-
-		if self.myEnv.GetOption('verbosity'):	print
-
-		# Generates help
-		Help("""
-Type:
-SBF related targets
- 'scons sbfCheck' to check availability and version of sbf components and tools.
- 'scons sbfPak' to launch sbf packaging system.
- 'scons sbfConfigure' to add several paths to environment variable $PATH (windows platform only).
- 'scons sbfUnconfigure' to remove paths installed by 'sbfConfigure' except sbf runtime paths.
-						It removes all non existing path in $PATH too.
- 'scons sbfConfigureTools' to add several paths to environment variable $PATH (windows platform only).
- 'scons sbfUnconfigureTools' to remove paths installed by 'sbfConfigureTools'.
-
-svn related targets
- 'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
- 'scons svnCheckout' to check out a working copy from a repository.
- 'scons svnClean' to clean up recursively the working copy.
- 'scons svnRelocate' to update your working copy to point to the same repository directory, only at a different URL.
-	Typically because an administrator has moved the repository to another server, or to another URL on the same server or to change the access method (http <=> https or svn <=> svn+ssh)
- 'scons svnStatus' to print the status of working copy files and directories.
- 'scons svnUpdate' to update your working copy.
-
- 'scons svnMkTag' to create tag locally and used revision from working copy. But any local modifications are ignored. See 'svnDefaultBranch' option.
- 'scons svnRemoteMkBranch' to create a a branch directly on the repository from a local tag file.
-
-informations related target
- 'scons info' to print informations about the current project, its dependencies and external packages needed.
- 'scons infoFile' to generate info.sbf file for the starting project only.
-	This file is generated in root of the project and intalled in the local/share directory of the project.
-
-build related targets
- 'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
- 'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
- 'scons clean' to clean intermediate files (see buildPath option).
- 'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
-
-test related targets
- 'scons test' to build the test project found optionally in the 'test' sub-directory of each project. The project embedding this 'test' sub-directory is automatically built too.
- 'scons onlyRunTest' to launch the test program (if any and available), but without trying to build it.
- 'scons runTest' to launch the test program (if any), but firstly build the test (see 'test' target).
-
-run related targets
- 'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
- 'scons run' to launch the executable (if any), but firstly build the project.
-
-visual studio related targets
- 'scons vcproj' to build Microsoft Visual Studio project (.vcproj) and solution (.sln) files.
- 'scons vcproj_clean' or 'scons vcproj_mrproper'
-
-doxygen related targets
- 'scons dox' to generate doxygen documentation.
- 'scons dox_clean' or 'scons dox_mrproper'
-
-packaging related targets
- 'scons zipRuntime'		@toredo
- 'scons zipDeps'		@toredo
- 'scons portable' to create a portable package of your project and all its dependencies.
- 'scons zipPortable' to create a zip file of the portable package created by 'scons portable'.
- 'scons dbg' to create a package containing all pdb files on Windows platform of your project (@todo and all its dependencies).
- 'scons zipDbg' to create a zip file of the package created by 'scons dbg'.
- 'scons zipDev'			@toredo
- 'scons zipSrc'			@toredo
- 'scons zip'			@toredo
- 'scons nsis' to create an nsis installation program.
- 'scons zip_clean' and 'scons zip_mrproper'		@toredo
- 'scons nsis_clean' and 'scons nsis_mrproper'	@toredo
-
-
-Command-line options:
-
-debug      A shortcut for config=debug. See 'config' option for additionnal informations.
-release    A shortcut for config=release. See 'config' option for additionnal informations.
-
---nodeps or --nd     Do not follow project dependencies specified by 'deps' project option.
---noexclude or --nx  Do not exclude project(s) specified by 'projectExclude' sbf option.
-
---weak-localext		Disables SCons scanners for localext directories.
---no-weak-localext	See --weak-localext
-
---weak-publishing or --wp   rsync is used for publishing. Weak publishing means '--delete' option is
-                            no more given to rsync command.
-                            Intermediate files are no more cleaned for 'nsis' and zip related targets
-                            and redistributables coming from 'uses' are no more installed.
-                            So publishing is faster with this option.
-                            Tips: Do the first publishing of the day without --weak-publishing and the following with it.
-
---verbose       Shows details about the results of running sbf. This can be especially useful
-                when the results might not be obvious.
-
---fast          Speed up the SCons 'thinking' about what must be built before it starts the
-                build. The drawback of this option is that SCons will not rebuild correctly
-                the project in several rare cases.
-                See 'decider' SConsBuildFramework option.
---accurate      see --fast
-
-
-SConsBuildFramework options:
-""")
-
-#=======================================================================================================================
-#	  'scons build' for all myproject_build
-#	  'scons install' for all myproject_install
-#
-#	  'scons build' for all myproject_build
-#	  'scons install' for all myproject_install
-#	  'scons' or 'scons all' for all myproject (this is the default target)
-#	  'scons debug' like target all, but config option is forced to debug
-#	  'scons release' like target all but config option is forced to release
-#	  'scons clean' for all myproject_clean
-#	  'scons mrproper' for all myproject_mrproper
-#
-#	  'scons myproject_build' or 'myproject_install' or 'myproject' (idem myproject_install) or 'myproject_clean' or 'myproject_mrproper'
-#
-#     'scons myproject_vcproj' to build a Microsoft Visual Studio project file.
-#=======================================================================================================================
-
-		Help( self.mySBFOptions.GenerateHelpText(self.myEnv) )
-
-		# export SCONS_MSCOMMON_DEBUG=ms.log
-		# HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v6.0A\InstallationFolder
-		#print self.myEnv.Dump()
-		#exit()
-
-	###### Initialize global attributes ######
 	def initializeGlobalsFromEnv( self, lenv ) :
+		"""Initialize global attributes"""
 
 		# Updates myNumJobs, myCompanyName, mySvnUrls, mySvnCheckoutExclude and mySvnUpdateExclude
 		self.myNumJobs				= lenv['numJobs']
@@ -1271,6 +1388,241 @@ SConsBuildFramework options:
 			self.myGlobalCppPath = self.myIncludesInstallPaths + self.myIncludesInstallExtPaths
 
 		self.myGlobalLibPath = self.myLibInstallPaths + self.myLibInstallExtPaths
+
+	def configureDeciderAndNumJobs( self ):
+		# Option 'fast'
+		if self.myEnv['decider'] == 'fast':
+			#self.myEnv.Decider('timestamp-newer') # similar to make			# 30.8, 17.9
+			#self.myEnv.Decider('timestamp-match') # similar to make			# 31.65, 17.7
+
+			# The drawback of MD5-timestamp is that SCons will not detect if a file's content 
+			# has changed but its timestamp is the same, as might happen in an automated script
+			# that runs a build, updates a file, and runs the build again, all within a single 
+			# second.
+			self.myEnv.Decider('MD5-timestamp')									# 29.8, 17.9
+
+			# implicit-cache instructs SCons to not rebuild "correctly" in the following cases:
+			# - SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH,).
+			#	This can lead to SCons not rebuilding a file if a change to $CPPPATH would normally cause a different,
+			#	same-named file from a different directory to be used.
+			# - SCons will not detect if a same-named file has been added to a directory that is earlier in the search 
+			#	path than the directory in which the file was found last time.
+			# =>	So obviously the only way to defeat implicit-cache is to change CPPPATH such that the set of files 
+			#		included changes without touching ANY files in the entire include tree (from mailing list).
+			self.myEnv.SetOption('implicit_cache', 1)							# 11.57, 11.4
+			# @todo --implicit-deps-changed ?
+			# @todo target incr with --implicit-deps-unchanged => incremental build
+			self.myEnv.SetOption('max_drift', 1)								# 11.57, 11.3
+		else:
+			self.myEnv.Decider('MD5')											# 34, 19.3
+
+		# option num_jobs
+		self.myEnv.SetOption( 'num_jobs', self.myNumJobs )
+
+	def configureToolchain( self, lenv ):
+		### @todo moves defines(-Dxxxx) from platform specific methods into this one.
+		# configure toolchain
+		self.myCurrentToolChain[2]( self, lenv )
+
+		if sys.platform == 'darwin':
+			lenv.Append( CXXFLAGS = '-D__MACOSX__' )
+			#self.myCxxFlags += ' -D__MACOSX__'
+		elif ( sys.platform.find( 'linux' ) != -1 ):
+			lenv.Append( CXXFLAGS = ['-D__linux','-DPOSIX'] )
+			#self.myCxxFlags += ' -D__linux'
+
+		lenv.Append( CPPPATH = self.myGlobalCppPath )
+		lenv.Append( LIBPATH = self.myGlobalLibPath )
+
+	def updatePATH( self, env ):
+		# 	Adds localExt/bin (i.e. external tools like swig, moc...)
+		if GetOption('verbosity'):	print
+		toPrepend = [ join(self.myInstallExtPaths[0], 'bin') ]
+		prependToPATH( env, toPrepend, GetOption('verbosity') )
+
+		#	Adds rsync, ssh, 7z, nsis, graphviz and doxygen.
+		toAppend = getPathsForTools(GetOption('verbosity'))
+		if GetOption('verbosity'):	print
+		appendToPATH( env, toAppend, GetOption('verbosity') )
+
+		#	Adds local/bin
+		appendToPATH( env, [ join(self.myInstallDirectory, 'bin') ], GetOption('verbosity') )
+
+		if GetOption('verbosity'):	print
+
+	def generateHelp(self, env):
+		Help("""
+Type:
+SBF related targets
+ 'scons sbfCheck' to check availability and version of sbf components and tools.
+ 'scons sbfPak' to launch sbf packaging system.
+ 'scons sbfConfigure' to add several paths to environment variable $PATH (windows platform only).
+ 'scons sbfUnconfigure' to remove paths installed by 'sbfConfigure' except sbf runtime paths.
+						It removes all non existing path in $PATH too.
+ 'scons sbfConfigureTools' to add several paths to environment variable $PATH (windows platform only).
+ 'scons sbfUnconfigureTools' to remove paths installed by 'sbfConfigureTools'.
+
+svn related targets
+ 'scons svnAdd' to add files and directories used by sbf (i.e. all sources, configuration files and directory 'share').
+ 'scons svnCheckout' to check out a working copy from a repository.
+ 'scons svnClean' to clean up recursively the working copy.
+ 'scons svnRelocate' to update your working copy to point to the same repository directory, only at a different URL.
+	Typically because an administrator has moved the repository to another server, or to another URL on the same server or to change the access method (http <=> https or svn <=> svn+ssh)
+ 'scons svnStatus' to print the status of working copy files and directories.
+ 'scons svnUpdate' to update your working copy.
+
+ 'scons svnMkTag' to create tag locally and used revision from working copy. But any local modifications are ignored. See 'svnDefaultBranch' option.
+ 'scons svnRemoteMkBranch' to create a a branch directly on the repository from a local tag file.
+
+informations related target
+ 'scons info' to print informations about the current project, its dependencies and external packages needed.
+ 'scons infoFile' to generate info.sbf file for the starting project only.
+	This file is generated in root of the project and intalled in the local/share directory of the project.
+
+build related targets
+ 'scons pakUpdate' to automatically install/upgrade/downgrade any external package(s) needed.
+ 'scons' or 'scons all' to build your project and all its dependencies in the current 'config' (debug or release). 'All' is the default target.
+ 'scons clean' to clean intermediate files (see buildPath option).
+ 'scons mrproper' to clean installed files (see installPaths option). 'clean' target is also executed, so intermediate files are cleaned.
+
+test related targets
+ 'scons test' to build the test project found optionally in the 'test' sub-directory of each project. The project embedding this 'test' sub-directory is automatically built too.
+ 'scons onlyRunTest' to launch the test program (if any and available), but without trying to build it.
+ 'scons runTest' to launch the test program (if any), but firstly build the test (see 'test' target).
+
+run related targets
+ 'scons onlyRun' to launch the executable (if any and available), but without trying to build the project.
+ 'scons run' to launch the executable (if any), but firstly build the project.
+
+visual studio related targets
+ 'scons vcproj' to build Microsoft Visual Studio project (.vcproj) and solution (.sln) files.
+ 'scons vcproj_clean' or 'scons vcproj_mrproper'
+
+doxygen related targets
+ 'scons dox' to generate doxygen documentation.
+ 'scons dox_clean' or 'scons dox_mrproper'
+
+packaging related targets
+ 'scons zipRuntime'		@toredo
+ 'scons zipDeps'		@toredo
+ 'scons portable' to create a portable package of your project and all its dependencies.
+ 'scons zipPortable' to create a zip file of the portable package created by 'scons portable'.
+ 'scons dbg' to create a package containing all pdb files on Windows platform of your project (@todo and all its dependencies).
+ 'scons zipDbg' to create a zip file of the package created by 'scons dbg'.
+ 'scons zipDev'			@toredo
+ 'scons zipSrc'			@toredo
+ 'scons zip'			@toredo
+ 'scons nsis' to create an nsis installation program.
+ 'scons zip_clean' and 'scons zip_mrproper'		@toredo
+ 'scons nsis_clean' and 'scons nsis_mrproper'	@toredo
+
+emscripten related target
+ 'updateEmscripten'		to install/update emscripten installed in SConsBuildFramework/runtime/emsdk directory
+
+Command-line options:
+
+debug      A shortcut for config=debug. See 'config' option for additionnal informations.
+release    A shortcut for config=release. See 'config' option for additionnal informations.
+
+--nodeps or --nd     Do not follow project dependencies specified by 'deps' project option.
+--noexclude or --nx  Do not exclude project(s) specified by 'projectExclude' sbf option.
+
+--weak-localext		Disables SCons scanners for localext directories.
+--no-weak-localext	See --weak-localext
+
+--weak-publishing or --wp   rsync is used for publishing. Weak publishing means '--delete' option is
+							no more given to rsync command.
+							Intermediate files are no more cleaned for 'nsis' and zip related targets
+							and redistributables coming from 'uses' are no more installed.
+							So publishing is faster with this option.
+							Tips: Do the first publishing of the day without --weak-publishing and the following with it.
+
+--verbose       Shows details about the results of running sbf. This can be especially useful
+				when the results might not be obvious.
+
+--fast          Speed up the SCons 'thinking' about what must be built before it starts the
+				build. The drawback of this option is that SCons will not rebuild correctly
+				the project in several rare cases.
+				See 'decider' SConsBuildFramework option.
+--accurate      see --fast
+
+
+SConsBuildFramework options:
+""")
+		Help( self.mySBFOptions.GenerateHelpText(env) )
+
+
+	def __init__( self, initializeOptions = True ) :
+		"""Constructor"""
+
+		# Retrieves and normalizes SCONS_BUILD_FRAMEWORK
+		self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( join(__file__, '../..') )
+		#self.mySCONS_BUILD_FRAMEWORK = os.getenv('SCONS_BUILD_FRAMEWORK')
+		#if not self.mySCONS_BUILD_FRAMEWORK:
+		#	raise SCons.Errors.UserError( "The SCONS_BUILD_FRAMEWORK environment variable is not defined." )
+		#self.mySCONS_BUILD_FRAMEWORK = getNormalizedPathname( self.mySCONS_BUILD_FRAMEWORK )
+
+		# Sets the root directory of sbf library
+		self.mySbfLibraryRoot = join( self.mySCONS_BUILD_FRAMEWORK, 'lib/sbf' )
+
+		# Reads SConsBuildFramework configuration file
+		currentSConsBuildFrameworkOptions = getSConsBuildFrameworkOptionsFileLocation( self.mySCONS_BUILD_FRAMEWORK )
+		self.mySBFOptions = self.readSConsBuildFrameworkOptions( currentSConsBuildFrameworkOptions )
+
+		# Retrieves all targets (normalized in lower case)
+		self.myBuildTargets = [str(buildTarget).lower() for buildTarget in BUILD_TARGETS]
+		SCons.Script.BUILD_TARGETS[:] = self.myBuildTargets
+		self.myBuildTargets = set(self.myBuildTargets)
+		self.myCurrentCmdLineOptions = self.myBuildTargets & self.myCmdLineOptions
+		self.myBuildTargets = self.myBuildTargets - self.myCurrentCmdLineOptions
+		if len(self.myBuildTargets)==0:	self.myBuildTargets = set(['all'])
+
+		self.addCommandLineOptions()
+
+		#
+		self.createEnvForToolchain()
+		#print self.myEnv.Dump() Exit()
+
+		self.updateEnvFromCommandLineOptions( self.myEnv )
+
+		self.configureCommandLine()
+		self.configureDateTime()
+		self.configureVCS()
+
+		self.startupMessage()
+
+		# Alias/Default
+		tmp = list(self.myBuildTargets)[0]
+		Alias( tmp )
+		Alias( list(self.myCurrentCmdLineOptions), tmp )
+		Default('all')
+
+		self.processTargetsAndOptions()
+		self.configurePlatformAndArch()
+
+		if 'updateemscripten' in self.myBuildTargets: return		# @todo move closer to the beginning of this method
+
+		# myCC
+		self.myCC = self.myEnv['CC']
+
+		# myCCVersionNumber, myCCVersion
+		self.myCurrentToolChain[1](self)
+
+		# my_Platform_myCCVersion and my_Platform_myArch_myCCVersion
+		self.my_Platform_myCCVersion = '_{}_{}'.format( self.myPlatform, self.myCCVersion )
+		self.my_Platform_myArch_myCCVersion = '_{}_{}_{}'.format( self.myPlatform, self.myArch, self.myCCVersion )
+
+		#
+		self.initializeGlobalsFromEnv( self.myEnv )
+
+		if initializeOptions:	self.configureDeciderAndNumJobs()
+
+		### configure toolchain
+		self.configureToolchain( self.myEnv )
+		#print self.myEnv.Dump() Exit()
+
+		self.updatePATH( self.myEnv )
+		self.generateHelp( self.myEnv )
 
 
 	def initializeProjectFromEnv( self, lenv ):
@@ -1402,6 +1754,8 @@ SConsBuildFramework options:
 			EnumVariable(	'targetArchitecture', 'Sets the target architecture for Visual Studio compiler or gcc, i.e. the architecture (32 or 64 bits) of the binaries generated by the compiler.',
 							'x86-32',
 							allowed_values = ( 'x86-32', 'x86-64' ) ),
+# @todo stages=[test, nsis, dox...] ?
+			('stages', 'The list of stages that have to be execute during a build. Allowed values are defaultCC (replace be cl on win platform and gcc for posix platform), cl, gcc, emscripten and swig', ['defaultCC', 'swig']),
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
 							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', '12.0Exp', '12.0', 'highest' ),
@@ -1428,7 +1782,8 @@ SConsBuildFramework options:
 							'release',
 							allowed_values=('debug', 'release'),
 							map={}, ignorecase=1 ),
-			BoolVariable(	'generateDebugInfoInRelease', 'The purpose of this option is to be able to fix bug(s) occurring only in release build and/or when no debugger is attached. '
+			('configFlags', "The list of strings available inside project configuration file to adjust its behavior (usage in default.options: SConsEnvironment.sbf.myEnv['configFlags']).", '[]'),
+			BoolVariable(	'generateDebugInfoInRelease', 'The purpose of this option is to be able to fix bug(s) occurring only in release build and/or when no debugger is attached.'
 							'Typically, a release build does not contain any debug informations. '
 							'But sets this option to true to add the debugging informations for executable and libraries in release build, false otherwise (the default value).',
 							False ),
@@ -1590,100 +1945,15 @@ SConsBuildFramework options:
 
 
 	###### Configures CxxFlags & LinkFlags ######
-	def configureCxxFlagsAndLinkFlagsOnWin32( self, lenv ):
-		# Assumes cl compiler has been selected
-		if self.myCC != 'cl':
-			raise SCons.Errors.UserError( "Unexpected compiler {} on Windows platform.".format(self.myCC) )
 
-		# Useful for cygwin 1.7
-		# The Microsoft linker requires that the environment variable TMP is set.
-		if not os.getenv('TMP'):
-			lenv['ENV']['TMP'] = self.myBuildPath
-			if self.myEnv.GetOption('verbosity') : print ('TMP sets to {0}'.format(self.myBuildPath))
-
-		# Adds support of Microsoft Manifest Tool for Visual Studio 2005 (cl8) and up
-		if self.myCCVersionNumber >= 8.000000 :
-			self.myEnv['WINDOWS_INSERT_MANIFEST'] = True
-
-		# 64 bits support
-		if self.myArch == 'x86-64':
-			lenv.Append( LINKFLAGS = '/MACHINE:X64' )
-			lenv.Append( ARFLAGS = '/MACHINE:X64' )
-
-		# Compiler/linker command line flags
-		if self.myCCVersionNumber >= 11.000000:
-			if self.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
-				# @remark add /d2Zi+ undocumented flags in Visual C++ (at least 2012) to improve debugging experience in release configuration (local variable, inline function...)
-				# see http://randomascii.wordpress.com/2013/09/11/debugging-optimized-codenew-in-visual-studio-2012/
-				lenv.Append( CXXFLAGS = ['/d2Zi+'] )
-			lenv.Append( LINKFLAGS = '/MANIFEST' )
-			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
-		elif self.myCCVersionNumber >= 10.000000 :
-			lenv.Append( LINKFLAGS = '/MANIFEST' )
-			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
-		elif self.myCCVersionNumber >= 9.000000 :
-			lenv.Append( LINKFLAGS = '/MANIFEST' )
-			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
-			#lenv.Append( CXXFLAGS = ['/MP'] )
-		elif self.myCCVersionNumber >= 8.000000 :
-			# /GX is deprecated in Visual C++ 2005
-			lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] ) # @todo FIXME : '/GS-' for SOFA !!!
-		elif self.myCCVersionNumber >= 7.000000 :
-			lenv.Append( CXXFLAGS = '/GX' )
-			if self.myConfig == 'release' :
-				lenv.Append( CXXFLAGS = '/Zm600' )
-
-		# /TP : Specify Source File Type (C++) => adds by SCons
-		# /GR : Enable Run-Time Type Information
-		lenv.AppendUnique( CXXFLAGS = '/GR' )
-
-		lenv.AppendUnique( CXXFLAGS = '/bigobj' ) # see C1128
-
-		# Defines
-		lenv.Append( CXXFLAGS = ['/DWIN32', '/D_WINDOWS', '/DNOMINMAX'] )
-		# bullet uses _CRT_SECURE_NO_WARNINGS,_CRT_SECURE_NO_DEPRECATE,_SCL_SECURE_NO_WARNINGS
-		lenv.Append( CXXFLAGS = ['/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_SECURE_NO_DEPRECATE', '/D_SCL_SECURE_NO_WARNINGS'] )
-
-		#lenv.Append( CXXFLAGS = ['/wd4251'] ) # see in MSDN C4251
-
-		#lenv.Append( CXXFLAGS = ['/D_BIND_TO_CURRENT_VCLIBS_VERSION=1'] )
-		#lenv.Append( CXXFLAGS = ['/MP{0}'.format(self.myNumJobs)] )
-
-		if self.myConfig == 'release' :							### @todo use /Zd in release mode to be able to debug a little.
-			lenv.Append( CXXFLAGS = ['/DNDEBUG'] )
-			lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
-			#lenv.Append( CXXFLAGS = ['/GL'] )
-			if lenv['generateDebugInfoInRelease']:
-				lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
-		else:
-			lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
-			# /Od : Disable (Debug)
-			lenv.Append( CXXFLAGS = ['/MDd', '/Od'] )
-			# Enable Function-Level Linking
-			lenv.Append( CXXFLAGS = ['/Gy'] )
-			lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
-
-			# /Yd is deprecated in Visual C++ 2005; Visual C++ now supports multiple objects writing to a single .pdb file,
-			# use /Zi instead (Microsoft Visual Studio 2008/.NET Framework 3.5).
-
-			# /Zi : Produces a program database (PDB) that contains type information and symbolic debugging information
-			# for use with the debugger. The symbolic debugging information includes the names and types of variables,
-			# as well as functions and line numbers. Using the /Zi instead may yield improved link-time performance,
-			# although parallel builds will no longer work. You can generate PDB files with the /Zi switch by overriding
-			# the default $CCPDBFLAGS variable
-			# /ZI : Produces a program database in a format that supports the Edit and Continue feature.
-			# /Gm : Enable Minimal Rebuild.
-
-		# Warnings
-		if self.myWarningLevel == 'normal' :		### @todo it is dependent of the myConfig. Must be changed ? yes, do it...
-			lenv.Append( CXXFLAGS = '/W3' )
-		else:
-			# /Wall : Enables all warnings
-			lenv.Append( CXXFLAGS = ['/W4', '/Wall'] )
 
 
 	# @todo incremental in release, but not for portable app and nsis
-	def configureProjectCxxFlagsAndLinkFlagsOnWin32( self, lenv, type ):
+	def configureProjectCxxFlagsAndLinkFlagsMSVC( self, lenv, type ):
+		if self.myCC != 'cl':				# @todo not very cute
+			assert( False )
+			return
+
 		# Linker flags
 		if self.myConfig == 'release':
 			# To ensure that the final release build does not contain padding or thunks, link non incrementally.
@@ -1714,67 +1984,13 @@ SConsBuildFramework options:
 		elif type == 'shared':
 			lenv.Append( CXXFLAGS = '/D_USRDLL' )
 
-
-
-	def configureCxxFlagsAndLinkFlagsOnPosix( self, lenv ):
-
-		lenv['CXX'] = lenv.WhereIs('g++')											### FIXME: remove me
-																					### myCxxFlags += ' -pedantic'
-		if ( self.myConfig == 'release' ) :
-			lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O3'] )
-#			self.myCxxFlags	+= ' -DNDEBUG -O3 '										### TODO: more compiler and cpu optimizations
-		else:
-			lenv.Append( CXXFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
-#			self.myCxxFlags	+= ' -D_DEBUG -DDEBUG -g -O0 '							### profiling myCxxFlags += ' -pg', mpatrol, leaktracer
-
-		# process myWarningLevel, adds always -Wall option.							TODO: adds more warnings with myWarningLevel = 'high' ?
-		lenv.Append( CXXFLAGS = '-std=c++11' )
-		lenv.Append( CXXFLAGS = '-msse2' )
-		lenv.Append( CXXFLAGS = '-Wall' )
-		lenv.Append( CXXFLAGS = '-Wno-deprecated' )
-		# @todo remove me
-		lenv.Append( CXXFLAGS = '-fpermissive' )
-#		lenv.Append( CXXFLAGS = '-fvisibility=hidden' )
-		lenv.Append( CXXFLAGS = '-fvisibility-inlines-hidden' )
-#		lenv.Append( CXXFLAGS = '-fvisibility-ms-compat' )
-#		lenv.Append( LINKFLAGS = '-Wl,-rpath=%s' % os.path.join( self.myInstallDirectory, 'lib' ) )
-		lenv.Append( LINKFLAGS = '-Wl,-rpath=.' )
-
-#		self.myCxxFlags	+= ' -Wall '
-
-
-	def configureProjectCxxFlagsAndLinkFlagsOnPosix( self, lenv, type ):
-		pass
-
-
-	def configureCxxFlagsAndLinkFlags( self, lenv ):
-		### TODO: moves defines(-Dxxxx) from platform specific methods into this one.
-		### Completes myCxxFlags and myLinkFlags ###
-		if self.myPlatform == 'win':
-			self.configureCxxFlagsAndLinkFlagsOnWin32( lenv )
-		elif self.myPlatform == 'cygwin' or self.myPlatform == 'posix':
-			self.configureCxxFlagsAndLinkFlagsOnPosix( lenv )
-		else:
-			raise SCons.Errors.UserError("Unknown platform %s." % self.myPlatform)
-
-		if sys.platform == 'darwin':
-			lenv.Append( CXXFLAGS = '-D__MACOSX__' )
-			#self.myCxxFlags += ' -D__MACOSX__'
-		elif ( sys.platform.find( 'linux' ) != -1 ):
-			lenv.Append( CXXFLAGS = ['-D__linux','-DPOSIX'] )
-			#self.myCxxFlags += ' -D__linux'
-
-		lenv.Append( CPPPATH = self.myGlobalCppPath )
-		lenv.Append( LIBPATH = self.myGlobalLibPath )
-
-
 	def configureProjectCxxFlagsAndLinkFlags( self, lenv, type, skipDefinesInCXXFLAGS = False ):
-		if self.myPlatform == 'win':
-			self.configureProjectCxxFlagsAndLinkFlagsOnWin32( lenv, type )
-		elif self.myPlatform in ['cygwin', 'posix']:
-			self.configureProjectCxxFlagsAndLinkFlagsOnPosix( lenv, type )
+		if self.myCC == 'cl':
+			self.configureProjectCxxFlagsAndLinkFlagsMSVC( lenv, type )
+		elif self.myCC in ['gcc', 'emcc']:
+			pass
 		else:
-			raise SCons.Errors.UserError("Unknown platform %s." % self.myPlatform)
+			raise SCons.Errors.UserError("Unknown compiler {}.".format(self.myCC))
 
 		# Adds to command-line several defines with version number informations.
 		lenv.Append( CPPDEFINES = [
@@ -2169,7 +2385,7 @@ SConsBuildFramework options:
 		Alias( self.myProject + '_resource.rc_generation' )
 
 		rcPath = join(self.myProjectPathName, 'rc')
-		if self.myPlatform == 'win':
+		if self.myCC == 'cl': # and self.myPlatform == 'win'
 			# Adds project/rc directory to CPPPATH
 			if os.path.isdir( rcPath ): lenv.Append( CPPPATH = rcPath )
 
@@ -2291,7 +2507,7 @@ SConsBuildFramework options:
 
 		swigFiles = self.getFiles( 'swig', lenv )
 		swigTarget = []
-		if swigFiles:
+		if swigFiles and 'swig' in lenv['stages']:
 			# @todo move the code initializing shlibsuffix in SConsBuildFramework initialization stage.
 			if self.myPlatform == 'win':
 				shlibsuffix = '.pyd'
@@ -2361,63 +2577,8 @@ SConsBuildFramework options:
 		else:
 			swigTarget = None
 
-		#
-		filesFromSrc = self.getFiles( 'src', lenv )
-
-		if self.myType in ['exec', 'static']:
-			# Compiles source files
-			for srcFile in filesFromSrc:
-				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
-				# Object is a synonym for the StaticObject builder method.
-				objFiles		+=	lenv.Object( objFile, join(self.myProjectPathName, srcFile) )
-			# Creates executable or static library
-			if self.myType == 'exec':
-				# executable
-				projectTarget = lenv.Program( objProject, objFiles )
-			else:
-				# static library
-				projectTarget = lenv.StaticLibrary( objProject, objFiles )
-		elif self.myType == 'shared':
-			# Compiles source files
-			for srcFile in filesFromSrc:
-				objFile			=	(os.path.splitext(srcFile)[0]).replace('src', self.myProjectBuildPathExpanded, 1 )
-				objFiles		+=	lenv.SharedObject( objFile, join(self.myProjectPathName, srcFile) )
-			# Creates shared library
-			projectTarget = lenv.SharedLibrary( objProject, objFiles )
-
-			if self.myPlatform == 'win':
-				# filter *.exp file
-				filteredProjectTarget = []				# @todo uses comprehension list
-				for elt in projectTarget:
-					if os.path.splitext(elt.name)[1] != '.exp':
-						filteredProjectTarget.append(elt)
-				projectTarget = filteredProjectTarget
-			# else no filtering
-		else:
-			assert( self.myType == 'none' )
-			projectTarget = None
-
-		if projectTarget:
-			# Installation part
-			installInBinTarget += projectTarget
-
-			# projectTarget is not deleted before it is rebuilt.
-			lenv.Precious( projectTarget )
-
-# @todo /PDBSTRIPPED:pdb_file_name
-			# Generating debug informations
-			if self.myPlatform == 'win':
-				if lenv['generateDebugInfoInRelease'] or self.myConfig == 'debug':
-					# PDB Generation. Static library don't generate pdb.
-					if self.myType in ['exec', 'shared']:
-						lenv['PDB'] = objProject + '.pdb'
-						lenv.SideEffect( lenv['PDB'], projectTarget )
-						# it is not deleted before it is rebuilt.
-						lenv.Precious( lenv['PDB'] )
-						lenv['sbf_bin_debuginfo'] = lenv['PDB']
-					# else nothing to do
-				# else nothing to do
-			# else nothing to do
+		# setup building rules of current toolchain
+		projectTarget = self.myCurrentToolChain[3](self, lenv, objFiles, objProject, installInBinTarget )
 
 		### target 'myProject_build'
 		aliasProjectBuild = Alias( self.myProject + '_build', lenv.Command('dummy_build_print_' + self.myProject, 'dummy.in', Action(nopAction, printBuild)) )
@@ -2556,7 +2717,22 @@ SConsBuildFramework options:
 
 
 		######	setup targets : myProject_deps myProject_install myProject myProject_clean myProject_mrproper ######
-
+#=======================================================================================================================
+#	  'scons build' for all myproject_build
+#	  'scons install' for all myproject_install
+#
+#	  'scons build' for all myproject_build
+#	  'scons install' for all myproject_install
+#	  'scons' or 'scons all' for all myproject (this is the default target)
+#	  'scons debug' like target all, but config option is forced to debug
+#	  'scons release' like target all but config option is forced to release
+#	  'scons clean' for all myproject_clean
+#	  'scons mrproper' for all myproject_mrproper
+#
+#	  'scons myproject_build' or 'myproject_install' or 'myproject' (idem myproject_install) or 'myproject_clean' or 'myproject_mrproper'
+#
+#     'scons myproject_vcproj' to build a Microsoft Visual Studio project file.
+#=======================================================================================================================
 		### myProject_deps
 		aliasProjectDeps = Alias( self.myProject + '_deps', lenv.Command('dummy_deps_print' + self.myProject, 'dummy.in', Action( nopAction, printDeps ) ) )
 		Alias( self.myProject + '_deps', depsTarget )
@@ -2603,7 +2779,7 @@ SConsBuildFramework options:
 		lenv['sbf_share']						= filesFromShare
 #		lenv['sbf_shareBuilt']					= filesFromShareBuilt
 
-		lenv['sbf_src']							= filesFromSrc
+
 #		lenv['sbf_lib_object']					= []
 #		lenv['sbf_lib_object_for_developer']	= []
 
