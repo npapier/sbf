@@ -16,6 +16,8 @@ projectFolderName = descriptorName + descriptorVersion
 
 from os.path import join
 
+builds = [ GetMSBuildCommand('projects/build', 'all.sln', targets = 'libEGL', config = 'Release', logFile = None, maxcpucount = cpuCount, platform = 'Win32' ) ]
+
 descriptor = {
  'urls'			: [	# OpenGL ES 2.0 Headers
 					#	OpenGL ES 2.0 Header File
@@ -31,7 +33,7 @@ descriptor = {
 #					'https://www.khronos.org/registry/egl/api/EGL/eglext.h',
 #					'https://www.khronos.org/registry/egl/api/EGL/eglplatform.h',
 					# Precompiled angle from Google Chrome
-					'$SRCPAKPATH/precompiledAngleFromGoogleChrome{}.zip'.format(descriptorVersion),
+					#'$SRCPAKPATH/precompiledAngleFromGoogleChrome{}.zip'.format(descriptorVersion),
 					# Source of angle es2only-legacy branch
 					'$SRCPAKPATH/angle-es2only-legacy.tar.gz' ], # see https://chromium.googlesource.com/angle/angle/+/es2only-legacy
 
@@ -39,16 +41,16 @@ descriptor = {
  'version'			: descriptorVersion,
 
  #'rootBuildDir'	: descriptorName,
- #'builds'			: [ cmdBuild, cmdRelease ],
+ 'builds'			: builds,
 
  # packages developer and runtime
- #'rootDir'		: projectFolderName,
+ 'rootDir'		: 'projects/build/Release_Win32',
 
  # developer package
- 'license'		: ['README.chromium', 'LICENSE'],
- 'include'		: ['include/'],
- #'lib'			: lib,
+ 'license'		: ['../../../README.chromium', '../../../LICENSE'],
+ 'include'		: ['../../../include/'],
+ 'lib'			: ['lib/libEGL.lib', 'lib/libGLESv2.lib'],
 
  # runtime package
- 'bin'			: ['libegl.dll', 'libglesv2.dll', 'd3dcompiler_43.dll', 'd3dcompiler_46.dll'],
+ 'bin'			: ['libEGL.dll', 'libGLESv2.dll', 'd3dcompiler_46.dll'],
 }
