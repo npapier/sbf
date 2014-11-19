@@ -2468,6 +2468,8 @@ SConsBuildFramework options:
 			testEnv['uses'].append( 'gtest' ) # Implicit uses='gtest'
 			(libsExpanded, buildSbfLibrary) = computeLibsExpanded( self, testEnv['libs'] )
 			uses( self, testEnv, testEnv['uses'] )
+			### configures CPPDEFINES with myDefines
+			testEnv.Append( CPPDEFINES = self.myDefines )
 			testEnv.Prepend( LIBS = objProject )
 			testEnv.Append( LIBS = libsExpanded )
 			testEnv.Append( LIBS = testEnv['stdlibs'] )
