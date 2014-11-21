@@ -8,7 +8,7 @@ class Use_gtest( IUse ):
 		return 'gtest'
 
 	def getVersions( self ):
-		return [ '446', '445' ]
+		return [ '1-7-0', '446' ]
 
 	def getCPPDEFINES( self, version ):
 		defines = ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
@@ -18,27 +18,18 @@ class Use_gtest( IUse ):
 
 	def getLIBS( self, version ):
 		if self.platform == 'win':
-			if version == '446':
-				if self.config == 'release':
-					libs = ['gtest']
-					return libs, libs
-				else:
-					libs = ['gtest-d']
-					return libs, libs
-			elif version == '445':
-				if self.config == 'release':
-					libs = ['gtest-md']
-					return libs, libs
-				else:
-					libs = ['gtest-mdd']
-					return libs, libs
+			if self.config == 'release':
+				libs = ['gtest']
+				return libs, libs
+			else:
+				libs = ['gtest-d']
+				return libs, libs
 		else:
 			libs = ['gtest']
 			return libs, []
 
 	def hasRuntimePackage( self, version ):
-		if self.platform == 'win' and self.ccVersionNumber >= 10.0000 and version == '446':
+		if self.platform == 'win' and self.ccVersionNumber >= 10.0000:
 			return True
 		else:
 			return False
-
