@@ -9,7 +9,9 @@
 # cl8,9,10,11,12[Exp]
 
 descriptorName = 'gtest'
-descriptorVersion = '446'
+#descriptorVersion = '446'
+descriptorVersion = '1-7-0'
+descriptorVersionDot = descriptorVersion.replace('-', '.')
 
 from src.sbfCMake import getCMakeCmdConfigure, getCMakeCmdBuildDebug, getCMakeCmdBuildRelease
 
@@ -20,7 +22,8 @@ cmakeInitialCacheOption = ' -C "../CMakeInitialCache.txt" '
 cmakeInitialCacheContents = GetCMakeInitialCacheCodeToAppendValue( 'CXX_FLAGS', '/D _VARIADIC_MAX=10' )
 
 descriptor = {
- 'svnUrl'		: 'http://googletest.googlecode.com/svn/trunk@{0}'.format(descriptorVersion),
+ 'svnUrl'		: 'http://googletest.googlecode.com/svn/tags/release-{}'.format(descriptorVersionDot),
+ #'svnUrl'		: 'http://googletest.googlecode.com/svn/trunk@{}'.format(descriptorVersion),
 
  'name'			: descriptorName,
  'version'		: descriptorVersion,
@@ -34,7 +37,7 @@ descriptor = {
  'rootDir'		: descriptorName,
 
  # developer package
- 'license'		: ['COPYING', 'CONTRIBUTORS'],
+ 'license'		: ['README', 'LICENSE', 'CONTRIBUTORS'],
  'include'		: [	'include/' ],
  'lib'			: [	'release/gtest.lib', 'release/gtest.pdb',
 					'debug/gtest-d.lib', 'debug/gtest-d.pdb' ],
@@ -44,5 +47,4 @@ descriptor = {
 
  # runtime package (debug version)
  'binD'			: [	'debug/gtest-d.dll' ]
- }
- 
+}
