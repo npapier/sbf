@@ -8,7 +8,7 @@ class Use_gtest( IUse ):
 		return 'gtest'
 
 	def getVersions( self ):
-		return [ '1-7-0', '446' ]
+		return [ '446', '1-7-0']
 
 	def getCPPDEFINES( self, version ):
 		defines = ['SBF_GTEST', 'GTEST_LINKED_AS_SHARED_LIBRARY']
