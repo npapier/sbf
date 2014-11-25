@@ -41,7 +41,7 @@ const boost::filesystem::path getRoot()
 	GetModuleFileName( 0, filename, sizeof(filename) );
 	return boost::filesystem::path(filename).parent_path().parent_path();
 
-#elif defined(_GNU_SOURCE)
+#elif defined(_GNU_SOURCE) && not defined(__EMSCRIPTEN__)
 
     boost::filesystem::path rootPath;   // Will receive the root path.
 
