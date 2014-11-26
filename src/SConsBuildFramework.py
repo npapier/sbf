@@ -1782,7 +1782,7 @@ SConsBuildFramework options:
 							'release',
 							allowed_values=('debug', 'release'),
 							map={}, ignorecase=1 ),
-			('configFlags', "The list of strings available inside project configuration file to adjust its behavior (usage in default.options: SConsEnvironment.sbf.myEnv['configFlags']).", '[]'),
+			('configFlags', "The list of strings available inside project configuration file to adjust its behavior (usage in default.options: SConsEnvironment.sbf.myEnv['configFlags']).", []),
 			BoolVariable(	'generateDebugInfoInRelease', 'The purpose of this option is to be able to fix bug(s) occurring only in release build and/or when no debugger is attached.'
 							'Typically, a release build does not contain any debug informations. '
 							'But sets this option to true to add the debugging informations for executable and libraries in release build, false otherwise (the default value).',
