@@ -388,7 +388,11 @@ if buildTargetsSet.issubset(sbf.myAllTargets) == False:
 	exit(1)
 
 # Prints current 'config' option
-print ( "Configuration: {}\n".format(env['config']) )
+print ( "Configuration: {config} {arch} {cc}".format(config=env['config'], arch=env['targetArchitecture'], cc=env['CC']) ),
+if len(env['configFlags'])>0:
+	print ('flags={}'.format( ','.join( env['configFlags'] ) ))
+else:
+	print ('\n')
 
 # Dumping construction environment (for debugging).
 #print env.Dump()
