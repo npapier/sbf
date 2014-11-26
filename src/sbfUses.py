@@ -64,6 +64,7 @@ class IUse :
 			@remark a package is specified using same schema as 'uses' option"""
 		return []
 
+
 	# for compiler
 	def getCPPDEFINES( self, version ):
 		return []
@@ -77,6 +78,9 @@ class IUse :
 	# for linker
 	def getLIBS( self, version ):
 		return [], []
+
+	def getLINKFLAGS( self, version ):
+		return []
 
 	def getLIBPATH( self, version ):
 		return [], []
@@ -165,6 +169,13 @@ class IUse :
 				env.AppendUnique( LIBS = libs[0] )
 		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LIBS)." % (useNameVersion, self.platform) )
+
+		# LINKFLAGS
+		linkFlags = self.getLINKFLAGS( useVersion )
+		if linkFlags != None:
+			env.AppendUnique( LINKFLAGS = linkFlags )
+		else:
+			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LINKFLAGS)." % (useNameVersion, self.platform) )
 
 		# LIBPATH
 		libpath = self.getLIBPATH( useVersion )
