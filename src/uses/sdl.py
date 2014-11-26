@@ -56,5 +56,8 @@ class Use_sdl( IUse ):
 		return []
 
 
+	def hasDevPackage( self, version ):
+		return self.cc != 'emcc'
+
 	def hasRuntimePackage( self, version ):
 		return self.cc != 'emcc'
