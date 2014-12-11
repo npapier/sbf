@@ -22,9 +22,9 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="scons debug"
-				ReBuildCommandLine="scons debug mrproper &amp; scons debug"
-				CleanCommandLine="scons debug clean"
+				BuildCommandLine="sbf debug"
+				ReBuildCommandLine="sbf debug mrproper &amp; sbf debug"
+				CleanCommandLine="sbf debug clean"
 #sbf				Output="sbfOutputDebug"
 #sbf				PreprocessorDefinitions="sbfDefines"
 #sbf				IncludeSearchPath="sbfIncludeSearchPath"
@@ -42,9 +42,9 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="scons release"
-				ReBuildCommandLine="scons release mrproper &amp; scons release"
-				CleanCommandLine="scons release clean"
+				BuildCommandLine="sbf release"
+				ReBuildCommandLine="sbf release mrproper &amp; sbf release"
+				CleanCommandLine="sbf release clean"
 #sbf				Output="sbfOutputRelease"
 #sbf				PreprocessorDefinitions="sbfDefines"
 #sbf				IncludeSearchPath="sbfIncludeSearchPath"
