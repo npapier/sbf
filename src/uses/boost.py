@@ -10,25 +10,23 @@ class Use_boost( IUse ):
 		return 'boost'
 
 	def getVersions( self ):
-		if self.platform == 'win':
-			return [ '1-54-0', '1-56-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
-		else:
-			return [ '1-56-0', '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0', '1-49-0', '1-48-0', '1-47-0', '1-46-1' ]
-
+		return [ '1-56-0', '1-54-0', '1-53-0', '1-52-0', '1-51-0', '1-50-0' ]
 
 	def getCPPDEFINES( self, version ):
 		versionf = computeVersionNumber( version.split('-') ) * 1000000 # * 1000 * 1000
+		cppDefines = [('SBF_BOOST_VERSION', "{}".format(int(versionf)))]
 		if self.platform == 'win':
 			if version in ['1-54-0', '1-56-0']:
-				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
+				cppDefines.extend( [ 'BOOST_ALL_DYN_LINK', 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ] )
 			else:
-				return [ 'BOOST_ALL_DYN_LINK', ('SBF_BOOST_VERSION', "{}".format(int(versionf))) ]
+				cppDefines.extend( [ 'BOOST_ALL_DYN_LINK' ] )
 		else:
-			return [ ('SBF_BOOST_VERSION', "{}".format(int(versionf))), 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' ]
+			cppDefines.append( 'BOOST_SIGNALS_NO_DEPRECATION_WARNING' )
+		return cppDefines
 
 
 	def getLIBS( self, version ):
-		if self.platform == 'win':
+		if self.cc == 'cl':
 
 			# vc version
 			vcVersionDict = {	12 : 'vc120',
@@ -38,8 +36,7 @@ class Use_boost( IUse ):
 								8  : 'vc80'	}
 
 			vc = vcVersionDict.get(self.ccVersionNumber, None)
-			if not vc:
-				return
+			if not vc:	return
 
 			# configuration
 			if self.config == 'release':
@@ -55,9 +52,11 @@ class Use_boost( IUse ):
 							'boost_python-{vc}-{conf}-{ver}', 'boost_random-{vc}-{conf}-{ver}', 'boost_regex-{vc}-{conf}-{ver}',
 							'boost_serialization-{vc}-{conf}-{ver}', 'boost_signals-{vc}-{conf}-{ver}', 'boost_system-{vc}-{conf}-{ver}',
 							'boost_thread-{vc}-{conf}-{ver}', 'boost_unit_test_framework-{vc}-{conf}-{ver}', 'boost_wave-{vc}-{conf}-{ver}',
-							'boost_wserialization-{vc}-{conf}-{ver}' ]
-			genPakLibs2 = [	'boost_chrono-{vc}-{conf}-{ver}' ]
-			genPakLibs3 = [	'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
+							'boost_wserialization-{vc}-{conf}-{ver}',
+
+							'boost_chrono-{vc}-{conf}-{ver}',
+
+							'boost_locale-{vc}-{conf}-{ver}', 'boost_timer-{vc}-{conf}-{ver}' ]
 			genPakLibs4 = [	'boost_context-{vc}-{conf}-{ver}' ]
 			genPakLibs5 = [	'boost_atomic-{vc}-{conf}-{ver}' ]
 			#genPakLibs6 = [ 'boost_log_setup-{vc}-{conf}-{ver}', 'boost_log-{vc}-{conf}-{ver}' ]
@@ -69,27 +68,18 @@ class Use_boost( IUse ):
 				return [], []
 			elif version in ['1-53-0']:
 				# autolinking, so nothing to do.
-				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 + genPakLibs5 ]
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs4 + genPakLibs5 ]
 				return [], pakLibs
 			elif version in ['1-52-0', '1-51-0']:
 				# autolinking, so nothing to do.
-				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 + genPakLibs4 ]
+				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs4 ]
 				return [], pakLibs
 			elif version in ['1-50-0', '1-49-0', '1-48-0']:
 				# autolinking, so nothing to do.
-				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 + genPakLibs3 ]
-				return [], pakLibs
-			elif version == '1-47-0':
-				# autolinking, so nothing to do.
-				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs + genPakLibs2 ]
-				return [], pakLibs
-			elif version == '1-46-1':
-				# autolinking, so nothing to do.
-				ver = '1_46_1'
 				pakLibs = [ lib.format( vc=vc, conf=conf, ver=ver ) for lib in genPakLibs ]
 				return [], pakLibs
 		elif self.platform == 'posix' and version in ['1-56-0']:
-			libs = [	'libboost_atomic.so', 'libboost_bzip2.so', 'libboost_chrono.so', 'libboost_container.so', 'libboost_context.so', 'libboost_coroutine.so',
+			libs = ['libboost_atomic.so', 'libboost_bzip2.so', 'libboost_chrono.so', 'libboost_container.so', 'libboost_context.so', 'libboost_coroutine.so',
 					'libboost_date_time.so', 'libboost_filesystem.so', 'libboost_graph.so', 'libboost_iostreams.so', 'libboost_locale.so', 'libboost_log.so',
 					'libboost_log_setup.so', 'libboost_math_c99.so', 'libboost_math_c99f.so', 'libboost_math_c99l.so', 'libboost_math_tr1.so', 'libboost_math_tr1f.so',
 					'libboost_math_tr1l.so', 'libboost_prg_exec_monitor.so', 'libboost_program_options.so', 'libboost_python.so', 'libboost_random.so',
@@ -97,6 +87,12 @@ class Use_boost( IUse ):
 					'libboost_unit_test_framework.so', 'libboost_wave.so', 'libboost_wserialization.so', 'libboost_zlib.so']
 
 			return libs, libs
+		elif self.cc == 'emcc':
+			ver = version[0:4].replace('-', '_') # 1-56-0 => 1_56
+			libs = ['signals', 'regex', 'filesystem', 'system']
+			libs = [ 'libboost_{}-gcc-s-{}'.format( lib, ver ) for lib in libs ]
+			return libs, []
+
 
 	def hasRuntimePackage( self, version ):
 		return version in ['1-56-0', '1-54-0']
