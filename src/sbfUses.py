@@ -141,7 +141,7 @@ class IUse :
 		cppflags = self.getCPPFLAGS( useVersion )
 		if cppflags != None :
 			if len(cppflags) > 0 :
-				env.AppendUnique( CPPFLAGS = cppflags )
+				env.Append( CPPFLAGS = cppflags )
 		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see CPPFLAGS)." % (useNameVersion, self.platform) )
 
@@ -173,7 +173,7 @@ class IUse :
 		# LINKFLAGS
 		linkFlags = self.getLINKFLAGS( useVersion )
 		if linkFlags != None:
-			env.AppendUnique( LINKFLAGS = linkFlags )
+			env.Append( LINKFLAGS = linkFlags )
 		else:
 			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s (see LINKFLAGS)." % (useNameVersion, self.platform) )
 
