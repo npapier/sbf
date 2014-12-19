@@ -44,7 +44,7 @@ options += ' -D BUILD_ASSIMP_TOOLS=OFF ' # so dx9 is no more needed
 
 descriptor = {
 
-	'urls':		[	'http://sourceforge.net/projects/assimp/files/assimp-{dotVersion}/assimp--{dotVersion}.{svnRevision}-source-only.zip/download'.format(dotVersion=descriptorVersionDot, svnRevision=svnRevision),
+	'urls':		[	'http://sourceforge.net/projects/assimp/files/assimp-{dotVersion}/assimp--{dotVersion}.{svnRevision}-source-only.zip'.format(dotVersion=descriptorVersionDot, svnRevision=svnRevision),
 					'$SRCPAKPATH/assimp--3.0.1270-source-only-patch.zip' ],
 
 	'name'		:	descriptorName,
