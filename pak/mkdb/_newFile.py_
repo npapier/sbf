@@ -77,7 +77,7 @@ descriptor = {
  'urls'			: [	# download python and extract in the build directory
 					'http://python.org/ftp/python/2.7.4/Python-2.7.4.tar.xz',
 					# download sqlite and extract sqlite in subdirectory Python-2.7.4 of the build directory
-					('http://www.sqlite.org/sqlite-amalgamation-3.6.21.tar.gz', 'Python-2.7.4),
+					('http://www.sqlite.org/sqlite-amalgamation-3.6.21.tar.gz', 'Python-2.7.4'),
 					],
 
  # Filename of generated package is built using the following schema : (name+version+buildVersion)_platform_arch_ccVersion.zip
@@ -96,6 +96,10 @@ descriptor = {
  # - SearchVcxproj( retVal, searchDirectory, pruneDirectoriesPatterns = [], allowedFilesRe = r".*[.]vcxproj$" )
  #
  # - RequiredProgram( executableName )
+ #		search the desired program given by 'executableName' in the system and/or PATH (see sbfTools.locateProgram())
+ #		return if found, return the path to the desired program given by 'executableName' and add it to the PATH or Exit(1)
+ # - RequiredLibrary( libraryName )
+ #		exits with return value 1 if libraryName is not installed with sbf packaging system, otherwise just returns
  #
  # - MakeDirectory( newDirectory )
  # - RemoveDirectory( directory )
@@ -109,6 +113,7 @@ descriptor = {
  #		Retrieve code for CMakeInitialCache.txt to append a value at the end of an existing variable
  #			variableName		name of the variable to customize
  #			valueToAppend		content to append to CMAKE_variableName
+# @todo CreateFile(pathFilename, contents)
  # - CreateCMakeInitialCache( directory, contents )
  #		directory		path where CMakeInitialCache.txt file would be created
  #		contents		contents of the CMakeInitialCache.txt file to create
@@ -131,7 +136,9 @@ descriptor = {
  #			<PlatformToolset>v110</PlatformToolset> => <PlatformToolset>vXYZ</PlatformToolset> with XYZ compute from CCVersionNumber
  #		* AddMultiProcessorCompilation(VCXProjFileOrFileList) add /MP
  #		* AddPreprocessorDefinitions(VCXProjFileOrFileList, definesToAdd) with definesToAdd		DEFINE1 or DEFINE1;DEFINE2;...
- # @todo RemovePreprocessorDefinitions
+ #		* RemovePreprocessorDefinitions( VCXProjFileOrFileList, defineToRemove )
+ #			defineToRemove		string containing the define that have to be removed from PreprocessorDefinitions (first occurence)
+
  # @todo Patch vcxproj to compile without UNICODE support (see resil.py)
  #		* ChangeLinkVersion( VCXProjFileOrFileList, oldVersion, newVersion )
  #			<Version>oldVersion</Version> => <Version>newVersion</Version>
