@@ -373,7 +373,7 @@ if 'updateemscripten' in buildTargetsSet:
 	tools = ['git-1.9.4', 'node-0.10.17-64bit', 'python-2.7.5.3-64bit', 'spidermonkey-30.0.0-64bit', 'crunch-1.03', 'java-7.45-64bit']
 	#tools += ['sdk-master-64bit', 'clang-master-64bit', 'emscripten-master']
 	tools += ['sdk-1.27.0-64bit', 'clang-e1.27.0-64bit', 'emscripten-1.27.0']
-	#tools += ['mingw-4.6.2-32bit']
+	tools += ['mingw-4.6.2-32bit']
 	for tool in tools:
 		env.Execute('emsdk.bat install {}'.format(tool))
 		env.Execute('emsdk.bat activate {}'.format(tool))
@@ -389,7 +389,7 @@ if buildTargetsSet.issubset(sbf.myAllTargets) == False:
 	exit(1)
 
 # Prints current 'config' option
-print ( "Configuration: {config} {arch} {cc}".format(config=env['config'], arch=env['targetArchitecture'], cc=env['CC']) ),
+print ( "Configuration: {config} {ccVersion} {arch}".format(config=env['config'], ccVersion=env['CCVERSION'], arch=env['targetArchitecture']) )
 if len(env['configFlags'])>0:
 	print ('flags={}'.format( ','.join( env['configFlags'] ) ))
 else:
