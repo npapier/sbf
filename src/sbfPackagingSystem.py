@@ -6,23 +6,20 @@
 # Author Nicolas Papier
 
 import cPickle
-import distutils.archive_util
-import fnmatch
 import glob
 import multiprocessing
 import os
 import sbfAutoconf
-import shutil
 import subprocess
 import types
-import zipfile
 from os.path import basename, dirname, exists, join, splitext
-
-from sbfArchives import createArchive, extractArchive, extractAllTarFiles, getFilesAndDirectories
+from sbfArchives import isArchiveFormatSupported, createArchive, extractArchive, extractAllTarFiles, getFilesAndDirectories
 from sbfFiles import createDirectory, removeDirectoryTree, GlobRegEx, copy, removeFile, searchAllFilesAndDirectories, convertPathAbsToRel
+from sbfSevenZip import sevenZipExtract
 from sbfSubversion import splitSvnUrl, Subversion
+from sbfTools import getPathsForTools, locateProgram, prependToPATH, removeFromPATH
 from sbfUses import UseRepository
-from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt, createSConsBuildFrameworkProject, buildDebugAndReleaseUsingSConsBuildFramework
+from sbfUtils import removePathHead, executeCommandInVCCommandPrompt, getLambdaForExecuteCommandInVCCommandPrompt, createSConsBuildFrameworkProject, buildDebugAndReleaseUsingSConsBuildFramework, download, extractFilenameFromUrl
 from sbfVersion import splitPackageName, joinPackageName
 
 
@@ -82,30 +79,6 @@ def copyFile( source, destination, verbose = False, bufferSize = 1024 * 512 ):
 			return
 		else:
 			_copyFile( source, destination, verbose )
-
-
-
-def reporthook_urlretrieve( blockCount, blockSize, totalSize ):
-	size = blockCount * blockSize / 1024
-	# Prints report on download advancement
-	print ( '{} kB \r'.format(size) ),
-	# Prints report on download advancement (each 128 kb)	
-#	if ( size % 128 == 0):
-#		print ( '{} kB \r'.format(size) ),
-	#if totalSize > 0:
-	#	print ( '%i kB, %i/%i' % ( size/1024, size, totalSize ) )
-	#else:
-	#	print ( '%i kB' % (size / 1024) )
-
-def rsearchFilename( path ):
-	if len(path) <= 1:
-		return
-	else:
-		splitted = os.path.split(path)
-		if len(splitext(splitted[1])[1]) > 0:
-			return splitted[1]
-		else:
-			return rsearchFilename( splitted[0] )
 
 
 
@@ -189,6 +162,11 @@ class PackagingSystem:
 			self.__verbose = verbose
 		else:
 			self.__verbose				= sbf.myEnv.GetOption('verbosity')
+
+		self.__myEnv					= sbf.myEnv
+		if sbf.myCC == 'emcc':
+			toRemove = getPathsForTools(self.__verbose)
+			removeFromPATH( self.__myEnv, toRemove )
 
 		self.__vcs						= sbf.myVcs
 
@@ -279,13 +257,20 @@ class PackagingSystem:
 
 
 		def RequiredProgram( executableName ):
-			from src.sbfTools import locateProgram
 			location = locateProgram(executableName)
 			if location:
 				print ( 'Found {} in {}.'.format( executableName, location ) )
+				prependToPATH( self.__myEnv, [location], self.__verbose )
 				return location
 			else:
 				print( 'ERROR: Unable to find {} in PATH'.format(executableName) )
+				exit(1)
+
+		def RequiredLibrary( libraryName ):
+			if self.isInstalled( libraryName ):
+				print ('Found {} in {}.'.format(libraryName, self.__localExtPath))
+			else:
+				print( 'ERROR: Unable to find {} in {}'.format(libraryName, self.__localExtPath) )
 				exit(1)
 
 
@@ -353,7 +338,13 @@ if (CMAKE_{name})
 	set(CMAKE_{name} "${{FLAGS}}" CACHE STRING "" FORCE)
 	message("Output:CMAKE_{name}=${{CMAKE_{name}}}")
 else()
-	message("Don't customize CMAKE_{name}")
+	message("Creating CMAKE_{name}")
+
+	# add new flags
+	set (FLAGS " {value} ")
+
+	set(CMAKE_{name} "${{FLAGS}}" CACHE STRING "" FORCE)
+	message("Output:CMAKE_{name}=${{CMAKE_{name}}}")
 endif()
 """
 			return str.format( name=variableName, value = valueToAppend )
@@ -435,19 +426,21 @@ endif()
 				@param newContent	the new content to set. \\2 to add the oldContent"""
 			if not oldContent:
 				oldContent = '.*'
-			return lambda : _patcherMultiline(fileOrFileList, [('^(.*\<{tag}\>)({oldContent})(\</{tag}\>.*)$'.format(tag=tag, oldContent=oldContent), '\\1{}\\3'.format(newContent))])
+			return lambda : _patcher(fileOrFileList, [('^(.*\<{tag}\>)({oldContent})(\</{tag}\>.*)$'.format(tag=tag, oldContent=oldContent), '\\1{}\\3'.format(newContent))])
 
 
 		def RemoveProjectFromSolution( file, projectName ):
 			return lambda : _patcherMultiline(file, [('Project.*?{}(?:.*\n)+?EndProject'.format(projectName), '')], 0 )
 
 		def ChangeTargetName( VCXProjFileOrFileList, oldName, newName ):
-			return lambda : _patcher(VCXProjFileOrFileList, [	#('^(.*\$\(OutDir\)){}(\..*)$'.format(oldName), '\\1{}\\2'.format(newName)),
-													('^(.*TargetName Condition.*){}(.*TargetName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
-													('^(.*ImportLibrary.*){}(\.lib.*ImportLibrary.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
-													('^(.*ProgramDataBaseFileName.*){}(\.pdb.*ProgramDataBaseFileName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
-													('^(.*ProgramDataBaseFile.*){}(\.pdb.*ProgramDataBaseFile.*)$'.format(oldName), '\\1{}\\2'.format(newName))
+			return lambda : _patcher(VCXProjFileOrFileList, [	('^(.*TargetName.*){}(.*\<\/TargetName.*\>.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+																('^(.*TargetPath.*){}(.*\<\/TargetPath.*\>.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+																('^(.*OutputFile.*){}(.*\<\/OutputFile.*\>.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+																('^(.*ProgramDatabaseFile.*){}(.*\<\/ProgramDatabaseFile.*\>.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+																('^(.*ImportLibrary.*){}(.*\<\/ImportLibrary.*\>.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 													] )
+													#('^(.*ProgramDataBaseFileName.*){}(\.pdb.*ProgramDataBaseFileName.*)$'.format(oldName), '\\1{}\\2'.format(newName)),
+													#('^(.*\$\(OutDir\)){}(\..*)$'.format(oldName), '\\1{}\\2'.format(newName)),
 
 		def SetPlatformToolset( VCXProjFileOrFileList, CCVersionNumber ):
 			"""<PlatformToolset>v110</PlatformToolset> => <PlatformToolset>vXYZ</PlatformToolset> with XYZ compute from CCVersionNumber"""
@@ -463,6 +456,10 @@ endif()
 		def AddPreprocessorDefinitions( VCXProjFileOrFileList, definesToAdd ):
 			"""@param definesToAdd		DEFINE1;DEFINE2"""
 			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<PreprocessorDefinitions\>)(.*)(\</PreprocessorDefinitions\>)$','\\1{};\\2\\3'.format(definesToAdd))])
+
+		def RemovePreprocessorDefinitions( VCXProjFileOrFileList, defineToRemove ):
+			"""@param defineToRemove		string containing the define that have to be removed from PreprocessorDefinitions (first occurence)"""
+			return lambda : _patcher(VCXProjFileOrFileList, [('^(.*\<PreprocessorDefinitions\>)(.*){define};?(.*)(\</PreprocessorDefinitions\>)$'.format(define=defineToRemove),'\\1\\2\\3\\4')])
 
 		def ChangeLinkVersion( VCXProjFileOrFileList, oldVersion, newVersion ):
 			"""<Version>oldVersion</Version> => <Version>newVersion</Version>"""
@@ -522,6 +519,7 @@ endif()
 					'SearchVcxproj'		: SearchVcxproj,
 
 					'RequiredProgram'	: RequiredProgram,
+					'RequiredLibrary'	: RequiredLibrary,
 
 					'MakeDirectory'					: MakeDirectory,
 					'RemoveDirectory'				: RemoveDirectory,
@@ -544,6 +542,7 @@ endif()
 														'SetPlatformToolset'			: SetPlatformToolset,
 														'AddMultiProcessorCompilation'	: AddMultiProcessorCompilation,
 														'AddPreprocessorDefinitions'	: AddPreprocessorDefinitions,
+														'RemovePreprocessorDefinitions'	: RemovePreprocessorDefinitions,
 														'ChangeLinkVersion'				: ChangeLinkVersion
 														 },
 					'ConfigureVisualStudioVersion'	: ConfigureVisualStudioVersion,
@@ -634,7 +633,7 @@ endif()
 				extractionSubDirectory = ''
 
 			# Computes filename
-			filename = rsearchFilename( urlparse.urlparse(url).path )
+			filename = extractFilenameFromUrl( url )
 
 			# in cache ?
 			filenameInCache = join('cache', filename)
@@ -654,26 +653,35 @@ endif()
 						print('Unable to found file {}'.format(filename))
 						exit(1)
 				else:
-					print ( '* Retrieving %s from %s' % (filename, urlparse.urlparse(url).hostname ) )
-					urllib.urlretrieve(url, filename= filenameInCache, reporthook=reporthook_urlretrieve)
-					print ( 'Done.' + ' '*16 )
+					download(url, filename=filenameInCache)
 			else:
 				# already available in cache
 				print ('* %s already downloaded.' % filename)
 				print
 
-			# Extracts
-			extractionDirectory = join(extractionDirectory, extractionSubDirectory)
-			print ( '* Extracting {} in {}...'.format( filename, extractionDirectory ) )
-			retVal = extractArchive( join('cache', filename), extractionDirectory, self.__verbose )
-			if not retVal:
-				print ('Error during extraction of {}'.format(filename))
-				return
-			else:
-				retVal = extractAllTarFiles( extractionDirectory, self.__verbose )
+			# Extraction if archive format is supported or do nothing (useful to download a file)
+			if isArchiveFormatSupported(filename):
+				tmpExtractionDirectory = join(extractionDirectory, extractionSubDirectory)
+				print ( '* Extracting {} in {}...'.format( filename, tmpExtractionDirectory ) )
+				retVal = extractArchive( join('cache', filename), tmpExtractionDirectory, self.__verbose )
 				if not retVal:
 					print ('Error during extraction of {}'.format(filename))
 					return
+				else:
+					retVal = extractAllTarFiles( tmpExtractionDirectory, self.__verbose )
+					if not retVal:
+						print ('Error during extraction of {}'.format(filename))
+						return
+			elif splitext(filename)[1] == '.7z':
+				tmpExtractionDirectory = join(extractionDirectory, extractionSubDirectory)
+				print ( '* Extracting {} in {}...'.format( filename, tmpExtractionDirectory ) )
+				retVal = sevenZipExtract( join('cache', filename), tmpExtractionDirectory, self.__verbose )
+				if not retVal:
+					print ('Error during extraction of {}'.format(filename))
+					return
+			else:
+				createDirectory(extractionDirectory)
+				copy(filenameInCache, extractionDirectory)
 
 		# BUILDS
 		import datetime
@@ -684,33 +692,25 @@ endif()
 		if len(builds)>0:
 			# Moves to extraction directory
 			buildBackupCWD = os.getcwd()
-
 			os.chdir( extractionDirectory )
 			if len(rootBuildDir) > 0:
-				os.chdir( rootBuildDir )
 				print ('* Entering directory {}\n'.format(rootBuildDir))
+				os.chdir( rootBuildDir )
 
 			# Executes commands
 			print ( '* Building stage...' )
 # @todo improves output of returned values
 			startTime = datetime.datetime.now()
 			for (i, build) in enumerate(builds):
-				print ( ' Step {0}: {1}'.format(i+1, build) )
+				print ( ' Step {}: {}'.format(i+1, build) )
 				print ( ' ----------------------------------------' )
 				if type(build) == types.FunctionType:
 					retVal = build()
 					if retVal:
-						print >>sys.stderr, "Execution {0} failed returning {1}:".format( build, retVal )
+						print >>sys.stderr, "Execution {} failed returning {}:".format( build, retVal )
 						exit(1)
 				else:
-					try:
-						retcode = subprocess.call( build, shell=True )
-						if retcode < 0:
-							print >>sys.stderr, "Child was terminated by signal", -retcode
-						else:
-							print >>sys.stderr, "Child returned", retcode
-					except OSError, e:
-						print >>sys.stderr, "Execution failed:", e
+					if self.__myEnv.Execute(build):
 						exit(1)
 				print
 			endTime = datetime.datetime.now()

@@ -1,0 +1,141 @@
+# SConsBuildFramework - Copyright (C) 2014, Nicolas Papier.
+# Distributed under the terms of the GNU General Public License (GPL)
+# as published by the Free Software Foundation.
+# Author Nicolas Papier
+
+##@todo Adds support to both ANSI and Unicode version of wx
+##@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
+#class Use_wxWidgets( IUse ):
+#	def getName( self ):
+#		return 'wx'
+#
+#	def getVersions( self ):
+#		return ['2-8-8']
+#
+#	def getCPPDEFINES( self, version ):
+#		if self.platform == 'win':
+#			return [ 'WXUSINGDLL', '__WIN95__' ]
+#		else:
+#			return [ ('_FILE_OFFSET_BITS', 64), '_LARGE_FILES', '__WXGTK__' ]
+#
+#	def getCPPFLAGS( self, version ):
+#		if self.platform == 'win':
+#			return []
+#		else:
+#			return ['-pthread', '-Wl,-Bsymbolic-functions']
+#
+#	def getCPPPATH( self, version ):
+#		if self.platform == 'win':
+#			return []
+#		else:
+#			return ['/usr/lib/wx/include/gtk2-unicode-release-2.8', '/usr/include/wx-2.8']
+#
+#	def getLIBS( self, version ):
+#		if self.platform == 'win' and version == '2-8-8' :
+#			if self.config == 'release' :
+#				libs = [	'wxbase28', 'wxbase28_net', 'wxbase28_xml', 'wxmsw28_adv', 'wxmsw28_aui', 'wxmsw28_core',
+#							'wxmsw28_html', 'wxmsw28_media', 'wxmsw28_qa', 'wxmsw28_richtext', 'wxmsw28_xrc' ]
+#				pakLibs = [	'wxbase28_net_vc_custom', 'wxbase28_odbc_vc_custom', 'wxbase28_vc_custom', 'wxbase28_xml_vc_custom',
+#							'wxmsw28_adv_vc_custom', 'wxmsw28_aui_vc_custom', 'wxmsw28_core_vc_custom', #'wxmsw28_gl_vc_custom',
+#							'wxmsw28_html_vc_custom', 'wxmsw28_media_vc_custom', 'wxmsw28_qa_vc_custom', 'wxmsw28_richtext_vc_custom',
+#							'wxmsw28_xrc_vc_custom' ]
+#				return libs, pakLibs
+#			else:
+#				libs = [	'wxbase28d', 'wxbase28d_net', 'wxbase28d_xml', 'wxmsw28d_adv', 'wxmsw28d_aui', 'wxmsw28d_core',
+#							'wxmsw28d_html', 'wxmsw28d_media', 'wxmsw28d_qa', 'wxmsw28d_richtext', 'wxmsw28d_xrc' ]
+#				pakLibs = [ 'wxbase28d_net_vc_custom', 'wxbase28d_odbc_vc_custom', 'wxbase28d_vc_custom', 'wxbase28d_xml_vc_custom',
+#							'wxmsw28d_adv_vc_custom', 'wxmsw28d_aui_vc_custom', 'wxmsw28d_core_vc_custom', #'wxmsw28d_gl_vc_custom',
+#							'wxmsw28d_html_vc_custom', 'wxmsw28d_media_vc_custom', 'wxmsw28d_qa_vc_custom', 'wxmsw28d_richtext_vc_custom',
+#							'wxmsw28d_xrc_vc_custom' ]
+#				return libs, pakLibs
+#		elif self.platform == 'posix' and version == '2-8-8' :
+#			# ignore self.config, always uses release version
+#			libs = [	'wx_gtk2u_richtext-2.8', 'wx_gtk2u_aui-2.8', 'wx_gtk2u_xrc-2.8', 'wx_gtk2u_qa-2.8',
+#						'wx_gtk2u_html-2.8', 'wx_gtk2u_adv-2.8', 'wx_gtk2u_core-2.8', 'wx_baseu_xml-2.8',
+#						'wx_baseu_net-2.8', 'wx_baseu-2.8'	]
+#			return libs, []
+#
+#and GL ?
+#===============================================================================
+#	elif self.myPlatform == 'darwin' :
+#		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#	else :
+#		if elt == 'wx2-8' :
+#			if self.myConfig == 'release' :
+#				env.ParseConfig('wx-config-gtk2-unicode-release-2.8 --cppflags --libs')
+#			else:
+#				env.ParseConfig('wx-config-gtk2-unicode-debug-2.8 --cppflags --libs')
+#		elif elt == 'wxgl2-8' :
+#			if self.myConfig == 'release' :
+#				env.ParseConfig('wx-config-gtk2-unicode-release-2.8 --gl-libs')
+#			else:
+#				env.ParseConfig('wx-config-gtk2-unicode-debug-2.8 --gl-libs')
+#		else :
+#			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#===============================================================================
+
+
+#class Use_wxWidgetsGL( IUse ):
+#	def getName( self ):
+#		return "wxgl"
+#
+#	def getVersions( self ):
+#		return ['2-8-8']
+#
+#	def getLIBS( self, version ):
+#		if self.platform == 'win' and version == '2-8-8' :
+#			if self.config == 'release' :
+#				libs = [ 'wxmsw28_gl' ]
+#				pakLibs = [ 'wxmsw28_gl_vc_custom' ]
+#				return libs, pakLibs
+#			else:
+#				libs = [ 'wxmsw28d_gl' ]
+#				pakLibs = [ 'wxmsw28d_gl_vc_custom' ]
+#				return libs, pakLibs
+#		else :
+#			return None
+
+
+#===============================================================================
+# #@todo Adds support to both ANSI and Unicode version of wx
+# #@todo Adds support static/dynamic and db stuff (see http://www.wxwidgets.org/wiki/index.php/MSVC_.NET_Setup_Guide)
+# def use_wxWidgets( self, lenv, elt ) :
+#	if	self.myPlatform == 'win' :
+#
+#		lenv.Append( CPPDEFINES = [ 'WXUSINGDLL', '__WIN95__' ] )
+#
+#		if self.myType == 'exec' and (not elt.startswith('wxgl')):
+#			lenv.Append( LINKFLAGS = '/SUBSYSTEM:WINDOWS' )
+#
+#		if elt == 'wx2-8' :
+#			if self.myConfig == 'release' :
+#				lenv.Append( LIBS = [	'wxbase28', 'wxbase28_net', 'wxbase28_xml', 'wxmsw28_adv', 'wxmsw28_aui', 'wxmsw28_core',
+#										'wxmsw28_html', 'wxmsw28_media', 'wxmsw28_qa', 'wxmsw28_richtext', 'wxmsw28_xrc'	] )
+#									# wxbase28_odbc, wxmsw28_dbgrid
+#			else :
+#				lenv.Append( LIBS = [	'wxbase28d', 'wxbase28d_net', 'wxbase28d_xml', 'wxmsw28d_adv', 'wxmsw28d_aui', 'wxmsw28d_core',
+#										'wxmsw28d_html', 'wxmsw28d_media', 'wxmsw28d_qa', 'wxmsw28d_richtext', 'wxmsw28d_xrc'	] )
+#									# wxbase28d_odbc, wxmsw28d_dbgrid
+#		elif elt == 'wxgl2-8' :
+#			if self.myConfig == 'release' :
+#				lenv.Append( LIBS = [	'wxmsw28_gl'	] )
+#			else :
+#				lenv.Append( LIBS = [	'wxmsw28d_gl'	] )
+#		else :
+#			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#	elif self.myPlatform == 'darwin' :
+#		raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#	else :
+#		if elt == 'wx2-8' :
+#			if self.myConfig == 'release' :
+#				env.ParseConfig('wx-config-gtk2-unicode-release-2.8 --cppflags --libs')
+#			else:
+#				env.ParseConfig('wx-config-gtk2-unicode-debug-2.8 --cppflags --libs')
+#		elif elt == 'wxgl2-8' :
+#			if self.myConfig == 'release' :
+#				env.ParseConfig('wx-config-gtk2-unicode-release-2.8 --gl-libs')
+#			else:
+#				env.ParseConfig('wx-config-gtk2-unicode-debug-2.8 --gl-libs')
+#		else :
+#			raise SCons.Errors.UserError("Uses=[\'%s\'] not supported on platform %s." % (elt, self.myPlatform) )
+#===============================================================================

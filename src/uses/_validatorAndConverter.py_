@@ -1,0 +1,27 @@
+###### Options : validators and converters ######
+#def usesValidator( key, val, env ) :
+#	# Splits the string val to obtain a list of values (the words are separated by arbitrary strings of whitespace characters)
+#	list_of_values = val.split()
+#
+#	invalid_values = [ value for value in list_of_values if value not in UseRepository.getAllowedValues() ] #OptionUses_allowedValues
+#	if len(invalid_values) > 0 :
+#		raise SCons.Errors.UserError("Invalid value(s) for option uses:%s" % invalid_values)
+
+
+#def usesConverter( val ) :
+#	list_of_values = convertToList( val )
+#
+#	result = []
+#
+#	alias = UseRepository.getAlias()							# @todo OPTME, a copy is done !!!
+#
+#	for value in list_of_values:
+#		value = value.lower()
+#		if value in alias:
+#			# Converts incoming value and appends to result
+#			result.append( alias[value] )
+#		else :
+#			# Appends to result
+#			result.append( value.lower() )
+#
+#	return result

@@ -56,6 +56,7 @@ def getQMakePlatform( CC, CCVersionNumber, arch ):
 			9	: 'win32-msvc2008',
 			10	: 'win32-msvc2010',
 			11	: 'win32-msvc2012',
+			12	: 'win32-msvc2013',
 			}
 		if CCVersionNumber in qmakeGenerator:
 			return qmakeGenerator[CCVersionNumber]

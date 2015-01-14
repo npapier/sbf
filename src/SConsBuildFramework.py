@@ -480,6 +480,10 @@ from sbfInfo import configureInfofileTarget, configureInfoTarget
 
 ###### Toolchains ######
 # @todo move into sbfToolchains.py
+def removeOption( env, key, option = '-c' ):
+	"""Remove first occurrence of ' option ' from env[key]"""
+	newValue = env[key].replace(' {} '.format(option), ' ', 1)
+	env[key] = newValue
 
 ### MSVC ###
 # export SCONS_MSCOMMON_DEBUG=ms.log
@@ -584,12 +588,13 @@ def configureMSVC(sbf, lenv):
 
 	# Compiler/linker command line flags
 	if sbf.myCCVersionNumber >= 11.000000:
-		if sbf.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
+		#if sbf.myConfig == 'release' and lenv['generateDebugInfoInRelease']:
 			# @remark add /d2Zi+ undocumented flags in Visual C++ (at least 2012) to improve debugging experience in release configuration (local variable, inline function...)
 			# see http://randomascii.wordpress.com/2013/09/11/debugging-optimized-codenew-in-visual-studio-2012/
-			lenv.Append( CXXFLAGS = ['/d2Zi+'] )
+			#lenv.Append( CXXFLAGS = ['/d2Zi+'] )
 		lenv.Append( LINKFLAGS = '/MANIFEST' )
 		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
+		if sbf.myCCVersionNumber >= 12.0: lenv.Append( CXXFLAGS = ['/FS'] )
 	elif sbf.myCCVersionNumber >= 10.000000 :
 		lenv.Append( LINKFLAGS = '/MANIFEST' )
 		lenv.Append( CXXFLAGS = ['/GS-', '/EHsc'] )
@@ -626,6 +631,7 @@ def configureMSVC(sbf, lenv):
 		lenv.Append( CXXFLAGS = ['/MD', '/O2'] )			# /O2 <=> /Og /Oi /Ot /Oy /Ob2 /Gs /GF /Gy
 		#lenv.Append( CXXFLAGS = ['/GL'] )
 		if lenv['generateDebugInfoInRelease']:
+			lenv.Append( CXXFLAGS = ['/Oy-'] ) # Disabled frame-pointer omission (help debugging)
 			lenv['CCPDBFLAGS'] = ['/Zi', '"/Fd${PDB}"']
 	else:
 		lenv.Append( CXXFLAGS = ['/D_DEBUG', '/DDEBUG'] )
@@ -695,7 +701,7 @@ def configureGCC(sbf, lenv):
 
 ### emcc ###
 def createEnvEMCC( sbf, tmpEnv, myTools ):
-	myTools += ['gcc', 'g++', 'ar', 'link']
+	myTools += ['mingw']
 
 	emscriptenSCons = getEmscriptenSCons()
 	if not emscriptenSCons or not exists(emscriptenSCons):
@@ -712,10 +718,23 @@ def createEnvEMCC( sbf, tmpEnv, myTools ):
 	# Previous line configure CC with EMSCRIPTEN_ROOT/emcc. The following lines reduces the length of the command lines
 	# by removing EMSCRIPTEN_ROOT (it is in PATH).
 	myEnv.Replace(CC     = 'emcc'    )
-	myEnv.Replace(CXX    = 'em++'    )
+	myEnv.Replace(CXX    = 'emcc'    )
 	myEnv.Replace(LINK   = 'emcc'    )
 	myEnv.Replace(AR     = 'emar'    )
-	myEnv.Replace(RANLIB = 'emranlib')
+	arcomWithoutSOURCES = myEnv['ARCOM'].replace('$SOURCES', '')
+	myEnv.Replace( ARCOM  = "{arcom} ${{TEMPFILE('$SOURCES')}}".format(arcom=arcomWithoutSOURCES) )
+	myEnv.Replace( RANLIB = 'emranlib')
+
+	removeOption( myEnv, 'CCCOM' )
+	removeOption( myEnv, 'CXXCOM' )
+	removeOption( myEnv, 'SHCCCOM' )
+	removeOption( myEnv, 'SHCXXCOM' )
+
+	if tmpEnv['printCmdLine'] == 'less':
+		myEnv.Replace(CXXCOMSTR		= "${SOURCE.file}")
+		myEnv.Replace(SHCXXCOMSTR	= "${SOURCE.file}")
+		myEnv.Replace(LINKCOMSTR	= "Linking ${TARGET.file}")
+		myEnv.Replace(ARCOMSTR		= "Archiving ${TARGET.file}")
 
 	# BEGIN	: FOR DEBUGGING
 	#myEnv['ENV']['EMCC_DEBUG'] = 1
@@ -732,6 +751,8 @@ def setupEMCC(sbf):
 	# Extracts version number of emscripten
 	# Step 1 : Extracts x.y.z
 	ccVersion = basename(getEmscriptenRoot())
+	if ccVersion == 'master':
+		ccVersion = '0.0.0'
 	# Step 2 : Extracts major and minor version
 	splittedCCVersion = ccVersion.split( '.', 2 )
 	if len(splittedCCVersion) !=  3:
@@ -740,29 +761,61 @@ def setupEMCC(sbf):
 	sbf.myCCVersionNumber = computeVersionNumber( splittedCCVersion[:2] )
 	# Constructs myCCVersion ( gccMajor-Minor )
 	sbf.myCCVersion = sbf.myEnv['CC'] + getVersionNumberString2( sbf.myCCVersionNumber )
+	sbf.myEnv['CCVERSION'] = sbf.myCCVersion
 
 def configureEMCC(sbf, lenv):
-	"""CPPDEFINES=__EMSCRIPTEN__"""
-	#lenv.Append( CPPDEFINES = ['EMSCRIPTEN'] )
+	"""	CPPDEFINES=__EMSCRIPTEN__ (defined by emcc)
+		For CXXFLAGS, see https://github.com/kripken/emscripten/blob/master/src/settings.js
+		"""
+	def emccAppend( lenv, value ):
+		"""	@brief Append to CXXFLAGS and LINKFLAGS the given value
+			@param value	value to add lenv.Append( CXXFLAGS/LINKFLAGS = value )"""
+		lenv.Append( CXXFLAGS = value )
+		lenv.Append( LINKFLAGS = value )
+
+	def emccAppendSettings( lenv, value ):
+		"""	@brief Append to CXXFLAGS and LINKFLAGS the given value
+			@param value	adds -s value (could be "DEMANGLE_SUPPORT=1")"""
+		lenv.Append( CXXFLAGS = ['-s', value] )
+		lenv.Append( LINKFLAGS = ['-s', value] )
+
+	#CCFLAGS
+	#CXXFLAGS, ARFLAGS, LINKFLAGS
+
+	lenv.Append( CXXFLAGS = ['-std=c++11'] )
+
+	emccAppendSettings( lenv, 'DEMANGLE_SUPPORT=1' )
+	emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
+
+	#lenv.Append( CXXFLAGS = ['-s', 'LINKABLE=1'] )
+	#lenv.Append( ARFLAGS = ['-s', 'LINKABLE=1'] )
+	#lenv.Append( LINKFLAGS = ['-s', 'LINKABLE=1'] )
+	#lenv.Append( SHLINKFLAGS = ['-s', 'LINKABLE=1'] )
+
 	if sbf.myConfig == 'release':
 # @todo -O3
-		lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O1'] )
-		lenv.Append( LINKFLAGS = ['-DNDEBUG', '-O1'] )
-# @todo
-		# disable because of --memory-init-file1
-		#lenv.Append( CXXFLAGS = ['-DNDEBUG', '-O2'] )
-		#lenv.Append( LINKFLAGS = ['-DNDEBUG', '-O2'] )
+		emccAppend( lenv, ['-DNDEBUG', '-O2'] )
+		emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=0')
 	else:
-		lenv.Append( CXXFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
-		lenv.Append( LINKFLAGS = ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
+		emccAppend( lenv, ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
+#ASSERTIONS=1
 
 	# process myWarningLevel, adds always -Wall option.
 	#lenv.Append( CXXFLAGS = '-Wall' )
 	lenv.Append( CXXFLAGS = '-Wno-warn-absolute-paths' )
 	lenv.Append( LINKFLAGS = '-Wno-warn-absolute-paths' )
 
+	lenv['OBJSUFFIX'] = lenv['SHOBJSUFFIX'] = '.o'
+	lenv['LIBSUFFIX'] = lenv['SHLIBSUFFIX'] = '.a'
 
+	# @todo -Wl,--start-group/-Wl,--end-group
 
+	#-s GL_ASSERTIONS=1 and -s GL_DEBUG=1 and -s LEGACY_GL_EMULATION=1
+	# @todo verbose mode -v
+
+	# lenv.Prepend( CXXFLAGS = '--bind' )
+	# lenv.Prepend( LINKFLAGS = '--bind' )
+	# lenv.Prepend( SHLINKFLAGS = '--bind' ) 
 
 ### call Object(), Program(), StaticLibrary(), SharedLibrary()... ###
 def setupBuildingRulesSConsDefault(sbf, lenv, objFiles, objProject, installInBinTarget):
@@ -833,13 +886,18 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 	lenv['sbf_src'] = filesFromSrc
 
 	bcFiles = []
-	if sbf.myType in ['exec', 'static', 'shared']:
+	if sbf.myType in ['exec', 'static']:
 		# Compiles source files
 		for srcFile in filesFromSrc:
-			bcFile = splitext(srcFile)[0].replace('src', sbf.myProjectBuildPathExpanded, 1 ) + '.bc'
+			bcFile = splitext(srcFile)[0].replace('src', sbf.myProjectBuildPathExpanded, 1 )
 			bcFiles.append( bcFile )
-			# Object is a synonym for the StaticObject builder method.
-			objFiles.append( lenv.Object(bcFile, join(sbf.myProjectPathName, srcFile)) )
+			objFiles.append( lenv.StaticObject(bcFile, join(sbf.myProjectPathName, srcFile)) )
+	elif sbf.myType == 'shared':
+		# Compiles source files
+		for srcFile in filesFromSrc:
+			bcFile = splitext(srcFile)[0].replace('src', sbf.myProjectBuildPathExpanded, 1 )
+			bcFiles.append( bcFile )
+			objFiles.append( lenv.SharedObject(bcFile, join(sbf.myProjectPathName, srcFile)) )
 	else:
 		assert( sbf.myType == 'none' )
 		projectTarget = None
@@ -853,23 +911,29 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 
 	#
 	if sbf.myType == 'exec':
-		# Creates executable (.js)
-		projectTarget = lenv.Program( objProject + '.js', bcFiles )
-		#projectTarget.append( File(objProject + '.js.mem') )
-		#lenv.SideEffect( objProject + '.js.mem', projectTarget )
 		# Creates executable (.html)
-		projectTarget.extend( lenv.Program( objProject + '.html', bcFiles ) )
-		#projectTarget.append( File(objProject + '.html.mem') )
-		#lenv.SideEffect( objProject + '.html.mem', projectTarget )
+		projectTarget = lenv.Program( objProject + '.html', bcFiles )
+		if sbf.myConfig == 'release':
+			projectTarget.append( File(objProject + '.html.mem') )
+			#lenv.SideEffect( objProject + '.html.mem', projectTarget )
+
+		# Creates executable (.js)
+		projectTarget.extend( lenv.Program( objProject + '.js', bcFiles ) )
+		if sbf.myConfig == 'release':
+			projectTarget.append( File(objProject + '.js.mem') )
+			#lenv.SideEffect( objProject + '.js.mem', projectTarget )
 
 		# @todo --preload-file
 		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
 		if shareDir:
 			lenv.Append(LINKFLAGS = '--embed-file {}@/share'.format(shareDir))
 			#projectTarget.append( File(objProject + '.data') )
-	elif sbf.myType in ['static', 'shared']:
+	elif sbf.myType == 'static':
 		# Appending all generated bytecodes
-		projectTarget = lenv.StaticLibrary( objProject + '.a', bcFiles )
+		projectTarget = lenv.StaticLibrary( objProject, bcFiles )
+	elif sbf.myType == 'shared':
+		# Appending all generated bytecodes
+		projectTarget = lenv.StaticLibrary( objProject, bcFiles )
 
 	if projectTarget:
 		# Installation part
@@ -878,6 +942,9 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 	return projectTarget
 
 ### toolchains registry ###
+# clang status http://clang.llvm.org/cxx_status.html
+# by default, at least C++98, C++ exceptions and C++ RTTI
+# C++11 (see http://clang.llvm.org/docs/LanguageExtensions.html#cxx11)
 #def createEnvForToolchain( sbf, tmpEnv, myTools ):
 #	return Environment()
 
@@ -1032,6 +1099,7 @@ class SConsBuildFramework :
 	myDefines						= []
 	myType							= ''
 	myVersion						= ''
+	myProjectPostfix				= ''
 	myPostfix						= ''
 	myDeps							= []
 	myUses							= []
@@ -1123,13 +1191,17 @@ class SConsBuildFramework :
 			self.myEnv['PRINT_CMD_LINE_FUNC'] = sbfPrintCmdLine
 			if self.myEnv['PLATFORM'] == 'win32' :
 				# cl prints always source filename. The following line (and 'PRINT_CMD_LINE_FUNC'), gets around this problem to avoid duplicate output.
-				self.myEnv['CXXCOMSTR']		= 'sbfNull'
-				self.myEnv['SHCXXCOMSTR']	= 'sbfNull'
+				if self.myCC == 'cl':
+					self.myEnv['CXXCOMSTR']		= 'sbfNull'
+					self.myEnv['SHCXXCOMSTR']	= 'sbfNull'
 
-				self.myEnv['RCCOMSTR'] = 'Compiling resource ${SOURCE.file}'
-			else:
-				self.myEnv['CXXCOMSTR']		= "$SOURCE.file"
-				self.myEnv['SHCXXCOMSTR']	= "$SOURCE.file"
+					self.myEnv['RCCOMSTR'] = 'Compiling resource ${SOURCE.file}'
+#				else:
+#					self.myEnv['CXXCOMSTR']		= '${SOURCE.file}'
+#					self.myEnv['SHCXXCOMSTR']	= 'sbfNull'
+#			else:
+#				self.myEnv['CXXCOMSTR']		= "${SOURCE.file}"
+#				self.myEnv['SHCXXCOMSTR']	= "${SOURCE.file}"
 
 			self.myEnv['INSTALLSTR'] = "Installing ${SOURCE.file}"
 
@@ -1581,7 +1653,8 @@ SConsBuildFramework options:
 
 		#
 		self.createEnvForToolchain()
-		#print self.myEnv.Dump() Exit()
+		#print self.myEnv.Dump()
+		#Exit()
 
 		self.updateEnvFromCommandLineOptions( self.myEnv )
 
@@ -1628,15 +1701,16 @@ SConsBuildFramework options:
 	def initializeProjectFromEnv( self, lenv ):
 		"""Initialize project from lenv"""
 
-		self.myVcsUse	= lenv['vcsUse']
-		self.myDefines	= lenv['defines']
-		self.myType		= lenv['type']
-		self.myVersion	= lenv['version']
-		self.myPostfix	= lenv['postfix']
-		self.myDeps		= lenv['deps']
-		self.myUses		= lenv['uses']
-		self.myLibs		= lenv['libs']
-		self.myStdlibs	= lenv['stdlibs']
+		self.myVcsUse			= lenv['vcsUse']
+		self.myDefines			= lenv['defines']
+		self.myType				= lenv['type']
+		self.myVersion			= lenv['version']
+		self.myProjectPostfix	= lenv['projectPostfix']
+		self.myPostfix			= lenv['postfix']
+		self.myDeps				= lenv['deps']
+		self.myUses				= lenv['uses']
+		self.myLibs				= lenv['libs']
+		self.myStdlibs			= lenv['stdlibs']
 
 
 	###### Initialize project ######
@@ -1696,7 +1770,7 @@ SConsBuildFramework options:
 		lenv.Prepend( CPPPATH = os.path.join(self.myProjectPathName, 'include') )
 
 		### expands myProjectBuildPathExpanded
-		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject, self.myVersion, '{}_{}_{}'.format(self.myPlatform, self.myArch, self.myCCVersion), self.myConfig )
+		self.myProjectBuildPathExpanded = join( self.myProjectBuildPath, self.myProject + self.myProjectPostfix, self.myVersion, '{}_{}_{}'.format(self.myPlatform, self.myArch, self.myCCVersion), self.myConfig )
 		if len(self.myPostfix) > 0:
 			self.myProjectBuildPathExpanded += '_' + self.myPostfix
 
@@ -1755,7 +1829,7 @@ SConsBuildFramework options:
 							'x86-32',
 							allowed_values = ( 'x86-32', 'x86-64' ) ),
 # @todo stages=[test, nsis, dox...] ?
-			('stages', 'The list of stages that have to be execute during a build. Allowed values are defaultCC (replace be cl on win platform and gcc for posix platform), cl, gcc, emscripten and swig', ['defaultCC', 'swig']),
+			('stages', 'The list of stages that have to be execute during a build. Allowed values are defaultCC (replace be cl on win platform and gcc for posix platform), cl, gcc, emcc and swig', ['defaultCC', 'swig']),
 			EnumVariable(	'clVersion', 'MS Visual C++ compiler (cl.exe) version using the following version schema : x.y or year. Use the special value \'highest\' to select the highest installed version.',
 							'highest',
 							allowed_values = ( '7.1', '8.0Exp', '8.0', '9.0Exp', '9.0', '10.0Exp', '10.0', '11.0Exp', '11.0', '12.0Exp', '12.0', 'highest' ),
@@ -1826,6 +1900,7 @@ SConsBuildFramework options:
 								map={}, ignorecase=1 ),
 
 				('version', "Sets the project version. The following version schemas must be used : major-minor-[postfix] or major-minor-maintenance[-postfix]. For example '1-0', '1-0-RC1', '1-0-1' or '0-99-technoPreview'", '0-0'),
+				('projectPostfix', "Adds a postfix to the project name (for project named 'glo' and projectPostfix='ES2', the target filename would be gloES2_0-3_win_cl12-0.dll)", ''),
 				('postfix', 'Adds a postfix to the target name.', ''),
 				BoolVariable('generateInfoFile', 'Sets to true enabled the generation of info.sbf file, false to disable it.', False ),
 
@@ -1897,6 +1972,7 @@ SConsBuildFramework options:
 					('defines'		, ''),
 					('type'			, 'none'),
 					('version'		, '0-0'),
+					('projectPostfix', ''),
 					('postfix'		, ''),
 					('generateInfoFile'	, False),
 					('uses'			, []),
@@ -2006,6 +2082,8 @@ SConsBuildFramework options:
 #						("MODULE_MAINT_VER",	"%s" % lenv['sbf_version_maintenance'] ),
 #						("MODULE_POSTFIX_VER",	"%s" % lenv['sbf_version_postfix'] ),
 						 ] )
+		if lenv['projectPostfix']:
+			lenv.Append( CPPDEFINES = ("MODULE_POSTFIX",	"\\\"%s\\\"" % lenv['projectPostfix'] ) )
 
 		if skipDefinesInCXXFLAGS:
 			return
@@ -2429,7 +2507,7 @@ SConsBuildFramework options:
 
 		filesFromInclude = self.getFiles( 'include', lenv )
 
-		objProject = join( self.myProjectBuildPathExpanded, self.myProject ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
+		objProject = join( self.myProjectBuildPathExpanded, self.myProject + self.myProjectPostfix ) + '_' + self.myVersion + self.my_Platform_myCCVersion + self.my_FullPostfix
 
 		# Qt: moc stage
 		if 'qt' in lenv['uses']:	moc(lenv, getFilesForMoc(filesFromInclude), objFiles)
@@ -2443,6 +2521,7 @@ SConsBuildFramework options:
 		aliasProjectTestBuild = None
 		filesFromTestShare = []
 
+		#if False:
 		if self.haveToBuildTest and os.path.exists('test'):
 			# Add implicit uses for gtest (for all test related targets and pakUpdate)
 			if 'gtest' not in self.myImplicitUsesSet:
@@ -2482,7 +2561,7 @@ SConsBuildFramework options:
 				Exit(1)
 
 			# Compiles test source files
-			baseFilename = '{projectName}_{version}{_platform_ccVersion}{_fullPostfix}'.format(projectName=testEnv['sbf_project'], version=self.myVersion, _platform_ccVersion=self.my_Platform_myCCVersion, _fullPostfix=self.my_FullPostfix )
+			baseFilename = '{projectName}_{version}{_platform_ccVersion}{_fullPostfix}'.format(projectName=testEnv['sbf_project'] + testEnv['projectPostfix'], version=self.myVersion, _platform_ccVersion=self.my_Platform_myCCVersion, _fullPostfix=self.my_FullPostfix )
 			pathFilenameProgram = '{outdir}{sep}{filename}'.format( outdir = testVarDir, sep=os.sep, filename=baseFilename )
 
 			# target projectTest_build

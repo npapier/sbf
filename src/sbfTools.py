@@ -15,6 +15,7 @@ except ImportError as e:
 import logging
 import os, sys
 from os.path import exists, dirname, join
+from sbfPaths import Paths
 from sbfFiles import getNormalizedPathname
 
 isPyWin32Available = False
@@ -235,3 +236,9 @@ def appendToPATH( env, newPaths, enableLogging = True ):
 	for path in reversed(newPaths):
 		if enableLogging: print ('Appends {} to sbf private PATH'.format(path))
 		env.AppendENVPath( 'PATH', path )
+
+def removeFromPATH( env, pathsToRemove, enableLogging = True ):
+	"""env['ENV']['PATH'] = env['ENV']['PATH'] - pathsToRemove"""
+	paths = Paths(env['ENV']['PATH'])
+	paths.removeList( pathsToRemove )
+	env['ENV']['PATH'] = paths.getString()

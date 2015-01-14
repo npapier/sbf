@@ -5,6 +5,7 @@
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
 #version			= '0-0'
+#projectPostfix		= ''
 #postfix			= ''
 #generateInfoFile	= False
 #deps				= []
