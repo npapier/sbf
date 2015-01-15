@@ -2,6 +2,7 @@
 #description		= ''
 #productName		= ''
 #vcsUse				= 'yes' # no
+#embindStage		= False
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
 #version			= '0-0'
