@@ -27,6 +27,7 @@ namespace pkg
 
 struct Package;
 
+// @todo add sbfDeprecated() see vgDeprecated() NB: note here => sbf/deprecated.hpp
 
 /**
  * @brief	Allows to manage dynamically loadable modules.

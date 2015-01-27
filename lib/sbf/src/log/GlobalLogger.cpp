@@ -19,6 +19,11 @@ namespace log
 
 ILogging& GlobalLogger::get()
 {
+	if ( !m_globalLogger )
+	{
+		m_globalLogger.reset( new Logging() );
+	}
+
 	return ( *m_globalLogger );
 }
 
@@ -43,7 +48,7 @@ void GlobalLogger::setAssertEnabled( const bool enabled )
 }
 
 
-boost::shared_ptr< ILogging >	GlobalLogger::m_globalLogger( new Logging() );
+boost::shared_ptr< ILogging >	GlobalLogger::m_globalLogger;
 
 bool							GlobalLogger::m_assertEnabled( true );
 

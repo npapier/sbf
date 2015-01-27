@@ -12,6 +12,8 @@ defines				= [	('SBF_PLATFORM',					SConsEnvironment.sbf.myPlatform),
 						('SBF_PLATFORM_CC_VERSION',			SConsEnvironment.sbf.my_Platform_myCCVersion)
 						]
 
-platform = SConsEnvironment.sbf.myPlatform
-if platform == 'win':
-	stdlibs = ['Dbghelp.lib']
+cc = SConsEnvironment.sbf.myCC
+
+if cc == 'cl':
+	stdlibs = [	'kernel32.lib' ] # CaptureStackBackTrace 
+				#'Dbghelp.lib']	# MiniDumpWriteDump

@@ -1,4 +1,4 @@
-// SConsBuildFramework - Copyright (C) 2011, 2012, Nicolas Papier.
+// SConsBuildFramework - Copyright (C) 2011, 2012, 2014, Nicolas Papier.
 // Distributed under the terms of the GNU Library General Public License (LGPL)
 // as published by the Free Software Foundation.
 // Author Nicolas Papier
@@ -32,6 +32,13 @@ enum CoreType
  * @param dumpDirectory	a path to a directory where the dump files will be generated (empty by default)
  */
 SBF_API void installToplevelExceptionHandler( const CoreType coreType = CoreNormal, const boost::filesystem::path & dumpDirectory = boost::filesystem::path() );
+
+
+
+/**
+ * @brief Prints the stack trace to standard error stream.
+ */
+SBF_API void printStackTrace();
 
 } // namespace sbf
 

@@ -11,7 +11,9 @@
 #include <intrin.h>
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__EMSCRIPTEN__)
+	// cpuid not supported
+#elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
 #endif
 
@@ -42,6 +44,8 @@ void getCPUID( const CPUIDFunction func, unsigned int&a, unsigned int &b, unsign
 	b = static_cast<unsigned int>(info[1]);
 	c = static_cast<unsigned int>(info[2]);
 	d = static_cast<unsigned int>(info[3]);
+#elif defined(__EMSCRIPTEN__)
+	a = b = c = d = 0;
 #elif defined(__GNUC__) || defined(__clang__)
 	__get_cpuid(func, &a, &b, &c, &d);
 #else

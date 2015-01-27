@@ -20,8 +20,10 @@ void * malloc_aligned( const size_t size, const size_t alignment )
 #elif __MACOSX__
 	// alignment is always 16
 	return malloc(size);
-#else // POSIX
+#elif POSIX
 	return memalign(alignment, size);
+#else
+	#warning "Not yet implemented"
 //#else // other (use valloc for page-aligned memory)
 //	return valloc(size);
 #endif
@@ -34,8 +36,10 @@ void free_aligned( void * memblock )
 	_aligned_free( memblock );
 #elif __MACOSX__
 	free(memblock);
-#else // POSIX
+#elif POSIX
 	free(memblock);
+#else
+	#warning "Not yet implemented"
 //#else // other (use valloc for page-aligned memory)
 	// valloc(size);
 #endif

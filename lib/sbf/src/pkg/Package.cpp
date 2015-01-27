@@ -32,6 +32,7 @@ namespace
 /**
  * @brief	Retrieves the root path of the main package.
  */
+// @todo remove the following and use sbf/operations/getRootPath()
 const boost::filesystem::path getRoot()
 {
 #if defined(WIN32)
