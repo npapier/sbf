@@ -789,6 +789,10 @@ def configureEMCC(sbf, lenv):
 	emccAppendSettings( lenv, 'DEMANGLE_SUPPORT=1' )
 	emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
 
+#	defaultTotalMemory = 1024 * 1024 * 16		# 16 MB
+#	defaultTotalMemory *= 2						# 32 MB
+#	emccAppendSettings( lenv, 'TOTAL_MEMORY={}'.format(defaultTotalMemory) )
+
 	#emccAppendSettings( lenv, 'LINKABLE=1' )
 	#lenv.Append( CXXFLAGS = ['-s', 'LINKABLE=1'] )
 	#lenv.Append( ARFLAGS = ['-s', 'LINKABLE=1'] )
@@ -917,6 +921,10 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 		if lenv['config'] == 'release':
 			# @todo with -O2, the js file seems to be not usable.
 			emccAppend( embindEnv, ['-O1'] )
+
+	for (setting, value) in lenv['emccSettings'].iteritems():
+		if lenv.GetOption('verbosity'):	print ('Adding emcc settings {}={}'.format(setting, value))
+		emccAppendSettings(lenv, '{}={}'.format(setting, value))
 
 	# build each files
 	bcFiles = []
@@ -1932,6 +1940,9 @@ SConsBuildFramework options:
 				BoolVariable(	'embindStage',
 								"True to enable the generation of javascript binding from EMSCRIPTEN_BINDINGS(). See documentation of embind in emscripten site.",
 								False ),
+				(	'emccSettings',
+					"A python dictionnary containing emscripten settings to append to CXXFLAGS and LINKFLAGS. An item of the dictionnary contains (key=name of settings, value=value of settings). For example ('TOTAL_MEMORY', 1024 * 1024 * 16) to add -s TOTAL_MEMORY=16777216.",
+					{} ),
 				('defines', 'The list of preprocessor definitions given to the compiler at each invocation (same effect as #define xxx).', ''),
 				EnumVariable(	'type', "Specifies the project/target type. 'exec' for executable projects, 'static' for static library projects, 'shared' for dynamic library projects, 'none' for meta or headers only projects.",
 								'none',
@@ -2009,6 +2020,7 @@ SConsBuildFramework options:
 					('description'	, ''),
 					('productName'	, ''),
 					('embindStage'	, ''),
+					('emccSettings'	, ''),
 					('defines'		, ''),
 					('type'			, 'none'),
 					('version'		, '0-0'),

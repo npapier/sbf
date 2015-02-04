@@ -3,6 +3,7 @@
 #productName		= ''
 #vcsUse				= 'yes' # no
 #embindStage		= False
+#emccSettings		= {}		{ 'TOTAL_MEMORY' : 1024 * 1024 * 16 * 2 } # 32MB
 #defines			= []
 type				= 'shared'	# exec, static, shared, none
 #version			= '0-0'
