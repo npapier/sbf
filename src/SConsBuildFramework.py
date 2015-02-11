@@ -815,7 +815,7 @@ def configureEMCC(sbf, lenv):
 	lenv['OBJSUFFIX'] = lenv['SHOBJSUFFIX'] = '.o'
 	lenv['LIBSUFFIX'] = lenv['SHLIBSUFFIX'] = '.a'
 
-	# @todo -Wl,--start-group/-Wl,--end-group
+	lenv['_LIBFLAGS'] = ' -Wl,--start-group {} -Wl,--end-group '.format( lenv['_LIBFLAGS'] )
 
 	#-s GL_ASSERTIONS=1 and -s GL_DEBUG=1 and -s LEGACY_GL_EMULATION=1
 	# @todo verbose mode -v
@@ -957,13 +957,13 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 		projectTarget = lenv.Program( objProject + '.html', bcFiles )
 		if sbf.myConfig == 'release':
 			projectTarget.append( File(objProject + '.html.mem') )
-			#lenv.SideEffect( objProject + '.html.mem', projectTarget )
+			lenv.SideEffect( objProject + '.html.mem', projectTarget )
 
 		# Creates executable (.js)
 		projectTarget.extend( lenv.Program( objProject + '.js', bcFiles ) )
 		if sbf.myConfig == 'release':
 			projectTarget.append( File(objProject + '.js.mem') )
-			#lenv.SideEffect( objProject + '.js.mem', projectTarget )
+			lenv.SideEffect( objProject + '.js.mem', projectTarget )
 
 		# @todo --preload-file
 		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
