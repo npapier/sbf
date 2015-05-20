@@ -787,21 +787,27 @@ def configureEMCC(sbf, lenv):
 	lenv.Append( CXXFLAGS = ['-std=c++11'] )
 
 	emccAppendSettings( lenv, 'DEMANGLE_SUPPORT=1' )
-	emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
+
+	#emccAppendSettings( lenv, 'EMTERPRETIFY=1' )
+	#emccAppendSettings( lenv, 'EMTERPRETIFY_ASYNC=1' )
+
+	#emccAppendSettings( lenv, 'EMTERPRETIFY_WHITELIST=[\\"_readFromSocket\\"]' )
+	#emccAppendSettings( lenv, 'EMTERPRETIFY_ADVISE=1' )
+
+	emccAppendSettings( lenv, 'ALLOW_MEMORY_GROWTH=1' )
+
+	#emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
+
+	emccAppendSettings( lenv, 'EXPORT_ALL=1' )
+	emccAppendSettings( lenv, 'LINKABLE=1' )
 
 #	defaultTotalMemory = 1024 * 1024 * 16		# 16 MB
 #	defaultTotalMemory *= 2						# 32 MB
 #	emccAppendSettings( lenv, 'TOTAL_MEMORY={}'.format(defaultTotalMemory) )
 
-	#emccAppendSettings( lenv, 'LINKABLE=1' )
-	#lenv.Append( CXXFLAGS = ['-s', 'LINKABLE=1'] )
-	#lenv.Append( ARFLAGS = ['-s', 'LINKABLE=1'] )
-	#lenv.Append( LINKFLAGS = ['-s', 'LINKABLE=1'] )
-	#lenv.Append( SHLINKFLAGS = ['-s', 'LINKABLE=1'] )
 
 	if sbf.myConfig == 'release':
-# @todo -O3
-		emccAppend( lenv, ['-DNDEBUG', '-O2'] )
+		emccAppend( lenv, ['-DNDEBUG', '-O3'] )
 		emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=0')
 	else:
 		emccAppend( lenv, ['-D_DEBUG', '-DDEBUG', '-g', '-O0'] )
@@ -816,6 +822,7 @@ def configureEMCC(sbf, lenv):
 	lenv['LIBSUFFIX'] = lenv['SHLIBSUFFIX'] = '.a'
 
 	lenv['_LIBFLAGS'] = ' -Wl,--start-group {} -Wl,--end-group '.format( lenv['_LIBFLAGS'] )
+
 
 	#-s GL_ASSERTIONS=1 and -s GL_DEBUG=1 and -s LEGACY_GL_EMULATION=1
 	# @todo verbose mode -v
@@ -955,15 +962,15 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 	if sbf.myType == 'exec':
 		# Creates executable (.html)
 		projectTarget = lenv.Program( objProject + '.html', bcFiles )
-		if sbf.myConfig == 'release':
-			projectTarget.append( File(objProject + '.html.mem') )
-			lenv.SideEffect( objProject + '.html.mem', projectTarget )
+		#if sbf.myConfig == 'release':
+		#	lenv.SideEffect( objProject + '.html.mem', projectTarget )
+		#	projectTarget.append( File(objProject + '.html.mem') )
 
 		# Creates executable (.js)
 		projectTarget.extend( lenv.Program( objProject + '.js', bcFiles ) )
 		if sbf.myConfig == 'release':
-			projectTarget.append( File(objProject + '.js.mem') )
 			lenv.SideEffect( objProject + '.js.mem', projectTarget )
+			projectTarget.append( File(objProject + '.js.mem') )
 
 		# @todo --preload-file
 		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
@@ -2573,7 +2580,7 @@ SConsBuildFramework options:
 		aliasProjectTestBuild = None
 		filesFromTestShare = []
 
-		#if False:
+		#if False:		# @todo remove this hack for emscripten
 		if self.haveToBuildTest and os.path.exists('test'):
 			# Add implicit uses for gtest (for all test related targets and pakUpdate)
 			if 'gtest' not in self.myImplicitUsesSet:
