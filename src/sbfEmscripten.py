@@ -1,4 +1,4 @@
-# SConsBuildFramework - Copyright (C) 2014, Nicolas Papier.
+# SConsBuildFramework - Copyright (C) 2014, 2015, Nicolas Papier.
 # Distributed under the terms of the GNU General Public License (GPL)
 # as published by the Free Software Foundation.
 # Author Nicolas Papier
@@ -12,8 +12,7 @@ from sbfUtils import download, extractFilenameFromUrl
 
 
 def getEmscriptenUrl():
-	return 'https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-1.25.0-portable-64bit.zip'
-
+	return 'https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-1.30.0-portable-64bit.zip'
 
 # Configuration file related functions
 def getEmscriptenConfigurationPathFilename():
