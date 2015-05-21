@@ -960,17 +960,18 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 
 	# Generate executable (html and js) or library (static or shared)
 	if sbf.myType == 'exec':
+		# Creates executable (.js)
+		projectTarget = lenv.Program( objProject + '.js', bcFiles )
+		if sbf.myConfig == 'release':
+			lenv.SideEffect( objProject + '.js.mem', objProject + '.js')
+			projectTarget.append( File(objProject + '.js.mem') )
+
 		# Creates executable (.html)
-		projectTarget = lenv.Program( objProject + '.html', bcFiles )
+		projectTarget.extend( lenv.Program( objProject + '.html', bcFiles ) )
 		#if sbf.myConfig == 'release':
 		#	lenv.SideEffect( objProject + '.html.mem', projectTarget )
 		#	projectTarget.append( File(objProject + '.html.mem') )
 
-		# Creates executable (.js)
-		projectTarget.extend( lenv.Program( objProject + '.js', bcFiles ) )
-		if sbf.myConfig == 'release':
-			lenv.SideEffect( objProject + '.js.mem', projectTarget )
-			projectTarget.append( File(objProject + '.js.mem') )
 
 		# @todo --preload-file
 		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
