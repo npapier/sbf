@@ -1,0 +1,1 @@
+sbf, a shortcut for SConsBuildFrameWork, is a build system construct using SCons for C++. It manages the development toolchains from source control management, to the build tools, to the testing stage, the documentation generation, the publishing and to the deployment stack.
