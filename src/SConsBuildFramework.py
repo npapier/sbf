@@ -798,6 +798,8 @@ def configureEMCC(sbf, lenv):
 
 	#emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
 
+	#emccAppendSettings( lenv, 'INLINING_LIMIT=1' )
+
 	emccAppendSettings( lenv, 'EXPORT_ALL=1' )
 	emccAppendSettings( lenv, 'LINKABLE=1' )
 
@@ -968,9 +970,9 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 
 		# Creates executable (.html)
 		projectTarget.extend( lenv.Program( objProject + '.html', bcFiles ) )
-		#if sbf.myConfig == 'release':
-		#	lenv.SideEffect( objProject + '.html.mem', projectTarget )
-		#	projectTarget.append( File(objProject + '.html.mem') )
+		if sbf.myConfig == 'release':
+			lenv.SideEffect( objProject + '.html.mem', objProject + '.html' )
+			projectTarget.append( File(objProject + '.html.mem') )
 
 
 		# @todo --preload-file
