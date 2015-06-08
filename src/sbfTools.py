@@ -85,7 +85,7 @@ def locateProgramUsingRegistry( programName ):
 	currentSvnVersion = winGetInstallPath(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\CollabNet\Subversion\Client Version')
 	cygwin = [r'SOFTWARE\Cygwin\setup\rootDir', r'SOFTWARE\Cygnus Solutions\Cygwin\mounts v2\/\native']
 	myMap = {
-		'cmake'			: [r'SOFTWARE\Kitware\CMake {}\\'.format(version) for version in ['2.8.11.2']],
+		'cmake'			: [r'SOFTWARE\Kitware\CMake {}\\'.format(version) for version in ['3.2.2', '2.8.11.2']],
 		'cygwin'		: cygwin,
 		'cygpath'		: cygwin,
 		'doxygen'		: [r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\doxygen_is1\InstallLocation' ],
