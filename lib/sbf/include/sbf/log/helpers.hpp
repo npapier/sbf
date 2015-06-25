@@ -37,5 +37,10 @@
 #define sbfAssertN( expression, message, ... )	sbf::log::get().logAssert( (expression), (message), (#expression), __FILE__, __LINE__, __VA_ARGS__ )
 
 
+// Prevent compiler warnings about 'unused variables'.
+// This should be used when a parameter name is needed (e.g. for documentation purposes)
+// even if it is not used in the code.
+#define SBF_UNUSED(x) (void)(x)
+
 
 #endif //#ifndef _SBF_HELPERS_HPP

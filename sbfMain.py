@@ -357,17 +357,15 @@ if 'updateemscripten' in buildTargetsSet:
 	if not isEmscriptenInstalled():
 		installEmscripten(sbf)
 
-	#env['ENV'] = os.environ
-	configureEmscripten( env, env.GetOption('verbosity'), True )
+	# useful for building emscripten from sources
+	env['ENV'] = os.environ
 
 	# Add cmake to path
-	#location = locateProgram( 'cmake' )
-	#if location:
-	#	appendToPATH(env, [location], env.GetOption('verbosity'))
+	location = locateProgram( 'cmake' )
+	if location:
+		appendToPATH(env, [location], env.GetOption('verbosity'))
 
-	#env.Tool('msvc')
-	#env.Tool('mslib')
-	#env.Tool('mslink')
+	configureEmscripten( env, env.GetOption('verbosity'), True )
 
 	#
 	print
@@ -383,7 +381,7 @@ if 'updateemscripten' in buildTargetsSet:
 	# install/activate latest seems to fail in our case @todo FIXME (see On Windows there is currently a bug with the git package preventing the use of sdk-incoming-64bit.
 	#tools = ['spidermonkey-30.0.0-64bit']#['', 'node-0.10.17-64bit', 'python-2.7.5.3-64bit', 'spidermonkey-30.0.0-64bit', 'git-1.9.4', 'emscripten-1.25.0', 'crunch-1.03', 'sdk-1.25.0-64bit']
 	tools = ['git-1.9.4', 'node-0.12.2-64bit', 'python-2.7.5.3-64bit', 'spidermonkey-30.0.0-64bit', 'crunch-1.03', 'java-7.45-64bit']
-	#tools += ['sdk-master-64bit', 'clang-master-64bit', 'emscripten-master']
+	#tools += ['sdk-master-64bit', 'clang-master-64bit', 'emscripten-master-64bit']
 	tools += ['sdk-1.30.0-64bit', 'clang-e1.30.0-64bit', 'emscripten-1.30.0']
 	tools += ['mingw-4.6.2-32bit']
 	for tool in tools:

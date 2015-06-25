@@ -800,20 +800,25 @@ def configureEMCC(sbf, lenv):
 	#	emccAppendSettings( lenv, 'TOTAL_MEMORY={}'.format(defaultTotalMemory) )
 
 	#emccAppendSettings( lenv, 'INLINING_LIMIT=1' )
-
 	#emccAppendSettings( lenv, 'ERROR_ON_UNDEFINED_SYMBOLS=1' )
 
 	if sbf.myConfig == 'release':
 		#To re-enable exceptions in optimized code, run emcc with -s DISABLE_EXCEPTION_CATCHING=0
-		emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=0')
-		#emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=1')
+		#emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=0')
+		emccAppendSettings(lenv, 'DISABLE_EXCEPTION_CATCHING=1')
+		emccAppendSettings( lenv, 'ASSERTIONS=0' )
+		#emccAppendSettings( lenv, 'ASSERTIONS=1' )
+		#emccAppendSettings( lenv, 'ASSERTIONS=2' )
 		emccAppend( lenv, ['-DNDEBUG', '-O3'] )
 
+		#emccAppend( lenv, ['--closure', '1'] )
+		#emccAppendSettings( lenv, 'MODULARIZE=1' )
+		#emccAppend( lenv, ['-DNDEBUG', '-Oz', '--llvm-lto', '1'] )
 		#emccAppendSettings(lenv, 'OUTLINING_LIMIT=20000')
 		#emccAppendSettings(lenv, 'INLINING_LIMIT=1')
 		#emccAppend( lenv, '--llvm-lto 1' )
 	else:
-		emccAppend( lenv, 'ASSERTIONS=1' )
+		emccAppendSettings( lenv, 'ASSERTIONS=1' )
 		emccAppend( lenv, ['-D_DEBUG', '-DDEBUG', '-g', '-O2', '--profiling-funcs'] )
 
 	# process myWarningLevel, adds always -Wall option.
@@ -963,17 +968,15 @@ def setupBuildingRulesEmscripten(sbf, lenv, objFiles, objProject, installInBinTa
 
 	# Generate executable (html and js) or library (static or shared)
 	if sbf.myType == 'exec':
-		# Creates executable (.js)
+		# Creates executable (.html, .js and .mem)
 		emccAppendSettings( lenv, 'LINKABLE=0' )
-		projectTarget = lenv.Program( objProject + '.js', bcFiles )
-		lenv.SideEffect( objProject + '.js.mem', objProject + '.js')
-		projectTarget.append( File(objProject + '.js.mem') )
-
-		# Creates executable (.html)
-		projectTarget.extend( lenv.Program( objProject + '.html', bcFiles ) )
+		projectTarget = lenv.Program( objProject + '.html', bcFiles )
+		#	memory file
 		lenv.SideEffect( objProject + '.html.mem', objProject + '.html' )
 		projectTarget.append( File(objProject + '.html.mem') )
-
+		#	javascript
+		lenv.SideEffect( objProject + '.js', objProject + '.html' )
+		projectTarget.append( File(objProject + '.js') )
 
 		# @todo --preload-file
 		#lenv.Append(LINKFLAGS = '--preload-file {}@/'.format(objProject + '.html.mem'))
